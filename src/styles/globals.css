@@ -1,0 +1,349 @@
+/* ═══════════════════════════════════════════════
+   ZEGA AI — Global Animations & Interactive Styles
+   ═══════════════════════════════════════════════ */
+
+/* ── Orbit Animation ─────────────────────────── */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit-radius, 50%)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit-radius, 50%)) rotate(-360deg); }
+}
+@keyframes orbit-reverse {
+  from { transform: rotate(360deg) translateX(var(--orbit-radius, 50%)) rotate(-360deg); }
+  to   { transform: rotate(0deg) translateX(var(--orbit-radius, 50%)) rotate(0deg); }
+}
+@keyframes orbit-ring-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orbit-ring-spin-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+/* ── Border Beam Rotating Line ────────────────── */
+@keyframes spin-beam {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Float ───────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%      { transform: translateY(-12px) scale(1.02); }
+}
+
+/* ── Pulse Glow ──────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(155,39,212,0.15); }
+  50%      { box-shadow: 0 0 20px 4px rgba(155,39,212,0.25); }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ── Shimmer ─────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ── Scroll Reveal ───────────────────────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Gradient Shift (CTA) ────────────────────── */
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Particle drift ──────────────────────────── */
+@keyframes particle-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  25%      { transform: translate(10px, -20px) scale(1.1); opacity: 0.6; }
+  50%      { transform: translate(-5px, -35px) scale(0.9); opacity: 0.4; }
+  75%      { transform: translate(15px, -15px) scale(1.05); opacity: 0.5; }
+}
+
+/* ── Badge entrance ──────────────────────────── */
+@keyframes badge-entrance {
+  0%   { opacity: 0; transform: translateY(-10px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Text reveal ─────────────────────────────── */
+@keyframes text-reveal {
+  from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0px); }
+}
+
+/* ── Icon spin on hover ──────────────────────── */
+@keyframes icon-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-3px) rotate(5deg); }
+}
+
+/* ── Border glow ─────────────────────────────── */
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(155,39,212,0.15); }
+  50%      { border-color: rgba(155,39,212,0.4); }
+}
+
+/* ══════════════════════════════════════════════
+   Utility Classes
+   ══════════════════════════════════════════════ */
+
+/* Scroll Reveal */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.scroll-reveal[data-delay="1"] { transition-delay: 0.08s; }
+.scroll-reveal[data-delay="2"] { transition-delay: 0.16s; }
+.scroll-reveal[data-delay="3"] { transition-delay: 0.24s; }
+.scroll-reveal[data-delay="4"] { transition-delay: 0.32s; }
+.scroll-reveal[data-delay="5"] { transition-delay: 0.40s; }
+
+/* Card hover lift */
+.card-hover-lift {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(155,39,212,0.12),
+              0 4px 16px -4px rgba(0,0,0,0.15);
+}
+
+/* Glow border on hover */
+.card-glow-hover {
+  position: relative;
+}
+.card-glow-hover::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,107,53,0.3), rgba(155,39,212,0.3), rgba(14,165,233,0.3));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+.card-glow-hover:hover::before {
+  opacity: 1;
+}
+
+/* Button interactions */
+.btn-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.btn-interactive:hover {
+  transform: scale(1.03);
+}
+.btn-interactive:active {
+  transform: scale(0.98);
+}
+
+/* Nav link animated underline */
+.nav-link-animated {
+  position: relative;
+}
+.nav-link-animated::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, #ff6b35, #9b27d4);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-link-animated:hover::after {
+  width: 100%;
+}
+
+/* Agent pill hover glow */
+.pill-hover-glow {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.pill-hover-glow:hover {
+  border-color: rgba(155,39,212,0.35) !important;
+  box-shadow: 0 0 16px -2px rgba(155,39,212,0.15);
+}
+
+/* Shimmer badge */
+.shimmer-badge {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s infinite;
+}
+
+/* Featured card pulse border */
+.featured-pulse {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Gradient shift background */
+.gradient-shift-bg {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Orbit ring container */
+.orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(155,39,212,0.12);
+  pointer-events: none;
+}
+.orbit-ring .orbit-dot {
+  position: absolute;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  margin-top: calc(var(--dot-size, 6px) / -2);
+  margin-left: calc(var(--dot-size, 6px) / -2);
+}
+
+/* Icon hover animation */
+.icon-hover-float:hover {
+  animation: icon-float 0.6s ease-in-out;
+}
+
+/* ── Liquid Glass Wave Flow (CTA) ─────────────── */
+@keyframes fluid-wave-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes wave-blob-1 {
+  0%, 100% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33%      { transform: translate(60px, -30px) scale(1.2) rotate(120deg); }
+  66%      { transform: translate(-40px, 40px) scale(0.9) rotate(240deg); }
+}
+@keyframes wave-blob-2 {
+  0%, 100% { transform: translate(0px, 0px) scale(1) rotate(0deg); }
+  33%      { transform: translate(-50px, 35px) scale(0.85) rotate(-120deg); }
+  66%      { transform: translate(45px, -35px) scale(1.15) rotate(-240deg); }
+}
+@keyframes wave-blob-3 {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  50%      { transform: translate(30px, 20px) scale(1.25); }
+}
+
+.liquid-glass-cta {
+  position: relative;
+  background: linear-gradient(-45deg, #ff6b35, #d42060, #8b1a2f, #7b2ff7, #0ea5e9);
+  background-size: 300% 300%;
+  animation: fluid-wave-flow 12s ease-in-out infinite;
+}
+
+/* ── Proportional Water Wave Fill Animation ── */
+@keyframes water-wave-1 {
+  0% {
+    transform: translateX(0%) translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateX(-20%) translateY(-10px) scaleY(1.06);
+  }
+  100% {
+    transform: translateX(-40%) translateY(0px) scaleY(1);
+  }
+}
+
+@keyframes water-wave-2 {
+  0% {
+    transform: translateX(-40%) translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateX(-20%) translateY(8px) scaleY(0.94);
+  }
+  100% {
+    transform: translateX(0%) translateY(0px) scaleY(1);
+  }
+}
+
+/* ── CTA Animated Moving Background Gradient ── */
+@keyframes cta-hue-shift {
+  0%, 100% {
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    filter: hue-rotate(75deg);
+  }
+}
+
+.cta-hue-animated {
+  animation: cta-hue-shift 8s ease-in-out infinite;
+}
+
+.liquid-glass-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 11, 16, 0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.dark .liquid-glass-overlay {
+  background: rgba(7, 8, 12, 0.65);
+}
+
+.glass-card-border {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* ── Selendang (Flowing Scarf Ribbon) Wave Animations ── */
+@keyframes selendang-wave-1 {
+  0%, 100% {
+    transform: translateX(-3%) translateY(0px) scaleY(1);
+  }
+  50% {
+    transform: translateX(4%) translateY(-18px) scaleY(1.08);
+  }
+}
+
+@keyframes selendang-wave-2 {
+  0%, 100% {
+    transform: translateX(3%) translateY(-12px) scaleY(1.05);
+  }
+  50% {
+    transform: translateX(-4%) translateY(14px) scaleY(0.95);
+  }
+}
+
+/* ZEGA badge animation */
+.zega-badge-entrance {
+  animation: badge-entrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hero text stagger */
+.hero-text-reveal {
+  animation: text-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-text-reveal-delay-1 { animation-delay: 0.15s; }
+.hero-text-reveal-delay-2 { animation-delay: 0.3s; }
+.hero-text-reveal-delay-3 { animation-delay: 0.45s; }
+.hero-text-reveal-delay-4 { animation-delay: 0.6s; }
+
