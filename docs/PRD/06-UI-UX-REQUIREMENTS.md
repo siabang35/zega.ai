@@ -1,10 +1,10 @@
-# AEOP PRD — UI/UX Requirements
+# ZEGA AI PRD — UI/UX Requirements
 
 ## 6. UI/UX Design System
 
 ### 6.1 Design Philosophy
 
-AEOP delivers a **premium, enterprise-grade experience** that scales seamlessly across desktop, tablet, and mobile. The interface must convey trust, intelligence, and control — reflecting the sophistication of the platform it governs.
+ZEGA AI delivers a **premium, enterprise-grade experience** that scales seamlessly across desktop, tablet, and mobile. The interface must convey trust, intelligence, and control — reflecting the sophistication of the platform it governs.
 
 **Design Principles:**
 1. **Clarity Over Complexity** — Dense data presented through progressive disclosure

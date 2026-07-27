@@ -1,10 +1,10 @@
-# AEOP PRD — Agent Specifications
+# ZEGA AI PRD — Agent Specifications
 
 ## 3. AI Agent Specifications
 
 ### 3.1 Agent Taxonomy
 
-AEOP agents are organized into a three-tier hierarchy:
+ZEGA AI agents are organized into a three-tier hierarchy:
 
 | Tier | Role | Scope | Example |
 |---|---|---|---|

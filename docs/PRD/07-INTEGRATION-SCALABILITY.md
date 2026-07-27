@@ -1,13 +1,13 @@
-# AEOP PRD — Integration & Scalability
+# ZEGA AI PRD — Integration & Scalability
 
 ## 7. Integration Layer
 
 ### 7.1 Connector Architecture
 
-AEOP uses a **plug-and-play connector framework** that enables zero-code integration with enterprise systems. Each connector is a containerized microservice with a standardized interface.
+ZEGA AI uses a **plug-and-play connector framework** that enables zero-code integration with enterprise systems. Each connector is a containerized microservice with a standardized interface.
 
 ```
-External System ←→ Connector (Container) ←→ AEOP Event Bus ←→ Agents
+External System ←→ Connector (Container) ←→ ZEGA AI Event Bus ←→ Agents
                    │
                    ├─ Authentication handler
                    ├─ Schema transformer
@@ -44,7 +44,7 @@ Connector SDK Features:
   - Automatic retry with exponential backoff
   - Circuit breaker (Hystrix pattern)
   - Schema validation and transformation (JSONata)
-  - Event publishing to AEOP bus
+  - Event publishing to ZEGA AI bus
   - Health check and readiness probes
   - Connector marketplace for community connectors
   - Version management and backward compatibility

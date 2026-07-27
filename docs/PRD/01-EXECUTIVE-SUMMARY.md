@@ -1,4 +1,4 @@
-# AEOP — Product Requirements Document
+# ZEGA AI — Product Requirements Document
 
 ## Autonomous Enterprise Orchestration Platform
 
@@ -8,7 +8,7 @@
 | **Date** | 2026-07-25 |
 | **Classification** | Confidential — Internal Use Only |
 | **Status** | Draft — Pending Stakeholder Approval |
-| **Owner** | AEOP Architecture Board |
+| **Owner** | ZEGA AI Architecture Board |
 
 ---
 
@@ -32,9 +32,9 @@
 
 ### 1.1 Vision Statement
 
-The **Autonomous Enterprise Orchestration Platform (AEOP)** is an AI-native operating system designed for enterprise holding companies, conglomerates, and multi-subsidiary organizations. It functions as a centralized intelligence layer that orchestrates all digital assets across an entire corporate ecosystem into a single autonomous, self-optimizing system.
+The **Autonomous Enterprise Orchestration Platform (ZEGA AI)** is an AI-native operating system designed for enterprise holding companies, conglomerates, and multi-subsidiary organizations. It functions as a centralized intelligence layer that orchestrates all digital assets across an entire corporate ecosystem into a single autonomous, self-optimizing system.
 
-AEOP does **not** replace existing enterprise systems (ERP, CRM, SCM, HRIS, WMS, MES). Instead, it sits above them as an orchestration layer — coordinating, optimizing, and automating cross-company business processes from upstream to downstream through a **Federated Multi-Agent Architecture (FMAA)**.
+ZEGA AI does **not** replace existing enterprise systems (ERP, CRM, SCM, HRIS, WMS, MES). Instead, it sits above them as an orchestration layer — coordinating, optimizing, and automating cross-company business processes from upstream to downstream through a **Federated Multi-Agent Architecture (FMAA)**.
 
 ### 1.2 Problem Statement
 
@@ -49,7 +49,7 @@ Modern conglomerates face compounding inefficiencies:
 | Opaque financial flows | Multi-currency reconciliation errors |
 | Reactive decision-making | Missed market opportunities |
 
-AEOP eliminates these by deploying **hundreds to thousands of specialized AI agents** that communicate via standardized protocols, make data-driven decisions in real-time, and continuously learn from operational feedback.
+ZEGA AI eliminates these by deploying **hundreds to thousands of specialized AI agents** that communicate via standardized protocols, make data-driven decisions in real-time, and continuously learn from operational feedback.
 
 ### 1.3 Strategic Goals
 
@@ -81,13 +81,13 @@ AEOP eliminates these by deploying **hundreds to thousands of specialized AI age
 
 **Competitive Landscape:**
 
-| Competitor Category | Examples | AEOP Differentiation |
+| Competitor Category | Examples | ZEGA AI Differentiation |
 |---|---|---|
-| Traditional ERP | SAP, Oracle | AEOP orchestrates ERPs, not replaces them |
-| RPA Platforms | UiPath, Automation Anywhere | AEOP uses cognitive AI agents, not scripted bots |
-| AI Copilots | Microsoft Copilot, Google Duet | AEOP is autonomous, not assistant-based |
-| iPaaS | MuleSoft, Boomi | AEOP adds intelligence to integration |
-| Agent Frameworks | LangChain, CrewAI | AEOP is a complete enterprise platform, not a framework |
+| Traditional ERP | SAP, Oracle | ZEGA AI orchestrates ERPs, not replaces them |
+| RPA Platforms | UiPath, Automation Anywhere | ZEGA AI uses cognitive AI agents, not scripted bots |
+| AI Copilots | Microsoft Copilot, Google Duet | ZEGA AI is autonomous, not assistant-based |
+| iPaaS | MuleSoft, Boomi | ZEGA AI adds intelligence to integration |
+| Agent Frameworks | LangChain, CrewAI | ZEGA AI is a complete enterprise platform, not a framework |
 
 **Unique Value Propositions:**
 1. **Federated Multi-Agent Architecture** — Domain-specific agent meshes with centralized orchestration
@@ -101,7 +101,7 @@ AEOP eliminates these by deploying **hundreds to thousands of specialized AI age
 
 | Term | Definition |
 |---|---|
-| **AEOP** | Autonomous Enterprise Orchestration Platform |
+| **ZEGA AI** | Autonomous Enterprise Orchestration Platform |
 | **FMAA** | Federated Multi-Agent Architecture |
 | **A2A** | Agent-to-Agent communication protocol |
 | **MCP** | Model Context Protocol — structured context passing between AI models |

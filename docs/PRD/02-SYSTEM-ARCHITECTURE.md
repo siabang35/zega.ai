@@ -1,14 +1,14 @@
-# AEOP PRD — System Architecture
+# ZEGA AI PRD — System Architecture
 
 ## 2. System Architecture
 
 ### 2.1 Architectural Overview
 
-AEOP is built on the **Federated Multi-Agent Architecture (FMAA)** — a distributed, event-driven system where autonomous AI agents are organized into domain-specific meshes, coordinated by a central OmniOrchestrator, and connected through standardized communication protocols.
+ZEGA AI is built on the **Federated Multi-Agent Architecture (FMAA)** — a distributed, event-driven system where autonomous AI agents are organized into domain-specific meshes, coordinated by a central OmniOrchestrator, and connected through standardized communication protocols.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     AEOP PLATFORM LAYER                            │
+│                     ZEGA AI PLATFORM LAYER                            │
 │  ┌──────────────────────────────────────────────────────────────┐  │
 │  │              OmniOrchestrator (Central "CEO" Agent)          │  │
 │  │   Strategy → KPI Decomposition → Task Distribution → Audit  │  │
@@ -167,17 +167,22 @@ MCP enables structured context passing between AI models, ensuring agents share 
 | Layer | Technology | Justification |
 |---|---|---|
 | **Runtime** | Node.js 22+ (LTS) / Python 3.12+ | High-performance async, AI ecosystem |
-| **Framework** | Next.js 15 (App Router) | SSR, RSC, enterprise UI |
-| **API Layer** | tRPC + GraphQL Federation | Type-safe, federated data graph |
-| **Database (Relational)** | PostgreSQL 16 + Citus | Distributed SQL, multi-tenant |
+| **Frontend Framework** | React 18 + Vite 6 + Tailwind CSS 4 | SPA with premium UX, fast HMR |
+| **Backend Framework** | Fastify 5 (plugin architecture) | Schema-first, lifecycle hooks, 30K req/s per core |
+| **API Layer** | REST (OpenAPI 3.1) + WebSocket (A2A) | Type-safe with Zod schema validation |
+| **Database (Primary)** | Supabase (PostgreSQL 16 + RLS) | Auth, RLS policies, real-time, Edge Functions |
 | **Database (Document)** | MongoDB Atlas | Flexible agent state storage |
-| **Cache** | Redis Cluster + Dragonfly | Sub-ms reads, pub/sub |
+| **Cache** | Redis Cluster / Dragonfly | Sub-ms reads, pub/sub, session store |
+| **Job Queue** | BullMQ (Redis-backed) | Durable job scheduling, retries, rate limiting |
 | **Search** | Elasticsearch / OpenSearch | Full-text + analytics |
 | **Object Storage** | S3-compatible (MinIO/AWS S3) | Documents, artifacts, backups |
+| **Logging** | Pino (structured JSON) | Zero-overhead, Fastify-native |
 | **Container Orchestration** | Kubernetes (EKS/GKE/AKS) | Auto-scaling, self-healing |
 | **Service Mesh** | Istio / Linkerd | mTLS, traffic management |
 | **CI/CD** | GitHub Actions + ArgoCD | GitOps, progressive delivery |
 | **IaC** | Terraform + Pulumi | Multi-cloud infrastructure |
 | **Observability** | OpenTelemetry + Grafana Stack | Traces, metrics, logs unified |
 | **AI Models** | OpenAI, Anthropic, Google, Mistral, Llama | Vendor-agnostic model router |
-| **AI Framework** | LangChain / LlamaIndex / Custom | Agent tooling and RAG |
+| **AI Framework** | Custom Agent Engine + RAG pipeline | Purpose-built for ZEGA AI orchestration |
+| **Payments** | Stripe Connect + x402 (USDC/Base L2) + 9router | Tri-modal: card, crypto, banking |
+

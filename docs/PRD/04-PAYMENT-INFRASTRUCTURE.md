@@ -1,15 +1,15 @@
-# AEOP PRD — Payment & Financial Infrastructure
+# ZEGA AI PRD — Payment & Financial Infrastructure
 
 ## 4. Payment & Financial Infrastructure
 
 ### 4.1 Payment Architecture Overview
 
-AEOP implements a **tri-modal payment infrastructure** that handles traditional fiat payments, card-based transactions, and machine-to-machine cryptocurrency micropayments through a unified routing layer.
+ZEGA AI implements a **tri-modal payment infrastructure** that handles traditional fiat payments, card-based transactions, and machine-to-machine cryptocurrency micropayments through a unified routing layer.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                   PAYMENT REQUEST                        │
-│           (from any AEOP agent or workflow)              │
+│           (from any ZEGA AI agent or workflow)              │
 └───────────────────────┬──────────────────────────────────┘
                         │
 ┌───────────────────────▼──────────────────────────────────┐
@@ -43,9 +43,9 @@ AEOP implements a **tri-modal payment infrastructure** that handles traditional 
 
 #### 4.2.1 Overview
 
-x402 implements the HTTP 402 ("Payment Required") status code as a native machine-to-machine payment protocol using stablecoins. This enables AEOP agents to autonomously pay for and monetize services without human intervention.
+x402 implements the HTTP 402 ("Payment Required") status code as a native machine-to-machine payment protocol using stablecoins. This enables ZEGA AI agents to autonomously pay for and monetize services without human intervention.
 
-#### 4.2.2 Use Cases within AEOP
+#### 4.2.2 Use Cases within ZEGA AI
 
 | Use Case | Payer Agent | Payee Service | Payment Type |
 |---|---|---|---|
@@ -110,7 +110,7 @@ x402 implements the HTTP 402 ("Payment Required") status code as a native machin
 
 ```yaml
 Stripe Architecture:
-  platform_account: "AEOP-Platform"
+  platform_account: "ZEGA AI-Platform"
   connected_accounts:
     - subsidiary_a: { type: "standard", country: "US" }
     - subsidiary_b: { type: "standard", country: "SG" }
@@ -132,14 +132,14 @@ Stripe Architecture:
 | **Spending Controls** | Per-card limits: single-use, daily, monthly, category-restricted |
 | **Real-Time Monitoring** | Webhook-driven transaction alerts to FiscalGuard |
 | **Auto-Reconciliation** | Transaction matching against POs and invoices (< 5 min) |
-| **Fraud Detection** | Stripe Radar + AEOP anomaly detection dual-layer |
+| **Fraud Detection** | Stripe Radar + ZEGA AI anomaly detection dual-layer |
 | **Card Lifecycle** | Auto-expiry, auto-renewal, instant freeze/unfreeze |
 | **Multi-Currency** | Issue cards in 135+ currencies |
 | **Reporting** | Real-time spend dashboards with drill-down to individual transactions |
 
 #### 4.3.3 Stripe Webhook Integration
 
-| Event | AEOP Action |
+| Event | ZEGA AI Action |
 |---|---|
 | `payment_intent.succeeded` | Update AR/AP, trigger fulfillment |
 | `invoice.payment_failed` | Alert FiscalGuard, initiate retry/escalation |

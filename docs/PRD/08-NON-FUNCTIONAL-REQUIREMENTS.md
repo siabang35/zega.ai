@@ -1,4 +1,4 @@
-# AEOP PRD — Non-Functional Requirements
+# ZEGA AI PRD — Non-Functional Requirements
 
 ## 8. Non-Functional Requirements
 

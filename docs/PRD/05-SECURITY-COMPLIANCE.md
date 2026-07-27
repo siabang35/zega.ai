@@ -1,10 +1,10 @@
-# AEOP PRD — Security & Compliance
+# ZEGA AI PRD — Security & Compliance
 
 ## 5. Security & Compliance Architecture
 
 ### 5.1 Security Philosophy
 
-AEOP operates on a **Zero Trust, Defense-in-Depth** security model. Every agent, user, service, and data flow is treated as potentially hostile until verified. Security is embedded at every architectural layer — not bolted on.
+ZEGA AI operates on a **Zero Trust, Defense-in-Depth** security model. Every agent, user, service, and data flow is treated as potentially hostile until verified. Security is embedded at every architectural layer — not bolted on.
 
 ### 5.2 Zero Trust Identity & Access Management (IAM)
 
@@ -85,7 +85,7 @@ Enterprise Admin → Subsidiary Admin → Mesh Admin → Agent Operator → View
 
 ### 5.5 Compliance Framework
 
-| Regulation | Scope | AEOP Controls |
+| Regulation | Scope | ZEGA AI Controls |
 |---|---|---|
 | **GDPR** | EU data subjects | Data residency, right to erasure, consent management, DPO tooling |
 | **SOX** | US public companies | Immutable audit trail, segregation of duties, financial controls |

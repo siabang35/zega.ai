@@ -1,10 +1,10 @@
-# AEOP PRD — Development Roadmap
+# ZEGA AI PRD — Development Roadmap
 
 ## 9. Development Roadmap
 
 ### 9.1 Phased Delivery Strategy
 
-AEOP is delivered in **5 phases over 24 months**, with each phase producing a deployable, value-generating increment.
+ZEGA AI is delivered in **5 phases over 24 months**, with each phase producing a deployable, value-generating increment.
 
 ---
 
@@ -104,7 +104,7 @@ AEOP is delivered in **5 phases over 24 months**, with each phase producing a de
 | **Advanced Security** | SOC 2 Type II certification, ISO 27001, advanced threat detection | P0 |
 | **Performance Engineering** | Sub-100ms P99 for critical paths; 10K+ user concurrency | P1 |
 | **Chaos Engineering** | Automated chaos experiments with self-healing verification | P1 |
-| **White-Label SDK** | Enable partners to build AEOP extensions | P1 |
+| **White-Label SDK** | Enable partners to build ZEGA AI extensions | P1 |
 | **Offline Mode** | Full offline dashboard and queued operations for mobile | P2 |
 
 **Exit Criteria:**
@@ -202,7 +202,7 @@ AEOP is delivered in **5 phases over 24 months**, with each phase producing a de
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
-| 1.0.0 | 2026-07-25 | AEOP Architecture Board | Initial PRD release |
+| 1.0.0 | 2026-07-25 | ZEGA AI Architecture Board | Initial PRD release |
 
 ### B. Reference Architecture Standards
 
@@ -218,7 +218,7 @@ AEOP is delivered in **5 phases over 24 months**, with each phase producing a de
 |---|---|---|
 | Technical Design Document (TDD) | Detailed implementation specifications | `docs/TDD/` |
 | API Reference | Complete API documentation | `docs/API/` |
-| Agent Development Guide | How to build custom AEOP agents | `docs/guides/agent-development.md` |
+| Agent Development Guide | How to build custom ZEGA AI agents | `docs/guides/agent-development.md` |
 | Connector SDK Guide | How to build custom connectors | `docs/guides/connector-sdk.md` |
 | Security Playbook | Incident response procedures | `docs/security/playbook.md` |
 | Deployment Guide | Infrastructure setup and deployment | `docs/deployment/` |

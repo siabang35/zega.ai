@@ -1,9 +1,9 @@
-# AEOP — Product Requirements Document
+# ZEGA AI — Product Requirements Document
 
 ## Autonomous Enterprise Orchestration Platform
 ### Federated Multi-Agent Architecture (FMAA)
 
-> **Version:** 1.0.0 | **Date:** 2026-07-25 | **Status:** Draft
+> **Version:** 2.0.0 | **Date:** 2026-07-27 | **Status:** Active
 
 ---
 
@@ -20,12 +20,14 @@
 | 07 | [Integration & Scalability](./07-INTEGRATION-SCALABILITY.md) | `07-INTEGRATION-SCALABILITY.md` | 200+ connectors, multi-region, multi-tenancy, disaster recovery |
 | 08 | [Non-Functional Requirements](./08-NON-FUNCTIONAL-REQUIREMENTS.md) | `08-NON-FUNCTIONAL-REQUIREMENTS.md` | Performance, reliability, observability, AI model management |
 | 09 | [Development Roadmap](./09-DEVELOPMENT-ROADMAP.md) | `09-DEVELOPMENT-ROADMAP.md` | 5-phase / 24-month delivery plan, budget, risks, success metrics |
+| 10 | [Backend Technical Design](./10-BACKEND-TECHNICAL-DESIGN.md) | `10-BACKEND-TECHNICAL-DESIGN.md` | Fastify architecture, plugin system, caching, sessions, job queues, deployment |
+| 11 | [AI Guardrails & Safety](./11-AI-GUARDRAILS-SAFETY.md) | `11-AI-GUARDRAILS-SAFETY.md` | 5-layer guardrails, multi-model router, prompt engineering, safety monitoring |
 
 ---
 
 ## Platform In Brief
 
-**AEOP** is an AI-native operating system for enterprise holding companies and conglomerates. It deploys thousands of specialized AI agents organized into 11 domain meshes, coordinated by a central OmniOrchestrator, to automate end-to-end business operations across subsidiaries.
+**ZEGA AI** is an AI-native operating system for enterprise holding companies and conglomerates. It deploys thousands of specialized AI agents organized into 11 domain meshes, coordinated by a central OmniOrchestrator, to automate end-to-end business operations across subsidiaries.
 
 ### Key Capabilities
 - 🤖 **10,000+ concurrent AI agents** across 11 domain meshes
