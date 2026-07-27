@@ -501,11 +501,7 @@ const BrandIcon = ({ name }: { name: string }) => {
         </svg>
       );
     case "Slack":
-      return (
-        <svg className="size-4" viewBox="0 0 24 24" fill="none">
-          <path d="M6 15a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 6 10h2.5v2.5A2.5 2.5 0 0 1 6 15zm0-6.5A2.5 2.5 0 0 1 3.5 6 2.5 2.5 0 0 1 6 3.5a2.5 2.5 0 0 1 2.5 2.5V6H6zm6.5 0A2.5 2.5 0 0 1 15 6a2.5 2.5 0 0 1-2.5 2.5H10V6a2.5 2.5 0 0 1 2.5-2.5zm0 6.5A2.5 2.5 0 0 1 15 15a2.5 2.5 0 0 1-2.5 2.5V15H10v-2.5a2.5 2.5 0 0 1 2.5-2.5zm6.5 0a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5H16v-2.5a2.5 2.5 0 0 1 2.5-2.5zm0-6.5a2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5V6H16a2.5 2.5 0 0 1 2.5-2.5z" fill="#E01E5A" />
-        </svg>
-      );
+      return <img src="/assets/visualization/slack.webp" className="size-5.5 rounded-md object-contain" alt="Slack" />;
     case "Claude 3.7":
     case "Claude":
       return <img src="/assets/visualization/claude.webp" className="size-5.5 rounded-md object-contain" alt="Claude" />;
