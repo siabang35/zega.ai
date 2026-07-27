@@ -1499,7 +1499,7 @@ export default function App() {
             </div>
 
             {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div className="orch-fade relative z-10 grid grid-cols-[24%_52%_24%] justify-between items-center">
+            <div className="orch-fade relative z-10 grid grid-cols-[24%_52%_24%] justify-between gap-0 items-center">
 
               {/* LEFT — Layer 2: Integrations */}
               <div className="relative z-10">
@@ -1558,7 +1558,7 @@ export default function App() {
                         onClick={() => setVizTab(tab)}
                         className={`flex-1 py-2.5 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
                           ? 'dark:text-white text-gray-900 dark:bg-white/[0.06] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35] font-bold shadow-xs'
-                          : 'dark:text-white/40 text-gray-400 hover:dark:text-white/70 hover:text-gray-600'
+                          : 'dark:text-white/40 text-gray-500 hover:dark:text-white/70 hover:text-gray-700 hover:bg-slate-100/50 dark:hover:bg-white/[0.02]'
                           }`}
                       >
                         {tab}
@@ -1625,18 +1625,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mobile Dotted Connection Line */}
-              <div className="flex lg:hidden justify-center my-3.5">
-                <svg width="2" height="24" className="dark:opacity-30 opacity-20">
-                  <line x1="1" y1="0" x2="1" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" className="orch-line" />
-                </svg>
-              </div>
-
               {/* RIGHT — Layer 4: AI Agents */}
               <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-1 text-center lg:text-left">Layer 4 · AI Agents</p>
-                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-center lg:text-left border-b lg:border-0 border-border/40 pb-2 lg:pb-0 mb-3 lg:mb-2.5">Autonomous agents working on your business</p>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:block gap-2.5 lg:space-y-1.5">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-1 text-left">Layer 4 · AI Agents</p>
+                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-left">Autonomous agents working on your business</p>
+                <div className="space-y-1.5">
                   {([
                     { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
                     { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
