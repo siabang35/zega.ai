@@ -930,10 +930,10 @@ export default function App() {
         {/* Harmonious Multi-Tone Ambient Glow Aura */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center overflow-hidden">
           {/* Main Top Center Radial Glow */}
-          <div className="h-[420px] w-[960px] rounded-full dark:bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.22)_0%,rgba(194,24,91,0.16)_35%,rgba(14,165,233,0.12)_60%,transparent_80%)] bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.12)_0%,rgba(194,24,91,0.08)_35%,rgba(14,165,233,0.06)_60%,transparent_80%)] blur-3xl" />
+          <div className="h-[420px] w-[960px] rounded-full dark:bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.22)_0%,rgba(194,24,91,0.16)_35%,rgba(14,165,233,0.12)_60%,transparent_80%)] bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.05)_0%,rgba(244,114,182,0.03)_40%,rgba(56,189,248,0.03)_70%,transparent_85%)] blur-3xl" />
           {/* Subtle Accent Flairs */}
-          <div className="absolute -top-10 left-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#ff6b35]/15 bg-[#ff6b35]/08 blur-[90px]" />
-          <div className="absolute -top-10 right-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/08 blur-[90px]" />
+          <div className="absolute -top-10 left-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#ff6b35]/15 bg-[#ff6b35]/03 blur-[90px]" />
+          <div className="absolute -top-10 right-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/03 blur-[90px]" />
         </div>
 
         <div className="relative z-10 mx-auto max-w-2xl">
@@ -943,7 +943,7 @@ export default function App() {
           >
             Tailored Plans for Every
             <br />
-            <span className="font-black dark:text-white text-gray-900 drop-shadow-sm">
+            <span className="font-black dark:text-white text-slate-900">
               Enterprise Need
             </span>
           </h1>
