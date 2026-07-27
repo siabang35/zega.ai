@@ -1,17 +1,32 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
   BarChart3,
   Bot,
+  Brain,
+  Calendar,
   Check,
   ChevronRight,
+  CircleDot,
+  Clock,
+  Code2,
+  Cpu,
+  CreditCard,
+  Database,
+  FileText,
+  GitBranch,
   Globe,
   Grid3X3,
   Headphones,
   Layers3,
   Menu,
+  MessageSquare,
   Moon,
   Network,
   Phone,
+  Search,
   ShieldCheck,
   Sparkles,
   Star,
@@ -21,7 +36,6 @@ import {
   Wrench,
   X,
   Zap,
-  ArrowUpRight,
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -561,142 +575,311 @@ export default function App() {
         </div>
 
         {/* ORCHESTRATION FLOW VISUALIZATION */}
-        <div className="relative mx-auto mt-12 w-full max-w-[1160px]">
-          <div className="relative rounded-2xl border border-border/30 dark:bg-[#0d1117]/80 bg-white/60 backdrop-blur-xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl dark:shadow-black/40 shadow-black/5">
-            {/* Background grid pattern */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.06]" style={{
-              backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
-              backgroundSize: '24px 24px',
-            }} />
-            {/* Ambient glow */}
-            <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full dark:bg-[radial-gradient(ellipse,rgba(99,102,241,0.12),transparent_70%)] bg-[radial-gradient(ellipse,rgba(99,102,241,0.06),transparent_70%)] blur-2xl" />
+        <div className="relative mx-auto mt-12 w-full max-w-[1200px] px-2">
+          {/* Flow animation */}
+          <style>{`
+            @keyframes flowRight { 0% { stroke-dashoffset: 16; } 100% { stroke-dashoffset: 0; } }
+            @keyframes flowLeft { 0% { stroke-dashoffset: -16; } 100% { stroke-dashoffset: 0; } }
+            @keyframes flowDown { 0% { stroke-dashoffset: 12; } 100% { stroke-dashoffset: 0; } }
+            .fl-right { stroke-dasharray: 4 4; animation: flowRight 1.4s linear infinite; }
+            .fl-left { stroke-dasharray: 4 4; animation: flowLeft 1.4s linear infinite; }
+            .fl-down { stroke-dasharray: 4 4; animation: flowDown 1s linear infinite; }
+            @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            .orch-fade { animation: fadeInUp 0.5s ease both; }
+            @keyframes glowPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+            .glow-dot { animation: glowPulse 2s ease-in-out infinite; }
+          `}</style>
+          <div className="relative rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-3 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
+            {/* Dot grid */}
+            <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
-            {/* Title */}
-            <div className="relative text-center mb-6 lg:mb-8">
-              <p className="text-[9px] font-bold tracking-[0.25em] uppercase dark:text-[#0ea5e9]/70 text-[#0ea5e9]">AI Orchestration Engine</p>
-              <p className="mt-1 text-[11px] dark:text-white/40 text-gray-500 font-light">Autonomous agents powered by multi-model AI, 9router payments & 200+ integrations</p>
-            </div>
-
-            {/* Main Orchestration Grid */}
-            <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 lg:gap-6 items-start">
-
-              {/* LEFT — Agent Divisions */}
-              <div className="space-y-2.5 relative z-10">
-                {[
-                  { icon: '💬', name: 'CS Agent', status: 'Active', platform: 'WhatsApp · Telegram', statusColor: 'bg-emerald-500', desc: 'Handling 847 conversations' },
-                  { icon: '📈', name: 'SEO Agent', status: 'Active', platform: 'Instagram · TikTok · Google Ads', statusColor: 'bg-emerald-500', desc: 'Optimizing 12 campaigns' },
-                  { icon: '💰', name: 'Finance Agent', status: 'Active', platform: 'Stripe · x402 · Xero', statusColor: 'bg-emerald-500', desc: 'Processing $142K today' },
-                  { icon: '🎯', name: 'Sales Agent', status: 'Active', platform: 'HubSpot · LinkedIn', statusColor: 'bg-emerald-500', desc: 'Nurturing 234 leads' },
-                  { icon: '📊', name: 'Data Agent', status: 'Idle', platform: 'BigQuery · Metabase', statusColor: 'bg-amber-500', desc: 'Awaiting next report cycle' },
-                ].map((agent, i) => (
-                  <div key={agent.name} className="group relative flex items-center gap-3 rounded-xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3.5 py-2.5 transition-all duration-300 hover:border-[#6366f1]/30 dark:hover:bg-white/[0.04] hover:bg-white/95 hover:shadow-md dark:hover:shadow-[#6366f1]/5 hover:shadow-[#6366f1]/10"
-                    style={{ animationDelay: `${i * 80}ms` }}>
-                    <span className="text-lg flex-shrink-0">{agent.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold dark:text-white/90 text-gray-800 truncate">{agent.name}</span>
-                        <span className={`flex-shrink-0 size-1.5 rounded-full ${agent.statusColor} shadow-sm`} style={{ boxShadow: agent.status === 'Active' ? '0 0 6px rgba(16,185,129,0.5)' : '0 0 6px rgba(245,158,11,0.5)' }} />
-                      </div>
-                      <p className="text-[8.5px] dark:text-white/35 text-gray-400 mt-0.5 truncate">{agent.platform}</p>
-                      <p className="text-[8px] dark:text-white/25 text-gray-300 mt-0.5 font-mono truncate">{agent.desc}</p>
+            {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
+            <div className="orch-fade relative z-10 mb-4">
+              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/60 text-indigo-400 mb-2">Layer 1 · Event Sources</p>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {([
+                  { Icon: Globe, label: 'API', sub: 'REST / GraphQL' },
+                  { Icon: Zap, label: 'Webhook', sub: 'Real-time Events' },
+                  { Icon: Calendar, label: 'Scheduler', sub: 'Cron / Intervals' },
+                  { Icon: FileText, label: 'Form Submitted', sub: 'Web / Mobile' },
+                  { Icon: Network, label: 'MCP', sub: 'Model Context Protocol' },
+                ] as const).map(({ Icon, label, sub }) => (
+                  <div key={label} className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-white hover:shadow-sm">
+                    <Icon size={14} className="flex-shrink-0 dark:text-[#818cf8] text-indigo-500" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{label}</p>
+                      <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
                     </div>
-                    {/* Connection line to center */}
-                    <div className="hidden lg:block absolute -right-6 top-1/2 w-6 h-px" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.15), rgba(99,102,241,0.3))' }} />
-                    <ChevronRight size={10} className="flex-shrink-0 dark:text-white/15 text-gray-300 group-hover:text-[#6366f1]/60 transition-colors" />
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* CENTER — OmniOrchestrator Hub */}
-              <div className="flex flex-col items-center justify-center relative z-10 lg:py-4">
-                {/* Connection lines going up/down on mobile, left/right on desktop */}
-                <div className="relative">
-                  {/* Outer orbit ring */}
-                  <div className="absolute -inset-6 sm:-inset-8">
-                    <OrbitRing size={180} dotCount={4} speed={12} color="rgba(99,102,241,0.5)" borderColor="rgba(99,102,241,0.08)" className="-left-[14px] -top-[14px] sm:-left-[16px] sm:-top-[16px]" />
-                  </div>
-                  <div className="absolute -inset-3 sm:-inset-4">
-                    <OrbitRing size={132} dotCount={3} speed={8} reverse color="rgba(14,165,233,0.4)" borderColor="rgba(14,165,233,0.06)" className="-left-[6px] -top-[6px] sm:-left-[8px] sm:-top-[8px]" />
-                  </div>
+            {/* Flow connector L1 → L2/L3/L4 (branching lines) */}
+            <div className="hidden lg:flex justify-center my-2">
+              <svg width="700" height="32" viewBox="0 0 700 32" fill="none" className="dark:opacity-50 opacity-30">
+                <path d="M350 0 L350 16" className="fl-down" stroke="currentColor" strokeWidth="1" />
+                <path d="M350 16 L100 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.1s' }} />
+                <path d="M350 16 L350 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.2s' }} />
+                <path d="M350 16 L600 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.3s' }} />
+                <circle cx="100" cy="32" r="2" fill="currentColor" className="glow-dot" />
+                <circle cx="350" cy="32" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.3s' }} />
+                <circle cx="600" cy="32" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.6s' }} />
+              </svg>
+            </div>
+            <div className="flex lg:hidden justify-center my-1.5">
+              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="fl-down" stroke="currentColor" strokeWidth="1.5" /></svg>
+            </div>
 
-                  {/* Core hub */}
-                  <div className="relative z-10 size-28 sm:size-32 rounded-full border dark:border-white/10 border-gray-200 dark:bg-gradient-to-br dark:from-[#1a1a3e] dark:to-[#0d1117] bg-gradient-to-br from-white to-gray-50 flex flex-col items-center justify-center shadow-xl dark:shadow-[#6366f1]/10 shadow-gray-300/30">
-                    <div className="absolute inset-[2px] rounded-full border dark:border-[#6366f1]/20 border-[#6366f1]/10" />
-                    <Bot size={22} className="dark:text-[#6366f1] text-[#4f46e5] mb-1" />
-                    <span className="text-[9px] font-bold dark:text-white/80 text-gray-700 tracking-wide">Omni</span>
-                    <span className="text-[8px] dark:text-white/40 text-gray-400">Orchestrator</span>
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full dark:bg-emerald-500/20 bg-emerald-50 border dark:border-emerald-500/30 border-emerald-200 px-2 py-0.5">
-                      <span className="size-1 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[7px] font-bold dark:text-emerald-400 text-emerald-600">LIVE</span>
+            {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
+            <div className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[220px_1fr_220px] gap-3 lg:gap-0">
+
+              {/* SVG Flow Lines Overlay (desktop only) */}
+              <svg className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none z-0" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="lgLeft" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="rgb(52,211,153)" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="rgb(99,102,241)" stopOpacity="0.3" />
+                  </linearGradient>
+                  <linearGradient id="lgRight" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="rgb(99,102,241)" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="rgb(14,165,233)" stopOpacity="0.15" />
+                  </linearGradient>
+                </defs>
+                {/* Left integration → Center lines */}
+                {[0,1,2,3,4,5,6,7,8].map(i => (
+                  <line key={`il${i}`} x1="19%" y1={`${8 + i * 10.2}%`} x2="36%" y2="50%" className="fl-right" stroke="url(#lgLeft)" strokeWidth="1" style={{ animationDelay: `${i * 0.12}s` }} />
+                ))}
+                {/* Center → Right agent lines */}
+                {[0,1,2,3,4,5,6].map(i => (
+                  <line key={`ir${i}`} x1="64%" y1="50%" x2="81%" y2={`${11 + i * 11.8}%`} className="fl-left" stroke="url(#lgRight)" strokeWidth="1" style={{ animationDelay: `${i * 0.12}s` }} />
+                ))}
+                {/* Glowing junction dots */}
+                <circle cx="36%" cy="50%" r="3" fill="rgb(99,102,241)" opacity="0.3" className="glow-dot" />
+                <circle cx="64%" cy="50%" r="3" fill="rgb(14,165,233)" opacity="0.3" className="glow-dot" style={{ animationDelay: '0.5s' }} />
+              </svg>
+
+              {/* LEFT — Layer 2: Integrations */}
+              <div className="relative z-10 lg:pr-3">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-2">Layer 2 · Integrations</p>
+                <div className="space-y-1.5">
+                  {([
+                    { Icon: Globe, name: 'Google Maps', sub: 'Location & Geo Data' },
+                    { Icon: Phone, name: 'WhatsApp Business', sub: 'Messaging API' },
+                    { Icon: CreditCard, name: 'Stripe Connect', sub: 'Payments & Billing' },
+                    { Icon: Zap, name: 'x402 Protocol', sub: 'M2M Micropayments' },
+                    { Icon: Database, name: 'Supabase', sub: 'Database & Auth' },
+                    { Icon: BarChart3, name: 'BigQuery', sub: 'Data Warehouse' },
+                    { Icon: Globe, name: 'Browser Use', sub: 'Web Automation' },
+                    { Icon: GitBranch, name: 'GitHub', sub: 'Code & Repos' },
+                    { Icon: MessageSquare, name: 'Slack', sub: 'Team Collaboration' },
+                  ] as const).map(({ Icon, name, sub }) => (
+                    <div key={name} className="flex items-center gap-2.5 rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2.5 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white hover:shadow-sm">
+                      <div className="flex-shrink-0 size-7 rounded-md dark:bg-[#818cf8]/10 bg-indigo-50 flex items-center justify-center">
+                        <Icon size={13} className="dark:text-[#818cf8] text-indigo-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{name}</p>
+                        <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Models badge */}
-                <div className="mt-6 sm:mt-8 flex flex-col items-center gap-1.5">
-                  <p className="text-[8px] font-semibold tracking-widest uppercase dark:text-white/30 text-gray-400">Multi-Model Router</p>
-                  <div className="flex gap-1">
-                    {['Claude', 'GPT-4.1', 'Gemini', 'Mistral'].map(m => (
-                      <span key={m} className="rounded-md dark:bg-white/[0.04] bg-gray-100 border dark:border-white/[0.06] border-gray-200 px-2 py-0.5 text-[7px] font-medium dark:text-white/50 text-gray-500">{m}</span>
+              {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
+              <div className="relative z-10 lg:px-3">
+                <div className="rounded-xl border dark:border-white/[0.08] border-gray-200 dark:bg-white/[0.02] bg-white/80 overflow-hidden">
+                  {/* Tabs bar */}
+                  <div className="flex border-b dark:border-white/[0.06] border-gray-200/80">
+                    {['Agent', 'Integration', 'Automation', 'Memory'].map((tab, i) => (
+                      <button key={tab} className={`flex-1 py-2 text-[9px] font-semibold tracking-wide transition-colors ${
+                        i === 0
+                          ? 'dark:text-white/90 text-gray-900 dark:bg-white/[0.04] bg-gray-50 border-b-2 dark:border-[#818cf8] border-indigo-500'
+                          : 'dark:text-white/30 text-gray-400 hover:dark:text-white/50 hover:text-gray-600'
+                      }`}>{tab}</button>
                     ))}
                   </div>
+
+                  {/* Logo + Title */}
+                  <div className="flex flex-col items-center pt-5 pb-3">
+                    <img src="/assets/logo/zegalogo.png" alt="ZEGA AI" className="size-16 sm:size-20 object-contain dark:drop-shadow-[0_2px_12px_rgba(99,102,241,0.25)] drop-shadow-md" />
+                    <h3 className="mt-2 text-[16px] sm:text-[18px] font-black dark:text-white/95 text-gray-900 tracking-tight">ZEGA AI</h3>
+                    <p className="text-[9px] dark:text-white/35 text-gray-400 font-medium">Enterprise Autonomous Agent Orchestrator</p>
+                  </div>
+
+                  {/* Workflow Pipeline */}
+                  <div className="px-4 pb-3 space-y-1.5">
+                    {([
+                      { Icon: Search, label: 'Planning', sub: 'Analyze & Decompose' },
+                      { Icon: Brain, label: 'Reasoning', sub: 'Multi-step Reasoning' },
+                      { Icon: Wrench, label: 'Tool Calling', sub: 'Execute with Tools' },
+                      { Icon: Database, label: 'Memory', sub: 'Retrieve & Store' },
+                      { Icon: Sparkles, label: 'Execution', sub: 'Deliver Results' },
+                    ] as const).map(({ Icon, label, sub }) => (
+                      <div key={label} className="flex items-center gap-3 rounded-lg dark:bg-white/[0.02] bg-gray-50/80 border dark:border-white/[0.04] border-gray-100 px-3 py-2">
+                        <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/70 text-indigo-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-semibold dark:text-white/80 text-gray-700">{label}</p>
+                          <p className="text-[7.5px] dark:text-white/25 text-gray-400">{sub}</p>
+                        </div>
+                        <Check size={12} className="flex-shrink-0 dark:text-emerald-400/70 text-emerald-500" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Live status bar */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-gray-50/50">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[8px] font-bold dark:text-emerald-400 text-emerald-600">LIVE</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[8px] dark:text-white/35 text-gray-400"><Activity size={9} className="inline mr-0.5" />Running</span>
+                      <span className="text-[8px] dark:text-white/35 text-gray-400">27 Workflows</span>
+                      <span className="text-[8px] dark:text-white/35 text-gray-400">18 Agents</span>
+                      <span className="text-[8px] dark:text-white/35 text-gray-400"><Clock size={9} className="inline mr-0.5" />142ms</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* RIGHT — Integrations & Services */}
-              <div className="space-y-2.5 relative z-10">
-                {[
-                  { icon: '🟢', name: 'WhatsApp Business', type: 'Messaging', proto: 'Cloud API', color: '#25D366' },
-                  { icon: '📸', name: 'Instagram + TikTok', type: 'Social Media', proto: 'Graph API + Marketing API', color: '#E1306C' },
-                  { icon: '💳', name: 'Stripe Connect', type: 'Payment', proto: 'Stripe API v2', color: '#635BFF' },
-                  { icon: '⚡', name: 'x402 Protocol', type: 'M2M Payment', proto: 'HTTP 402 · USDC on Base L2', color: '#0ea5e9' },
-                  { icon: '🔀', name: '9router Engine', type: 'Payment Router', proto: '5-rail scoring · FX netting', color: '#ff6b35' },
-                ].map((svc, i) => (
-                  <div key={svc.name} className="group relative flex items-center gap-3 rounded-xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3.5 py-2.5 transition-all duration-300 hover:border-opacity-40 dark:hover:bg-white/[0.04] hover:bg-white/95 hover:shadow-md"
-                    style={{ animationDelay: `${i * 80}ms`, ['--accent-color' as string]: svc.color }}>
-                    {/* Connection line from center */}
-                    <div className="hidden lg:block absolute -left-6 top-1/2 w-6 h-px" style={{ background: `linear-gradient(to right, ${svc.color}40, ${svc.color}15)` }} />
-                    <ChevronRight size={10} className="flex-shrink-0 dark:text-white/15 text-gray-300 group-hover:text-white/30 transition-colors rotate-180 lg:hidden" />
-                    <span className="text-lg flex-shrink-0">{svc.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold dark:text-white/90 text-gray-800 truncate">{svc.name}</span>
-                        <span className="flex-shrink-0 rounded-md px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${svc.color}15`, color: svc.color }}>{svc.type}</span>
+              {/* RIGHT — Layer 4: AI Agents */}
+              <div className="relative z-10 lg:pl-3">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-2">Layer 4 · AI Agents</p>
+                <div className="space-y-1.5">
+                  {([
+                    { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
+                    { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
+                    { Icon: Headphones, name: 'CS Agent', sub: 'WhatsApp · Telegram · Email', active: true },
+                    { Icon: TrendingUp, name: 'SEO Agent', sub: 'GSC · GA4 · Ads · Keywords', active: true },
+                    { Icon: BarChart3, name: 'Analytics Agent', sub: 'BigQuery · Metabase · Reports', active: true },
+                    { Icon: Search, name: 'Research Agent', sub: 'Web · Papers · News · Data', active: false },
+                    { Icon: Code2, name: 'Coding Agent', sub: 'GitHub · Code · Deployments', active: false },
+                  ] as const).map(({ Icon, name, sub, active }) => (
+                    <div key={name} className="flex items-center gap-2.5 rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2.5 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white hover:shadow-sm">
+                      <div className={`flex-shrink-0 size-7 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-gray-50'}`}>
+                        <Icon size={13} className={active ? 'dark:text-sky-400 text-sky-500' : 'dark:text-white/25 text-gray-400'} />
                       </div>
-                      <p className="text-[8.5px] dark:text-white/35 text-gray-400 mt-0.5 font-mono truncate">{svc.proto}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{name}</p>
+                          <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200 border' : 'dark:bg-white/[0.04] bg-gray-100 dark:text-white/30 text-gray-400 border dark:border-white/[0.05] border-gray-200'}`}>{active ? 'Active' : 'Idle'}</span>
+                        </div>
+                        <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Guardrails Strip */}
-            <div className="relative z-10 mt-6 lg:mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 rounded-xl dark:bg-white/[0.015] bg-gray-50/80 border dark:border-white/[0.04] border-gray-200/60 px-4 py-3">
-              <div className="flex items-center gap-1.5 mr-2 sm:mr-4">
-                <ShieldCheck size={12} className="dark:text-[#10b981] text-emerald-600" />
-                <span className="text-[9px] font-bold dark:text-white/60 text-gray-600 tracking-wider uppercase">5-Layer Guardrails</span>
+            {/* Flow connector L3 → L5 (branching lines) */}
+            <div className="hidden lg:flex justify-center my-2">
+              <svg width="700" height="28" viewBox="0 0 700 28" fill="none" className="dark:opacity-50 opacity-30">
+                <path d="M100 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" />
+                <path d="M350 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.15s' }} />
+                <path d="M600 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.3s' }} />
+                <path d="M350 14 L350 28" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.4s' }} />
+                <circle cx="350" cy="14" r="2" fill="currentColor" className="glow-dot" />
+                <circle cx="350" cy="28" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.4s' }} />
+              </svg>
+            </div>
+            <div className="flex lg:hidden justify-center my-1.5">
+              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="fl-down" stroke="currentColor" strokeWidth="1.5" /></svg>
+            </div>
+
+            {/* ═══════════ LAYER 5 — MODEL ROUTER ═══════════ */}
+            <div className="orch-fade relative z-10 mb-3">
+              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router</p>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-3">
+                {([
+                  { label: 'Claude', sub: 'Anthropic', Icon: Cpu },
+                  { label: 'GPT-4.1', sub: 'OpenAI', Icon: Cpu },
+                  { label: 'Gemini 2.5', sub: 'Google', Icon: Cpu },
+                  { label: 'DeepSeek', sub: 'DeepSeek', Icon: Cpu },
+                  { label: 'Qwen 2.5', sub: 'Alibaba', Icon: Cpu },
+                  { label: 'Mistral', sub: 'Mistral AI', Icon: Cpu },
+                  { label: 'Llama 3.1', sub: 'Meta', Icon: Cpu },
+                ] as const).map(({ label, sub, Icon }) => (
+                  <div key={label} className="flex flex-col items-center rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white">
+                    <Icon size={14} className="dark:text-orange-400/60 text-orange-500 mb-1" />
+                    <p className="text-[9px] font-semibold dark:text-white/80 text-gray-700">{label}</p>
+                    <p className="text-[7px] dark:text-white/25 text-gray-400">{sub}</p>
+                  </div>
+                ))}
               </div>
-              {['Input Sanitize', 'PII Redaction', 'Injection Block', 'Output Filter', 'Audit Trail'].map(g => (
-                <div key={g} className="flex items-center gap-1 rounded-md dark:bg-emerald-500/8 bg-emerald-50 border dark:border-emerald-500/15 border-emerald-200 px-2 py-1">
-                  <Check size={8} className="dark:text-emerald-400/70 text-emerald-500" />
-                  <span className="text-[8px] dark:text-emerald-400/70 text-emerald-600 font-medium">{g}</span>
+
+              {/* 9Router Engine + capabilities */}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
+                <div className="flex items-center gap-3 rounded-lg border dark:border-[#ff6b35]/20 border-orange-200 dark:bg-[#ff6b35]/5 bg-orange-50/50 px-3 py-2.5">
+                  <div className="size-8 rounded-lg dark:bg-[#ff6b35]/15 bg-orange-100 flex items-center justify-center">
+                    <Grid3X3 size={15} className="dark:text-[#ff6b35] text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold dark:text-white/90 text-gray-800">9Router Engine</p>
+                    <p className="text-[8px] dark:text-white/35 text-gray-400">Intelligent Model Routing & Optimization</p>
+                  </div>
+                  <ArrowRight size={12} className="ml-auto dark:text-white/20 text-gray-300" />
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {([
+                    { Icon: Clock, label: 'Latency', sub: 'Optimization' },
+                    { Icon: CreditCard, label: 'Cost', sub: 'Optimization' },
+                    { Icon: GitBranch, label: 'Fallback', sub: 'Management' },
+                    { Icon: Activity, label: 'Scoring', sub: 'AI · Cost · Speed' },
+                    { Icon: Sparkles, label: 'Smart Routing', sub: 'Real-time' },
+                    { Icon: CircleDot, label: 'FX Netting', sub: 'Multi-currency' },
+                  ] as const).map(({ Icon, label, sub }) => (
+                    <div key={label} className="flex flex-col items-center rounded-lg dark:bg-white/[0.015] bg-white/60 border dark:border-white/[0.04] border-gray-200/60 px-1 py-2 text-center">
+                      <Icon size={12} className="dark:text-orange-400/50 text-orange-400 mb-0.5" />
+                      <p className="text-[7.5px] font-semibold dark:text-white/70 text-gray-600">{label}</p>
+                      <p className="text-[6.5px] dark:text-white/25 text-gray-400">{sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ═══════════ GUARDRAILS ═══════════ */}
+            <div className="relative z-10 flex flex-wrap items-center gap-2 sm:gap-3 rounded-lg dark:bg-white/[0.015] bg-gray-50/80 border dark:border-white/[0.04] border-gray-200/60 px-4 py-2.5 mb-3">
+              <div className="flex items-center gap-1.5 mr-2">
+                <ShieldCheck size={12} className="dark:text-emerald-400 text-emerald-600" />
+                <span className="text-[8px] font-bold dark:text-white/50 text-gray-600 tracking-wider uppercase">Guardrails</span>
+                <span className="text-[7px] dark:text-white/25 text-gray-400 ml-1">5-Layer Protection</span>
+              </div>
+              {([
+                { Icon: ShieldCheck, label: 'Input Sanitize', sub: '& Validate' },
+                { Icon: ShieldCheck, label: 'PII Redaction', sub: 'Protection' },
+                { Icon: ShieldCheck, label: 'Injection Block', sub: 'Prevention' },
+                { Icon: ShieldCheck, label: 'Output Filter', sub: 'HarmShield' },
+                { Icon: ShieldCheck, label: 'Audit Trail', sub: 'Everything' },
+              ] as const).map(({ label, sub }) => (
+                <div key={label} className="flex items-center gap-1.5 rounded-md dark:bg-emerald-500/8 bg-emerald-50 border dark:border-emerald-500/15 border-emerald-200 px-2 py-1">
+                  <CircleDot size={7} className="dark:text-emerald-400/60 text-emerald-500" />
+                  <div>
+                    <span className="text-[7.5px] font-semibold dark:text-emerald-400/70 text-emerald-600">{label}</span>
+                    <span className="text-[6.5px] dark:text-emerald-400/40 text-emerald-400 ml-1">{sub}</span>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Bottom Live Metrics */}
-            <div className="relative z-10 mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              {[
-                { label: 'Active Agents', value: '2,847', trend: '+12%', icon: '🤖' },
-                { label: 'Tx via 9router', value: '$1.2M', trend: '+8.4%', icon: '🔀' },
-                { label: 'x402 Micro-Tx', value: '14,291', trend: '+23%', icon: '⚡' },
-                { label: 'Guardrail Pass', value: '99.7%', trend: 'Stable', icon: '🛡️' },
-              ].map(metric => (
-                <div key={metric.label} className="rounded-lg dark:bg-white/[0.02] bg-white/70 border dark:border-white/[0.05] border-gray-200/60 px-3 py-2.5 text-center transition-all hover:dark:bg-white/[0.04] hover:bg-white/90">
-                  <span className="text-sm">{metric.icon}</span>
-                  <p className="text-[13px] sm:text-[15px] font-black dark:text-white/90 text-gray-800 mt-0.5 font-mono">{metric.value}</p>
-                  <p className="text-[8px] dark:text-white/35 text-gray-400 mt-0.5">{metric.label}</p>
-                  <span className="text-[7px] font-bold dark:text-emerald-400/60 text-emerald-600">{metric.trend}</span>
+            {/* ═══════════ BUSINESS METRICS (LIVE) ═══════════ */}
+            <div className="relative z-10 grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {([
+                { label: 'Active Agents', value: '2,847', trend: '+12.5%', Icon: Bot },
+                { label: 'Workflows', value: '18,291', trend: '+8.4%', Icon: Activity },
+                { label: 'Payments (Stripe)', value: '$1.2M', trend: '+14.2%', Icon: CreditCard },
+                { label: 'x402 Tx', value: '14,291', trend: '+23.1%', Icon: Zap },
+                { label: 'Latency', value: '142ms', trend: '-12ms', Icon: Clock },
+                { label: 'Success Rate', value: '99.7%', trend: '+0.7%', Icon: Check },
+              ] as const).map(({ label, value, trend, Icon }) => (
+                <div key={label} className="rounded-lg dark:bg-white/[0.02] bg-white/70 border dark:border-white/[0.05] border-gray-200/60 px-2 py-2.5 text-center transition-all hover:dark:bg-white/[0.04] hover:bg-white/90">
+                  <Icon size={13} className="mx-auto dark:text-white/20 text-gray-400 mb-1" />
+                  <p className="text-[13px] sm:text-[15px] font-black dark:text-white/90 text-gray-800 font-mono tracking-tight leading-tight">{value}</p>
+                  <p className="text-[7px] dark:text-white/30 text-gray-400 mt-0.5">{label}</p>
+                  <span className="text-[7px] font-bold dark:text-emerald-400/50 text-emerald-600">{trend}</span>
                 </div>
               ))}
             </div>
