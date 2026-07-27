@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   BarChart3,
+  BookOpen,
   Bot,
   Brain,
   Calendar,
@@ -20,6 +21,7 @@ import {
   Globe,
   Grid3X3,
   Headphones,
+  Home,
   Layers3,
   Lock,
   Mail,
@@ -35,12 +37,14 @@ import {
   Sparkles,
   Star,
   Sun,
+  Tag,
   TrendingUp,
   UserRoundPlus,
   Wrench,
   X,
   Zap,
 } from "lucide-react";
+import { DocsPage } from "./DocsPage";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -56,7 +60,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Filler);
 
-const NAV_LINKS = ["Home", "About", "Blog", "Pricing"];
+const NAV_LINKS = ["Home", "Products", "Docs", "Pricing"];
 
 const AGENT_PILLS = [
   "Research agent",
@@ -467,6 +471,8 @@ const BrandIcon = ({ name }: { name: string }) => {
       return <img src="/assets/visualization/stripe.webp" className="size-5.5 rounded-md object-contain" alt="Stripe Connect" />;
     case "x402 Protocol":
       return <img src="/assets/visualization/x402.jpg" className="size-5.5 rounded-md object-contain" alt="x402 Protocol" />;
+    case "Meta API":
+      return <img src="/assets/visualization/metaapi.png" className="size-5.5 rounded-md object-contain" alt="Meta API" />;
     case "Supabase":
       return (
         <svg className="size-4" viewBox="0 0 24 24" fill="none">
@@ -474,7 +480,7 @@ const BrandIcon = ({ name }: { name: string }) => {
         </svg>
       );
     case "BigQuery":
-      return <img src="/assets/visualization/bigquery.jpeg" className="size-5.5 rounded-md object-contain" alt="Google BigQuery" />;
+      return <img src="/assets/visualization/bigquery.webp" className="size-5.5 rounded-md object-contain" alt="Google BigQuery" />;
     case "Spreadsheet":
     case "Google Sheets":
       return <img src="/assets/visualization/sphreadsheet.webp" className="size-5.5 rounded-md object-contain" alt="Spreadsheet" />;
@@ -503,17 +509,27 @@ const BrandIcon = ({ name }: { name: string }) => {
     case "Claude":
       return <img src="/assets/visualization/claude.webp" className="size-5.5 rounded-md object-contain" alt="Claude" />;
     case "GPT-4.1":
+    case "GPT-5.1":
+    case "GPT":
       return <img src="/assets/visualization/gpt.webp" className="size-5.5 rounded-md object-contain" alt="GPT" />;
+    case "Gemini":
     case "Gemini 2.5":
+    case "Gemini 3.5":
       return <img src="/assets/visualization/gemini.png" className="size-5.5 rounded-md object-contain" alt="Gemini" />;
     case "DeepSeek":
+    case "DeepSeek v4":
+    case "DeepSeek R1":
       return <img src="/assets/visualization/deepseek.webp" className="size-5.5 rounded-md object-contain" alt="DeepSeek" />;
+    case "Qwen":
     case "Qwen 2.5":
+    case "Qwen 3.8":
       return <img src="/assets/visualization/qwen.webp" className="size-5.5 rounded-md object-contain" alt="Qwen" />;
     case "Mistral":
       return <img src="/assets/visualization/mistral.png" className="size-5.5 rounded-md object-contain" alt="Mistral" />;
+    case "Llama":
     case "Llama 3.1":
-      return <img src="/assets/visualization/llama.jpeg" className="size-5.5 rounded-md object-contain" alt="Llama 3.1" />;
+    case "Llama 4":
+      return <img src="/assets/visualization/llama.jpeg" className="size-5.5 rounded-md object-contain" alt="Llama" />;
     default:
       return <Globe className="size-4 text-gray-400" />;
   }
@@ -521,7 +537,7 @@ const BrandIcon = ({ name }: { name: string }) => {
 
 const VIZ_TAB_DATA = {
   Agent: {
-    title: "ZEGA AI",
+    title: "",
     sub: "Enterprise Autonomous Agent Orchestrator",
     badge: "LIVE",
     badgeColor: "dark:text-emerald-400 text-emerald-600 dark:bg-emerald-500/10 bg-emerald-50 border-emerald-500/20",
@@ -616,20 +632,20 @@ const ACTION_TABS_DATA = {
       { label: "Auto-Scale", val: "Optimal" },
     ],
     type: "chat" as const,
-    chatMessages: [
-      { sender: "user", text: "Hi there! I recently placed an order and wanted to see what the status is." },
-      { sender: "agent", text: "Of course! May I have your order ID or phone number, please?" },
-      { sender: "user", text: "Sure! My order ID is #ZEGA-98241." },
-      { sender: "agent", text: "Order #ZEGA-98241 is in transit with 99.8% delivery accuracy. Expected tomorrow by 2 PM!" },
+    demoSteps: [
+      { sender: "user", text: "Hi! Can you check the status of my order #ZEGA-98241?" },
+      { sender: "agent", text: "Verifying order #ZEGA-98241 in logistics database..." },
+      { sender: "user", text: "Is it on schedule for delivery today?" },
+      { sender: "agent", text: "Yes! Package #ZEGA-98241 is out for delivery with 99.8% accuracy. Estimated arrival: 2:00 PM today." },
     ],
-    placeholder: "Ask ZEGA anything about fleet operations...",
+    placeholder: "Type a prompt or watch automated agent demo...",
   },
   "Tools & Systems": {
     category: "Integration Hub",
     Icon: Network,
     iconGradient: "from-[#0ea5e9] via-[#4f46e5] to-[#9b27d4]",
     title: "Unified System Gateway",
-    desc: "Connect Stripe, WhatsApp, BigQuery, Supabase, Slack, and custom gRPC/REST APIs with automated zero-trust authorization.",
+    desc: "Connect Stripe, WhatsApp, BigQuery, Meta API, Slack, and custom gRPC/REST APIs with automated zero-trust authorization.",
     prompt: "Inspect active connectors...",
     metrics: [
       { label: "Active Connectors", val: "10 Ready" },
@@ -641,7 +657,7 @@ const ACTION_TABS_DATA = {
       { name: "Stripe Connect", sub: "Payments API", status: "Active" },
       { name: "WhatsApp Business", sub: "Messaging Gateway", status: "Active" },
       { name: "Google BigQuery", sub: "Data Warehouse", status: "Active" },
-      { name: "Supabase DB", sub: "Auth & Database", status: "Active" },
+      { name: "Meta API", sub: "Instagram & Ads", status: "Active" },
       { name: "Slack Swarm", sub: "Event Trigger", status: "Active" },
       { name: "GitHub Protocol", sub: "Deployments", status: "Connected" },
     ],
@@ -700,30 +716,150 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
+  const [demoMessages, setDemoMessages] = useState([
+    { sender: "user", text: "Hi there! I recently placed an order and wanted to see what the status is." },
+    { sender: "agent", text: "Of course! May I have your order ID or phone number, please?" },
+    { sender: "user", text: "Sure! My order ID is #ZEGA-98241." },
+    { sender: "agent", text: "Order #ZEGA-98241 is in transit with 99.8% delivery accuracy. Expected tomorrow by 2 PM!" },
+  ]);
+  const [demoInput, setDemoInput] = useState("");
+  const [isDemoTyping, setIsDemoTyping] = useState(false);
+
+  const [demoStepIndex, setDemoStepIndex] = useState(0);
+  const [isPlayingAutoDemo, setIsPlayingAutoDemo] = useState(true);
+
+  useEffect(() => {
+    if (!isPlayingAutoDemo || activeTab !== "Utilization") return;
+
+    const demoSteps = ACTION_TABS_DATA.Utilization.demoSteps;
+    const interval = setInterval(() => {
+      setDemoStepIndex((prev) => {
+        const nextIdx = (prev + 1) % (demoSteps.length + 1);
+        if (nextIdx === 0) {
+          setDemoMessages([demoSteps[0]]);
+        } else if (nextIdx <= demoSteps.length) {
+          const stepToAdd = demoSteps[nextIdx - 1];
+          if (stepToAdd.sender === "agent") {
+            setIsDemoTyping(true);
+            setTimeout(() => {
+              setDemoMessages((current) => [...current, stepToAdd]);
+              setIsDemoTyping(false);
+            }, 400);
+          } else {
+            setDemoMessages((current) => [...current, stepToAdd]);
+          }
+        }
+        return nextIdx;
+      });
+    }, 2800);
+
+    return () => clearInterval(interval);
+  }, [isPlayingAutoDemo, activeTab]);
+
+  // Auto-looping event logs for Tools & Systems
+  const [toolsLogs, setToolsLogs] = useState([
+    { tag: "TRIGGER", text: "Customer requested invoice download via Slack." },
+    { tag: "INVOKE", text: "Executing Stripe API -> Fetching Invoice #INV-2026-08..." },
+    { tag: "SUCCESS", text: "Invoice generated & encrypted. Delivered in 84ms." },
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "Tools & Systems") return;
+
+    const extraLogs = [
+      { tag: "TRIGGER", text: "Incoming Webhook received from WhatsApp Business Gateway." },
+      { tag: "INVOKE", text: "Executing 9Router PII Redaction & 5-Layer Guardrail Filter..." },
+      { tag: "SUCCESS", text: "Sanitized input passed to DeepSeek v4. Response in 42ms." },
+      { tag: "TRIGGER", text: "BigQuery sync job scheduled for customer analytics." },
+      { tag: "INVOKE", text: "Writing 14.2k events to Google BigQuery cluster..." },
+      { tag: "SUCCESS", text: "Data sync completed with zero loss (100% integrity)." },
+    ];
+
+    let logIndex = 0;
+    const interval = setInterval(() => {
+      const logToAdd = extraLogs[logIndex % extraLogs.length];
+      setToolsLogs((prev) => [...prev.slice(-3), logToAdd]);
+      logIndex++;
+    }, 2200);
+
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  const handleSendDemoMessage = (customText?: string) => {
+    setIsPlayingAutoDemo(false);
+    const textToSend = (customText || demoInput).trim();
+    if (!textToSend || isDemoTyping) return;
+
+    setDemoMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
+    setDemoInput("");
+    setIsDemoTyping(true);
+
+    setTimeout(() => {
+      let aiReply = "Task executed via 9Router Engine with 99.9% latency & accuracy optimization.";
+      const lower = textToSend.toLowerCase();
+      if (lower.includes("order") || lower.includes("status")) {
+        aiReply = "Order #ZEGA-98241 status verified: Out for delivery via express logistics. ETA: 2:00 PM.";
+      } else if (lower.includes("invoice") || lower.includes("stripe") || lower.includes("pay")) {
+        aiReply = "Invoice #INV-2026-08 retrieved via Stripe Connect API. Sent to Slack & Email!";
+      } else if (lower.includes("sla") || lower.includes("roi") || lower.includes("analytics")) {
+        aiReply = "Telemetry report generated: 99.97% Uptime, $14.2k monthly savings via 9Router low-latency routing.";
+      }
+
+      setDemoMessages((prev) => [...prev, { sender: "agent", text: aiReply }]);
+      setIsDemoTyping(false);
+    }, 600);
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Dynamic coordination points state
   const containerRef = useRef<HTMLDivElement>(null);
+  const topPointsRef = useRef<(HTMLDivElement | null)[]>([]);
   const leftPointsRef = useRef<(HTMLSpanElement | null)[]>([]);
   const rightPointsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const bottomPointsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const topHubRef = useRef<HTMLDivElement>(null);
   const leftHubRef = useRef<HTMLDivElement>(null);
   const rightHubRef = useRef<HTMLDivElement>(null);
+  const routerTopRef = useRef<HTMLDivElement>(null);
+  const routerBottomRef = useRef<HTMLDivElement>(null);
 
   const [coords, setCoords] = useState<{
+    topPoints: { x: number; y: number }[];
     leftPoints: { x: number; y: number }[];
     rightPoints: { x: number; y: number }[];
+    bottomPoints: { x: number; y: number }[];
+    topHub: { x: number; y: number } | null;
     leftHub: { x: number; y: number } | null;
     rightHub: { x: number; y: number } | null;
+    bottomHub: { x: number; y: number } | null;
+    routerTop: { x: number; y: number } | null;
+    routerBottom: { x: number; y: number } | null;
   }>({
+    topPoints: [],
     leftPoints: [],
     rightPoints: [],
+    bottomPoints: [],
+    topHub: null,
     leftHub: null,
     rightHub: null,
+    bottomHub: null,
+    routerTop: null,
+    routerBottom: null,
   });
 
   const updateCoordinates = useCallback(() => {
     if (!containerRef.current) return;
     const containerRect = containerRef.current.getBoundingClientRect();
+
+    const topPoints = topPointsRef.current.map((el) => {
+      if (!el) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2 - containerRect.left,
+        y: rect.bottom - containerRect.top,
+      };
+    });
 
     const leftPoints = leftPointsRef.current.map((el) => {
       if (!el) return { x: 0, y: 0 };
@@ -743,6 +879,29 @@ export default function App() {
       };
     });
 
+    const bottomPoints = bottomPointsRef.current.map((el) => {
+      if (!el) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2 - containerRect.left,
+        y: rect.top - containerRect.top,
+      };
+    });
+
+    const topHub = topHubRef.current
+      ? {
+        x: topHubRef.current.getBoundingClientRect().left + topHubRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: topHubRef.current.getBoundingClientRect().top - containerRect.top,
+      }
+      : null;
+
+    const bottomHub = topHubRef.current
+      ? {
+        x: topHubRef.current.getBoundingClientRect().left + topHubRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: topHubRef.current.getBoundingClientRect().bottom - containerRect.top,
+      }
+      : null;
+
     const leftHub = leftHubRef.current
       ? {
         x: leftHubRef.current.getBoundingClientRect().left + leftHubRef.current.getBoundingClientRect().width / 2 - containerRect.left,
@@ -757,29 +916,50 @@ export default function App() {
       }
       : null;
 
-    setCoords({ leftPoints, rightPoints, leftHub, rightHub });
+    const routerTop = routerTopRef.current
+      ? {
+        x: routerTopRef.current.getBoundingClientRect().left + routerTopRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: routerTopRef.current.getBoundingClientRect().top - containerRect.top,
+      }
+      : null;
+
+    const routerBottom = routerBottomRef.current
+      ? {
+        x: routerBottomRef.current.getBoundingClientRect().left + routerBottomRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: routerBottomRef.current.getBoundingClientRect().bottom - containerRect.top,
+      }
+      : null;
+
+    setCoords({ topPoints, leftPoints, rightPoints, bottomPoints, topHub, leftHub, rightHub, bottomHub, routerTop, routerBottom });
   }, []);
 
   useEffect(() => {
-    updateCoordinates();
+    let rafId: number;
+    const scheduleUpdate = () => {
+      rafId = requestAnimationFrame(() => {
+        updateCoordinates();
+      });
+    };
 
-    // Periodically run for a short time to catch initial DOM updates / images loading
-    const timer = setInterval(updateCoordinates, 500);
+    scheduleUpdate();
+    // Run initial 2 ticks to catch image loads
+    const t1 = setTimeout(scheduleUpdate, 150);
+    const t2 = setTimeout(scheduleUpdate, 500);
 
     // Setup resize observer
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined" && containerRef.current) {
-      observer = new ResizeObserver(() => {
-        updateCoordinates();
-      });
+      observer = new ResizeObserver(scheduleUpdate);
       observer.observe(containerRef.current);
     }
 
-    const handleResize = () => updateCoordinates();
+    const handleResize = () => scheduleUpdate();
     window.addEventListener("resize", handleResize);
 
     return () => {
-      clearInterval(timer);
+      cancelAnimationFrame(rafId);
+      clearTimeout(t1);
+      clearTimeout(t2);
       if (observer) observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
@@ -821,6 +1001,17 @@ export default function App() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  if (showDocs) {
+    return (
+      <DocsPage
+        onBack={() => setShowDocs(false)}
+        dark={dark}
+        setDark={setDark}
+        triggerComingSoon={triggerComingSoon}
+      />
+    );
+  }
+
   return (
     <div
       className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
@@ -832,7 +1023,12 @@ export default function App() {
           {/* Logo */}
           <a
             href="#home"
-            className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50"
+            onClick={(e) => {
+              e.preventDefault();
+              if (showDocs) setShowDocs(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50 cursor-pointer"
             aria-label="ZEGA AI — Back to home"
           >
             <img
@@ -848,15 +1044,38 @@ export default function App() {
 
           {/* Desktop Nav Links */}
           <nav className="hidden items-center gap-8 text-[13px] font-medium text-muted-foreground md:flex">
-            {NAV_LINKS.map((l) => (
-              <a
-                key={l}
-                href={`#${l.toLowerCase()}`}
-                className="nav-link-animated transition-colors hover:text-foreground"
-              >
-                {l}
-              </a>
-            ))}
+            {NAV_LINKS.map((l) => {
+              const isDocsActive = l === "Docs" && showDocs;
+              return (
+                <a
+                  key={l}
+                  href={l === "Docs" ? "#docs" : `#${l.toLowerCase()}`}
+                  onClick={(e) => {
+                    if (l === "Docs") {
+                      e.preventDefault();
+                      setShowDocs(true);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } else {
+                      if (showDocs) setShowDocs(false);
+                      if (l === "Products") {
+                        e.preventDefault();
+                        setTimeout(() => {
+                          const el = document.getElementById("products");
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }, 50);
+                      }
+                    }
+                  }}
+                  className={`nav-link-animated transition-colors hover:text-foreground ${
+                    isDocsActive ? "text-[#ff6b35] font-bold" : ""
+                  }`}
+                >
+                  {l}
+                </a>
+              );
+            })}
           </nav>
 
           {/* Right Action Icons */}
@@ -891,32 +1110,85 @@ export default function App() {
         </div>
       </header>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Drawer Menu — Enterprise Best Practice Redesign */}
       {mobileOpen && (
-        <div className="fixed inset-x-0 top-[60px] z-40 border-b border-border/70 bg-background/95 p-6 backdrop-blur-2xl shadow-2xl transition-all md:hidden">
-          <div className="mx-auto flex max-w-sm flex-col gap-2">
-            {NAV_LINKS.map((l) => (
+        <div className="fixed inset-x-0 top-[60px] z-40 border-b border-border/60 bg-background/95 p-5 backdrop-blur-2xl shadow-2xl transition-all md:hidden animate-fadeIn">
+          <div className="mx-auto flex max-w-md flex-col gap-1.5">
+            {[
+              { label: "Home", sub: "Platform Overview & Features", Icon: Home, href: "#home" },
+              { label: "Products", sub: "Core AI Engines & Guardrails", Icon: Layers3, href: "#products" },
+              { label: "Docs", sub: "Developer Guides & API Spec", Icon: BookOpen, href: "#docs" },
+              { label: "Pricing", sub: "Flexible Enterprise Tiers", Icon: Tag, href: "#pricing" },
+            ].map(({ label, sub, Icon, href }) => (
               <a
-                key={l}
-                href={`#${l.toLowerCase()}`}
-                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-foreground/90 transition-colors hover:bg-muted/70 hover:text-foreground"
-                onClick={() => setMobileOpen(false)}
-              >
-                <span>{l}</span>
-                <span className="text-[10px] text-muted-foreground font-normal">→</span>
-              </a>
-            ))}
-            <div className="mt-3 border-t border-border/50 pt-4">
-              <button
-                className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-3 text-xs font-bold text-white shadow-lg shadow-[#ff6b35]/20 transition-all duration-500 hover:bg-right active:scale-[0.98] cursor-pointer"
-                onClick={() => {
+                key={label}
+                href={href}
+                className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/60 active:scale-[0.99]"
+                onClick={(e) => {
                   setMobileOpen(false);
-                  triggerComingSoon();
+                  if (label === "Docs") {
+                    e.preventDefault();
+                    setShowDocs(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  } else {
+                    if (showDocs) setShowDocs(false);
+                    if (label === "Products") {
+                      e.preventDefault();
+                      setTimeout(() => {
+                        const el = document.getElementById("products");
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth" });
+                        }
+                      }, 50);
+                    }
+                  }
                 }}
               >
-                <span className="relative z-10">Sign Up</span>
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              </button>
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-9 flex-shrink-0 place-items-center rounded-xl border border-border/60 bg-card text-foreground/80 group-hover:border-[#ff6b35]/40 group-hover:text-[#ff6b35] transition-all">
+                    <Icon size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-bold text-foreground leading-tight group-hover:text-[#ff6b35] transition-colors">{label}</p>
+                    <p className="text-[10px] text-muted-foreground font-normal mt-0.5">{sub}</p>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+              </a>
+            ))}
+
+            {/* Mobile Footer CTAs & Operational Status */}
+            <div className="mt-3 border-t border-border/50 pt-4 space-y-2.5">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className="w-full rounded-xl border border-border bg-card py-2.5 text-[11px] font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    setShowDocs(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  View Docs
+                </button>
+                <button
+                  className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    triggerComingSoon();
+                  }}
+                >
+                  <span className="relative z-10">Sign Up</span>
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/40 py-1.5 text-[9.5px] font-mono text-muted-foreground">
+                <span className="relative flex size-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
+                </span>
+                <span>ZEGA Cloud Systems Operational — 99.97% Uptime</span>
+              </div>
             </div>
           </div>
         </div>
@@ -999,9 +1271,150 @@ export default function App() {
             @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
             .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
           `}</style>
-          <div className="relative rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-3 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
+          <div ref={containerRef} className="relative rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-3 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
             {/* Dot grid */}
             <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+
+            {/* Dynamic Curved Bezier Connectors Overlay for Desktop — Direct child of containerRef */}
+            <svg
+              viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
+              preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
+              fill="none"
+              className="hidden lg:block absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
+            >
+              {/* Fallback to static percentage lines while layout coordinates are loading */}
+              {(!coords.leftHub || coords.leftPoints.length === 0) ? (
+                <>
+                  {/* 10 Paths from Layer 2 Integrations to Left Hub Node */}
+                  {[22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 382.5, 427.5].map((y, i) => {
+                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                    const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                    return (
+                      <g key={`static-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                        <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                      </g>
+                    );
+                  })}
+                  {/* Left Hub Node to Center */}
+                  <path d="M 333 225 L 340 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Memory' ? 0.25 : 0.9} fill="none" />
+                  {/* Center to Right Hub Node */}
+                  <path d="M 660 225 L 667 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Integration' ? 0.25 : 0.9} fill="none" />
+                  {/* 8 Paths from Right Hub Node to Layer 4 AI Agents */}
+                  {[30, 86, 142, 198, 254, 310, 366, 422].map((y, i) => {
+                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                    const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                    const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                    return (
+                      <g key={`static-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                        <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                      </g>
+                    );
+                  })}
+                </>
+              ) : (
+                <>
+                  {/* Dynamic top lines fanning from Layer 1 cards to Top Hub Node */}
+                  {coords.topPoints.map((pt, i) => {
+                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.topHub) return null;
+                    const color = i % 2 === 0 ? "#38bdf8" : "#818cf8";
+                    const x1 = pt.x;
+                    const y1 = pt.y;
+                    const x2 = coords.topHub.x;
+                    const y2 = coords.topHub.y;
+                    const cp1x = x1;
+                    const cp1y = y1 + (y2 - y1) * 0.55;
+                    const cp2x = x2;
+                    const cp2y = y1 + (y2 - y1) * 0.45;
+                    return (
+                      <g key={`dyn-l1-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.12}s` }} />
+                      </g>
+                    );
+                  })}
+                  {/* Dynamic left lines fanning exactly to active green dots */}
+                  {coords.leftPoints.map((pt, i) => {
+                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                    const x1 = pt.x;
+                    const y1 = pt.y;
+                    const x2 = coords.leftHub!.x;
+                    const y2 = coords.leftHub!.y;
+                    const cp1x = x1 + (x2 - x1) * 0.55;
+                    const cp1y = y1;
+                    const cp2x = x1 + (x2 - x1) * 0.45;
+                    const cp2y = y2;
+                    const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                    return (
+                      <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                      </g>
+                    );
+                  })}
+
+                  {/* Dynamic right lines fanning exactly to AI agent cards left border */}
+                  {coords.rightPoints.map((pt, i) => {
+                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                    const x1 = coords.rightHub!.x;
+                    const y1 = coords.rightHub!.y;
+                    const x2 = pt.x;
+                    const y2 = pt.y;
+                    const cp1x = x1 + (x2 - x1) * 0.45;
+                    const cp1y = y1;
+                    const cp2x = x1 + (x2 - x1) * 0.55;
+                    const cp2y = y2;
+                    const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                    const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                    return (
+                      <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                      </g>
+                    );
+                  })}
+                  {/* Dynamic line from ZEGA AI Orchestrator bottom to 9Router Engine top */}
+                  {coords.bottomHub && coords.routerTop && (
+                    <g fill="none" className="transition-opacity duration-350">
+                      <path
+                        d={`M ${coords.bottomHub.x} ${coords.bottomHub.y} C ${coords.bottomHub.x} ${coords.bottomHub.y + (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y - (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y}`}
+                        className="orch-line"
+                        stroke="#ff6b35"
+                        strokeWidth="1.5"
+                        fill="none"
+                      />
+                    </g>
+                  )}
+
+                  {/* Dynamic lines fanning from 9Router Engine bottom to 7 LLM Model cards */}
+                  {coords.routerBottom && coords.bottomPoints.map((pt, i) => {
+                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#38bdf8" : "#6366f1";
+                    const x1 = coords.routerBottom!.x;
+                    const y1 = coords.routerBottom!.y;
+                    const x2 = pt.x;
+                    const y2 = pt.y;
+                    const cp1x = x1;
+                    const cp1y = y1 + (y2 - y1) * 0.5;
+                    const cp2x = x2;
+                    const cp2y = y1 + (y2 - y1) * 0.5;
+                    return (
+                      <g key={`dyn-l5-${i}`} fill="none" className="transition-opacity duration-350">
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.1}s` }} />
+                      </g>
+                    );
+                  })}
+                </>
+              )}
+            </svg>
 
             {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
             <div className="orch-fade relative z-10 mb-4">
@@ -1013,8 +1426,12 @@ export default function App() {
                   { Icon: Calendar, label: 'Scheduler', sub: 'Cron / Intervals' },
                   { Icon: FileText, label: 'Form Submitted', sub: 'Web / Mobile' },
                   { Icon: Network, label: 'MCP', sub: 'Model Context Protocol' },
-                ] as const).map(({ Icon, label, sub }) => (
-                  <div key={label} className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-white hover:shadow-sm">
+                ] as const).map(({ Icon, label, sub }, i) => (
+                  <div
+                    key={label}
+                    ref={(el) => { topPointsRef.current[i] = el; }}
+                    className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-white hover:shadow-sm"
+                  >
                     <Icon size={14} className="flex-shrink-0 dark:text-[#818cf8] text-indigo-500" />
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{label}</p>
@@ -1025,115 +1442,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Flow connector L1 → L3 (Curved fanning paths matching picture) */}
-            <div className="hidden lg:flex justify-center my-1">
-              <svg width="800" height="40" viewBox="0 0 800 40" fill="none" className="dark:opacity-70 opacity-40">
-                <path d="M100 0 C100 20, 400 10, 400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" />
-                <path d="M250 0 C250 20, 400 10, 400 40" className="orch-line" stroke="#818cf8" strokeWidth="1.2" style={{ animationDelay: '0.15s' }} />
-                <path d="M400 0 L400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.5" />
-                <path d="M550 0 C550 20, 400 10, 400 40" className="orch-line" stroke="#818cf8" strokeWidth="1.2" style={{ animationDelay: '0.15s' }} />
-                <path d="M700 0 C700 20, 400 10, 400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.3s' }} />
-                <circle cx="400" cy="40" r="3" fill="#38bdf8" className="glow-hub" />
-              </svg>
-            </div>
-            <div className="flex lg:hidden justify-center my-1.5">
-              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="orch-line" stroke="currentColor" strokeWidth="1.5" /></svg>
-            </div>
-
             {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div ref={containerRef} className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[18%_64%_18%] justify-between gap-3 lg:gap-0 items-center">
-
-              {/* Dynamic Curved Bezier Connectors Overlay for Desktop — Fixed Proportional SVG / Dynamic DOM Nodes */}
-              <svg
-                viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
-                preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
-                fill="none"
-                className="hidden lg:block absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
-              >
-                {/* Fallback to static percentage lines while layout coordinates are loading */}
-                {(!coords.leftHub || coords.leftPoints.length === 0) ? (
-                  <>
-                    {/* 10 Paths from Layer 2 Integrations to Left Hub Node */}
-                    {[22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 382.5, 427.5].map((y, i) => {
-                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
-                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
-                      return (
-                        <g key={`static-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
-                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
-                        </g>
-                      );
-                    })}
-                    {/* Left Hub Node to Center */}
-                    <path d="M 333 225 L 340 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Memory' ? 0.25 : 0.9} fill="none" />
-                    {/* Center to Right Hub Node */}
-                    <path d="M 660 225 L 667 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Integration' ? 0.25 : 0.9} fill="none" />
-                    {/* 8 Paths from Right Hub Node to Layer 4 AI Agents */}
-                    {[30, 86, 142, 198, 254, 310, 366, 422].map((y, i) => {
-                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
-                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
-                      const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
-                      return (
-                        <g key={`static-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
-                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
-                        </g>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <>
-                    {/* Dynamic left lines fanning exactly to active green dots */}
-                    {coords.leftPoints.map((pt, i) => {
-                      if (!pt || (pt.x === 0 && pt.y === 0)) return null;
-                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                      const x1 = pt.x;
-                      const y1 = pt.y;
-                      const x2 = coords.leftHub!.x;
-                      const y2 = coords.leftHub!.y;
-                      const cp1x = x1 + (x2 - x1) * 0.55;
-                      const cp1y = y1;
-                      const cp2x = x1 + (x2 - x1) * 0.45;
-                      const cp2y = y2;
-                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
-                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
-                      return (
-                        <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                        </g>
-                      );
-                    })}
-
-                    {/* Dynamic right lines fanning exactly to AI agent cards left border */}
-                    {coords.rightPoints.map((pt, i) => {
-                      if (!pt || (pt.x === 0 && pt.y === 0)) return null;
-                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                      const x1 = coords.rightHub!.x;
-                      const y1 = coords.rightHub!.y;
-                      const x2 = pt.x;
-                      const y2 = pt.y;
-                      const cp1x = x1 + (x2 - x1) * 0.45;
-                      const cp1y = y1;
-                      const cp2x = x1 + (x2 - x1) * 0.55;
-                      const cp2y = y2;
-                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
-                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
-                      const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
-                      return (
-                        <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                        </g>
-                      );
-                    })}
-                  </>
-                )}
-              </svg>
+            <div className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[24%_52%_24%] justify-between gap-3 lg:gap-0 items-center">
 
               {/* LEFT — Layer 2: Integrations */}
               <div className="relative z-10">
@@ -1145,7 +1455,7 @@ export default function App() {
                     { name: 'WhatsApp Business', sub: 'Messaging API' },
                     { name: 'Stripe Connect', sub: 'Payments & Billing' },
                     { name: 'x402 Protocol', sub: 'M2M Micropayments' },
-                    { name: 'Supabase', sub: 'Database & Auth' },
+                    { name: 'Meta API', sub: 'Instagram & Ads' },
                     { name: 'BigQuery', sub: 'Data Warehouse' },
                     { name: 'Spreadsheet', sub: 'Google Sheets & Excel' },
                     { name: 'Browser Use', sub: 'Web Automation' },
@@ -1179,8 +1489,8 @@ export default function App() {
               </div>
 
               {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
-              <div className="relative z-10 w-full lg:w-auto lg:px-3.5 mx-auto my-3 lg:my-0">
-                <div className="relative rounded-xl border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#0c1929] bg-white overflow-visible shadow-[0_8px_30px_rgba(255,107,53,0.06),0_1px_3px_rgba(0,0,0,0.02)]">
+              <div className="relative z-10 w-full max-w-[490px] mx-auto my-3 lg:my-0 lg:px-2">
+                <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-[0_8px_32px_rgba(255,107,53,0.08),0_1px_3px_rgba(0,0,0,0.02)] transition-all">
                   {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
                   <div ref={leftHubRef} className="hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
                     <Database size={13} className="text-[#ff6b35]" />
@@ -1191,15 +1501,15 @@ export default function App() {
                     <ShieldCheck size={13} className="text-[#ff6b35]" />
                   </div>
 
-                  {/* Tabs bar */}
-                  <div className="flex border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                  {/* Tabs bar — Fixed height 40px */}
+                  <div className="flex h-[40px] border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-2xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
                     {(['Agent', 'Integration', 'Automation', 'Memory'] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setVizTab(tab)}
-                        className={`flex-1 py-2.5 text-[9px] font-semibold tracking-wide transition-all cursor-pointer ${vizTab === tab
-                          ? 'dark:text-white/90 text-gray-900 dark:bg-white/[0.04] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35]'
-                          : 'dark:text-white/30 text-gray-400 hover:dark:text-white/50 hover:text-gray-600'
+                        className={`flex-1 py-2.5 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
+                          ? 'dark:text-white text-gray-900 dark:bg-white/[0.06] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35] font-bold shadow-xs'
+                          : 'dark:text-white/40 text-gray-400 hover:dark:text-white/70 hover:text-gray-600'
                           }`}
                       >
                         {tab}
@@ -1207,53 +1517,60 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* Logo + Title */}
-                  <div className="flex flex-col items-center pt-5 pb-3">
-                    <img
-                      src="/assets/logo/zegalogo.png"
-                      alt="ZEGA AI"
-                      className="h-8 sm:h-9 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
-                    />
-                    {vizTab !== "Agent" && (
-                      <h3 className="mt-2 text-[13px] sm:text-[14px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
-                        {VIZ_TAB_DATA[vizTab].title}
-                      </h3>
-                    )}
-                    <p className={`text-[8.5px] dark:text-white/35 text-slate-500 font-semibold ${vizTab === "Agent" ? "mt-2.5" : "mt-1"}`}>
-                      {VIZ_TAB_DATA[vizTab].sub}
-                    </p>
-                  </div>
-
-                  {/* Workflow Pipeline */}
-                  <div className="px-4 pb-3 space-y-1.5 min-h-[235px] flex flex-col justify-center transition-all duration-300">
-                    {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }) => (
-                      <div key={label} className="flex items-center gap-3 rounded-lg dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/60 border-slate-100 px-3 py-1.8 transition-all hover:-translate-y-0.5 hover:shadow-sm">
-                        <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/70 text-indigo-550" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-semibold dark:text-white/80 text-gray-700">{label}</p>
-                          <p className="text-[7.5px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
-                        </div>
-                        <Check size={12} className="flex-shrink-0 dark:text-emerald-400/70 text-emerald-500" />
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Live status bar */}
-                  <div className="flex items-center justify-between px-4 py-2.5 border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
-                      <span className={`text-[8px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-1.5 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
+                  {/* Dynamic Smooth Animated Tab Content Container */}
+                  <div key={vizTab} className="animate-fadeIn transition-opacity duration-300 transform-gpu will-change-[opacity]">
+                    {/* Logo + Title — Fixed Height 76px Header across all tabs */}
+                    <div className="flex flex-col items-center h-[76px] justify-center px-4 pt-3.5 pb-2">
+                      <img
+                        src="/assets/logo/zegalogo.png"
+                        alt="ZEGA AI"
+                        className="h-7 sm:h-8 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
+                      />
+                      {VIZ_TAB_DATA[vizTab].title && (
+                        <h3 className="mt-1 text-[13px] sm:text-[14px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
+                          {VIZ_TAB_DATA[vizTab].title}
+                        </h3>
+                      )}
+                      <p className="mt-0.5 text-[8.5px] sm:text-[9px] dark:text-white/40 text-slate-500 font-semibold text-center">
+                        {VIZ_TAB_DATA[vizTab].sub}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {VIZ_TAB_DATA[vizTab].metrics.map((m, idx) => {
-                        const Icon = m.Icon;
-                        return (
-                          <span key={idx} className="text-[8px] dark:text-white/35 text-slate-500 font-medium flex items-center gap-0.5">
-                            {Icon && <Icon size={9} />}
-                            {m.label}
-                          </span>
-                        );
-                      })}
+
+                    {/* Workflow Pipeline — Fixed 235px Height across all tabs */}
+                    <div className="px-4 sm:px-5 pb-3 space-y-1.5 h-[235px] flex flex-col justify-center transition-all duration-300">
+                      {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }, idx) => (
+                        <div
+                          key={label}
+                          className="flex items-center gap-3 rounded-xl dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/70 border-slate-200/80 px-3 py-1.8 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm transform-gpu"
+                          style={{ animationDelay: `${idx * 40}ms` }}
+                        >
+                          <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/80 text-indigo-550" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] sm:text-[10.5px] font-semibold dark:text-white/85 text-gray-800">{label}</p>
+                            <p className="text-[7.5px] sm:text-[8px] dark:text-white/30 text-slate-500 font-medium">{sub}</p>
+                          </div>
+                          <Check size={12} className="flex-shrink-0 dark:text-emerald-400/80 text-emerald-500" />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Live status bar — Fixed Height 38px */}
+                    <div className="flex items-center justify-between px-4 sm:px-5 h-[38px] border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50 rounded-b-2xl">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
+                        <span className={`text-[8px] sm:text-[8.5px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-2 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
+                      </div>
+                      <div className="flex items-center gap-2.5 sm:gap-3">
+                        {VIZ_TAB_DATA[vizTab].metrics.map((m, idx) => {
+                          const Icon = m.Icon;
+                          return (
+                            <span key={idx} className="text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-medium flex items-center gap-1">
+                              {Icon && <Icon size={9} />}
+                              {m.label}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1302,27 +1619,44 @@ export default function App() {
               </div>
             </div>
 
-            {/* Flow connector L3 → L5 (Curved fanning paths into the 7 Model Router cards) */}
-            <div className="hidden lg:flex justify-center my-2 transition-opacity duration-300" style={{ opacity: vizTab === 'Integration' ? 0.2 : 0.7 }}>
-              <svg width="800" height="40" viewBox="0 0 800 40" fill="none" className="dark:opacity-75 opacity-65">
-                <path d="M400 0 C400 20, 60 15, 60 40" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
-                <path d="M400 0 C400 20, 175 15, 175 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
-                <path d="M400 0 C400 20, 290 15, 290 40" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
-                <path d="M400 0 L400 40" className="orch-line" stroke="#a855f7" strokeWidth="1.5" />
-                <path d="M400 0 C400 20, 510 15, 510 40" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
-                <path d="M400 0 C400 20, 625 15, 625 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
-                <path d="M400 0 C400 20, 740 15, 740 40" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
-                <circle cx="400" cy="0" r="3" fill="#a855f7" className="glow-hub" />
-              </svg>
-            </div>
-            <div className="flex lg:hidden justify-center my-1.5">
-              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="orch-line" stroke="currentColor" strokeWidth="1.5" /></svg>
-            </div>
+            {/* ═══════════ LAYER 5 — 9ROUTER & MODEL ROUTER ═══════════ */}
+            <div className="orch-fade relative z-10 my-4 lg:mt-6 lg:mb-3">
+              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router Engine</p>
 
-            {/* ═══════════ LAYER 5 — MODEL ROUTER ═══════════ */}
-            <div className="orch-fade relative z-10 mb-3">
-              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router</p>
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-2">
+              {/* 9Router Engine — Centered Hub */}
+              <div ref={routerTopRef} className="flex flex-col items-center justify-center mx-auto max-w-xl mb-4 lg:mb-6">
+                <div ref={routerBottomRef} className="w-full flex flex-col items-center rounded-xl border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#091522] bg-white px-4 py-3 shadow-md shadow-orange-500/5">
+                  <div className="flex items-center gap-3 mb-2.5">
+                    <div className="size-8.5 rounded-lg dark:bg-white/[0.04] bg-orange-50/80 flex items-center justify-center p-0.5 border border-orange-200/60 dark:border-orange-500/30 overflow-hidden flex-shrink-0">
+                      <img src="/assets/visualization/9router.jpeg" alt="9Router Logo" className="size-full object-cover rounded-md" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[12px] font-bold dark:text-white/90 text-slate-800">9Router Engine</p>
+                      <p className="text-[8.5px] dark:text-white/35 text-slate-500 font-medium">Intelligent Model Routing & Optimization Hub</p>
+                    </div>
+                  </div>
+
+                  {/* Integrated capability badges */}
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 border-t dark:border-white/[0.06] border-slate-100 w-full">
+                    {([
+                      { Icon: Clock, label: 'Latency Opt' },
+                      { Icon: CreditCard, label: 'Cost Opt' },
+                      { Icon: GitBranch, label: 'Fallback Mgmt' },
+                      { Icon: Activity, label: 'AI Scoring' },
+                      { Icon: Sparkles, label: 'Smart Routing' },
+                      { Icon: CircleDot, label: 'FX Netting' },
+                    ] as const).map(({ Icon, label }) => (
+                      <div key={label} className="flex items-center gap-1 rounded-md dark:bg-white/[0.03] bg-slate-50 border dark:border-white/[0.05] border-slate-200/60 px-2 py-1 transition-all hover:border-orange-500/40">
+                        <Icon size={10} className="dark:text-orange-400 text-[#ff6b35]" />
+                        <span className="text-[8px] font-semibold dark:text-white/70 text-slate-700">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* LLM Models Grid */}
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                 {([
                   { label: 'Claude', sub: 'Anthropic' },
                   { label: 'GPT-4.1', sub: 'OpenAI' },
@@ -1331,8 +1665,12 @@ export default function App() {
                   { label: 'Qwen 2.5', sub: 'Alibaba' },
                   { label: 'Mistral', sub: 'Mistral AI' },
                   { label: 'Llama 3.1', sub: 'Meta' },
-                ] as const).map(({ label, sub }) => (
-                  <div key={label} className="flex flex-col items-center rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2 py-2 transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                ] as const).map(({ label, sub }, i) => (
+                  <div
+                    key={label}
+                    ref={(el) => { bottomPointsRef.current[i] = el; }}
+                    className="flex flex-col items-center rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2 py-2 transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  >
                     <div className="size-6 rounded-md dark:bg-white/[0.04] bg-orange-50 flex items-center justify-center mb-1">
                       <BrandIcon name={label} />
                     </div>
@@ -1341,75 +1679,22 @@ export default function App() {
                   </div>
                 ))}
               </div>
-
-              {/* Flow connector Layer 5 Models → 9Router Engine */}
-              <div className="hidden lg:flex justify-center my-2 transition-opacity duration-300" style={{ opacity: vizTab === 'Integration' ? 0.2 : 0.7 }}>
-                <svg width="800" height="28" viewBox="0 0 800 28" fill="none" className="dark:opacity-75 opacity-65">
-                  <path d="M60 0 C60 14, 250 14, 250 28" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
-                  <path d="M175 0 C175 14, 250 14, 250 28" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
-                  <path d="M290 0 C290 14, 250 14, 250 28" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
-                  <path d="M400 0 C400 14, 250 14, 250 28" className="orch-line" stroke="#a855f7" strokeWidth="1.5" />
-                  <path d="M510 0 C510 14, 250 14, 250 28" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
-                  <path d="M625 0 C625 14, 250 14, 250 28" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
-                  <path d="M740 0 C740 14, 250 14, 250 28" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
-                  <circle cx="250" cy="28" r="3" fill="#ff6b35" className="glow-hub" />
-                </svg>
-              </div>
-
-              {/* 9Router Engine + capabilities */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
-                <div className="flex items-center gap-3 rounded-lg border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#091522] bg-white px-3 py-2.5 shadow-sm">
-                  <div className="size-8.5 rounded-lg dark:bg-white/[0.04] bg-orange-50/80 flex items-center justify-center p-0.5 border border-orange-200/60 dark:border-orange-500/30 overflow-hidden flex-shrink-0">
-                    <img src="/assets/visualization/9router.jpeg" alt="9Router Logo" className="size-full object-cover rounded-md" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold dark:text-white/90 text-slate-800">9Router Engine</p>
-                    <p className="text-[8px] dark:text-white/35 text-slate-500 font-medium">Intelligent Model Routing & Optimization</p>
-                  </div>
-                  <ArrowRight size={12} className="ml-auto dark:text-[#ff6b35] text-orange-500" />
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                  {([
-                    { Icon: Clock, label: 'Latency', sub: 'Optimization' },
-                    { Icon: CreditCard, label: 'Cost', sub: 'Optimization' },
-                    { Icon: GitBranch, label: 'Fallback', sub: 'Management' },
-                    { Icon: Activity, label: 'Scoring', sub: 'AI · Cost · Speed' },
-                    { Icon: Sparkles, label: 'Smart Routing', sub: 'Real-time' },
-                    { Icon: CircleDot, label: 'FX Netting', sub: 'Multi-currency' },
-                  ] as const).map(({ Icon, label, sub }) => (
-                    <div key={label} className="flex flex-col items-center rounded-lg dark:bg-white/[0.015] bg-white border dark:border-white/[0.04] border-slate-200/60 px-1 py-2 text-center transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                      <Icon size={12} className="dark:text-orange-400/50 text-[#ff6b35] mb-0.5" />
-                      <p className="text-[7.5px] font-semibold dark:text-white/70 text-slate-700">{label}</p>
-                      <p className="text-[6.5px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* ═══════════ GUARDRAILS ═══════════ */}
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3 rounded-xl dark:bg-[#080d1a] bg-slate-50/70 dark:border-white/[0.06] border-slate-200/80 border p-3 mb-3">
-              <div className="flex items-center justify-between w-full lg:w-auto">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-6 rounded-md bg-[#2563eb]/10 dark:bg-[#3b82f6]/20 flex items-center justify-center">
-                    <ShieldCheck size={14} className="dark:text-blue-400 text-blue-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[9px] font-black tracking-wider uppercase dark:text-white/80 text-slate-800">Guardrails</p>
-                    <p className="text-[7.5px] dark:text-white/35 text-slate-500 font-medium">5-Layer Protection System</p>
-                  </div>
+            <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-3 rounded-xl dark:bg-[#080d1a] bg-slate-50/70 dark:border-white/[0.06] border-slate-200/80 border p-3">
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                <div className="size-7 rounded-lg bg-[#2563eb]/10 dark:bg-[#3b82f6]/20 flex items-center justify-center border border-blue-500/20">
+                  <ShieldCheck size={15} className="dark:text-blue-400 text-blue-600" />
                 </div>
-                {/* Settings cog button on mobile */}
-                <button
-                  onClick={() => triggerComingSoon("Guardrails configuration will be available shortly.")}
-                  className="lg:hidden p-1.5 rounded-md dark:hover:bg-white/[0.03] hover:bg-slate-100 dark:text-white/40 text-slate-400 hover:dark:text-white hover:text-slate-800 transition-colors"
-                >
-                  <Settings size={14} />
-                </button>
+                <div className="text-left">
+                  <p className="text-[10px] font-black tracking-wider uppercase dark:text-white/90 text-slate-800">Guardrails</p>
+                  <p className="text-[8px] dark:text-white/35 text-slate-500 font-medium">5-Layer Protection System</p>
+                </div>
               </div>
 
-              {/* Guardrails Pills Grid with Chart.js symbols & solid professional JS palette colors */}
-              <div className="flex-1 flex flex-wrap items-center gap-2">
+              {/* Guardrails Pills Grid — 5 Equal Columns for 100% Proportional Width Fill */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 flex-1">
                 {([
                   {
                     Symbol: ChartJsBarSymbol,
@@ -1457,44 +1742,17 @@ export default function App() {
                     text: 'dark:text-[#34d399] text-[#047857]',
                   },
                 ] as const).map(({ Symbol, label, sub, color, bg, border, text }) => (
-                  <div key={label} className={`flex items-center gap-2.5 rounded-lg border ${border} ${bg} px-2.5 py-1.5 shadow-sm transition-all hover:scale-[1.01]`}>
+                  <div key={label} className={`flex items-center justify-center gap-2 rounded-lg border ${border} ${bg} px-2.5 py-1.5 shadow-sm transition-all hover:scale-[1.01]`}>
                     <div className="flex-shrink-0 flex items-center justify-center">
                       <Symbol color={color} className="size-3.5" />
                     </div>
-                    <div className="flex flex-col text-left">
-                      <span className={`text-[8.5px] sm:text-[9.5px] font-bold ${text} leading-normal`}>{label}</span>
-                      <span className="text-[7.5px] sm:text-[8px] font-semibold text-slate-400 dark:text-white/35 leading-none mt-0.5">{sub}</span>
+                    <div className="flex flex-col text-left min-w-0">
+                      <span className={`text-[8.5px] sm:text-[9.5px] font-bold ${text} leading-normal truncate`}>{label}</span>
+                      <span className="text-[7.5px] sm:text-[8px] font-semibold text-slate-400 dark:text-white/35 leading-none mt-0.5 truncate">{sub}</span>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Cog settings button on desktop */}
-              <button
-                onClick={() => triggerComingSoon("Guardrails configuration will be available shortly.")}
-                className="hidden lg:flex items-center justify-center p-2 rounded-lg border dark:border-white/[0.05] border-slate-200 dark:bg-white/[0.02] bg-white hover:bg-slate-50 hover:dark:bg-white/[0.04] dark:text-white/40 text-slate-400 hover:dark:text-white hover:text-slate-700 transition-all shadow-sm"
-              >
-                <Settings size={14} />
-              </button>
-            </div>
-
-            {/* ═══════════ BUSINESS METRICS (LIVE) ═══════════ */}
-            <div className="relative z-10 grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {([
-                { label: 'Active Agents', value: '2,847', trend: '+12.5%', Icon: Bot },
-                { label: 'Workflows', value: '18,291', trend: '+8.4%', Icon: Activity },
-                { label: 'Payments (Stripe)', value: '$1.2M', trend: '+14.2%', Icon: CreditCard },
-                { label: 'x402 Tx', value: '14,291', trend: '+23.1%', Icon: Zap },
-                { label: 'Latency', value: '142ms', trend: '-12ms', Icon: Clock },
-                { label: 'Success Rate', value: '99.7%', trend: '+0.7%', Icon: Check },
-              ] as const).map(({ label, value, trend, Icon }) => (
-                <div key={label} className="rounded-lg dark:bg-white/[0.02] bg-white/70 border dark:border-white/[0.05] border-gray-200/60 px-2 py-2.5 text-center transition-all hover:dark:bg-white/[0.04] hover:bg-white/90">
-                  <Icon size={13} className="mx-auto dark:text-white/20 text-gray-400 mb-1" />
-                  <p className="text-[13px] sm:text-[15px] font-black dark:text-white/90 text-gray-800 font-mono tracking-tight leading-tight">{value}</p>
-                  <p className="text-[7px] dark:text-white/30 text-gray-400 mt-0.5">{label}</p>
-                  <span className="text-[7px] font-bold dark:text-emerald-400/50 text-emerald-600">{trend}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -1710,29 +1968,41 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="mt-6 flex items-center gap-2">
-                    <span className="flex-1 rounded-full border border-border bg-muted/60 px-4 py-2 text-[10px] text-muted-foreground font-medium">
-                      {data.prompt}
+                  <div className="mt-5 flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2 text-[10.5px] font-mono text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live Automated Workflow
                     </span>
-                    <div className="size-7 rounded-full bg-foreground/10 grid place-items-center cursor-pointer hover:bg-foreground/20 transition-colors">
-                      <ChevronRight size={14} className="text-foreground" />
-                    </div>
+                    <span className="font-bold text-foreground/80">9Router Engine</span>
                   </div>
                 </article>
 
-                {/* Right panel – Contextual Live Interactive Demonstration */}
-                <article className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between shadow-sm transition-all duration-300 min-h-[300px]">
+                {/* Right panel – Contextual Live Automated Demonstration */}
+                <article className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between shadow-sm transition-all duration-300 min-h-[300px] relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex size-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+                      </span>
+                      <span className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground font-mono">
+                        LIVE AGENT WORKFLOW DEMO
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-mono text-muted-foreground/70">
+                      Real-time Execution
+                    </span>
+                  </div>
+
                   {data.type === "chat" && (
                     <div className="flex h-full flex-col justify-between gap-4">
-                      <div className="space-y-2.5">
-                        {data.chatMessages.map((msg, idx) => (
+                      {/* Automated Message Thread */}
+                      <div className="space-y-2.5 min-h-[220px] max-h-[260px] overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        {demoMessages.map((msg, idx) => (
                           <div
                             key={idx}
                             className={`flex gap-2 items-start ${msg.sender === "agent" ? "justify-end" : ""}`}
                           >
-                            {msg.sender === "user" && (
-                              <div className="size-6 rounded-full bg-gradient-to-br from-[#ff6b35] to-[#d42060] flex-shrink-0 mt-0.5" />
-                            )}
                             <div
                               className={`rounded-xl px-3.5 py-2 text-[10px] leading-5 max-w-[85%] font-medium ${msg.sender === "agent"
                                 ? "rounded-tr-sm bg-gradient-to-br from-[#ff6b35] to-[#9b27d4] text-white shadow-sm"
@@ -1743,13 +2013,20 @@ export default function App() {
                             </div>
                           </div>
                         ))}
-                      </div>
 
-                      <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 shadow-inner">
-                        <span className="flex-1 text-[10px] text-muted-foreground">{data.placeholder}</span>
-                        <div className="size-5 rounded-full bg-foreground grid place-items-center">
-                          <ChevronRight size={10} className="text-background" />
-                        </div>
+                        {/* Animated AI Typing Indicator */}
+                        {isDemoTyping && (
+                          <div className="flex justify-end gap-2 items-center">
+                            <div className="rounded-xl rounded-tr-sm bg-muted border border-border px-3 py-1.5 text-[9.5px] font-medium text-muted-foreground flex items-center gap-1.5">
+                              <span>ZEGA Agent processing</span>
+                              <span className="flex gap-0.5">
+                                <span className="size-1 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="size-1 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="size-1 rounded-full bg-foreground/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1758,7 +2035,16 @@ export default function App() {
                     <div className="flex h-full flex-col justify-between gap-4">
                       {/* Connected Tools & Event Log */}
                       <div className="space-y-3">
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Active Connectors & Live Triggers</p>
+                        <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                            Active Connectors & Live Triggers
+                          </span>
+                          <span className="flex items-center gap-1.5 text-[8.5px] font-mono text-emerald-500 font-bold">
+                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            6 Connectors Active
+                          </span>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-1.5">
                           {data.connectors.map((c, i) => (
                             <div key={i} className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/20 px-2.5 py-1.5">
@@ -1772,22 +2058,15 @@ export default function App() {
                         </div>
 
                         {/* Real-time execution log */}
-                        <div className="rounded-xl border border-border/60 bg-muted/40 p-2.5 space-y-1.5 font-mono text-[9px]">
-                          {data.eventLogs.map((log, i) => (
-                            <div key={i} className="flex items-center gap-2">
+                        <div className="rounded-xl border border-border/60 bg-muted/40 p-2.5 space-y-1.5 font-mono text-[9px] min-h-[105px]">
+                          {toolsLogs.map((log, i) => (
+                            <div key={i} className="flex items-center gap-2 animate-fadeIn">
                               <span className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold uppercase ${log.tag === "TRIGGER" ? "bg-sky-500/20 text-sky-400" : log.tag === "INVOKE" ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>
                                 {log.tag}
                               </span>
                               <span className="text-foreground/80 truncate text-[8.5px]">{log.text}</span>
                             </div>
                           ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 shadow-inner">
-                        <span className="flex-1 text-[10px] text-muted-foreground">{data.placeholder}</span>
-                        <div className="size-5 rounded-full bg-foreground grid place-items-center">
-                          <ChevronRight size={10} className="text-background" />
                         </div>
                       </div>
                     </div>
@@ -1834,7 +2113,7 @@ export default function App() {
       </section>
 
       {/* OUR PRODUCTS */}
-      <section className="px-6 py-16 lg:px-12 lg:py-20">
+      <section id="products" className="px-6 py-16 lg:px-12 lg:py-20">
         <div className="mx-auto max-w-[900px]">
           <h2
             className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"

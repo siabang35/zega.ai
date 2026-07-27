@@ -1,0 +1,8 @@
+# ZEGA AI Robots.txt — zegaai.site
+User-agent: *
+Allow: /
+Disallow: /api/private/
+Disallow: /admin/
+
+# Sitemap Location
+Sitemap: https://zegaai.site/sitemap.xml
