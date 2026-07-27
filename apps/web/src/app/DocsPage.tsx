@@ -141,8 +141,21 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
       {/* Enterprise Dedicated Documentation Header (Stripe / Vercel Standard) */}
       <header className="sticky top-0 z-50 h-[58px] border-b border-border/50 bg-background/90 backdrop-blur-xl transition-all">
         <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-4 sm:px-8">
-          {/* Left: Branding */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Left: Branding & Navigation Back Link */}
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+            {/* Seamless Back to Main Site Button on LEFT */}
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/80 px-2.5 py-1 text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted/80 hover:border-[#ff6b35]/40 hover:text-[#ff6b35] shadow-2xs group cursor-pointer whitespace-nowrap"
+              title="Return to ZEGA AI Main Site"
+            >
+              <ArrowLeft size={13} className="text-muted-foreground group-hover:-translate-x-0.5 group-hover:text-[#ff6b35] transition-transform flex-shrink-0" />
+              <span className="hidden sm:inline">Main Site</span>
+              <span className="sm:hidden text-[10px]">Back</span>
+            </button>
+
+            <div className="h-3.5 w-px bg-border/60" />
+
             <button
               onClick={onBack}
               className="flex items-center gap-1.5 group focus:outline-none cursor-pointer"
@@ -153,7 +166,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
                 alt="ZEGA AI"
                 width={120}
                 height={34}
-                className="h-6 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter] duration-300 group-hover:opacity-85"
+                className="h-6 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
               />
             </button>
 
@@ -185,24 +198,13 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             </div>
           </div>
 
-          {/* Right: Back Button, Theme Toggle & API Key CTA */}
+          {/* Right: Theme Toggle & API Key CTA */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-            {/* Back to Main Site Button */}
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1 rounded-lg border border-border/80 bg-card/80 px-2 py-1 text-[10.5px] sm:px-2.5 sm:text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted hover:border-foreground/30 hover:text-foreground shadow-2xs group cursor-pointer whitespace-nowrap"
-              title="Return to Main Landing Page"
-            >
-              <ArrowLeft size={12} className="text-muted-foreground group-hover:-translate-x-0.5 group-hover:text-foreground transition-all flex-shrink-0" />
-              <span className="hidden sm:inline">Main Site</span>
-              <span className="sm:hidden text-[10px]">Back</span>
-            </button>
-
             <a
               href="https://github.com"
               target="_blank"
               rel="noreferrer"
-              className="hidden lg:flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              className="hidden lg:flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted/60"
             >
               <Github size={14} />
               <span>GitHub</span>
