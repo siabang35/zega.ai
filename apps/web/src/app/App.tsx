@@ -506,29 +506,32 @@ const BrandIcon = ({ name }: { name: string }) => {
           <path d="M6 15a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 6 10h2.5v2.5A2.5 2.5 0 0 1 6 15zm0-6.5A2.5 2.5 0 0 1 3.5 6 2.5 2.5 0 0 1 6 3.5a2.5 2.5 0 0 1 2.5 2.5V6H6zm6.5 0A2.5 2.5 0 0 1 15 6a2.5 2.5 0 0 1-2.5 2.5H10V6a2.5 2.5 0 0 1 2.5-2.5zm0 6.5A2.5 2.5 0 0 1 15 15a2.5 2.5 0 0 1-2.5 2.5V15H10v-2.5a2.5 2.5 0 0 1 2.5-2.5zm6.5 0a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5H16v-2.5a2.5 2.5 0 0 1 2.5-2.5zm0-6.5a2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5V6H16a2.5 2.5 0 0 1 2.5-2.5z" fill="#E01E5A" />
         </svg>
       );
+    case "Claude 3.7":
     case "Claude":
       return <img src="/assets/visualization/claude.webp" className="size-5.5 rounded-md object-contain" alt="Claude" />;
+    case "GPT-4o":
     case "GPT-4.1":
     case "GPT-5.1":
     case "GPT":
       return <img src="/assets/visualization/gpt.webp" className="size-5.5 rounded-md object-contain" alt="GPT" />;
-    case "Gemini":
     case "Gemini 2.5":
     case "Gemini 3.5":
+    case "Gemini":
       return <img src="/assets/visualization/gemini.png" className="size-5.5 rounded-md object-contain" alt="Gemini" />;
-    case "DeepSeek":
-    case "DeepSeek v4":
     case "DeepSeek R1":
+    case "DeepSeek v4":
+    case "DeepSeek":
       return <img src="/assets/visualization/deepseek.webp" className="size-5.5 rounded-md object-contain" alt="DeepSeek" />;
-    case "Qwen":
     case "Qwen 2.5":
     case "Qwen 3.8":
+    case "Qwen":
       return <img src="/assets/visualization/qwen.webp" className="size-5.5 rounded-md object-contain" alt="Qwen" />;
+    case "Mistral Large":
     case "Mistral":
       return <img src="/assets/visualization/mistral.png" className="size-5.5 rounded-md object-contain" alt="Mistral" />;
-    case "Llama":
     case "Llama 3.1":
     case "Llama 4":
+    case "Llama":
       return <img src="/assets/visualization/llama.jpeg" className="size-5.5 rounded-md object-contain" alt="Llama" />;
     default:
       return <Globe className="size-4 text-gray-400" />;
@@ -1068,9 +1071,8 @@ export default function App() {
                       }
                     }
                   }}
-                  className={`nav-link-animated transition-colors hover:text-foreground ${
-                    isDocsActive ? "text-[#ff6b35] font-bold" : ""
-                  }`}
+                  className={`nav-link-animated transition-colors hover:text-foreground ${isDocsActive ? "text-[#ff6b35] font-bold" : ""
+                    }`}
                 >
                   {l}
                 </a>
@@ -1659,12 +1661,12 @@ export default function App() {
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                 {([
                   { label: 'Claude', sub: 'Anthropic' },
-                  { label: 'GPT-4.1', sub: 'OpenAI' },
-                  { label: 'Gemini 2.5', sub: 'Google' },
+                  { label: 'GPT-4o', sub: 'OpenAI' },
+                  { label: 'Gemini', sub: 'Google' },
                   { label: 'DeepSeek', sub: 'DeepSeek' },
-                  { label: 'Qwen 2.5', sub: 'Alibaba' },
+                  { label: 'Qwen', sub: 'Alibaba' },
                   { label: 'Mistral', sub: 'Mistral AI' },
-                  { label: 'Llama 3.1', sub: 'Meta' },
+                  { label: 'Llama', sub: 'Meta' },
                 ] as const).map(({ label, sub }, i) => (
                   <div
                     key={label}
