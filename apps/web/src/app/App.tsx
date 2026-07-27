@@ -1311,7 +1311,7 @@ export default function App() {
         </div>
 
         {/* ORCHESTRATION FLOW VISUALIZATION */}
-        <div className="relative mx-auto mt-12 w-full max-w-[1200px] px-2">
+        <div className="relative mx-auto mt-12 w-full max-w-[1200px] overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 pb-4 px-2">
           {/* Flow animation styling */}
           <style>{`
             @keyframes flowDash { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
@@ -1322,7 +1322,7 @@ export default function App() {
             @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
             .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
           `}</style>
-          <div ref={containerRef} className="relative rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-3 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
+          <div ref={containerRef} className="relative min-w-[1000px] lg:min-w-full rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-4 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
             {/* Dot grid */}
             <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
@@ -1397,39 +1397,18 @@ export default function App() {
                     const x2 = coords.leftHub.x;
                     const y2 = coords.leftHub.y;
 
-                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-                    let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
-
-                    if (isMobile) {
-                      const isRightColumn = i % 2 === 1;
-                      if (isRightColumn) {
-                        // Right column cards curve into right margin, stream down right edge, and curve left into leftHub
-                        cp1x = x1 + 18;
-                        cp1y = y1;
-                        cp2x = Math.max(x1 + 25, x2 + 120);
-                        cp2y = Math.max(y2 - 25, y1 + 30);
-                      } else {
-                        // Left column cards curve into central gutter and stream down into leftHub
-                        cp1x = x1 + 14;
-                        cp1y = y1;
-                        cp2x = x2 + 10;
-                        cp2y = Math.max(y2 - (y2 - y1) * 0.4, y1 + 15);
-                      }
-                    } else {
-                      cp1x = x1 + (x2 - x1) * 0.55;
-                      cp1y = y1;
-                      cp2x = x1 + (x2 - x1) * 0.45;
-                      cp2y = y2;
-                    }
+                    const cp1x = x1 + (x2 - x1) * 0.55;
+                    const cp1y = y1;
+                    const cp2x = x1 + (x2 - x1) * 0.45;
+                    const cp2y = y2;
 
                     const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.2;
+                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
                     return (
                       <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                        {!isMobile && (
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={isLeftActive ? 0.12 : 0.02} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                        )}
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth={isMobile ? "1.2" : "0.85"} strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
                       </g>
                     );
                   })}
@@ -1438,35 +1417,23 @@ export default function App() {
                   {coords.rightPoints.map((pt, i) => {
                     if (!pt || (pt.x === 0 && pt.y === 0) || !coords.rightHub) return null;
                     const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                    const x1 = coords.rightHub.x;
+                    const y1 = coords.rightHub.y;
+                    const x2 = pt.x;
+                    const y2 = pt.y;
 
-                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-                    const x1 = isMobile ? pt.x : coords.rightHub.x;
-                    const y1 = isMobile ? pt.y : coords.rightHub.y;
-                    const x2 = isMobile ? coords.rightHub.x : pt.x;
-                    const y2 = isMobile ? coords.rightHub.y : pt.y;
-
-                    let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
-
-                    if (isMobile) {
-                      cp1x = x1 + 20;
-                      cp1y = y1;
-                      cp2x = x2 + 20;
-                      cp2y = Math.max(y2 - 20, y1 + 20);
-                    } else {
-                      cp1x = x1 + (x2 - x1) * 0.45;
-                      cp1y = y1;
-                      cp2x = x1 + (x2 - x1) * 0.55;
-                      cp2y = y2;
-                    }
+                    const cp1x = x1 + (x2 - x1) * 0.45;
+                    const cp1y = y1;
+                    const cp2x = x1 + (x2 - x1) * 0.55;
+                    const cp2y = y2;
 
                     const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
                     const strokeOpacity2 = isRightActive ? 0.9 : 0.15;
                     return (
                       <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                        {!isMobile && (
-                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={isRightActive ? 0.12 : 0.02} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                        )}
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth={isMobile ? "1.2" : "0.85"} strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
                       </g>
                     );
                   })}
@@ -1508,7 +1475,7 @@ export default function App() {
             {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
             <div className="orch-fade relative z-10 mb-4">
               <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/60 text-indigo-400 mb-2">Layer 1 · Event Sources</p>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {([
                   { Icon: Globe, label: 'API', sub: 'REST / GraphQL' },
                   { Icon: Zap, label: 'Webhook', sub: 'Real-time Events' },
@@ -1532,13 +1499,13 @@ export default function App() {
             </div>
 
             {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[24%_52%_24%] justify-between gap-3 lg:gap-0 items-center">
+            <div className="orch-fade relative z-10 grid grid-cols-[24%_52%_24%] justify-between items-center">
 
               {/* LEFT — Layer 2: Integrations */}
               <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-1 text-center lg:text-left">Layer 2 · Integrations</p>
-                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-center lg:text-left border-b lg:border-0 border-border/40 pb-2 lg:pb-0 mb-3 lg:mb-2.5">Connected tools and services</p>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:block gap-2.5 lg:space-y-1.5">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-1 text-left">Layer 2 · Integrations</p>
+                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-left">Connected tools and services</p>
+                <div className="space-y-1.5">
                   {([
                     { name: 'Google Maps', sub: 'Location & Geo Data' },
                     { name: 'WhatsApp Business', sub: 'Messaging API' },
@@ -1570,23 +1537,16 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mobile Dotted Connection Line */}
-              <div className="flex lg:hidden justify-center my-3.5">
-                <svg width="2" height="24" className="dark:opacity-30 opacity-20">
-                  <line x1="1" y1="0" x2="1" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" className="orch-line" />
-                </svg>
-              </div>
-
               {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
-              <div className="relative z-10 w-full max-w-[490px] mx-auto my-3 lg:my-0 lg:px-2">
+              <div className="relative z-10 w-full max-w-[490px] mx-auto px-2">
                 <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-[0_8px_32px_rgba(255,107,53,0.08),0_1px_3px_rgba(0,0,0,0.02)] transition-all">
                   {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
-                  <div ref={leftHubRef} className="hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                  <div ref={leftHubRef} className="flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
                     <Database size={13} className="text-[#ff6b35]" />
                   </div>
 
                   {/* RIGHT HUB NODE BADGE — GLOWING ORANGE/RED */}
-                  <div ref={rightHubRef} className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                  <div ref={rightHubRef} className="flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
                     <ShieldCheck size={13} className="text-[#ff6b35]" />
                   </div>
 
