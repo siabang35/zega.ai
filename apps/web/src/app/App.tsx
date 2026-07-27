@@ -424,10 +424,18 @@ export default function App() {
           {/* Logo */}
           <a
             href="#home"
-            className="flex items-center gap-1.5 text-[16px] font-black tracking-[-0.04em] text-foreground transition-opacity hover:opacity-90"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50"
+            aria-label="ZEGA AI — Back to home"
           >
-            ZEGA<span className="text-[#ff6b35]">.AI</span>
+            <img
+              src="/assets/logo/zegalogo.png"
+              alt="ZEGA AI"
+              width={140}
+              height={40}
+              className="h-8 w-auto object-contain lg:h-9 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.15)] transition-[filter] duration-300"
+              loading="eager"
+              decoding="async"
+            />
           </a>
 
           {/* Desktop Nav Links */}
@@ -443,17 +451,8 @@ export default function App() {
             ))}
           </nav>
 
-          {/* Right Action Icons & Contact */}
+          {/* Right Action Icons */}
           <div className="flex items-center gap-3">
-            {/* Phone Pill Badge */}
-            <a
-              href="tel:+6281234567890"
-              className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition-all duration-300 hover:border-border hover:bg-card hover:text-foreground sm:inline-flex"
-            >
-              <Phone size={11} className="text-[#ff6b35]" />
-              <span>+62 812-3456-7890</span>
-            </a>
-
             {/* Theme Toggle */}
             <button
               onClick={() => setDark(!dark)}
@@ -463,12 +462,13 @@ export default function App() {
               {dark ? <Sun size={13} /> : <Moon size={13} />}
             </button>
 
-            {/* Sign Up CTA Button */}
+            {/* Sign Up CTA Button — Premium */}
             <button
               onClick={() => triggerComingSoon()}
-              className="hidden items-center justify-center rounded-full bg-[#ff6b35] px-4.5 py-1.5 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/25 transition-all duration-300 hover:bg-[#e85a26] hover:scale-105 active:scale-95 sm:inline-flex cursor-pointer"
+              className="group relative hidden items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/30 transition-all duration-500 hover:bg-right hover:shadow-xl hover:shadow-[#ff6b35]/40 hover:scale-[1.04] active:scale-95 sm:inline-flex cursor-pointer"
             >
-              Sign Up
+              <span className="relative z-10">Sign Up</span>
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
 
             {/* Mobile Menu Hamburger */}
@@ -498,23 +498,17 @@ export default function App() {
                 <span className="text-[10px] text-muted-foreground font-normal">→</span>
               </a>
             ))}
-            <div className="mt-3 flex flex-col gap-2.5 border-t border-border/50 pt-4">
+            <div className="mt-3 border-t border-border/50 pt-4">
               <button
-                className="flex items-center justify-center rounded-xl bg-[#ff6b35] py-3 text-xs font-bold text-white shadow-lg shadow-[#ff6b35]/20 cursor-pointer"
+                className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-3 text-xs font-bold text-white shadow-lg shadow-[#ff6b35]/20 transition-all duration-500 hover:bg-right active:scale-[0.98] cursor-pointer"
                 onClick={() => {
                   setMobileOpen(false);
                   triggerComingSoon();
                 }}
               >
-                Sign Up
+                <span className="relative z-10">Sign Up</span>
+                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </button>
-              <a
-                href="tel:+6281234567890"
-                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground"
-              >
-                <Phone size={13} className="text-[#ff6b35]" />
-                +62 812-3456-7890
-              </a>
             </div>
           </div>
         </div>
@@ -550,7 +544,7 @@ export default function App() {
           </p>
 
           {/* Interactive Glass Input Pill */}
-          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex max-w-[360px] items-center overflow-hidden rounded-full border border-border/80 bg-card/80 p-1 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 focus-within:border-[#ff6b35]/60 hover:border-border">
+          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex max-w-[380px] items-center overflow-hidden rounded-full border border-border/80 bg-card/80 p-1.5 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 focus-within:border-[#ff6b35]/60 focus-within:shadow-[#ff6b35]/10 hover:border-border">
             <input
               type="email"
               placeholder="Enter Your Email"
@@ -558,9 +552,10 @@ export default function App() {
             />
             <button
               onClick={() => triggerComingSoon()}
-              className="btn-interactive rounded-full bg-[#ff6b35] px-5 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-300 hover:bg-[#e85a26] hover:scale-105 active:scale-95 cursor-pointer"
+              className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-6 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/35 hover:scale-[1.03] active:scale-95 cursor-pointer"
             >
-              Join ZEGA
+              <span className="relative z-10">Join ZEGA</span>
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
           </div>
         </div>
@@ -873,8 +868,8 @@ export default function App() {
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`rounded-full px-4 py-1.5 text-[11px] font-medium transition-all ${activeTab === tab
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:text-foreground"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {tab}
@@ -1051,11 +1046,10 @@ export default function App() {
             {TESTIMONIALS.map(({ stars, text, name, role, img, featured }) => (
               <article
                 key={name}
-                className={`group relative overflow-hidden rounded-2xl border border-border/70 p-5 transition-all duration-300 hover:shadow-xl ${
-                  featured
+                className={`group relative overflow-hidden rounded-2xl border border-border/70 p-5 transition-all duration-300 hover:shadow-xl ${featured
                     ? "bg-gradient-to-br from-[#0e1014] to-[#161820] sm:scale-105 sm:shadow-2xl"
                     : "bg-card"
-                }`}
+                  }`}
               >
                 {/* Rotating Border Beam Line */}
                 <div
@@ -1111,8 +1105,8 @@ export default function App() {
                   key={b}
                   onClick={() => setBilling(b)}
                   className={`rounded-full px-5 py-2 text-[11px] font-semibold capitalize transition-all ${billing === b
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:text-foreground"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {b}
@@ -1131,8 +1125,8 @@ export default function App() {
               <article
                 key={name}
                 className={`relative overflow-hidden rounded-2xl border p-6 ${featured
-                    ? "border-transparent bg-gradient-to-br from-[#ff6b35] via-[#c2185b] to-[#0ea5e9]"
-                    : "border-border bg-card"
+                  ? "border-transparent bg-gradient-to-br from-[#ff6b35] via-[#c2185b] to-[#0ea5e9]"
+                  : "border-border bg-card"
                   }`}
               >
                 {featured && badge && (
@@ -1157,8 +1151,8 @@ export default function App() {
                 <button
                   onClick={() => triggerComingSoon()}
                   className={`mt-5 flex w-full items-center justify-center rounded-full py-2.5 text-[11px] font-bold transition-all hover:opacity-90 cursor-pointer ${featured
-                      ? "bg-white text-[#c2185b]"
-                      : "border border-border text-foreground hover:bg-secondary"
+                    ? "bg-white text-[#c2185b]"
+                    : "border border-border text-foreground hover:bg-secondary"
                     }`}
                 >
                   Choose Plan
@@ -1288,13 +1282,21 @@ export default function App() {
       {/* FOOTER */}
       <footer className="relative overflow-hidden border-t border-border/40 bg-card/10 pt-16 pb-6 px-6 lg:px-12">
         <div className="mx-auto max-w-[1100px] flex flex-col items-center justify-between gap-8 md:flex-row">
-          <div className="flex flex-col gap-1.5 text-center md:text-left">
+          <div className="flex flex-col gap-2.5 text-center md:text-left">
             <a
               href="#home"
-              className="text-[17px] font-black tracking-[-0.04em] text-foreground"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              className="inline-flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50"
+              aria-label="ZEGA AI — Back to home"
             >
-              ZEGA<span className="text-[#ff6b35]">.AI</span>
+              <img
+                src="/assets/logo/zegalogo.png"
+                alt="ZEGA AI"
+                width={160}
+                height={44}
+                className="h-9 w-auto object-contain lg:h-11 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.15)] transition-[filter] duration-300"
+                loading="lazy"
+                decoding="async"
+              />
             </a>
             <p className="text-[11px] text-muted-foreground max-w-[200px]">
               Zero-Friction Enterprise Generative Automation.

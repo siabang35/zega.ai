@@ -1,0 +1,22 @@
+{
+  "name": "@zega/supabase",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/client.ts",
+  "types": "./src/client.ts",
+  "exports": {
+    ".": "./src/client.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "generate-types": "supabase gen types typescript --local > src/types.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
