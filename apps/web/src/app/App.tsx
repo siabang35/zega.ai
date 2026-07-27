@@ -21,13 +21,17 @@ import {
   Grid3X3,
   Headphones,
   Layers3,
+  Lock,
+  Mail,
   Menu,
   MessageSquare,
   Moon,
   Network,
   Phone,
   Search,
+  Settings,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Star,
   Sun,
@@ -393,15 +397,405 @@ function Stars({ count }: { count: number }) {
   );
 }
 
+/* ═══════ Chart.js SVG Symbol Components for Guardrails ═══════ */
+
+function ChartJsBarSymbol({ color = "#36A2EB", className = "size-3.5" }: { color?: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}>
+      <rect x="2" y="8" width="3" height="6" rx="0.5" fill={color} opacity="0.75" />
+      <rect x="6.5" y="4" width="3" height="10" rx="0.5" fill={color} />
+      <rect x="11" y="6" width="3" height="8" rx="0.5" fill={color} opacity="0.85" />
+      <path d="M1 14.5H15" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChartJsDoughnutSymbol({ color = "#9966FF", className = "size-3.5" }: { color?: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}>
+      <circle cx="8" cy="8" r="5.5" stroke={color} strokeWidth="2.2" opacity="0.35" />
+      <path d="M8 2.5 A5.5 5.5 0 1 1 2.5 8" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="8" cy="8" r="1.8" fill={color} />
+    </svg>
+  );
+}
+
+function ChartJsScatterSymbol({ color = "#FF9F40", className = "size-3.5" }: { color?: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}>
+      <path d="M2 2.5V13.5H13.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.6" />
+      <circle cx="5" cy="10" r="1.4" fill={color} opacity="0.8" />
+      <circle cx="8.5" cy="7.5" r="1.4" fill={color} opacity="0.8" />
+      <circle cx="11.5" cy="4.5" r="1.8" fill={color} />
+      <path d="M10.2 3.2L12.8 5.8M12.8 3.2L10.2 5.8" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChartJsLineSymbol({ color = "#FF6384", className = "size-3.5" }: { color?: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}>
+      <path d="M2 11 Q 5 4, 8 9 T 14 3" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M2 11 Q 5 4, 8 9 T 14 3 L 14 13.5 L 2 13.5 Z" fill={color} opacity="0.2" />
+      <circle cx="14" cy="3" r="1.5" fill={color} />
+    </svg>
+  );
+}
+
+function ChartJsStepSymbol({ color = "#4BC0C0", className = "size-3.5" }: { color?: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}>
+      <path d="M2 12.5H5.5V8.5H9.5V4.5H14" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="2" cy="12.5" r="1.2" fill={color} />
+      <circle cx="5.5" cy="8.5" r="1.2" fill={color} />
+      <circle cx="9.5" cy="4.5" r="1.2" fill={color} />
+      <circle cx="14" cy="4.5" r="1.5" fill={color} />
+    </svg>
+  );
+}
+
+const BrandIcon = ({ name }: { name: string }) => {
+  switch (name) {
+    case "9Router":
+    case "9Router Engine":
+      return <img src="/assets/visualization/9router.jpeg" className="size-5.5 rounded-md object-cover" alt="9Router Engine" />;
+    case "Google Maps":
+      return <img src="/assets/visualization/gmaps.webp" className="size-5.5 rounded-md object-contain" alt="Google Maps" />;
+    case "WhatsApp Business":
+      return <img src="/assets/visualization/whatsapp.jpeg" className="size-5.5 rounded-md object-contain" alt="WhatsApp Business" />;
+    case "Stripe Connect":
+      return <img src="/assets/visualization/stripe.webp" className="size-5.5 rounded-md object-contain" alt="Stripe Connect" />;
+    case "x402 Protocol":
+      return <img src="/assets/visualization/x402.jpg" className="size-5.5 rounded-md object-contain" alt="x402 Protocol" />;
+    case "Supabase":
+      return (
+        <svg className="size-4" viewBox="0 0 24 24" fill="none">
+          <path d="M13.35 2.05a1.2 1.2 0 00-1.7.25L3.3 14.5A1.2 1.2 0 004.3 16.3h7.8l-1.45 5.65a1.2 1.2 0 001.7-.25l8.35-12.2a1.2 1.2 0 00-1-1.8h-7.8l1.45-5.65z" fill="#3ECF8E" />
+        </svg>
+      );
+    case "BigQuery":
+      return <img src="/assets/visualization/bigquery.jpeg" className="size-5.5 rounded-md object-contain" alt="Google BigQuery" />;
+    case "Spreadsheet":
+    case "Google Sheets":
+      return <img src="/assets/visualization/sphreadsheet.webp" className="size-5.5 rounded-md object-contain" alt="Spreadsheet" />;
+    case "Browser Use":
+      return (
+        <svg className="size-4" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="16" rx="3" fill="#7C3AED" fillOpacity="0.2" stroke="#A855F7" strokeWidth="1.5" />
+          <circle cx="7" cy="8" r="1" fill="#A855F7" />
+          <circle cx="10" cy="8" r="1" fill="#A855F7" />
+          <circle cx="13" cy="8" r="1" fill="#A855F7" />
+          <path d="M3 11h18" stroke="#A855F7" strokeWidth="1.5" />
+        </svg>
+      );
+    case "GitHub":
+      return (
+        <svg className="size-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
+        </svg>
+      );
+    case "Slack":
+      return (
+        <svg className="size-4" viewBox="0 0 24 24" fill="none">
+          <path d="M6 15a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 6 10h2.5v2.5A2.5 2.5 0 0 1 6 15zm0-6.5A2.5 2.5 0 0 1 3.5 6 2.5 2.5 0 0 1 6 3.5a2.5 2.5 0 0 1 2.5 2.5V6H6zm6.5 0A2.5 2.5 0 0 1 15 6a2.5 2.5 0 0 1-2.5 2.5H10V6a2.5 2.5 0 0 1 2.5-2.5zm0 6.5A2.5 2.5 0 0 1 15 15a2.5 2.5 0 0 1-2.5 2.5V15H10v-2.5a2.5 2.5 0 0 1 2.5-2.5zm6.5 0a2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5H16v-2.5a2.5 2.5 0 0 1 2.5-2.5zm0-6.5a2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5V6H16a2.5 2.5 0 0 1 2.5-2.5z" fill="#E01E5A" />
+        </svg>
+      );
+    case "Claude":
+      return <img src="/assets/visualization/claude.webp" className="size-5.5 rounded-md object-contain" alt="Claude" />;
+    case "GPT-4.1":
+      return <img src="/assets/visualization/gpt.webp" className="size-5.5 rounded-md object-contain" alt="GPT" />;
+    case "Gemini 2.5":
+      return <img src="/assets/visualization/gemini.png" className="size-5.5 rounded-md object-contain" alt="Gemini" />;
+    case "DeepSeek":
+      return <img src="/assets/visualization/deepseek.webp" className="size-5.5 rounded-md object-contain" alt="DeepSeek" />;
+    case "Qwen 2.5":
+      return <img src="/assets/visualization/qwen.webp" className="size-5.5 rounded-md object-contain" alt="Qwen" />;
+    case "Mistral":
+      return <img src="/assets/visualization/mistral.png" className="size-5.5 rounded-md object-contain" alt="Mistral" />;
+    case "Llama 3.1":
+      return <img src="/assets/visualization/llama.jpeg" className="size-5.5 rounded-md object-contain" alt="Llama 3.1" />;
+    default:
+      return <Globe className="size-4 text-gray-400" />;
+  }
+};
+
+const VIZ_TAB_DATA = {
+  Agent: {
+    title: "ZEGA AI",
+    sub: "Enterprise Autonomous Agent Orchestrator",
+    badge: "LIVE",
+    badgeColor: "dark:text-emerald-400 text-emerald-600 dark:bg-emerald-500/10 bg-emerald-50 border-emerald-500/20",
+    badgePulse: "bg-emerald-500",
+    metrics: [
+      { Icon: Activity, label: "Running" },
+      { Icon: null, label: "27 Workflows" },
+      { Icon: null, label: "18 Agents" },
+      { Icon: Clock, label: "142ms" },
+    ],
+    items: [
+      { Icon: Search, label: 'Planning', sub: 'Analyze & Decompose task goals' },
+      { Icon: Brain, label: 'Reasoning', sub: 'Multi-step chain-of-thought routing' },
+      { Icon: Wrench, label: 'Tool Calling', sub: 'Execute API actions & parameters' },
+      { Icon: Database, label: 'Memory', sub: 'Retrieve historical context dynamically' },
+      { Icon: Sparkles, label: 'Execution', sub: 'Deliver verified, formatted solutions' },
+    ]
+  },
+  Integration: {
+    title: "Smart Connectors",
+    sub: "Zero-Trust Enterprise Data Gateways & Adapters",
+    badge: "CONNECTED",
+    badgeColor: "dark:text-sky-400 text-sky-600 dark:bg-sky-500/15 bg-sky-50 border-sky-500/20",
+    badgePulse: "bg-sky-500",
+    metrics: [
+      { Icon: Globe, label: "10 Connectors" },
+      { Icon: null, label: "12.8M Requests/day" },
+      { Icon: null, label: "99.99% Uptime" },
+      { Icon: ShieldCheck, label: "OAuth Secure" },
+    ],
+    items: [
+      { Icon: Globe, label: 'API Router', sub: 'Unified REST, GraphQL & gRPC secure channels' },
+      { Icon: Zap, label: 'Webhook Gateway', sub: 'Real-time event streams with auto-retry' },
+      { Icon: Network, label: 'MCP Protocol', sub: 'Model Context Protocol server integrations' },
+      { Icon: ShieldCheck, label: 'Key Vault Manager', sub: 'AES-256 encrypted authentication stores' },
+      { Icon: Clock, label: 'Rate Limits', sub: 'Auto-throttle, delay and back-off handling' },
+    ]
+  },
+  Automation: {
+    title: "Workflow Engine",
+    sub: "Industrial-Grade Directed Acyclic Graph (DAG) Executor",
+    badge: "ACTIVE",
+    badgeColor: "dark:text-purple-400 text-purple-600 dark:bg-purple-500/15 bg-purple-50 border-purple-500/20",
+    badgePulse: "bg-purple-500",
+    metrics: [
+      { Icon: Activity, label: "340 executions/s" },
+      { Icon: null, label: "Auto Failover" },
+      { Icon: null, label: "Average 8.4 steps" },
+      { Icon: Check, label: "99.997% Success" },
+    ],
+    items: [
+      { Icon: GitBranch, label: 'DAG Scheduler', sub: 'Parallel multi-agent execution branches' },
+      { Icon: Network, label: 'Routing Engine', sub: 'Conditional logical decisions & loops' },
+      { Icon: Check, label: 'Human-in-the-Loop', sub: 'Slack & Email validation checklist gates' },
+      { Icon: Activity, label: 'State Tracker', sub: 'Real-time telemetry of step processing logs' },
+      { Icon: Zap, label: 'Self-Healing Runs', sub: 'Automated recovery of failed processes' },
+    ]
+  },
+  Memory: {
+    title: "Cognitive Memory",
+    sub: "Semantic Storage & Swarm-wide Context Management",
+    badge: "PERSISTENT",
+    badgeColor: "dark:text-pink-400 text-pink-600 dark:bg-pink-500/15 bg-pink-50 border-pink-500/20",
+    badgePulse: "bg-pink-500",
+    metrics: [
+      { Icon: Database, label: "45.2M vectors" },
+      { Icon: null, label: "Query <14ms" },
+      { Icon: null, label: "98.6% relevance" },
+      { Icon: Sparkles, label: "Dynamic Optimizer" },
+    ],
+    items: [
+      { Icon: Clock, label: 'Session Memory', sub: 'Short-term sliding window context state' },
+      { Icon: Database, label: 'Persistent Knowledge', sub: 'Long-term user profiles and rule lists' },
+      { Icon: Brain, label: 'Vector Indexing', sub: 'Fast semantic matching via legacy embeddings' },
+      { Icon: Grid3X3, label: 'Swarm Repository', sub: 'Distributed shared memory pool across swarms' },
+      { Icon: Sparkles, label: 'Token Pruning', sub: 'Dynamic context optimization and pruning' },
+    ]
+  }
+} as const;
+
+const ACTION_TABS_DATA = {
+  Utilization: {
+    category: "Tech Assistance",
+    Icon: Headphones,
+    iconGradient: "from-[#ff6b35] via-[#e8295a] to-[#9b27d4]",
+    title: "Workplace AI Agent",
+    desc: "Integrate with your systems, interpret your data and workflows, and enable agentic actions with live capacity load balancing.",
+    prompt: "Got Questions...",
+    metrics: [
+      { label: "Active Fleet", val: "87%" },
+      { label: "Concurrent Tasks", val: "1,420" },
+      { label: "Auto-Scale", val: "Optimal" },
+    ],
+    type: "chat" as const,
+    chatMessages: [
+      { sender: "user", text: "Hi there! I recently placed an order and wanted to see what the status is." },
+      { sender: "agent", text: "Of course! May I have your order ID or phone number, please?" },
+      { sender: "user", text: "Sure! My order ID is #ZEGA-98241." },
+      { sender: "agent", text: "Order #ZEGA-98241 is in transit with 99.8% delivery accuracy. Expected tomorrow by 2 PM!" },
+    ],
+    placeholder: "Ask ZEGA anything about fleet operations...",
+  },
+  "Tools & Systems": {
+    category: "Integration Hub",
+    Icon: Network,
+    iconGradient: "from-[#0ea5e9] via-[#4f46e5] to-[#9b27d4]",
+    title: "Unified System Gateway",
+    desc: "Connect Stripe, WhatsApp, BigQuery, Supabase, Slack, and custom gRPC/REST APIs with automated zero-trust authorization.",
+    prompt: "Inspect active connectors...",
+    metrics: [
+      { label: "Active Connectors", val: "10 Ready" },
+      { label: "Avg Latency", val: "142ms" },
+      { label: "Security Vault", val: "AES-256" },
+    ],
+    type: "tools" as const,
+    connectors: [
+      { name: "Stripe Connect", sub: "Payments API", status: "Active" },
+      { name: "WhatsApp Business", sub: "Messaging Gateway", status: "Active" },
+      { name: "Google BigQuery", sub: "Data Warehouse", status: "Active" },
+      { name: "Supabase DB", sub: "Auth & Database", status: "Active" },
+      { name: "Slack Swarm", sub: "Event Trigger", status: "Active" },
+      { name: "GitHub Protocol", sub: "Deployments", status: "Connected" },
+    ],
+    eventLogs: [
+      { tag: "TRIGGER", text: "Customer requested invoice download via Slack." },
+      { tag: "INVOKE", text: "Executing Stripe API -> Fetching Invoice #INV-2026-08..." },
+      { tag: "SUCCESS", text: "Invoice generated & encrypted. Delivered via Slack & Email in 84ms." },
+    ],
+    placeholder: "Search connected tools or invoke API action...",
+  },
+  Analytics: {
+    category: "Telemetry & ROI",
+    Icon: BarChart3,
+    iconGradient: "from-[#10b981] via-[#0ea5e9] to-[#6366f1]",
+    title: "Real-time Telemetry Engine",
+    desc: "Gain complete visibility into model performance, cost savings, response latency, and task resolution accuracy across all enterprise units.",
+    prompt: "Generate ROI breakdown...",
+    metrics: [
+      { label: "Success Rate", val: "99.97%" },
+      { label: "Cost Saved", val: "$14.2k/mo" },
+      { label: "Model Routing", val: "Optimal" },
+    ],
+    type: "analytics" as const,
+    chartType: "doughnut" as const,
+    chartData: {
+      labels: ["Claude 3.7", "GPT-4.1", "Gemini 2.5", "DeepSeek R1"],
+      datasets: [
+        {
+          data: [40, 32, 18, 10],
+          backgroundColor: ["#a855f7", "#10b981", "#3b82f6", "#ff6b35"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    chartOptions: {
+      plugins: { legend: { display: false } },
+      cutout: "72%",
+      responsive: true,
+      maintainAspectRatio: false,
+    },
+    insights: [
+      { label: "9Router Efficiency", val: "62% low-cost routing", trend: "+14.2%" },
+      { label: "Avg Resolution", val: "142ms per step", trend: "-18ms" },
+      { label: "Accuracy Score", val: "99.9% verified", trend: "+0.3%" },
+    ],
+    placeholder: "Ask for analytics report or metric breakdown...",
+  },
+};
+
 export default function App() {
   const [dark, setDark] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [activeTab, setActiveTab] = useState("Utilization");
+  const [vizTab, setVizTab] = useState<"Agent" | "Integration" | "Automation" | "Memory">("Agent");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Dynamic coordination points state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftPointsRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const rightPointsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const leftHubRef = useRef<HTMLDivElement>(null);
+  const rightHubRef = useRef<HTMLDivElement>(null);
+
+  const [coords, setCoords] = useState<{
+    leftPoints: { x: number; y: number }[];
+    rightPoints: { x: number; y: number }[];
+    leftHub: { x: number; y: number } | null;
+    rightHub: { x: number; y: number } | null;
+  }>({
+    leftPoints: [],
+    rightPoints: [],
+    leftHub: null,
+    rightHub: null,
+  });
+
+  const updateCoordinates = useCallback(() => {
+    if (!containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+
+    const leftPoints = leftPointsRef.current.map((el) => {
+      if (!el) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2 - containerRect.left,
+        y: rect.top + rect.height / 2 - containerRect.top,
+      };
+    });
+
+    const rightPoints = rightPointsRef.current.map((el) => {
+      if (!el) return { x: 0, y: 0 };
+      const rect = el.getBoundingClientRect();
+      return {
+        x: rect.left - containerRect.left,
+        y: rect.top + rect.height / 2 - containerRect.top,
+      };
+    });
+
+    const leftHub = leftHubRef.current
+      ? {
+        x: leftHubRef.current.getBoundingClientRect().left + leftHubRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: leftHubRef.current.getBoundingClientRect().top + leftHubRef.current.getBoundingClientRect().height / 2 - containerRect.top,
+      }
+      : null;
+
+    const rightHub = rightHubRef.current
+      ? {
+        x: rightHubRef.current.getBoundingClientRect().left + rightHubRef.current.getBoundingClientRect().width / 2 - containerRect.left,
+        y: rightHubRef.current.getBoundingClientRect().top + rightHubRef.current.getBoundingClientRect().height / 2 - containerRect.top,
+      }
+      : null;
+
+    setCoords({ leftPoints, rightPoints, leftHub, rightHub });
+  }, []);
+
+  useEffect(() => {
+    updateCoordinates();
+
+    // Periodically run for a short time to catch initial DOM updates / images loading
+    const timer = setInterval(updateCoordinates, 500);
+
+    // Setup resize observer
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      observer = new ResizeObserver(() => {
+        updateCoordinates();
+      });
+      observer.observe(containerRef.current);
+    }
+
+    const handleResize = () => updateCoordinates();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      clearInterval(timer);
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [updateCoordinates]);
+
   const triggerComingSoon = (msg = "Coming Soon — ZEGA AI Enterprise Sign Up will open shortly.") => {
+    if (email && email.trim() !== "") {
+      const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!isEmailValid) {
+        msg = "Please enter a valid email address.";
+      } else {
+        msg = `White-listed! ${email} is registered for ZEGA AI early access.`;
+        setEmail("");
+        setEmailTouched(false);
+      }
+    }
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((current) => (current === msg ? null : current));
@@ -558,11 +952,30 @@ export default function App() {
           </p>
 
           {/* Interactive Glass Input Pill */}
-          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex max-w-[380px] items-center overflow-hidden rounded-full border border-border/80 bg-card/80 p-1.5 backdrop-blur-xl shadow-xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 focus-within:border-[#ff6b35]/60 focus-within:shadow-[#ff6b35]/10 hover:border-border">
+          <div className={`hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex max-w-[380px] items-center overflow-hidden rounded-full border p-1.5 backdrop-blur-xl shadow-xl transition-all duration-300 ${emailTouched && email.trim() !== ""
+            ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+              ? 'border-emerald-500/50 shadow-[#10b981]/10 bg-white/90 dark:bg-card/90'
+              : 'border-rose-500/50 shadow-[#f43f5e]/10 bg-white/90 dark:bg-card/90'
+            : 'border-border/80 focus-within:border-[#ff6b35]/60 focus-within:shadow-[#ff6b35]/10 dark:border-white/10 dark:bg-white/[0.03] bg-white/80'
+            }`}>
+            <Mail size={14} className={`ml-3.5 transition-colors ${emailTouched && email.trim() !== ""
+              ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+                ? 'text-emerald-500'
+                : 'text-rose-500'
+              : 'dark:text-white/30 text-slate-400'
+              }`} />
             <input
               type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailTouched(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") triggerComingSoon();
+              }}
               placeholder="Enter Your Email"
-              className="min-w-0 flex-1 bg-transparent px-4 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
             />
             <button
               onClick={() => triggerComingSoon()}
@@ -576,18 +989,15 @@ export default function App() {
 
         {/* ORCHESTRATION FLOW VISUALIZATION */}
         <div className="relative mx-auto mt-12 w-full max-w-[1200px] px-2">
-          {/* Flow animation */}
+          {/* Flow animation styling */}
           <style>{`
-            @keyframes flowRight { 0% { stroke-dashoffset: 16; } 100% { stroke-dashoffset: 0; } }
-            @keyframes flowLeft { 0% { stroke-dashoffset: -16; } 100% { stroke-dashoffset: 0; } }
-            @keyframes flowDown { 0% { stroke-dashoffset: 12; } 100% { stroke-dashoffset: 0; } }
-            .fl-right { stroke-dasharray: 4 4; animation: flowRight 1.4s linear infinite; }
-            .fl-left { stroke-dasharray: 4 4; animation: flowLeft 1.4s linear infinite; }
-            .fl-down { stroke-dasharray: 4 4; animation: flowDown 1s linear infinite; }
+            @keyframes flowDash { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+            .orch-line { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite; }
+            .orch-line-rev { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite reverse; }
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
             .orch-fade { animation: fadeInUp 0.5s ease both; }
-            @keyframes glowPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
-            .glow-dot { animation: glowPulse 2s ease-in-out infinite; }
+            @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
+            .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
           `}</style>
           <div className="relative rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-3 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
             {/* Dot grid */}
@@ -615,113 +1025,213 @@ export default function App() {
               </div>
             </div>
 
-            {/* Flow connector L1 → L2/L3/L4 (branching lines) */}
-            <div className="hidden lg:flex justify-center my-2">
-              <svg width="700" height="32" viewBox="0 0 700 32" fill="none" className="dark:opacity-50 opacity-30">
-                <path d="M350 0 L350 16" className="fl-down" stroke="currentColor" strokeWidth="1" />
-                <path d="M350 16 L100 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.1s' }} />
-                <path d="M350 16 L350 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.2s' }} />
-                <path d="M350 16 L600 32" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.3s' }} />
-                <circle cx="100" cy="32" r="2" fill="currentColor" className="glow-dot" />
-                <circle cx="350" cy="32" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.3s' }} />
-                <circle cx="600" cy="32" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.6s' }} />
+            {/* Flow connector L1 → L3 (Curved fanning paths matching picture) */}
+            <div className="hidden lg:flex justify-center my-1">
+              <svg width="800" height="40" viewBox="0 0 800 40" fill="none" className="dark:opacity-70 opacity-40">
+                <path d="M100 0 C100 20, 400 10, 400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" />
+                <path d="M250 0 C250 20, 400 10, 400 40" className="orch-line" stroke="#818cf8" strokeWidth="1.2" style={{ animationDelay: '0.15s' }} />
+                <path d="M400 0 L400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.5" />
+                <path d="M550 0 C550 20, 400 10, 400 40" className="orch-line" stroke="#818cf8" strokeWidth="1.2" style={{ animationDelay: '0.15s' }} />
+                <path d="M700 0 C700 20, 400 10, 400 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.3s' }} />
+                <circle cx="400" cy="40" r="3" fill="#38bdf8" className="glow-hub" />
               </svg>
             </div>
             <div className="flex lg:hidden justify-center my-1.5">
-              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="fl-down" stroke="currentColor" strokeWidth="1.5" /></svg>
+              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="orch-line" stroke="currentColor" strokeWidth="1.5" /></svg>
             </div>
 
             {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[220px_1fr_220px] gap-3 lg:gap-0">
+            <div ref={containerRef} className="orch-fade relative z-10 grid grid-cols-1 lg:grid-cols-[18%_64%_18%] justify-between gap-3 lg:gap-0 items-center">
 
-              {/* SVG Flow Lines Overlay (desktop only) */}
-              <svg className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none z-0" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="lgLeft" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgb(52,211,153)" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="rgb(99,102,241)" stopOpacity="0.3" />
-                  </linearGradient>
-                  <linearGradient id="lgRight" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgb(99,102,241)" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="rgb(14,165,233)" stopOpacity="0.15" />
-                  </linearGradient>
-                </defs>
-                {/* Left integration → Center lines */}
-                {[0,1,2,3,4,5,6,7,8].map(i => (
-                  <line key={`il${i}`} x1="19%" y1={`${8 + i * 10.2}%`} x2="36%" y2="50%" className="fl-right" stroke="url(#lgLeft)" strokeWidth="1" style={{ animationDelay: `${i * 0.12}s` }} />
-                ))}
-                {/* Center → Right agent lines */}
-                {[0,1,2,3,4,5,6].map(i => (
-                  <line key={`ir${i}`} x1="64%" y1="50%" x2="81%" y2={`${11 + i * 11.8}%`} className="fl-left" stroke="url(#lgRight)" strokeWidth="1" style={{ animationDelay: `${i * 0.12}s` }} />
-                ))}
-                {/* Glowing junction dots */}
-                <circle cx="36%" cy="50%" r="3" fill="rgb(99,102,241)" opacity="0.3" className="glow-dot" />
-                <circle cx="64%" cy="50%" r="3" fill="rgb(14,165,233)" opacity="0.3" className="glow-dot" style={{ animationDelay: '0.5s' }} />
+              {/* Dynamic Curved Bezier Connectors Overlay for Desktop — Fixed Proportional SVG / Dynamic DOM Nodes */}
+              <svg
+                viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
+                preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
+                fill="none"
+                className="hidden lg:block absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
+              >
+                {/* Fallback to static percentage lines while layout coordinates are loading */}
+                {(!coords.leftHub || coords.leftPoints.length === 0) ? (
+                  <>
+                    {/* 10 Paths from Layer 2 Integrations to Left Hub Node */}
+                    {[22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 382.5, 427.5].map((y, i) => {
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                      return (
+                        <g key={`static-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                        </g>
+                      );
+                    })}
+                    {/* Left Hub Node to Center */}
+                    <path d="M 333 225 L 340 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Memory' ? 0.25 : 0.9} fill="none" />
+                    {/* Center to Right Hub Node */}
+                    <path d="M 660 225 L 667 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Integration' ? 0.25 : 0.9} fill="none" />
+                    {/* 8 Paths from Right Hub Node to Layer 4 AI Agents */}
+                    {[30, 86, 142, 198, 254, 310, 366, 422].map((y, i) => {
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                      return (
+                        <g key={`static-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                        </g>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <>
+                    {/* Dynamic left lines fanning exactly to active green dots */}
+                    {coords.leftPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const x1 = pt.x;
+                      const y1 = pt.y;
+                      const x2 = coords.leftHub!.x;
+                      const y2 = coords.leftHub!.y;
+                      const cp1x = x1 + (x2 - x1) * 0.55;
+                      const cp1y = y1;
+                      const cp2x = x1 + (x2 - x1) * 0.45;
+                      const cp2y = y2;
+                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                      return (
+                        <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        </g>
+                      );
+                    })}
+
+                    {/* Dynamic right lines fanning exactly to AI agent cards left border */}
+                    {coords.rightPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const x1 = coords.rightHub!.x;
+                      const y1 = coords.rightHub!.y;
+                      const x2 = pt.x;
+                      const y2 = pt.y;
+                      const cp1x = x1 + (x2 - x1) * 0.45;
+                      const cp1y = y1;
+                      const cp2x = x1 + (x2 - x1) * 0.55;
+                      const cp2y = y2;
+                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                      return (
+                        <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        </g>
+                      );
+                    })}
+                  </>
+                )}
               </svg>
 
               {/* LEFT — Layer 2: Integrations */}
-              <div className="relative z-10 lg:pr-3">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-2">Layer 2 · Integrations</p>
-                <div className="space-y-1.5">
+              <div className="relative z-10">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-1 text-center lg:text-left">Layer 2 · Integrations</p>
+                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-center lg:text-left border-b lg:border-0 border-border/40 pb-2 lg:pb-0 mb-3 lg:mb-2.5">Connected tools and services</p>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:block gap-2.5 lg:space-y-1.5">
                   {([
-                    { Icon: Globe, name: 'Google Maps', sub: 'Location & Geo Data' },
-                    { Icon: Phone, name: 'WhatsApp Business', sub: 'Messaging API' },
-                    { Icon: CreditCard, name: 'Stripe Connect', sub: 'Payments & Billing' },
-                    { Icon: Zap, name: 'x402 Protocol', sub: 'M2M Micropayments' },
-                    { Icon: Database, name: 'Supabase', sub: 'Database & Auth' },
-                    { Icon: BarChart3, name: 'BigQuery', sub: 'Data Warehouse' },
-                    { Icon: Globe, name: 'Browser Use', sub: 'Web Automation' },
-                    { Icon: GitBranch, name: 'GitHub', sub: 'Code & Repos' },
-                    { Icon: MessageSquare, name: 'Slack', sub: 'Team Collaboration' },
-                  ] as const).map(({ Icon, name, sub }) => (
-                    <div key={name} className="flex items-center gap-2.5 rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2.5 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white hover:shadow-sm">
-                      <div className="flex-shrink-0 size-7 rounded-md dark:bg-[#818cf8]/10 bg-indigo-50 flex items-center justify-center">
-                        <Icon size={13} className="dark:text-[#818cf8] text-indigo-500" />
+                    { name: 'Google Maps', sub: 'Location & Geo Data' },
+                    { name: 'WhatsApp Business', sub: 'Messaging API' },
+                    { name: 'Stripe Connect', sub: 'Payments & Billing' },
+                    { name: 'x402 Protocol', sub: 'M2M Micropayments' },
+                    { name: 'Supabase', sub: 'Database & Auth' },
+                    { name: 'BigQuery', sub: 'Data Warehouse' },
+                    { name: 'Spreadsheet', sub: 'Google Sheets & Excel' },
+                    { name: 'Browser Use', sub: 'Web Automation' },
+                    { name: 'GitHub', sub: 'Code & Repos' },
+                    { name: 'Slack', sub: 'Team Collaboration' },
+                  ] as const).map(({ name, sub }, i) => (
+                    <div key={name} className="flex items-center justify-between rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2.5 py-2 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50/50 hover:border-slate-300 hover:shadow-md">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex-shrink-0 size-7 rounded-md dark:bg-white/[0.04] bg-indigo-50 flex items-center justify-center">
+                          <BrandIcon name={name} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
+                          <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{name}</p>
-                        <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
-                      </div>
+                      <span
+                        ref={(el) => { leftPointsRef.current[i] = el; }}
+                        className="size-1.5 rounded-full bg-emerald-400 animate-pulse ml-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                      />
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* Mobile Dotted Connection Line */}
+              <div className="flex lg:hidden justify-center my-3.5">
+                <svg width="2" height="24" className="dark:opacity-30 opacity-20">
+                  <line x1="1" y1="0" x2="1" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" className="orch-line" />
+                </svg>
+              </div>
+
               {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
-              <div className="relative z-10 lg:px-3">
-                <div className="rounded-xl border dark:border-white/[0.08] border-gray-200 dark:bg-white/[0.02] bg-white/80 overflow-hidden">
+              <div className="relative z-10 w-full lg:w-auto lg:px-3.5 mx-auto my-3 lg:my-0">
+                <div className="relative rounded-xl border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#0c1929] bg-white overflow-visible shadow-[0_8px_30px_rgba(255,107,53,0.06),0_1px_3px_rgba(0,0,0,0.02)]">
+                  {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
+                  <div ref={leftHubRef} className="hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                    <Database size={13} className="text-[#ff6b35]" />
+                  </div>
+
+                  {/* RIGHT HUB NODE BADGE — GLOWING ORANGE/RED */}
+                  <div ref={rightHubRef} className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                    <ShieldCheck size={13} className="text-[#ff6b35]" />
+                  </div>
+
                   {/* Tabs bar */}
-                  <div className="flex border-b dark:border-white/[0.06] border-gray-200/80">
-                    {['Agent', 'Integration', 'Automation', 'Memory'].map((tab, i) => (
-                      <button key={tab} className={`flex-1 py-2 text-[9px] font-semibold tracking-wide transition-colors ${
-                        i === 0
-                          ? 'dark:text-white/90 text-gray-900 dark:bg-white/[0.04] bg-gray-50 border-b-2 dark:border-[#818cf8] border-indigo-500'
+                  <div className="flex border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                    {(['Agent', 'Integration', 'Automation', 'Memory'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setVizTab(tab)}
+                        className={`flex-1 py-2.5 text-[9px] font-semibold tracking-wide transition-all cursor-pointer ${vizTab === tab
+                          ? 'dark:text-white/90 text-gray-900 dark:bg-white/[0.04] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35]'
                           : 'dark:text-white/30 text-gray-400 hover:dark:text-white/50 hover:text-gray-600'
-                      }`}>{tab}</button>
+                          }`}
+                      >
+                        {tab}
+                      </button>
                     ))}
                   </div>
 
                   {/* Logo + Title */}
                   <div className="flex flex-col items-center pt-5 pb-3">
-                    <img src="/assets/logo/zegalogo.png" alt="ZEGA AI" className="size-16 sm:size-20 object-contain dark:drop-shadow-[0_2px_12px_rgba(99,102,241,0.25)] drop-shadow-md" />
-                    <h3 className="mt-2 text-[16px] sm:text-[18px] font-black dark:text-white/95 text-gray-900 tracking-tight">ZEGA AI</h3>
-                    <p className="text-[9px] dark:text-white/35 text-gray-400 font-medium">Enterprise Autonomous Agent Orchestrator</p>
+                    <img
+                      src="/assets/logo/zegalogo.png"
+                      alt="ZEGA AI"
+                      className="h-8 sm:h-9 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
+                    />
+                    {vizTab !== "Agent" && (
+                      <h3 className="mt-2 text-[13px] sm:text-[14px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
+                        {VIZ_TAB_DATA[vizTab].title}
+                      </h3>
+                    )}
+                    <p className={`text-[8.5px] dark:text-white/35 text-slate-500 font-semibold ${vizTab === "Agent" ? "mt-2.5" : "mt-1"}`}>
+                      {VIZ_TAB_DATA[vizTab].sub}
+                    </p>
                   </div>
 
                   {/* Workflow Pipeline */}
-                  <div className="px-4 pb-3 space-y-1.5">
-                    {([
-                      { Icon: Search, label: 'Planning', sub: 'Analyze & Decompose' },
-                      { Icon: Brain, label: 'Reasoning', sub: 'Multi-step Reasoning' },
-                      { Icon: Wrench, label: 'Tool Calling', sub: 'Execute with Tools' },
-                      { Icon: Database, label: 'Memory', sub: 'Retrieve & Store' },
-                      { Icon: Sparkles, label: 'Execution', sub: 'Deliver Results' },
-                    ] as const).map(({ Icon, label, sub }) => (
-                      <div key={label} className="flex items-center gap-3 rounded-lg dark:bg-white/[0.02] bg-gray-50/80 border dark:border-white/[0.04] border-gray-100 px-3 py-2">
-                        <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/70 text-indigo-400" />
+                  <div className="px-4 pb-3 space-y-1.5 min-h-[235px] flex flex-col justify-center transition-all duration-300">
+                    {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }) => (
+                      <div key={label} className="flex items-center gap-3 rounded-lg dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/60 border-slate-100 px-3 py-1.8 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                        <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/70 text-indigo-550" />
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-semibold dark:text-white/80 text-gray-700">{label}</p>
-                          <p className="text-[7.5px] dark:text-white/25 text-gray-400">{sub}</p>
+                          <p className="text-[7.5px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
                         </div>
                         <Check size={12} className="flex-shrink-0 dark:text-emerald-400/70 text-emerald-500" />
                       </div>
@@ -729,44 +1239,62 @@ export default function App() {
                   </div>
 
                   {/* Live status bar */}
-                  <div className="flex items-center justify-between px-4 py-2.5 border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-gray-50/50">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50">
                     <div className="flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[8px] font-bold dark:text-emerald-400 text-emerald-600">LIVE</span>
+                      <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
+                      <span className={`text-[8px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-1.5 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[8px] dark:text-white/35 text-gray-400"><Activity size={9} className="inline mr-0.5" />Running</span>
-                      <span className="text-[8px] dark:text-white/35 text-gray-400">27 Workflows</span>
-                      <span className="text-[8px] dark:text-white/35 text-gray-400">18 Agents</span>
-                      <span className="text-[8px] dark:text-white/35 text-gray-400"><Clock size={9} className="inline mr-0.5" />142ms</span>
+                      {VIZ_TAB_DATA[vizTab].metrics.map((m, idx) => {
+                        const Icon = m.Icon;
+                        return (
+                          <span key={idx} className="text-[8px] dark:text-white/35 text-slate-500 font-medium flex items-center gap-0.5">
+                            {Icon && <Icon size={9} />}
+                            {m.label}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Mobile Dotted Connection Line */}
+              <div className="flex lg:hidden justify-center my-3.5">
+                <svg width="2" height="24" className="dark:opacity-30 opacity-20">
+                  <line x1="1" y1="0" x2="1" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" className="orch-line" />
+                </svg>
+              </div>
+
               {/* RIGHT — Layer 4: AI Agents */}
-              <div className="relative z-10 lg:pl-3">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-2">Layer 4 · AI Agents</p>
-                <div className="space-y-1.5">
+              <div className="relative z-10">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-1 text-center lg:text-left">Layer 4 · AI Agents</p>
+                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-center lg:text-left border-b lg:border-0 border-border/40 pb-2 lg:pb-0 mb-3 lg:mb-2.5">Autonomous agents working on your business</p>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:block gap-2.5 lg:space-y-1.5">
                   {([
                     { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
                     { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
                     { Icon: Headphones, name: 'CS Agent', sub: 'WhatsApp · Telegram · Email', active: true },
                     { Icon: TrendingUp, name: 'SEO Agent', sub: 'GSC · GA4 · Ads · Keywords', active: true },
                     { Icon: BarChart3, name: 'Analytics Agent', sub: 'BigQuery · Metabase · Reports', active: true },
+                    { Icon: ShieldCheck, name: 'Risk & Strategy Agent', sub: 'Cost Optimization & Mitigation', active: true },
                     { Icon: Search, name: 'Research Agent', sub: 'Web · Papers · News · Data', active: false },
                     { Icon: Code2, name: 'Coding Agent', sub: 'GitHub · Code · Deployments', active: false },
-                  ] as const).map(({ Icon, name, sub, active }) => (
-                    <div key={name} className="flex items-center gap-2.5 rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2.5 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white hover:shadow-sm">
-                      <div className={`flex-shrink-0 size-7 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-gray-50'}`}>
-                        <Icon size={13} className={active ? 'dark:text-sky-400 text-sky-500' : 'dark:text-white/25 text-gray-400'} />
+                  ] as const).map(({ Icon, name, sub, active }, i) => (
+                    <div
+                      ref={(el) => { rightPointsRef.current[i] = el; }}
+                      key={name}
+                      className="flex items-center gap-2.5 rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2.5 py-2 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50/50 hover:border-slate-300 hover:shadow-md"
+                    >
+                      <div className={`flex-shrink-0 size-7 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-slate-50'}`}>
+                        <Icon size={13} className={active ? 'dark:text-sky-400 text-sky-600' : 'dark:text-white/25 text-slate-400'} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{name}</p>
-                          <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200 border' : 'dark:bg-white/[0.04] bg-gray-100 dark:text-white/30 text-gray-400 border dark:border-white/[0.05] border-gray-200'}`}>{active ? 'Active' : 'Idle'}</span>
+                          <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
+                          <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200' : 'dark:bg-white/[0.04] bg-slate-100 dark:text-white/30 text-slate-400 border dark:border-white/[0.05] border-slate-200'}`}>{active ? 'Active' : 'Idle'}</span>
                         </div>
-                        <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
+                        <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
                       </div>
                     </div>
                   ))}
@@ -774,53 +1302,71 @@ export default function App() {
               </div>
             </div>
 
-            {/* Flow connector L3 → L5 (branching lines) */}
-            <div className="hidden lg:flex justify-center my-2">
-              <svg width="700" height="28" viewBox="0 0 700 28" fill="none" className="dark:opacity-50 opacity-30">
-                <path d="M100 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" />
-                <path d="M350 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.15s' }} />
-                <path d="M600 0 L350 14" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.3s' }} />
-                <path d="M350 14 L350 28" className="fl-down" stroke="currentColor" strokeWidth="1" style={{ animationDelay: '0.4s' }} />
-                <circle cx="350" cy="14" r="2" fill="currentColor" className="glow-dot" />
-                <circle cx="350" cy="28" r="2" fill="currentColor" className="glow-dot" style={{ animationDelay: '0.4s' }} />
+            {/* Flow connector L3 → L5 (Curved fanning paths into the 7 Model Router cards) */}
+            <div className="hidden lg:flex justify-center my-2 transition-opacity duration-300" style={{ opacity: vizTab === 'Integration' ? 0.2 : 0.7 }}>
+              <svg width="800" height="40" viewBox="0 0 800 40" fill="none" className="dark:opacity-75 opacity-65">
+                <path d="M400 0 C400 20, 60 15, 60 40" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
+                <path d="M400 0 C400 20, 175 15, 175 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
+                <path d="M400 0 C400 20, 290 15, 290 40" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
+                <path d="M400 0 L400 40" className="orch-line" stroke="#a855f7" strokeWidth="1.5" />
+                <path d="M400 0 C400 20, 510 15, 510 40" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
+                <path d="M400 0 C400 20, 625 15, 625 40" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
+                <path d="M400 0 C400 20, 740 15, 740 40" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
+                <circle cx="400" cy="0" r="3" fill="#a855f7" className="glow-hub" />
               </svg>
             </div>
             <div className="flex lg:hidden justify-center my-1.5">
-              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="fl-down" stroke="currentColor" strokeWidth="1.5" /></svg>
+              <svg width="60" height="16" className="dark:opacity-40 opacity-25"><line x1="30" y1="0" x2="30" y2="16" className="orch-line" stroke="currentColor" strokeWidth="1.5" /></svg>
             </div>
 
             {/* ═══════════ LAYER 5 — MODEL ROUTER ═══════════ */}
             <div className="orch-fade relative z-10 mb-3">
               <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router</p>
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-3">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-2">
                 {([
-                  { label: 'Claude', sub: 'Anthropic', Icon: Cpu },
-                  { label: 'GPT-4.1', sub: 'OpenAI', Icon: Cpu },
-                  { label: 'Gemini 2.5', sub: 'Google', Icon: Cpu },
-                  { label: 'DeepSeek', sub: 'DeepSeek', Icon: Cpu },
-                  { label: 'Qwen 2.5', sub: 'Alibaba', Icon: Cpu },
-                  { label: 'Mistral', sub: 'Mistral AI', Icon: Cpu },
-                  { label: 'Llama 3.1', sub: 'Meta', Icon: Cpu },
-                ] as const).map(({ label, sub, Icon }) => (
-                  <div key={label} className="flex flex-col items-center rounded-lg border dark:border-white/[0.05] border-gray-200/70 dark:bg-white/[0.015] bg-white/70 px-2 py-2 transition-all hover:dark:bg-white/[0.03] hover:bg-white">
-                    <Icon size={14} className="dark:text-orange-400/60 text-orange-500 mb-1" />
-                    <p className="text-[9px] font-semibold dark:text-white/80 text-gray-700">{label}</p>
-                    <p className="text-[7px] dark:text-white/25 text-gray-400">{sub}</p>
+                  { label: 'Claude', sub: 'Anthropic' },
+                  { label: 'GPT-4.1', sub: 'OpenAI' },
+                  { label: 'Gemini 2.5', sub: 'Google' },
+                  { label: 'DeepSeek', sub: 'DeepSeek' },
+                  { label: 'Qwen 2.5', sub: 'Alibaba' },
+                  { label: 'Mistral', sub: 'Mistral AI' },
+                  { label: 'Llama 3.1', sub: 'Meta' },
+                ] as const).map(({ label, sub }) => (
+                  <div key={label} className="flex flex-col items-center rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2 py-2 transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                    <div className="size-6 rounded-md dark:bg-white/[0.04] bg-orange-50 flex items-center justify-center mb-1">
+                      <BrandIcon name={label} />
+                    </div>
+                    <p className="text-[9px] font-semibold dark:text-white/80 text-slate-800">{label}</p>
+                    <p className="text-[7px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
                   </div>
                 ))}
               </div>
 
+              {/* Flow connector Layer 5 Models → 9Router Engine */}
+              <div className="hidden lg:flex justify-center my-2 transition-opacity duration-300" style={{ opacity: vizTab === 'Integration' ? 0.2 : 0.7 }}>
+                <svg width="800" height="28" viewBox="0 0 800 28" fill="none" className="dark:opacity-75 opacity-65">
+                  <path d="M60 0 C60 14, 250 14, 250 28" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
+                  <path d="M175 0 C175 14, 250 14, 250 28" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
+                  <path d="M290 0 C290 14, 250 14, 250 28" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
+                  <path d="M400 0 C400 14, 250 14, 250 28" className="orch-line" stroke="#a855f7" strokeWidth="1.5" />
+                  <path d="M510 0 C510 14, 250 14, 250 28" className="orch-line" stroke="#6366f1" strokeWidth="1.2" style={{ animationDelay: '0.2s' }} />
+                  <path d="M625 0 C625 14, 250 14, 250 28" className="orch-line" stroke="#38bdf8" strokeWidth="1.2" style={{ animationDelay: '0.1s' }} />
+                  <path d="M740 0 C740 14, 250 14, 250 28" className="orch-line" stroke="#ff6b35" strokeWidth="1.2" />
+                  <circle cx="250" cy="28" r="3" fill="#ff6b35" className="glow-hub" />
+                </svg>
+              </div>
+
               {/* 9Router Engine + capabilities */}
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
-                <div className="flex items-center gap-3 rounded-lg border dark:border-[#ff6b35]/20 border-orange-200 dark:bg-[#ff6b35]/5 bg-orange-50/50 px-3 py-2.5">
-                  <div className="size-8 rounded-lg dark:bg-[#ff6b35]/15 bg-orange-100 flex items-center justify-center">
-                    <Grid3X3 size={15} className="dark:text-[#ff6b35] text-orange-500" />
+                <div className="flex items-center gap-3 rounded-lg border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#091522] bg-white px-3 py-2.5 shadow-sm">
+                  <div className="size-8.5 rounded-lg dark:bg-white/[0.04] bg-orange-50/80 flex items-center justify-center p-0.5 border border-orange-200/60 dark:border-orange-500/30 overflow-hidden flex-shrink-0">
+                    <img src="/assets/visualization/9router.jpeg" alt="9Router Logo" className="size-full object-cover rounded-md" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold dark:text-white/90 text-gray-800">9Router Engine</p>
-                    <p className="text-[8px] dark:text-white/35 text-gray-400">Intelligent Model Routing & Optimization</p>
+                    <p className="text-[11px] font-bold dark:text-white/90 text-slate-800">9Router Engine</p>
+                    <p className="text-[8px] dark:text-white/35 text-slate-500 font-medium">Intelligent Model Routing & Optimization</p>
                   </div>
-                  <ArrowRight size={12} className="ml-auto dark:text-white/20 text-gray-300" />
+                  <ArrowRight size={12} className="ml-auto dark:text-[#ff6b35] text-orange-500" />
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {([
@@ -831,10 +1377,10 @@ export default function App() {
                     { Icon: Sparkles, label: 'Smart Routing', sub: 'Real-time' },
                     { Icon: CircleDot, label: 'FX Netting', sub: 'Multi-currency' },
                   ] as const).map(({ Icon, label, sub }) => (
-                    <div key={label} className="flex flex-col items-center rounded-lg dark:bg-white/[0.015] bg-white/60 border dark:border-white/[0.04] border-gray-200/60 px-1 py-2 text-center">
-                      <Icon size={12} className="dark:text-orange-400/50 text-orange-400 mb-0.5" />
-                      <p className="text-[7.5px] font-semibold dark:text-white/70 text-gray-600">{label}</p>
-                      <p className="text-[6.5px] dark:text-white/25 text-gray-400">{sub}</p>
+                    <div key={label} className="flex flex-col items-center rounded-lg dark:bg-white/[0.015] bg-white border dark:border-white/[0.04] border-slate-200/60 px-1 py-2 text-center transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                      <Icon size={12} className="dark:text-orange-400/50 text-[#ff6b35] mb-0.5" />
+                      <p className="text-[7.5px] font-semibold dark:text-white/70 text-slate-700">{label}</p>
+                      <p className="text-[6.5px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
                     </div>
                   ))}
                 </div>
@@ -842,27 +1388,94 @@ export default function App() {
             </div>
 
             {/* ═══════════ GUARDRAILS ═══════════ */}
-            <div className="relative z-10 flex flex-wrap items-center gap-2 sm:gap-3 rounded-lg dark:bg-white/[0.015] bg-gray-50/80 border dark:border-white/[0.04] border-gray-200/60 px-4 py-2.5 mb-3">
-              <div className="flex items-center gap-1.5 mr-2">
-                <ShieldCheck size={12} className="dark:text-emerald-400 text-emerald-600" />
-                <span className="text-[8px] font-bold dark:text-white/50 text-gray-600 tracking-wider uppercase">Guardrails</span>
-                <span className="text-[7px] dark:text-white/25 text-gray-400 ml-1">5-Layer Protection</span>
-              </div>
-              {([
-                { Icon: ShieldCheck, label: 'Input Sanitize', sub: '& Validate' },
-                { Icon: ShieldCheck, label: 'PII Redaction', sub: 'Protection' },
-                { Icon: ShieldCheck, label: 'Injection Block', sub: 'Prevention' },
-                { Icon: ShieldCheck, label: 'Output Filter', sub: 'HarmShield' },
-                { Icon: ShieldCheck, label: 'Audit Trail', sub: 'Everything' },
-              ] as const).map(({ label, sub }) => (
-                <div key={label} className="flex items-center gap-1.5 rounded-md dark:bg-emerald-500/8 bg-emerald-50 border dark:border-emerald-500/15 border-emerald-200 px-2 py-1">
-                  <CircleDot size={7} className="dark:text-emerald-400/60 text-emerald-500" />
-                  <div>
-                    <span className="text-[7.5px] font-semibold dark:text-emerald-400/70 text-emerald-600">{label}</span>
-                    <span className="text-[6.5px] dark:text-emerald-400/40 text-emerald-400 ml-1">{sub}</span>
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3 rounded-xl dark:bg-[#080d1a] bg-slate-50/70 dark:border-white/[0.06] border-slate-200/80 border p-3 mb-3">
+              <div className="flex items-center justify-between w-full lg:w-auto">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-6 rounded-md bg-[#2563eb]/10 dark:bg-[#3b82f6]/20 flex items-center justify-center">
+                    <ShieldCheck size={14} className="dark:text-blue-400 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[9px] font-black tracking-wider uppercase dark:text-white/80 text-slate-800">Guardrails</p>
+                    <p className="text-[7.5px] dark:text-white/35 text-slate-500 font-medium">5-Layer Protection System</p>
                   </div>
                 </div>
-              ))}
+                {/* Settings cog button on mobile */}
+                <button
+                  onClick={() => triggerComingSoon("Guardrails configuration will be available shortly.")}
+                  className="lg:hidden p-1.5 rounded-md dark:hover:bg-white/[0.03] hover:bg-slate-100 dark:text-white/40 text-slate-400 hover:dark:text-white hover:text-slate-800 transition-colors"
+                >
+                  <Settings size={14} />
+                </button>
+              </div>
+
+              {/* Guardrails Pills Grid with Chart.js symbols & solid professional JS palette colors */}
+              <div className="flex-1 flex flex-wrap items-center gap-2">
+                {([
+                  {
+                    Symbol: ChartJsBarSymbol,
+                    label: 'Input Sanitize',
+                    sub: 'Validate & Clean',
+                    color: '#36A2EB', // Chart.js Blue
+                    bg: 'dark:bg-[#0f172a] bg-[#eff6ff]',
+                    border: 'dark:border-[#1e3a8a]/60 border-[#bfdbfe]',
+                    text: 'dark:text-[#60a5fa] text-[#1d4ed8]',
+                  },
+                  {
+                    Symbol: ChartJsDoughnutSymbol,
+                    label: 'PII Redaction',
+                    sub: 'Protect Privacy',
+                    color: '#9966FF', // Chart.js Purple
+                    bg: 'dark:bg-[#1e1b4b] bg-[#f5f3ff]',
+                    border: 'dark:border-[#4c1d95]/60 border-[#ddd6fe]',
+                    text: 'dark:text-[#a78bfa] text-[#6d28d9]',
+                  },
+                  {
+                    Symbol: ChartJsScatterSymbol,
+                    label: 'Injection Block',
+                    sub: 'Prevent Attacks',
+                    color: '#FF9F40', // Chart.js Amber/Orange
+                    bg: 'dark:bg-[#431407] bg-[#fff7ed]',
+                    border: 'dark:border-[#7c2d12]/60 border-[#fed7aa]',
+                    text: 'dark:text-[#fb923c] text-[#c2410c]',
+                  },
+                  {
+                    Symbol: ChartJsLineSymbol,
+                    label: 'Output Filter',
+                    sub: 'Harm Shield',
+                    color: '#FF6384', // Chart.js Red/Rose
+                    bg: 'dark:bg-[#4c0519] bg-[#fff1f2]',
+                    border: 'dark:border-[#881337]/60 border-[#fecdd3]',
+                    text: 'dark:text-[#f43f5e] text-[#be123c]',
+                  },
+                  {
+                    Symbol: ChartJsStepSymbol,
+                    label: 'Audit Trail',
+                    sub: 'Log Everything',
+                    color: '#4BC0C0', // Chart.js Teal/Emerald
+                    bg: 'dark:bg-[#064e3b] bg-[#ecfdf5]',
+                    border: 'dark:border-[#065f46]/60 border-[#a7f3d0]',
+                    text: 'dark:text-[#34d399] text-[#047857]',
+                  },
+                ] as const).map(({ Symbol, label, sub, color, bg, border, text }) => (
+                  <div key={label} className={`flex items-center gap-2.5 rounded-lg border ${border} ${bg} px-2.5 py-1.5 shadow-sm transition-all hover:scale-[1.01]`}>
+                    <div className="flex-shrink-0 flex items-center justify-center">
+                      <Symbol color={color} className="size-3.5" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className={`text-[8.5px] sm:text-[9.5px] font-bold ${text} leading-normal`}>{label}</span>
+                      <span className="text-[7.5px] sm:text-[8px] font-semibold text-slate-400 dark:text-white/35 leading-none mt-0.5">{sub}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cog settings button on desktop */}
+              <button
+                onClick={() => triggerComingSoon("Guardrails configuration will be available shortly.")}
+                className="hidden lg:flex items-center justify-center p-2 rounded-lg border dark:border-white/[0.05] border-slate-200 dark:bg-white/[0.02] bg-white hover:bg-slate-50 hover:dark:bg-white/[0.04] dark:text-white/40 text-slate-400 hover:dark:text-white hover:text-slate-700 transition-all shadow-sm"
+              >
+                <Settings size={14} />
+              </button>
             </div>
 
             {/* ═══════════ BUSINESS METRICS (LIVE) ═══════════ */}
@@ -1066,64 +1679,157 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            {/* Left panel – Workplace AI Agent */}
-            <article className="rounded-2xl border border-border bg-card p-6">
-              <div className="mb-6 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-[#ff6b35] to-[#9b27d4]">
-                  <Headphones size={16} className="text-white" />
-                </div>
-                <span className="text-[12px] font-semibold">Tech Assistance</span>
-              </div>
-              <h3 className="text-[18px] font-black tracking-[-0.03em]">Workplace AI Agent</h3>
-              <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-                Integrate with your systems, interpret your data and workflows, and enable agentic
-                actions.
-              </p>
-              <div className="mt-6 flex items-center gap-2">
-                <span className="flex-1 rounded-full border border-border bg-muted px-4 py-2 text-[10px] text-muted-foreground">
-                  Got Questions...
-                </span>
-                <ChevronRight size={14} className="text-muted-foreground" />
-              </div>
-            </article>
+          {/* Dynamic Tab Content based on ACTION_TABS_DATA */}
+          {(() => {
+            const data = ACTION_TABS_DATA[activeTab as keyof typeof ACTION_TABS_DATA] || ACTION_TABS_DATA.Utilization;
+            const IconComponent = data.Icon;
+            return (
+              <div className="mt-7 grid gap-4 sm:grid-cols-2 items-stretch">
+                {/* Left panel – Dynamic Title, Category, Desc & Metrics */}
+                <article className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between shadow-sm transition-all duration-300">
+                  <div>
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className={`flex size-10 items-center justify-center rounded-full bg-gradient-to-br ${data.iconGradient} shadow-md`}>
+                        <IconComponent size={16} className="text-white" />
+                      </div>
+                      <span className="text-[12px] font-bold text-foreground/90">{data.category}</span>
+                    </div>
+                    <h3 className="text-[18px] font-black tracking-[-0.03em] text-foreground">{data.title}</h3>
+                    <p className="mt-2 text-[11px] leading-5 text-muted-foreground font-normal">
+                      {data.desc}
+                    </p>
 
-            {/* Right panel – chat demo */}
-            <article className="rounded-2xl border border-border bg-card p-4">
-              <div className="flex h-full flex-col gap-3 justify-between">
-                <div className="space-y-2.5">
-                  <div className="flex gap-2 items-start">
-                    <div className="size-6 rounded-full bg-gradient-to-br from-[#ff6b35] to-[#d42060] flex-shrink-0 mt-0.5" />
-                    <div className="rounded-xl rounded-tl-sm bg-secondary px-3 py-2 text-[10px] leading-5 text-secondary-foreground max-w-[85%]">
-                      Hi there! I recently placed an order and wanted to see what the status is.
+                    {/* Dynamic Metrics */}
+                    <div className="mt-5 grid grid-cols-3 gap-2 border-t border-border/50 pt-4">
+                      {data.metrics.map((m, idx) => (
+                        <div key={idx} className="rounded-xl border border-border/60 bg-muted/30 p-2 text-center">
+                          <p className="text-[12px] font-bold font-mono text-foreground">{m.val}</p>
+                          <p className="text-[7.5px] text-muted-foreground font-medium mt-0.5">{m.label}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <div className="rounded-xl rounded-tr-sm bg-gradient-to-br from-[#ff6b35] to-[#9b27d4] px-3 py-2 text-[10px] leading-5 text-white max-w-[85%]">
-                      Of course! May I have your ID or phone number, please?
+
+                  <div className="mt-6 flex items-center gap-2">
+                    <span className="flex-1 rounded-full border border-border bg-muted/60 px-4 py-2 text-[10px] text-muted-foreground font-medium">
+                      {data.prompt}
+                    </span>
+                    <div className="size-7 rounded-full bg-foreground/10 grid place-items-center cursor-pointer hover:bg-foreground/20 transition-colors">
+                      <ChevronRight size={14} className="text-foreground" />
                     </div>
                   </div>
-                  <div className="flex gap-2 items-start">
-                    <div className="size-6 rounded-full bg-gradient-to-br from-[#ff6b35] to-[#d42060] flex-shrink-0 mt-0.5" />
-                    <div className="rounded-xl rounded-tl-sm bg-secondary px-3 py-2 text-[10px] leading-5 text-secondary-foreground max-w-[85%]">
-                      Sure! Please share your order ID or the phone number used during checkout.
+                </article>
+
+                {/* Right panel – Contextual Live Interactive Demonstration */}
+                <article className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between shadow-sm transition-all duration-300 min-h-[300px]">
+                  {data.type === "chat" && (
+                    <div className="flex h-full flex-col justify-between gap-4">
+                      <div className="space-y-2.5">
+                        {data.chatMessages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex gap-2 items-start ${msg.sender === "agent" ? "justify-end" : ""}`}
+                          >
+                            {msg.sender === "user" && (
+                              <div className="size-6 rounded-full bg-gradient-to-br from-[#ff6b35] to-[#d42060] flex-shrink-0 mt-0.5" />
+                            )}
+                            <div
+                              className={`rounded-xl px-3.5 py-2 text-[10px] leading-5 max-w-[85%] font-medium ${msg.sender === "agent"
+                                ? "rounded-tr-sm bg-gradient-to-br from-[#ff6b35] to-[#9b27d4] text-white shadow-sm"
+                                : "rounded-tl-sm bg-secondary text-secondary-foreground"
+                                }`}
+                            >
+                              {msg.text}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 shadow-inner">
+                        <span className="flex-1 text-[10px] text-muted-foreground">{data.placeholder}</span>
+                        <div className="size-5 rounded-full bg-foreground grid place-items-center">
+                          <ChevronRight size={10} className="text-background" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="rounded-xl rounded-tr-sm bg-muted border border-border px-3 py-2 text-[10px] leading-5 max-w-[85%]">
-                      Hi, I want to track my order.
+                  )}
+
+                  {data.type === "tools" && (
+                    <div className="flex h-full flex-col justify-between gap-4">
+                      {/* Connected Tools & Event Log */}
+                      <div className="space-y-3">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Active Connectors & Live Triggers</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {data.connectors.map((c, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/20 px-2.5 py-1.5">
+                              <div className="min-w-0">
+                                <p className="text-[9.5px] font-bold text-foreground truncate">{c.name}</p>
+                                <p className="text-[7.5px] text-muted-foreground truncate">{c.sub}</p>
+                              </div>
+                              <span className="flex-shrink-0 size-1.5 rounded-full bg-emerald-500 animate-pulse ml-1" />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Real-time execution log */}
+                        <div className="rounded-xl border border-border/60 bg-muted/40 p-2.5 space-y-1.5 font-mono text-[9px]">
+                          {data.eventLogs.map((log, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold uppercase ${log.tag === "TRIGGER" ? "bg-sky-500/20 text-sky-400" : log.tag === "INVOKE" ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>
+                                {log.tag}
+                              </span>
+                              <span className="text-foreground/80 truncate text-[8.5px]">{log.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 shadow-inner">
+                        <span className="flex-1 text-[10px] text-muted-foreground">{data.placeholder}</span>
+                        <div className="size-5 rounded-full bg-foreground grid place-items-center">
+                          <ChevronRight size={10} className="text-background" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5">
-                  <span className="flex-1 text-[10px] text-muted-foreground">Ask ZEGA anything...</span>
-                  <div className="size-5 rounded-full bg-foreground grid place-items-center">
-                    <ChevronRight size={10} className="text-background" />
-                  </div>
-                </div>
+                  )}
+
+                  {data.type === "analytics" && (() => {
+                    const analyticsData = ACTION_TABS_DATA.Analytics;
+                    return (
+                      <div className="flex h-full flex-col justify-between gap-3">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Model Traffic Distribution & ROI Insights</p>
+
+                        <div className="grid grid-cols-[110px_1fr] items-center gap-3">
+                          <div className="h-[100px] relative flex items-center justify-center">
+                            <ChartCanvas type={analyticsData.chartType} data={analyticsData.chartData} options={analyticsData.chartOptions} />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {analyticsData.insights.map((ins, i) => (
+                              <div key={i} className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                                <div>
+                                  <p className="text-[9px] font-bold text-foreground">{ins.label}</p>
+                                  <p className="text-[8px] text-muted-foreground font-medium">{ins.val}</p>
+                                </div>
+                                <span className="text-[8px] font-bold text-emerald-500">{ins.trend}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 shadow-inner mt-2">
+                          <span className="flex-1 text-[10px] text-muted-foreground">{analyticsData.placeholder}</span>
+                          <div className="size-5 rounded-full bg-foreground grid place-items-center">
+                            <ChevronRight size={10} className="text-background" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </article>
               </div>
-            </article>
-          </div>
+            );
+          })()}
         </div>
       </section>
 
@@ -1235,8 +1941,8 @@ export default function App() {
               <article
                 key={name}
                 className={`group relative overflow-hidden rounded-2xl border border-border/70 p-5 transition-all duration-300 hover:shadow-xl ${featured
-                    ? "bg-gradient-to-br from-[#0e1014] to-[#161820] sm:scale-105 sm:shadow-2xl"
-                    : "bg-card"
+                  ? "bg-gradient-to-br from-[#0e1014] to-[#161820] sm:scale-105 sm:shadow-2xl"
+                  : "bg-card"
                   }`}
               >
                 {/* Rotating Border Beam Line */}

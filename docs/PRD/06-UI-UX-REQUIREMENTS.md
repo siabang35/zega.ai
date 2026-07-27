@@ -150,3 +150,34 @@ Push notification: "Payment approval needed: $250K"
 | **Dashboard Data Load** | < 500ms after shell render |
 | **WebSocket Reconnection** | < 2s automatic reconnect |
 | **Offline Capability** | Service Worker caching; offline dashboard viewing |
+
+### 6.7 Enterprise Orchestration Flow & Interactive Action Demonstration
+
+#### 6.7.1 5-Layer Visualization Architecture
+The main enterprise landing & orchestration interface implements a 5-layer interactive visualization hierarchy:
+
+```
+[Layer 1: Event Sources]  -> Webhook / User Query / Schedule / System Alert
+       │
+[Layer 2: Integrations]   -> Smart Connectors (Stripe, WhatsApp, BigQuery, Supabase)
+       │
+[Layer 3: ZEGA AI Engine] -> Interactive Orchestrator (Utilization | Tools & Systems | Analytics)
+       │
+[Layer 4: AI Agents]      -> Autonomous Agent Swarm (Planning, Reasoning, Execution)
+       │
+[Layer 5: 9Router Engine] -> Multi-Model Intelligent Router (Logo: /assets/visualization/9router.jpeg)
+```
+
+#### 6.7.2 9Router Engine Visual Branding
+- **Logo Asset**: High-resolution enterprise image `/assets/visualization/9router.jpeg`.
+- **Card Framing**: Solid border framing with dark/light mode responsive container styling.
+
+#### 6.7.3 Dynamic Contextual Action Tabs ("Experience ZEGA in Action")
+The landing interface provides a 3-way dynamic interactive panel system driven by `ACTION_TABS_DATA`:
+
+| Tab | Context Category | Primary Visual | Interactive Demonstration |
+|---|---|---|---|
+| **`Utilization`** | Tech Assistance & Fleet Load | Workplace AI Agent metrics (87% active fleet, 1.4k tasks) | Live customer service query & order tracking chat demo |
+| **`Tools & Systems`** | Enterprise Integration Hub | Active connectors grid (Stripe, WhatsApp, BigQuery, Supabase) + 142ms latency | Real-time API event execution log (`TRIGGER`, `INVOKE`, `SUCCESS`) |
+| **`Analytics`** | Telemetry & ROI Dashboard | Real-time Telemetry Engine (99.97% success, $14.2k/mo saved) | **Chart.js Doughnut Chart** model traffic distribution (Claude 3.7, GPT-4.1, Gemini 2.5, DeepSeek R1) + 9Router ROI insights |
+

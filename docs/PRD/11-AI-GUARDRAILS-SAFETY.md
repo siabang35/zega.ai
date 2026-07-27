@@ -177,3 +177,22 @@ The ZEGA AI Command Center provides real-time visibility into all AI agent opera
 | **Model Performance** | Latency, cost, accuracy metrics per AI provider |
 | **Compliance Status** | Real-time regulatory compliance across jurisdictions |
 | **Kill Switch Controls** | One-click freeze for any agent, mesh, or platform-wide |
+
+---
+
+### 11.11 Frontend Chart.js Symbol Integration & Non-Gradient Color Standards
+
+To maintain an enterprise-grade, data-driven visual aesthetic across all UI environments, the 5 Guardrail layers in the frontend visualization are mapped to standard **Chart.js SVG chart symbols** and strictly enforced **solid, non-gradient color tokens**:
+
+| Guardrail Layer | Symbol Component | Primary Color Token | Hex Code | Visual Rationale |
+|---|---|---|---|---|
+| **`Input Sanitize`** | `ChartJsBarSymbol` | Chart.js Blue | `#36A2EB` | Represents structured input data validation & schema checking bars |
+| **`PII Redaction`** | `ChartJsDoughnutSymbol` | Chart.js Purple | `#9966FF` | Represents data segmentation & selective masking sectors |
+| **`Injection Block`** | `ChartJsScatterSymbol` | Chart.js Amber | `#FF9F40` | Represents anomaly point detection & threat scatter isolation |
+| **`Output Filter`** | `ChartJsLineSymbol` | Chart.js Rose/Red | `#FF6384` | Represents output boundary threshold & safety curve filtering |
+| **`Audit Trail`** | `ChartJsStepSymbol` | Chart.js Teal | `#4BC0C0` | Represents discrete step-by-step state verification & logging |
+
+#### 11.11.1 Design System Rule for Safety Indicators
+1. **No Gradients**: All 5 Guardrail pills and status badges must avoid gradient fills (`bg-gradient-to-...`) to eliminate visual clutter ("AI-slop") and maximize readability.
+2. **Solid Color & Theme Awareness**: Each guardrail pill uses its designated Chart.js solid color for icons, text highlights, and high-contrast borders, backed by subtle solid background containers in both light and dark modes.
+
