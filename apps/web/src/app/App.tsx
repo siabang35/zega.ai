@@ -536,15 +536,15 @@ const BrandIcon = ({ name }: { name: string }) => {
 
 let hasShownSplash = false;
 
-const ZegaSplashLoader = ({ dark, onComplete }: { dark: boolean; onComplete: () => void }) => {
+const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
   const [stage, setStage] = useState<'typing' | 'fade' | 'done'>('typing');
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage('fade'), 850);
+    const t1 = setTimeout(() => setStage('fade'), 900);
     const t2 = setTimeout(() => {
       setStage('done');
       onComplete();
-    }, 1350);
+    }, 1400);
 
     return () => {
       clearTimeout(t1);
@@ -556,18 +556,11 @@ const ZegaSplashLoader = ({ dark, onComplete }: { dark: boolean; onComplete: () 
 
   return (
     <div
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center transition-opacity duration-500 ease-out transform-gpu ${
-        dark ? 'bg-[#060913] text-white' : 'bg-[#fafafa] text-slate-900'
-      } ${stage === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#060913] text-white transition-opacity duration-500 ease-out transform-gpu ${stage === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
     >
       {/* Ambient background glow spot */}
-      <div
-        className={`absolute size-[350px] rounded-full blur-[120px] pointer-events-none ${
-          dark
-            ? 'bg-gradient-to-r from-[#ff6b35]/20 to-indigo-600/10'
-            : 'bg-gradient-to-r from-[#ff6b35]/15 to-sky-400/15'
-        }`}
-      />
+      <div className="absolute size-[350px] rounded-full bg-gradient-to-r from-[#ff6b35]/20 to-indigo-600/10 blur-[120px] pointer-events-none" />
 
       {/* GPU Clip-Path 60FPS Typewriter Animation */}
       <div className="relative z-10 flex items-center justify-center px-4">
@@ -575,9 +568,7 @@ const ZegaSplashLoader = ({ dark, onComplete }: { dark: boolean; onComplete: () 
           <img
             src="/assets/logo/zegalogo.png"
             alt="ZEGA AI"
-            className={`h-12 sm:h-16 w-auto object-contain filter drop-shadow-[0_4px_20px_rgba(0,0,0,0.06)] ${
-              dark ? 'brightness-0 invert drop-shadow-[0_4px_20px_rgba(255,255,255,0.35)]' : ''
-            } animate-[zegaTypewriter_0.75s_cubic-bezier(0.25,1,0.5,1)_forwards]`}
+            className="h-12 sm:h-16 w-auto object-contain brightness-0 invert filter drop-shadow-[0_4px_20px_rgba(255,255,255,0.35)] animate-[zegaTypewriter_0.8s_cubic-bezier(0.25,1,0.5,1)_forwards]"
           />
         </div>
         {/* Blinking Typewriter Cursor Line */}
@@ -1076,7 +1067,7 @@ export default function App() {
       className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
       style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
     >
-      {showSplash && <ZegaSplashLoader dark={dark} onComplete={() => setShowSplash(false)} />}
+      {showSplash && <ZegaSplashLoader onComplete={() => setShowSplash(false)} />}
 
       {/* NAV */}
       <header className="sticky top-0 z-50 h-[60px] border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all">
@@ -1335,12 +1326,12 @@ export default function App() {
             {/* Dot grid */}
             <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
-            {/* Dynamic Curved Bezier Connectors Overlay for Desktop — Direct child of containerRef */}
+            {/* Dynamic Curved Bezier Connectors Overlay — Direct child of containerRef */}
             <svg
               viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
               preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
               fill="none"
-              className="hidden lg:block absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
+              className="absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
             >
               {/* Fallback to static percentage lines while layout coordinates are loading */}
               {(!coords.leftHub || coords.leftPoints.length === 0) ? (
@@ -1396,48 +1387,86 @@ export default function App() {
                       </g>
                     );
                   })}
-                  {/* Dynamic left lines fanning exactly to active green dots */}
+
+                  {/* Dynamic left lines fanning to connection hub (Layer 2 Integrations -> Database Hub) */}
                   {coords.leftPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.leftHub) return null;
                     const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
                     const x1 = pt.x;
                     const y1 = pt.y;
-                    const x2 = coords.leftHub!.x;
-                    const y2 = coords.leftHub!.y;
-                    const cp1x = x1 + (x2 - x1) * 0.55;
-                    const cp1y = y1;
-                    const cp2x = x1 + (x2 - x1) * 0.45;
-                    const cp2y = y2;
+                    const x2 = coords.leftHub.x;
+                    const y2 = coords.leftHub.y;
+
+                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+                    let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
+
+                    if (isMobile) {
+                      const isRightColumn = i % 2 === 1;
+                      if (isRightColumn) {
+                        // Right column cards curve into right margin, stream down right edge, and curve left into leftHub
+                        cp1x = x1 + 18;
+                        cp1y = y1;
+                        cp2x = Math.max(x1 + 25, x2 + 120);
+                        cp2y = Math.max(y2 - 25, y1 + 30);
+                      } else {
+                        // Left column cards curve into central gutter and stream down into leftHub
+                        cp1x = x1 + 14;
+                        cp1y = y1;
+                        cp2x = x2 + 10;
+                        cp2y = Math.max(y2 - (y2 - y1) * 0.4, y1 + 15);
+                      }
+                    } else {
+                      cp1x = x1 + (x2 - x1) * 0.55;
+                      cp1y = y1;
+                      cp2x = x1 + (x2 - x1) * 0.45;
+                      cp2y = y2;
+                    }
+
                     const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.2;
                     return (
                       <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        {!isMobile && (
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={isLeftActive ? 0.12 : 0.02} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        )}
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth={isMobile ? "1.2" : "0.85"} strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
                       </g>
                     );
                   })}
 
-                  {/* Dynamic right lines fanning exactly to AI agent cards left border */}
+                  {/* Dynamic right lines fanning from connection hub (Layer 4 Shield Hub -> AI Agents) */}
                   {coords.rightPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.rightHub) return null;
                     const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                    const x1 = coords.rightHub!.x;
-                    const y1 = coords.rightHub!.y;
-                    const x2 = pt.x;
-                    const y2 = pt.y;
-                    const cp1x = x1 + (x2 - x1) * 0.45;
-                    const cp1y = y1;
-                    const cp2x = x1 + (x2 - x1) * 0.55;
-                    const cp2y = y2;
+
+                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+                    const x1 = isMobile ? pt.x : coords.rightHub.x;
+                    const y1 = isMobile ? pt.y : coords.rightHub.y;
+                    const x2 = isMobile ? coords.rightHub.x : pt.x;
+                    const y2 = isMobile ? coords.rightHub.y : pt.y;
+
+                    let cp1x: number, cp1y: number, cp2x: number, cp2y: number;
+
+                    if (isMobile) {
+                      cp1x = x1 + 20;
+                      cp1y = y1;
+                      cp2x = x2 + 20;
+                      cp2y = Math.max(y2 - 20, y1 + 20);
+                    } else {
+                      cp1x = x1 + (x2 - x1) * 0.45;
+                      cp1y = y1;
+                      cp2x = x1 + (x2 - x1) * 0.55;
+                      cp2y = y2;
+                    }
+
                     const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
-                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                    const strokeOpacity2 = isRightActive ? 0.9 : 0.15;
                     return (
                       <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        {!isMobile && (
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={isRightActive ? 0.12 : 0.02} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        )}
+                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth={isMobile ? "1.2" : "0.85"} strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
                       </g>
                     );
                   })}
