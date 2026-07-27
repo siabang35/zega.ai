@@ -534,6 +534,59 @@ const BrandIcon = ({ name }: { name: string }) => {
   }
 };
 
+let hasShownSplash = false;
+
+const ZegaSplashLoader = ({ dark, onComplete }: { dark: boolean; onComplete: () => void }) => {
+  const [stage, setStage] = useState<'typing' | 'fade' | 'done'>('typing');
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage('fade'), 850);
+    const t2 = setTimeout(() => {
+      setStage('done');
+      onComplete();
+    }, 1350);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [onComplete]);
+
+  if (stage === 'done') return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center transition-opacity duration-500 ease-out transform-gpu ${
+        dark ? 'bg-[#060913] text-white' : 'bg-[#fafafa] text-slate-900'
+      } ${stage === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+    >
+      {/* Ambient background glow spot */}
+      <div
+        className={`absolute size-[350px] rounded-full blur-[120px] pointer-events-none ${
+          dark
+            ? 'bg-gradient-to-r from-[#ff6b35]/20 to-indigo-600/10'
+            : 'bg-gradient-to-r from-[#ff6b35]/15 to-sky-400/15'
+        }`}
+      />
+
+      {/* GPU Clip-Path 60FPS Typewriter Animation */}
+      <div className="relative z-10 flex items-center justify-center px-4">
+        <div className="relative overflow-hidden">
+          <img
+            src="/assets/logo/zegalogo.png"
+            alt="ZEGA AI"
+            className={`h-12 sm:h-16 w-auto object-contain filter drop-shadow-[0_4px_20px_rgba(0,0,0,0.06)] ${
+              dark ? 'brightness-0 invert drop-shadow-[0_4px_20px_rgba(255,255,255,0.35)]' : ''
+            } animate-[zegaTypewriter_0.75s_cubic-bezier(0.25,1,0.5,1)_forwards]`}
+          />
+        </div>
+        {/* Blinking Typewriter Cursor Line */}
+        <div className="h-10 sm:h-14 w-[3.5px] bg-[#ff6b35] animate-pulse rounded-full shadow-[0_0_16px_#ff6b35] flex-shrink-0 ml-1.5" />
+      </div>
+    </div>
+  );
+};
+
 const VIZ_TAB_DATA = {
   Agent: {
     title: "",
@@ -707,6 +760,13 @@ const ACTION_TABS_DATA = {
 };
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window !== "undefined" && !hasShownSplash) {
+      hasShownSplash = true;
+      return true;
+    }
+    return false;
+  });
   const [dark, setDark] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
@@ -1016,6 +1076,8 @@ export default function App() {
       className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
       style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
     >
+      {showSplash && <ZegaSplashLoader dark={dark} onComplete={() => setShowSplash(false)} />}
+
       {/* NAV */}
       <header className="sticky top-0 z-50 h-[60px] border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all">
         <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-6 lg:px-12">
