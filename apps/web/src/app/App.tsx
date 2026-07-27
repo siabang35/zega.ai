@@ -560,140 +560,145 @@ export default function App() {
           </div>
         </div>
 
-        {/* HERO PANELS */}
+        {/* ORCHESTRATION FLOW VISUALIZATION */}
         <div className="relative mx-auto mt-12 w-full max-w-[1160px]">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {/* Panel 1 – chat */}
-            <div className="col-span-1 overflow-hidden rounded-t-2xl bg-gradient-to-br from-[#ff6b35] via-[#d42060] to-[#8b1a2f] p-3 lg:min-h-[260px]">
-              <p className="text-[9px] font-medium text-white/60">Decision stream</p>
-              <div className="mt-3 space-y-2">
-                <div className="max-w-[90%] rounded-xl rounded-tl-sm bg-black/20 p-2.5 text-[9px] leading-[1.5] text-white/85">
-                  Hello, I recently placed an order and wanted to see what the status is.
-                </div>
-                <div className="max-w-[90%] rounded-xl rounded-tl-sm bg-black/20 p-2.5 text-[9px] leading-[1.5] text-white/85">
-                  Of course! May I have your ID or phone number, please?
-                </div>
-                <div className="ml-auto max-w-[88%] rounded-xl rounded-tr-sm bg-white/15 p-2.5 text-[9px] leading-[1.5] text-white">
-                  Can you check the purchase status?
-                </div>
-                <div className="max-w-[90%] rounded-xl rounded-tl-sm bg-black/20 p-2.5 text-[9px] leading-[1.5] text-white/85">
-                  Sure! Please share your order ID or the phone number used during checkout.
-                </div>
-              </div>
+          <div className="relative rounded-2xl border border-border/30 dark:bg-[#0d1117]/80 bg-white/60 backdrop-blur-xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl dark:shadow-black/40 shadow-black/5">
+            {/* Background grid pattern */}
+            <div className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.06]" style={{
+              backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
+              backgroundSize: '24px 24px',
+            }} />
+            {/* Ambient glow */}
+            <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full dark:bg-[radial-gradient(ellipse,rgba(99,102,241,0.12),transparent_70%)] bg-[radial-gradient(ellipse,rgba(99,102,241,0.06),transparent_70%)] blur-2xl" />
+
+            {/* Title */}
+            <div className="relative text-center mb-6 lg:mb-8">
+              <p className="text-[9px] font-bold tracking-[0.25em] uppercase dark:text-[#0ea5e9]/70 text-[#0ea5e9]">AI Orchestration Engine</p>
+              <p className="mt-1 text-[11px] dark:text-white/40 text-gray-500 font-light">Autonomous agents powered by multi-model AI, 9router payments & 200+ integrations</p>
             </div>
 
-            {/* Panel 2 – visitor overview (Chart.js) */}
-            <div className="col-span-1 overflow-hidden rounded-t-2xl bg-gradient-to-br from-[#7b2ff7] via-[#4f46e5] to-[#1e3a8a] p-3 lg:min-h-[260px]">
-              <p className="text-[9px] font-medium text-white/60">Visitor Overview</p>
-              <div className="mt-2 flex gap-2">
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[8px] text-white/80">
-                  ● Repeat
-                </span>
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[8px] text-white/60">
-                  ● Fresh
-                </span>
-              </div>
-              <div className="mt-3 h-[80px]">
-                <Bar
-                  data={{
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [
-                      { data: [55, 70, 45, 85, 60, 90, 50], backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, barThickness: 8 },
-                      { data: [30, 40, 25, 50, 35, 55, 30], backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, barThickness: 8 },
-                    ],
-                  }}
-                  options={{ responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: true } }, scales: { x: { display: false }, y: { display: false } } }}
-                />
-              </div>
-              <div className="mt-2 flex items-center justify-center">
-                <div className="relative size-14">
-                  <Doughnut
-                    data={{ labels: ['Repeat', 'Fresh'], datasets: [{ data: [72, 28], backgroundColor: ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)'], borderWidth: 0 }] }}
-                    options={{ responsive: true, maintainAspectRatio: true, cutout: '65%', plugins: { tooltip: { enabled: false } } }}
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white">72%</span>
-                </div>
-              </div>
-            </div>
+            {/* Main Orchestration Grid */}
+            <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-4 lg:gap-6 items-start">
 
-            {/* Panel 3 – orchestrator select */}
-            <div className="col-span-2 overflow-hidden rounded-t-2xl bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#4c1d95] p-3 sm:col-span-1 lg:min-h-[260px]">
-              <p className="text-[9px] font-medium text-white/60">Select a Representative</p>
-              <p className="mt-0.5 text-[8px] text-white/40">
-                Search or select an agent that fits your purpose.
-              </p>
-              <div className="mt-3 space-y-1.5">
+              {/* LEFT — Agent Divisions */}
+              <div className="space-y-2.5 relative z-10">
                 {[
-                  "OmniOrchestrator",
-                  "FiscalGuard Hybrid",
-                  "HyperScale Procurement",
-                  "CrossCompliance AI",
-                  "Predictive JIT Logistics",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-lg border border-white/10 bg-white/8 px-3 py-2 text-[9px] text-white/80 transition hover:bg-white/12"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Panel 4 – map */}
-            <div className="col-span-1 overflow-hidden rounded-t-2xl bg-gradient-to-br from-[#0369a1] via-[#1e40af] to-[#312e81] p-3 lg:min-h-[260px]">
-              <p className="text-[9px] font-medium text-white/60">Cross-Company Map</p>
-              <p className="mt-0.5 text-[8px] text-white/40">Country-Wise Operations</p>
-              <div className="mt-4 flex flex-col gap-1.5">
-                {["Finance Mesh", "Supply Chain", "Compliance", "HR & Payroll"].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-md bg-white/10 px-2.5 py-1.5 text-[9px] text-white/75"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-              {/* globe accent */}
-              <div className="mt-3 flex justify-center">
-                <Globe size={36} className="text-white/20" />
-              </div>
-            </div>
-
-            {/* Panel 5 – global coverage (Chart.js + OrbitRing) */}
-            <div className="col-span-1 relative overflow-hidden rounded-t-2xl bg-gradient-to-br from-[#0c4a6e] via-[#075985] to-[#0369a1] p-3 lg:min-h-[260px]">
-              <p className="text-[9px] font-medium text-white/60">Global Coverage</p>
-              <div className="mt-3 flex flex-col items-center justify-center gap-2">
-                <div className="relative flex items-center justify-center">
-                  {/* Orbit ring rotating around the chart */}
-                  <OrbitRing size={110} dotCount={3} speed={10} color="rgba(14,165,233,0.6)" borderColor="rgba(14,165,233,0.15)" className="-left-[7px] -top-[7px]" />
-                  <OrbitRing size={90} dotCount={2} speed={8} reverse color="rgba(255,255,255,0.3)" borderColor="rgba(255,255,255,0.08)" className="left-[3px] top-[3px]" />
-                  <div className="relative size-24">
-                    <Doughnut
-                      data={{ labels: ['Active', 'Pending'], datasets: [{ data: [100, 0], backgroundColor: ['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.05)'], borderWidth: 0 }] }}
-                      options={{ responsive: true, maintainAspectRatio: true, cutout: '70%', plugins: { tooltip: { enabled: false } } }}
-                    />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="font-[DM_Mono] text-[7px] font-medium text-white/60">GLOBAL</p>
-                      <p className="text-lg font-black text-white"><AnimatedCounter target={100} suffix="%" /></p>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-[8px] text-white/50">Operations Active</p>
-                <div className="w-full space-y-1">
-                  {["APAC", "EMEA", "AMER"].map((r, i) => (
-                    <div key={r} className="flex items-center gap-2">
-                      <span className="text-[7px] text-white/50 w-8">{r}</span>
-                      <div className="flex-1 rounded-full bg-white/10 h-1">
-                        <div
-                          className="h-1 rounded-full bg-white/40 transition-all duration-1000"
-                          style={{ width: `${[100, 88, 95][i]}%` }}
-                        />
+                  { icon: '💬', name: 'CS Agent', status: 'Active', platform: 'WhatsApp · Telegram', statusColor: 'bg-emerald-500', desc: 'Handling 847 conversations' },
+                  { icon: '📈', name: 'SEO Agent', status: 'Active', platform: 'Instagram · TikTok · Google Ads', statusColor: 'bg-emerald-500', desc: 'Optimizing 12 campaigns' },
+                  { icon: '💰', name: 'Finance Agent', status: 'Active', platform: 'Stripe · x402 · Xero', statusColor: 'bg-emerald-500', desc: 'Processing $142K today' },
+                  { icon: '🎯', name: 'Sales Agent', status: 'Active', platform: 'HubSpot · LinkedIn', statusColor: 'bg-emerald-500', desc: 'Nurturing 234 leads' },
+                  { icon: '📊', name: 'Data Agent', status: 'Idle', platform: 'BigQuery · Metabase', statusColor: 'bg-amber-500', desc: 'Awaiting next report cycle' },
+                ].map((agent, i) => (
+                  <div key={agent.name} className="group relative flex items-center gap-3 rounded-xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3.5 py-2.5 transition-all duration-300 hover:border-[#6366f1]/30 dark:hover:bg-white/[0.04] hover:bg-white/95 hover:shadow-md dark:hover:shadow-[#6366f1]/5 hover:shadow-[#6366f1]/10"
+                    style={{ animationDelay: `${i * 80}ms` }}>
+                    <span className="text-lg flex-shrink-0">{agent.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold dark:text-white/90 text-gray-800 truncate">{agent.name}</span>
+                        <span className={`flex-shrink-0 size-1.5 rounded-full ${agent.statusColor} shadow-sm`} style={{ boxShadow: agent.status === 'Active' ? '0 0 6px rgba(16,185,129,0.5)' : '0 0 6px rgba(245,158,11,0.5)' }} />
                       </div>
+                      <p className="text-[8.5px] dark:text-white/35 text-gray-400 mt-0.5 truncate">{agent.platform}</p>
+                      <p className="text-[8px] dark:text-white/25 text-gray-300 mt-0.5 font-mono truncate">{agent.desc}</p>
                     </div>
-                  ))}
+                    {/* Connection line to center */}
+                    <div className="hidden lg:block absolute -right-6 top-1/2 w-6 h-px" style={{ background: 'linear-gradient(to right, rgba(99,102,241,0.15), rgba(99,102,241,0.3))' }} />
+                    <ChevronRight size={10} className="flex-shrink-0 dark:text-white/15 text-gray-300 group-hover:text-[#6366f1]/60 transition-colors" />
+                  </div>
+                ))}
+              </div>
+
+              {/* CENTER — OmniOrchestrator Hub */}
+              <div className="flex flex-col items-center justify-center relative z-10 lg:py-4">
+                {/* Connection lines going up/down on mobile, left/right on desktop */}
+                <div className="relative">
+                  {/* Outer orbit ring */}
+                  <div className="absolute -inset-6 sm:-inset-8">
+                    <OrbitRing size={180} dotCount={4} speed={12} color="rgba(99,102,241,0.5)" borderColor="rgba(99,102,241,0.08)" className="-left-[14px] -top-[14px] sm:-left-[16px] sm:-top-[16px]" />
+                  </div>
+                  <div className="absolute -inset-3 sm:-inset-4">
+                    <OrbitRing size={132} dotCount={3} speed={8} reverse color="rgba(14,165,233,0.4)" borderColor="rgba(14,165,233,0.06)" className="-left-[6px] -top-[6px] sm:-left-[8px] sm:-top-[8px]" />
+                  </div>
+
+                  {/* Core hub */}
+                  <div className="relative z-10 size-28 sm:size-32 rounded-full border dark:border-white/10 border-gray-200 dark:bg-gradient-to-br dark:from-[#1a1a3e] dark:to-[#0d1117] bg-gradient-to-br from-white to-gray-50 flex flex-col items-center justify-center shadow-xl dark:shadow-[#6366f1]/10 shadow-gray-300/30">
+                    <div className="absolute inset-[2px] rounded-full border dark:border-[#6366f1]/20 border-[#6366f1]/10" />
+                    <Bot size={22} className="dark:text-[#6366f1] text-[#4f46e5] mb-1" />
+                    <span className="text-[9px] font-bold dark:text-white/80 text-gray-700 tracking-wide">Omni</span>
+                    <span className="text-[8px] dark:text-white/40 text-gray-400">Orchestrator</span>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full dark:bg-emerald-500/20 bg-emerald-50 border dark:border-emerald-500/30 border-emerald-200 px-2 py-0.5">
+                      <span className="size-1 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[7px] font-bold dark:text-emerald-400 text-emerald-600">LIVE</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Models badge */}
+                <div className="mt-6 sm:mt-8 flex flex-col items-center gap-1.5">
+                  <p className="text-[8px] font-semibold tracking-widest uppercase dark:text-white/30 text-gray-400">Multi-Model Router</p>
+                  <div className="flex gap-1">
+                    {['Claude', 'GPT-4.1', 'Gemini', 'Mistral'].map(m => (
+                      <span key={m} className="rounded-md dark:bg-white/[0.04] bg-gray-100 border dark:border-white/[0.06] border-gray-200 px-2 py-0.5 text-[7px] font-medium dark:text-white/50 text-gray-500">{m}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* RIGHT — Integrations & Services */}
+              <div className="space-y-2.5 relative z-10">
+                {[
+                  { icon: '🟢', name: 'WhatsApp Business', type: 'Messaging', proto: 'Cloud API', color: '#25D366' },
+                  { icon: '📸', name: 'Instagram + TikTok', type: 'Social Media', proto: 'Graph API + Marketing API', color: '#E1306C' },
+                  { icon: '💳', name: 'Stripe Connect', type: 'Payment', proto: 'Stripe API v2', color: '#635BFF' },
+                  { icon: '⚡', name: 'x402 Protocol', type: 'M2M Payment', proto: 'HTTP 402 · USDC on Base L2', color: '#0ea5e9' },
+                  { icon: '🔀', name: '9router Engine', type: 'Payment Router', proto: '5-rail scoring · FX netting', color: '#ff6b35' },
+                ].map((svc, i) => (
+                  <div key={svc.name} className="group relative flex items-center gap-3 rounded-xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3.5 py-2.5 transition-all duration-300 hover:border-opacity-40 dark:hover:bg-white/[0.04] hover:bg-white/95 hover:shadow-md"
+                    style={{ animationDelay: `${i * 80}ms`, ['--accent-color' as string]: svc.color }}>
+                    {/* Connection line from center */}
+                    <div className="hidden lg:block absolute -left-6 top-1/2 w-6 h-px" style={{ background: `linear-gradient(to right, ${svc.color}40, ${svc.color}15)` }} />
+                    <ChevronRight size={10} className="flex-shrink-0 dark:text-white/15 text-gray-300 group-hover:text-white/30 transition-colors rotate-180 lg:hidden" />
+                    <span className="text-lg flex-shrink-0">{svc.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold dark:text-white/90 text-gray-800 truncate">{svc.name}</span>
+                        <span className="flex-shrink-0 rounded-md px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${svc.color}15`, color: svc.color }}>{svc.type}</span>
+                      </div>
+                      <p className="text-[8.5px] dark:text-white/35 text-gray-400 mt-0.5 font-mono truncate">{svc.proto}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Guardrails Strip */}
+            <div className="relative z-10 mt-6 lg:mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 rounded-xl dark:bg-white/[0.015] bg-gray-50/80 border dark:border-white/[0.04] border-gray-200/60 px-4 py-3">
+              <div className="flex items-center gap-1.5 mr-2 sm:mr-4">
+                <ShieldCheck size={12} className="dark:text-[#10b981] text-emerald-600" />
+                <span className="text-[9px] font-bold dark:text-white/60 text-gray-600 tracking-wider uppercase">5-Layer Guardrails</span>
+              </div>
+              {['Input Sanitize', 'PII Redaction', 'Injection Block', 'Output Filter', 'Audit Trail'].map(g => (
+                <div key={g} className="flex items-center gap-1 rounded-md dark:bg-emerald-500/8 bg-emerald-50 border dark:border-emerald-500/15 border-emerald-200 px-2 py-1">
+                  <Check size={8} className="dark:text-emerald-400/70 text-emerald-500" />
+                  <span className="text-[8px] dark:text-emerald-400/70 text-emerald-600 font-medium">{g}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom Live Metrics */}
+            <div className="relative z-10 mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              {[
+                { label: 'Active Agents', value: '2,847', trend: '+12%', icon: '🤖' },
+                { label: 'Tx via 9router', value: '$1.2M', trend: '+8.4%', icon: '🔀' },
+                { label: 'x402 Micro-Tx', value: '14,291', trend: '+23%', icon: '⚡' },
+                { label: 'Guardrail Pass', value: '99.7%', trend: 'Stable', icon: '🛡️' },
+              ].map(metric => (
+                <div key={metric.label} className="rounded-lg dark:bg-white/[0.02] bg-white/70 border dark:border-white/[0.05] border-gray-200/60 px-3 py-2.5 text-center transition-all hover:dark:bg-white/[0.04] hover:bg-white/90">
+                  <span className="text-sm">{metric.icon}</span>
+                  <p className="text-[13px] sm:text-[15px] font-black dark:text-white/90 text-gray-800 mt-0.5 font-mono">{metric.value}</p>
+                  <p className="text-[8px] dark:text-white/35 text-gray-400 mt-0.5">{metric.label}</p>
+                  <span className="text-[7px] font-bold dark:text-emerald-400/60 text-emerald-600">{metric.trend}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
