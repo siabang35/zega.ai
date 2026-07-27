@@ -1,41 +1,57 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
-import { logger } from 'hono/logger'
+import Fastify from 'fastify';
+import { envConfig } from './config/env.js';
+import { registerPlugins } from './plugins/index.js';
+import { registerRoutes } from './routes/index.js';
+import { logger } from './utils/logger.js';
 
-const app = new Hono()
+/**
+ * ZEGA AI — Enterprise Backend Server
+ *
+ * High-performance Fastify application serving as the central nervous system
+ * for AI agent orchestration, payment infrastructure, and enterprise operations.
+ */
+async function bootstrap() {
+  const app = Fastify({
+    logger: {
+      level: envConfig.LOG_LEVEL,
+      transport:
+        envConfig.NODE_ENV === 'development'
+          ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
+          : undefined,
+    },
+    requestIdHeader: 'x-request-id',
+    genReqId: () => crypto.randomUUID(),
+    trustProxy: true,
+    bodyLimit: 1_048_576, // 1MB
+  });
 
-// ─── Middleware ───────────────────────────────────────────
-app.use('*', logger())
-app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-}))
+  // ── Register all plugins (security, auth, cache, payments) ──
+  await registerPlugins(app);
 
-// ─── Health Check ────────────────────────────────────────
-app.get('/', (c) => {
-  return c.json({
-    status: 'ok',
-    service: 'ZEGA AI API',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-  })
-})
+  // ── Register all versioned routes ──
+  await registerRoutes(app);
 
-// ─── API Routes ──────────────────────────────────────────
-app.get('/api/v1/health', (c) => {
-  return c.json({ status: 'healthy' })
-})
+  // ── Graceful shutdown ──
+  const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
+  for (const signal of signals) {
+    process.on(signal, async () => {
+      app.log.info({ signal }, 'Received shutdown signal, closing server...');
+      await app.close();
+      process.exit(0);
+    });
+  }
 
-// ─── Start Server ────────────────────────────────────────
-const port = Number(process.env.PORT) || 3001
+  // ── Start server ──
+  try {
+    const address = await app.listen({
+      port: envConfig.PORT,
+      host: '0.0.0.0',
+    });
+    app.log.info(`🚀 ZEGA AI API Server running at ${address}`);
+  } catch (err) {
+    app.log.fatal(err, 'Failed to start server');
+    process.exit(1);
+  }
+}
 
-console.log(`🚀 ZEGA AI API running on http://localhost:${port}`)
-
-serve({
-  fetch: app.fetch,
-  port,
-})
-
-export default app
+bootstrap();

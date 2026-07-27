@@ -11,14 +11,29 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^13.0.0",
+    "@fastify/jwt": "^9.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/swagger": "^9.0.0",
+    "@fastify/swagger-ui": "^5.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "@supabase/supabase-js": "^2.49.0",
     "@zega/shared": "workspace:*",
-    "@zega/supabase": "workspace:*",
-    "hono": "^4.7.0"
+    "bullmq": "^5.30.0",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.0",
+    "openai": "^4.80.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "stripe": "^17.5.0",
+    "viem": "^2.23.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.7.0"
   }
 }

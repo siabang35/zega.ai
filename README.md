@@ -45,7 +45,7 @@ ZEGA/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/zega.git
+git clone https://github.com/siabang35/zega.ai.git
 cd ZEGA
 
 # 2. Install workspace dependencies

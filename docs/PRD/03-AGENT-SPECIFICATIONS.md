@@ -2,198 +2,311 @@
 
 ## 3. AI Agent Specifications
 
-### 3.1 Agent Taxonomy
+### 3.1 Agent Philosophy
 
-ZEGA AI agents are organized into a three-tier hierarchy:
+Every ZEGA AI agent operates as a **specialized digital worker** — not a chatbot, not a copilot, but an autonomous employee with:
+- **Domain expertise** aligned to a specific business function
+- **Real platform integrations** (WhatsApp, Instagram, Stripe, etc.)
+- **Decision authority** within configured boundaries
+- **Collaboration skills** via A2A protocol with other agents
+- **Learning capability** that improves accuracy over time
 
-| Tier | Role | Scope | Example |
+### 3.2 Agent Taxonomy
+
+| Tier | Role | Scope | Scale |
 |---|---|---|---|
-| **Tier 0** | OmniOrchestrator | Platform-wide strategic coordination | Single instance |
-| **Tier 1** | Mesh Coordinators | Domain-level orchestration | Finance Mesh Coordinator |
-| **Tier 2** | Specialist Agents | Task-specific execution | Invoice Reconciliation Agent |
+| **Tier 0** | OmniOrchestrator | Platform-wide strategic coordination | 1 per organization |
+| **Tier 1** | Division Leads | Division-level orchestration | 1 per division |
+| **Tier 2** | Specialist Agents | Task-specific autonomous execution | Unlimited |
 
-### 3.2 Agent Lifecycle
+### 3.3 Agent Lifecycle
 
 ```
-PROVISIONED → INITIALIZED → ACTIVE → [SUSPENDED] → DECOMMISSIONED
-                                ↑          │
-                                └──────────┘ (resume)
+CREATED → CONFIGURED → DEPLOYED → ACTIVE → [PAUSED] → DECOMMISSIONED
+                                     ↑         │
+                                     └─────────┘ (resume)
 ```
 
 Every agent exposes a standardized capability manifest:
 
 ```yaml
 AgentManifest:
-  id: "fiscalguard-hybrid-001"
-  mesh: "finance-mesh"
-  tier: 1
-  capabilities: [multi_currency_mgmt, stripe_virtual_card, x402_clearing]
-  authority_level: "SUBSIDIARY_FINANCE"
-  spending_limit: { USD: 500000, per: "day" }
-  escalation_target: "omni-orchestrator"
-  models: ["claude-sonnet-4", "gpt-4.1"]
+  id: "cs-agent-wa-001"
+  name: "Customer Service Agent — WhatsApp"
+  division: "customer-experience"
+  tier: 2
+  capabilities: [customer_support, complaint_resolution, order_tracking, escalation]
+  integrations: [whatsapp_business, telegram_bot, email_smtp]
+  authority_level: "OPERATIONAL"
+  spending_limit: { USD: 100, per: "day" }
+  escalation_target: "cx-division-lead"
+  models: ["claude-sonnet-4", "gpt-4.1-mini"]
+  languages: ["en", "id", "ms"]
   health_check_interval: "30s"
-  sla: { availability: "99.95%", response_p99: "200ms" }
-```
-
-### 3.3 Core Agent Definitions
-
----
-
-#### 3.3.1 OmniOrchestrator — Central "CEO" Agent
-
-| Attribute | Details |
-|---|---|
-| **Mesh** | Central (Tier 0) |
-| **Purpose** | Translates enterprise vision, KPIs, profit targets, risk policies, and priorities into dynamically distributed tasks across all meshes |
-| **Authority** | Highest — can override any Tier 1/2 agent decision |
-
-**Core Responsibilities:**
-1. **Strategic Decomposition** — Breaks board-level objectives into mesh-level OKRs
-2. **Dynamic Task Allocation** — Routes work to optimal agents based on capability, load, and cost
-3. **Cross-Mesh Arbitration** — Resolves conflicts between meshes (e.g., Finance vs. Procurement budget disputes)
-4. **Performance Monitoring** — Tracks KPI achievement across all subsidiaries in real-time
-5. **Escalation Handler** — Receives and resolves issues beyond individual mesh authority
-6. **Resource Optimization** — Allocates compute, model inference budget, and agent instances
-7. **Scenario Planning** — Triggers Digital Twin simulations for strategic decisions
-
-**Decision Framework:**
-```
-Input: Board KPIs + Market Data + Subsidiary Reports
-  → Decompose into Mesh OKRs
-  → Assign weighted priorities
-  → Distribute via A2A to Mesh Coordinators
-  → Monitor execution (real-time event stream)
-  → Detect deviations → Trigger corrective actions
-  → Report to C-Suite Dashboard
+  sla: { availability: "99.9%", response_p99: "3s" }
 ```
 
 ---
 
-#### 3.3.2 FiscalGuard Hybrid — Cross-Currency Finance Agent
+### 3.4 Pre-Built Agent Templates
+
+Users can deploy these agents instantly, then customize:
+
+---
+
+#### 3.4.1 Customer Service Agent
 
 | Attribute | Details |
 |---|---|
-| **Mesh** | Finance Mesh (Tier 1) |
-| **Purpose** | Manages cross-currency financial operations, Stripe virtual card quotas, and x402 stablecoin micro-clearing routes |
-| **Authority** | Subsidiary-level financial operations |
+| **Division** | Customer Experience |
+| **Purpose** | Handle customer inquiries, resolve complaints, track orders, escalate complex issues |
+| **Authority** | Can issue refunds up to configured limit, create tickets, update order status |
 
-**Core Responsibilities:**
-1. **Multi-Currency Cash Flow Management** — Real-time FX optimization across subsidiaries
-2. **Stripe Virtual Card Management** — Automated provisioning, spending limits, and reconciliation
-3. **x402 Stablecoin Clearing** — Machine-to-machine micropayments for inter-agent and inter-service transactions
-4. **Budget Enforcement** — Policy-driven spending controls per subsidiary, department, and project
-5. **Automated Reconciliation** — Cross-entity transaction matching with anomaly detection
-6. **Treasury Optimization** — Liquidity forecasting and cash positioning across accounts
-7. **Tax Compliance** — Automated withholding calculations per jurisdiction
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **WhatsApp Business** | WhatsApp Cloud API | Send/receive messages, media, templates, interactive buttons |
+| **Telegram** | Telegram Bot API | Multi-language support, inline keyboards, group management |
+| **Facebook Messenger** | Meta Graph API | Automated responses, handover to human |
+| **Live Chat Widget** | WebSocket | Embedded website chat with typing indicators |
+| **Email** | SMTP/IMAP | Auto-reply, ticket creation, thread management |
+| **Zendesk / Freshdesk** | REST API | Ticket CRUD, SLA tracking, knowledge base search |
 
-**Payment Flow:**
+**Agent Behavior:**
 ```
-Transaction Request
-  → FiscalGuard validates against budget policy
-  → Route decision:
-     ├─ Stripe (card-based, vendor payments) → 9router optimization
-     ├─ x402 (machine-to-machine, micro-clearing) → stablecoin settlement
-     └─ Traditional (wire, ACH) → banking API
-  → Execute payment
-  → Record in immutable audit trail
-  → Update real-time P&L dashboard
+Customer message received (WhatsApp/Telegram/Email)
+  → Language detection (auto-detect from 20+ languages)
+  → Intent classification (complaint, inquiry, order_status, feedback, other)
+  → Knowledge base search (RAG against company docs + FAQ)
+  → Generate response (Claude Sonnet 4 for accuracy)
+  → Output guardrails (PII redaction, tone validation, brand voice)
+  → IF confidence > 85% → Send response directly
+  → IF confidence 50-85% → Send with disclaimer + flag for review
+  → IF confidence < 50% → Escalate to human or Division Lead
+  → Log interaction in audit trail
+  → Update customer satisfaction score
 ```
 
 ---
 
-#### 3.3.3 HyperScale Procurement — Autonomous Global Procurement Agent
+#### 3.4.2 SEO & Digital Marketing Agent
 
 | Attribute | Details |
 |---|---|
-| **Mesh** | Procurement Mesh (Tier 1) |
-| **Purpose** | Autonomously sources vendors globally, negotiates pricing based on real-time data analytics, and optimizes procurement across all subsidiaries |
+| **Division** | Marketing & Growth |
+| **Purpose** | Optimize search rankings, manage social media, create content, run ad campaigns |
+| **Authority** | Can publish content, adjust ad budgets within limits, A/B test creatives |
 
-**Core Responsibilities:**
-1. **Vendor Discovery** — AI-driven global vendor identification and scoring
-2. **Automated Negotiation** — Multi-round price negotiation using game theory and market data
-3. **Demand Aggregation** — Consolidates purchase requirements across subsidiaries for volume discounts
-4. **Contract Management** — Automated contract generation, review, and renewal tracking
-5. **Supplier Risk Assessment** — Continuous monitoring of vendor financial health, ESG compliance, and geopolitical risk
-6. **Spend Analytics** — Category-level spend visibility with optimization recommendations
-7. **Purchase Order Automation** — End-to-end PO generation, approval, and tracking
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **Instagram** | Meta Graph API + Instagram API | Post creation, Stories, Reels scheduling, hashtag research, analytics |
+| **TikTok** | TikTok Marketing API | Video scheduling, trend analysis, ad campaign management |
+| **Google Ads** | Google Ads API v17 | Campaign creation, bid optimization, keyword research, performance tracking |
+| **Meta Ads** | Marketing API | Ad set management, audience targeting, conversion tracking |
+| **Google Search Console** | Search Console API | Keyword ranking, indexation, site performance |
+| **Google Analytics 4** | GA4 API | Traffic analysis, conversion funnels, audience insights |
+| **WordPress / Headless CMS** | REST/GraphQL | Content publishing, SEO metadata, schema markup |
+| **Shopee** | Shopee Open Platform API | Product listing optimization, keyword bidding, shop promotion |
+| **Tokopedia** | Tokopedia Seller API | Product SEO, TopAds management, review response |
+| **Lazada** | Lazada Open Platform | Product listing, sponsored products, feed optimization |
 
----
-
-#### 3.3.4 CrossCompliance AI — Automated Legal Audit Agent
-
-| Attribute | Details |
-|---|---|
-| **Mesh** | Legal & Compliance Mesh (Tier 1) |
-| **Purpose** | Ensures every transaction across all subsidiaries complies with local and international regulations in real-time |
-
-**Core Responsibilities:**
-1. **Regulatory Monitoring** — Continuously tracks regulatory changes across all operating jurisdictions
-2. **Transaction Screening** — Real-time compliance checks (AML, KYC, sanctions, trade controls)
-3. **Automated Audit Trails** — Generates legally admissible audit records for every agent action
-4. **Policy Enforcement** — Validates all operations against corporate governance policies
-5. **Cross-Jurisdiction Harmonization** — Resolves conflicting regulations between jurisdictions
-6. **Whistleblower Processing** — Secure, anonymous report intake and investigation routing
-7. **Regulatory Reporting** — Automated generation and submission of compliance reports
-
-**Compliance Check Flow:**
+**Agent Behavior:**
 ```
-Any Agent Action/Transaction
-  → CrossCompliance intercepts via event bus
-  → Checks against:
-     ├─ Local regulations (per subsidiary jurisdiction)
-     ├─ International regulations (GDPR, SOX, Basel III, etc.)
-     ├─ Corporate governance policies
-     ├─ Sanctions lists (OFAC, EU, UN)
-     └─ Industry-specific rules
-  → Result: APPROVED / BLOCKED / ESCALATE
-  → If BLOCKED: Agent action prevented, alert generated
-  → If ESCALATE: Routed to human compliance officer
-  → Audit entry: immutable, timestamped, signed
+Scheduled daily workflow:
+  → Analyze keyword rankings (Google Search Console)
+  → Identify trending topics (TikTok Trends API + Google Trends)
+  → Generate content calendar for next 7 days
+  → Create platform-specific content:
+     ├─ Instagram: Image + carousel + caption + hashtags
+     ├─ TikTok: Script + trending sound suggestion + hooks
+     ├─ Blog: SEO-optimized article with schema markup
+     └─ Marketplace: Product description optimization
+  → Schedule posts via platform APIs
+  → Monitor ad campaign performance hourly
+  → Auto-adjust bids for underperforming keywords
+  → Generate weekly performance report
+  → Collaborate with Finance Agent on ad budget allocation
 ```
 
 ---
 
-#### 3.3.5 Predictive JIT Logistics — Smart Supply Chain Agent
+#### 3.4.3 Finance & Accounting Agent
 
 | Attribute | Details |
 |---|---|
-| **Mesh** | Supply Chain Mesh (Tier 1) |
-| **Purpose** | Synchronizes inventory across companies to drive warehouse costs toward zero using predictive just-in-time methodologies |
+| **Division** | Finance |
+| **Purpose** | Manage invoicing, expense tracking, cash flow forecasting, tax compliance, financial reporting |
+| **Authority** | Can process payments within limits, generate invoices, reconcile transactions |
 
-**Core Responsibilities:**
-1. **Demand Forecasting** — ML-based prediction using market signals, seasonality, and historical patterns
-2. **Cross-Company Inventory Sync** — Real-time visibility and rebalancing across all subsidiary warehouses
-3. **Dynamic Routing** — Optimal logistics route calculation considering cost, time, carbon, and risk
-4. **Supplier Lead Time Prediction** — Anticipates delays and triggers preemptive actions
-5. **Warehouse Optimization** — Automated slotting, picking path optimization, and capacity planning
-6. **Last-Mile Optimization** — Cost-efficient last-mile delivery orchestration
-7. **Disruption Response** — Automated contingency activation for supply chain disruptions
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **Stripe** | Stripe API v2 | Payment processing, subscription management, virtual cards, payouts |
+| **QuickBooks** | QuickBooks Online API | Invoicing, expense categorization, P&L reports |
+| **Xero** | Xero API | Multi-currency accounting, bank reconciliation |
+| **Wise (TransferWise)** | Wise API | Cross-border payments, FX optimization |
+| **Banking APIs** | Open Banking / Plaid | Account balances, transaction history, payment initiation |
+| **x402** | HTTP 402 Protocol | Machine-to-machine stablecoin micropayments |
+| **Tax APIs** | Avalara / TaxJar | Automated tax calculation per jurisdiction |
 
-### 3.4 Complete Mesh Catalog
+**Agent Behavior:**
+```
+Continuous financial monitoring:
+  → Sync bank transactions (Plaid/Open Banking)
+  → Auto-categorize expenses (ML classification)
+  → Match invoices to payments (reconciliation)
+  → Detect anomalies (unusual spending patterns, duplicate invoices)
+  → Cash flow forecasting (30/60/90 day projections)
+  → Tax obligation tracking per jurisdiction
+  → Generate financial reports on schedule
+  → Alert on budget threshold breaches
+  → Collaborate with Procurement Agent on vendor payments
+  → Route payments via 9router (optimal cost/speed path)
+```
 
-| Mesh | Coordinator Agent | Key Specialist Agents | Domain |
+---
+
+#### 3.4.4 Sales & Lead Generation Agent
+
+| Attribute | Details |
+|---|---|
+| **Division** | Sales & Revenue |
+| **Purpose** | Identify leads, nurture prospects, manage pipeline, close deals, optimize pricing |
+| **Authority** | Can create proposals, offer discounts within limits, schedule meetings |
+
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **Salesforce** | REST/SOAP API | Lead CRUD, opportunity management, forecasting |
+| **HubSpot** | HubSpot API v3 | Contact management, deal tracking, email sequences |
+| **LinkedIn** | LinkedIn Marketing API | Lead generation, InMail, company insights |
+| **Calendly** | Calendly API | Meeting scheduling, availability management |
+| **WhatsApp Business** | Cloud API | Personalized outreach, follow-ups, proposal delivery |
+| **Email** | SMTP + tracking pixels | Cold outreach, nurture sequences, open/click tracking |
+
+---
+
+#### 3.4.5 HR & People Operations Agent
+
+| Attribute | Details |
+|---|---|
+| **Division** | Human Resources |
+| **Purpose** | Automate recruiting, onboarding, payroll, performance reviews, employee engagement |
+| **Authority** | Can schedule interviews, send offer letters, process standard leave requests |
+
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **LinkedIn Recruiter** | LinkedIn API | Candidate sourcing, InMail, pipeline management |
+| **Workday** | Workday API | HRIS operations, payroll, benefits |
+| **BambooHR** | REST API | Employee data, PTO tracking, performance |
+| **Slack** | Slack API (Bolt) | Employee engagement, announcements, feedback |
+| **Google Workspace** | Google APIs | Calendar, Docs, Sheets for onboarding workflows |
+| **Calendly** | Calendly API | Interview scheduling |
+
+---
+
+#### 3.4.6 Procurement & Supply Chain Agent
+
+| Attribute | Details |
+|---|---|
+| **Division** | Operations |
+| **Purpose** | Source vendors, negotiate prices, manage purchase orders, optimize inventory |
+| **Authority** | Can create POs within limits, initiate vendor negotiations, order stock |
+
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **SAP Ariba** | Ariba API | Procurement workflows, vendor management |
+| **Oracle SCM** | REST API | Supply chain planning, inventory optimization |
+| **Alibaba.com** | Open API | Supplier discovery, RFQ, price comparison |
+| **Shopee Seller / Tokopedia Seller** | Seller APIs | Inventory sync, stock management |
+| **DHL / FedEx / JNE** | Shipping APIs | Shipment tracking, rate comparison, label generation |
+
+---
+
+#### 3.4.7 Compliance & Legal Agent
+
+| Attribute | Details |
+|---|---|
+| **Division** | Legal & Compliance |
+| **Purpose** | Monitor regulations, screen transactions, generate audit trails, manage contracts |
+| **Authority** | Can block non-compliant transactions, generate compliance reports, flag risks |
+
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **Thomson Reuters / LexisNexis** | REST API | Regulatory database, legal research |
+| **DocuSign** | eSignature API | Contract signing, document workflow |
+| **OFAC / EU Sanctions** | Screening APIs | AML/KYC screening, sanctions checks |
+| **Government Regulatory Portals** | Varies | Tax filing, compliance reporting |
+
+---
+
+#### 3.4.8 Data Analytics & Reporting Agent
+
+| Attribute | Details |
+|---|---|
+| **Division** | Intelligence |
+| **Purpose** | Aggregate data across divisions, generate insights, build predictive models, create dashboards |
+| **Authority** | Read-only access to all division data (with RBAC); can generate reports and predictions |
+
+**Platform Integrations:**
+| Platform | Protocol | Capability |
+|---|---|---|
+| **Google BigQuery** | BigQuery API | Large-scale analytics, ML models |
+| **Snowflake** | SQL API | Data warehouse queries |
+| **Metabase / Superset** | REST API | Dashboard creation, embedded analytics |
+| **Google Sheets** | Sheets API | Lightweight reporting, stakeholder sharing |
+| **Slack / Email** | Webhooks | Scheduled report delivery |
+
+---
+
+### 3.5 Division Architecture
+
+Agents self-organize into **Divisions** — functional teams that mirror real business departments:
+
+| Division | Lead Agent | Specialist Agents | Key Integrations |
 |---|---|---|---|
-| **Finance** | FiscalGuard Hybrid | Treasury Bot, Tax Engine, AR/AP Automator, Audit Agent | Financial operations |
-| **Procurement** | HyperScale Procurement | Vendor Scout, Contract Negotiator, Spend Analyzer | Sourcing & purchasing |
-| **Supply Chain** | Predictive JIT Logistics | Demand Forecaster, Route Optimizer, Inventory Balancer | Logistics & inventory |
-| **Manufacturing** | MFG Orchestrator | Production Scheduler, Quality Inspector, Maintenance Predictor | Production ops |
-| **HR** | PeopleOps AI | Talent Scout, Payroll Engine, Performance Analyzer, Scheduler | Workforce management |
-| **Legal & Compliance** | CrossCompliance AI | Regulatory Monitor, Contract Reviewer, Risk Assessor | Legal & regulatory |
-| **Sales & Marketing** | Revenue Engine | Lead Scorer, Campaign Optimizer, Price Optimizer, Churn Predictor | Revenue generation |
-| **Customer Experience** | CX Orchestrator | Support Agent, Sentiment Analyzer, Journey Optimizer | Customer satisfaction |
-| **Cybersecurity** | SecOps Guardian | Threat Detector, Incident Responder, Vulnerability Scanner | Security operations |
-| **Sustainability** | GreenOps AI | Carbon Tracker, ESG Reporter, Circular Economy Optimizer | Environmental compliance |
-| **R&D** | Innovation Engine | Patent Analyzer, Experiment Tracker, Tech Scout | Research & development |
+| **Customer Experience** | CX Division Lead | CS Agent (WhatsApp, Telegram, Email), Sentiment Analyzer, Journey Optimizer | WhatsApp, Telegram, Zendesk, Freshdesk |
+| **Marketing & Growth** | Marketing Lead | SEO Agent, Content Creator, Ad Campaign Manager, Social Media Manager | Instagram, TikTok, Google Ads, Meta Ads, Shopee, Tokopedia |
+| **Finance** | Finance Lead (FiscalGuard) | Invoicing Agent, Expense Tracker, Cash Flow Forecaster, Tax Agent | Stripe, QuickBooks, Xero, Wise, Banking APIs, x402 |
+| **Sales & Revenue** | Sales Lead | Lead Generator, Pipeline Manager, Proposal Creator, Pricing Optimizer | Salesforce, HubSpot, LinkedIn, WhatsApp |
+| **Human Resources** | HR Lead | Recruiter, Onboarding Agent, Payroll Agent, Engagement Agent | LinkedIn, Workday, BambooHR, Slack |
+| **Operations** | Ops Lead | Procurement Agent, Inventory Manager, Shipping Coordinator | SAP, Oracle SCM, DHL, FedEx, JNE |
+| **Legal & Compliance** | Compliance Lead | Contract Reviewer, Regulatory Monitor, Audit Agent | Thomson Reuters, DocuSign, OFAC |
+| **Intelligence** | Analytics Lead | Data Analyst, Prediction Agent, Report Generator | BigQuery, Snowflake, Metabase |
+| **Cybersecurity** | SecOps Lead | Threat Detector, Incident Responder, Vulnerability Scanner | Splunk, CrowdStrike, AWS GuardDuty |
+| **Sustainability** | GreenOps Lead | Carbon Tracker, ESG Reporter, Circular Economy Agent | CDP, Ecoinvent, sustainability APIs |
+| **R&D** | Innovation Lead | Patent Analyzer, Tech Scout, Experiment Tracker | Patent databases, arXiv, GitHub |
 
-### 3.5 Agent Scaling Specifications
+### 3.6 Inter-Agent Collaboration Protocol
 
-| Metric | Requirement |
-|---|---|
-| **Max concurrent agents** | 10,000+ |
-| **Agent boot time** | < 2 seconds |
-| **Agent memory per instance** | 256MB — 2GB (configurable) |
-| **Horizontal scaling** | Kubernetes HPA based on queue depth and latency |
-| **Agent failover** | < 5 seconds with state recovery from durable store |
-| **Model inference budget** | Per-agent token quotas with OmniOrchestrator oversight |
-| **Multi-region** | Active-active across ≥ 2 regions |
+```
+Agent A needs help from Agent B:
+  1. Agent A sends A2A message with:
+     - Intent (e.g., "NEED_AD_BUDGET_APPROVAL")
+     - Context (structured data)
+     - Priority (CRITICAL / HIGH / NORMAL / LOW)
+     - Auth token (JWT — zero trust)
+  2. 9router validates if payment is needed for this action
+  3. Agent B processes request within its authority
+  4. IF within authority → Execute and respond
+  5. IF exceeds authority → Escalate to Division Lead
+  6. IF cross-division → Route to OmniOrchestrator for arbitration
+  7. All interactions logged in immutable audit trail
+```
+
+### 3.7 Agent Scaling Specifications
+
+| Metric | Individual Plan | Business Plan | Enterprise Plan | Government Plan |
+|---|---|---|---|---|
+| **Max agents** | 10 | 100 | 10,000 | 100,000+ |
+| **Agent boot time** | <3s | <2s | <1s | <1s |
+| **Memory per agent** | 128MB | 256MB | 512MB-2GB | 2GB-8GB |
+| **AI model access** | GPT-4.1-mini, Gemini Flash | All standard models | All models + custom fine-tuned | All + sovereign models |
+| **Integrations** | 10 platforms | 50 platforms | 200+ platforms | Unlimited + custom |
+| **Token budget / month** | 1M tokens | 10M tokens | 100M tokens | Unlimited |
+| **9router access** | Stripe only | Stripe + x402 | All rails | All + sovereign banking |
+| **Support** | Community | Priority email | Dedicated CSM | On-site team |
