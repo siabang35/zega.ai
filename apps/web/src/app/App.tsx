@@ -7,6 +7,7 @@ import {
   BookOpen,
   Bot,
   Brain,
+  Building2,
   Calendar,
   Check,
   ChevronRight,
@@ -750,6 +751,314 @@ const ACTION_TABS_DATA = {
   },
 };
 
+function AuthModal({
+  isOpen,
+  onClose,
+  initialMode = "self-serve",
+  prefillEmail = "",
+  onSubmitSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  initialMode?: "self-serve" | "enterprise";
+  prefillEmail?: string;
+  onSubmitSuccess: (msg: string) => void;
+}) {
+  const [mode, setMode] = useState<"self-serve" | "enterprise">(initialMode);
+  const [email, setEmail] = useState(prefillEmail);
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [teamSize, setTeamSize] = useState("1-10");
+  const [useCase, setUseCase] = useState("Workflow Automation");
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (prefillEmail) setEmail(prefillEmail);
+  }, [prefillEmail]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mode === "self-serve") {
+      onSubmitSuccess(
+        `Welcome to ZEGA! Account created for ${email || "your workspace"}.`
+      );
+    } else {
+      onSubmitSuccess(
+        `Enterprise Consultation requested! Our team will contact ${email || fullName || "your team"} within 2 hours.`
+      );
+    }
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/45 dark:bg-black/75 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+      style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      <div
+        className="relative w-full max-w-[500px] overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xl shadow-slate-900/10 dark:shadow-2xl dark:shadow-black/70 flex flex-col sm:flex-row transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Left Vertical Side Rail - Clean Monochrome Enterprise */}
+        <div className="relative hidden sm:flex w-[76px] flex-shrink-0 flex-col items-center justify-center border-r border-border/50 bg-muted/20 py-8 select-none overflow-hidden">
+          {/* Vertical Rotated Logo + Ideal CONSOLE Badge */}
+          <div className="flex flex-col items-center justify-center space-y-12 my-auto">
+            {/* Best Practice CONSOLE Badge */}
+            <span className="-rotate-90 whitespace-nowrap text-[11px] font-extrabold tracking-[0.22em] uppercase text-muted-foreground/80 font-mono">
+              CONSOLE
+            </span>
+
+            {/* Prominent Rotated Logo with Smooth Professional Hover */}
+            <div className="-rotate-90 group cursor-default">
+              <img
+                src="/assets/logo/zegalogo.png"
+                alt="ZEGA"
+                className="h-10 sm:h-11 w-auto max-w-none object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] opacity-95 transition-all duration-300 ease-out group-hover:scale-105 group-hover:opacity-100"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Form Area */}
+        <div className="relative flex-1 p-6 sm:p-7">
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 grid size-8 place-items-center rounded-full border border-border/50 bg-muted/30 text-muted-foreground transition-all hover:bg-muted hover:text-foreground cursor-pointer"
+            aria-label="Close Modal"
+          >
+            <X size={14} />
+          </button>
+
+          {/* Mobile Brand Header */}
+          <div className="flex sm:hidden items-center gap-2.5 pr-8 mb-3">
+            <img
+              src="/assets/logo/zegalogo.png"
+              alt="ZEGA"
+              className="h-6 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
+            />
+          </div>
+
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-foreground pr-6">
+              {mode === "self-serve" ? "Get started with ZEGA" : "Schedule Enterprise Demo"}
+            </h3>
+            <p className="text-[12px] text-muted-foreground mt-0.5 font-normal leading-normal">
+              {mode === "self-serve"
+                ? "Build and deploy autonomous agent workflows."
+                : "Private VPC deployment, dedicated SLA, and enterprise control."}
+            </p>
+          </div>
+
+          {/* Target Segment Selector Tabs */}
+          <div className="mt-4 flex rounded-xl border border-border/60 bg-muted/30 p-1">
+            <button
+              type="button"
+              onClick={() => setMode("self-serve")}
+              className={`flex-1 rounded-lg py-1.5 text-[11.5px] transition-all cursor-pointer ${mode === "self-serve"
+                  ? "bg-card text-foreground border border-border/60 shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground font-semibold"
+                }`}
+            >
+              Individual & UMKM
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("enterprise")}
+              className={`flex-1 rounded-lg py-1.5 text-[11.5px] transition-all cursor-pointer ${mode === "enterprise"
+                  ? "bg-card text-foreground border border-border/60 shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground font-semibold"
+                }`}
+            >
+              Enterprise Scale
+            </button>
+          </div>
+
+          {/* Form Body */}
+          <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+            {mode === "self-serve" ? (
+              <>
+                {/* Quick OAuth Buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSubmitSuccess("Logged in via Google OAuth Sandbox!");
+                      onClose();
+                    }}
+                    className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 py-2 text-[12px] font-semibold text-foreground transition-all hover:bg-muted/50 active:scale-[0.98] cursor-pointer"
+                  >
+                    <svg className="size-4" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>Google</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSubmitSuccess("Logged in via GitHub Developer OAuth!");
+                      onClose();
+                    }}
+                    className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 py-2 text-[12px] font-semibold text-foreground transition-all hover:bg-muted/50 active:scale-[0.98] cursor-pointer"
+                  >
+                    <svg className="size-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
+                    </svg>
+                    <span>GitHub</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2.5 my-2 text-[9.5px] text-muted-foreground uppercase font-bold tracking-wider">
+                  <span className="h-px flex-1 bg-border/60" />
+                  <span>Or continue with email</span>
+                  <span className="h-px flex-1 bg-border/60" />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-foreground/80">Email Address</label>
+                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
+                    <Mail size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-foreground/80">Full Name</label>
+                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
+                    <UserRoundPlus size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Alex Morgan"
+                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full h-10.5 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all active:scale-[0.99] cursor-pointer mt-2"
+                >
+                  <span>Continue to Free Sandbox</span>
+                  <ArrowRight size={14} />
+                </button>
+
+                <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
+                  Free 14-day trial • No credit card required
+                </p>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-[11px] font-medium text-foreground/80">Work Email</label>
+                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
+                    <Mail size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="alex@enterprise.com"
+                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-medium text-foreground/80">Company Name</label>
+                    <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
+                      <Building2 size={14} className="text-muted-foreground mr-2 flex-shrink-0" />
+                      <input
+                        type="text"
+                        required
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Acme Corp"
+                        className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-foreground/80">Team Size</label>
+                    <select
+                      value={teamSize}
+                      onChange={(e) => setTeamSize(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-foreground focus:outline-none focus:border-foreground/50 focus:bg-card transition-all cursor-pointer"
+                    >
+                      <option value="1-10">1-10 employees</option>
+                      <option value="11-50">11-50 employees</option>
+                      <option value="50-250">50-250 employees</option>
+                      <option value="250+">250+ Enterprise</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-foreground/80">Primary Objective</label>
+                  <select
+                    value={useCase}
+                    onChange={(e) => setUseCase(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-foreground focus:outline-none focus:border-foreground/50 focus:bg-card transition-all cursor-pointer"
+                  >
+                    <option value="Workflow Automation">Enterprise Workflow Automation</option>
+                    <option value="Custom Agent Swarm">Custom AI Agent Swarms & MCP</option>
+                    <option value="VPC & SLA Compliance">Private VPC Deployment & SLA</option>
+                    <option value="White Labeling">White-Label Product Integration</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full h-10.5 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all active:scale-[0.99] cursor-pointer mt-2"
+                >
+                  <span>Request Enterprise Demo</span>
+                  <ArrowRight size={14} />
+                </button>
+
+                <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground pt-1">
+                  <ShieldCheck size={12} className="text-emerald-500" />
+                  <span>Zero-Trust Architecture • SOC2 Ready • 24/7 Dedicated SLA</span>
+                </div>
+              </>
+            )}
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window !== "undefined" && !hasShownSplash) {
@@ -767,6 +1076,15 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"self-serve" | "enterprise">("self-serve");
+  const [authPrefillEmail, setAuthPrefillEmail] = useState("");
+
+  const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
+    setAuthModalMode(mode);
+    setAuthPrefillEmail(prefillEmail);
+    setIsAuthModalOpen(true);
+  };
   const [demoMessages, setDemoMessages] = useState([
     { sender: "user", text: "Hi there! I recently placed an order and wanted to see what the status is." },
     { sender: "agent", text: "Of course! May I have your order ID or phone number, please?" },
@@ -1140,12 +1458,14 @@ export default function App() {
               {dark ? <Sun size={13} /> : <Moon size={13} />}
             </button>
 
-            {/* Sign Up CTA Button — Premium */}
+            {/* Try Now CTA Button — Premium Multi-Tier */}
             <button
-              onClick={() => triggerComingSoon()}
+              onClick={() => handleOpenAuth("self-serve")}
               className="group relative hidden items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/30 transition-all duration-500 hover:bg-right hover:shadow-xl hover:shadow-[#ff6b35]/40 hover:scale-[1.04] active:scale-95 sm:inline-flex cursor-pointer"
             >
-              <span className="relative z-10">Sign Up</span>
+              <span className="relative z-10 flex items-center gap-1">
+                <Sparkles size={13} className="animate-pulse" /> Try Now
+              </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
 
@@ -1225,10 +1545,12 @@ export default function App() {
                   className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
                   onClick={() => {
                     setMobileOpen(false);
-                    triggerComingSoon();
+                    handleOpenAuth("self-serve");
                   }}
                 >
-                  <span className="relative z-10">Sign Up</span>
+                  <span className="relative z-10 flex items-center gap-1">
+                    <Sparkles size={12} /> Try Now
+                  </span>
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                 </button>
               </div>
@@ -1295,16 +1617,18 @@ export default function App() {
                 setEmailTouched(true);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") triggerComingSoon();
+                if (e.key === "Enter") handleOpenAuth("self-serve", email);
               }}
               placeholder="Enter Your Email"
               className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
             />
             <button
-              onClick={() => triggerComingSoon()}
+              onClick={() => handleOpenAuth("self-serve", email)}
               className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-6 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/35 hover:scale-[1.03] active:scale-95 cursor-pointer"
             >
-              <span className="relative z-10">Join ZEGA</span>
+              <span className="relative z-10 flex items-center gap-1">
+                Try Free <ArrowRight size={13} />
+              </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
           </div>
@@ -2364,13 +2688,13 @@ export default function App() {
                   </span>
                 </div>
                 <button
-                  onClick={() => triggerComingSoon()}
+                  onClick={() => handleOpenAuth(name.includes("Premium") ? "enterprise" : "self-serve")}
                   className={`mt-5 flex w-full items-center justify-center rounded-full py-2.5 text-[11px] font-bold transition-all hover:opacity-90 cursor-pointer ${featured
                     ? "bg-white text-[#c2185b]"
                     : "border border-border text-foreground hover:bg-secondary"
                     }`}
                 >
-                  Choose Plan
+                  {name.includes("Premium") ? "Book Enterprise Demo" : name.includes("Pro") ? "Try Pro Free" : "Start Free Trial"}
                 </button>
                 <ul className="mt-5 space-y-2.5">
                   {features.map((f) => (
@@ -2472,13 +2796,22 @@ export default function App() {
             All your enterprise needs, orchestrated in one place.
           </p>
           <button
-            onClick={() => triggerComingSoon()}
+            onClick={() => handleOpenAuth("self-serve")}
             className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-[12px] font-bold text-[#0a0b10] shadow-lg transition-all duration-300 hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
           >
-            Start Now
+            Try ZEGA Free
           </button>
         </div>
       </section>
+
+      {/* Auth & Onboarding Modal for Individual, UMKM & Enterprise */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+        prefillEmail={authPrefillEmail}
+        onSubmitSuccess={(msg) => setToastMessage(msg)}
+      />
 
       {/* PROFESSIONAL ENTERPRISE TOAST NOTIFICATION */}
       {toastMessage && (
