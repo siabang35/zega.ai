@@ -1281,18 +1281,15 @@ function AuthModal({
 }
 
 function getInitialPath(): string {
-  if (typeof window === "undefined") return "/home";
-  const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/home";
+  if (typeof window === "undefined") return "/";
+  const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
   if (path === "/" || path === "" || path === "/home") {
-    if (typeof window !== "undefined" && window.location.pathname !== "/home") {
-      window.history.replaceState({}, "", "/home");
-    }
-    return "/home";
+    return path === "/home" ? "/home" : "/";
   }
   if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/products", "/pricing"].includes(path)) {
     return path;
   }
-  return "/home";
+  return "/";
 }
 
 export default function App() {
@@ -1300,17 +1297,15 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState<string>(getInitialPath);
 
   const navigateTo = (path: string) => {
-    const targetPath = path === "/" ? "/home" : path;
-    if (typeof window !== "undefined" && window.location.pathname !== targetPath) {
-      window.history.pushState({}, "", targetPath);
+    if (typeof window !== "undefined" && window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
     }
-    setCurrentPath(targetPath);
+    setCurrentPath(path);
   };
 
   useEffect(() => {
     const handlePopState = () => {
-      let path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/home";
-      if (path === "/") path = "/home";
+      const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
       setCurrentPath(path);
     };
     window.addEventListener("popstate", handlePopState);
@@ -1328,7 +1323,7 @@ export default function App() {
         const el = document.getElementById("pricing");
         if (el) el.scrollIntoView({ behavior: "smooth" });
       }, 100);
-    } else if (currentPath === "/home") {
+    } else if (currentPath === "/home" || currentPath === "/") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -1361,6 +1356,19 @@ export default function App() {
     if (metaDesc) {
       metaDesc.setAttribute("content", desc);
     }
+
+    // Google Search SEO Best Practice: Canonical URL stays https://zegaai.site for root/home
+    let canonicalUrl = "https://zegaai.site";
+    if (currentPath !== "/home" && currentPath !== "/") {
+      canonicalUrl = `https://zegaai.site${currentPath}`;
+    }
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', canonicalUrl);
   }, [currentPath]);
 
   const [showSplash, setShowSplash] = useState(() => {
@@ -1782,10 +1790,10 @@ export default function App() {
         <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-6 lg:px-12">
           {/* Logo */}
           <a
-            href="/home"
+            href="/"
             onClick={(e) => {
               e.preventDefault();
-              navigateTo("/home");
+              navigateTo("/");
             }}
             className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50 cursor-pointer"
             aria-label="ZEGA AI — Back to home"
@@ -1796,7 +1804,7 @@ export default function App() {
           {/* Desktop Nav Links */}
           <nav className="hidden items-center gap-8 text-[13px] font-medium text-muted-foreground md:flex">
             {[
-              { id: "home", label: t.nav.home, href: "/home" },
+              { id: "home", label: t.nav.home, href: "/" },
               { id: "products", label: t.nav.products, href: "/products" },
               { id: "docs", label: t.nav.docs, href: "/docs" },
               { id: "pricing", label: t.nav.pricing, href: "/pricing" },
@@ -1805,7 +1813,7 @@ export default function App() {
                 item.id === "docs" ? (currentPath === "/docs" || showDocs) :
                 item.id === "products" ? currentPath === "/products" :
                 item.id === "pricing" ? currentPath === "/pricing" :
-                (currentPath === "/home" || currentPath === "/");
+                (currentPath === "/home" || currentPath === "/" || currentPath === "");
               return (
                 <a
                   key={item.id}
@@ -1819,7 +1827,7 @@ export default function App() {
                     } else if (item.id === "pricing") {
                       navigateTo("/pricing");
                     } else {
-                      navigateTo("/home");
+                      navigateTo("/");
                     }
                   }}
                   className={`nav-link-animated transition-colors hover:text-foreground ${
