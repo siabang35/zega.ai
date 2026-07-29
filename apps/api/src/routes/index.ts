@@ -21,6 +21,14 @@ export async function registerRoutes(app: FastifyInstance) {
     timestamp: new Date().toISOString(),
   }));
 
+  // Alias for Render health check path
+  app.get('/v1/health', async () => ({
+    status: 'healthy',
+    service: 'zega-api',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  }));
+
   // ── Swagger UI Aliases ──
   app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
   app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));

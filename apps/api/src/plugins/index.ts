@@ -105,12 +105,8 @@ export async function registerPlugins(app: FastifyInstance) {
       },
       servers: [
         {
-          url: 'http://localhost:3001',
-          description: 'Local Development Server',
-        },
-        {
-          url: 'https://api.zegaai.site',
-          description: 'Production Gateway',
+          url: envConfig.API_BASE_URL,
+          description: envConfig.NODE_ENV === 'production' ? 'Production Server' : 'Development Server',
         },
       ],
       components: {

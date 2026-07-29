@@ -26,11 +26,13 @@ export interface DbSandboxExecution {
   created_at?: string;
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+
 export const SupabaseDashboardService = {
   // 1. Authentication Handlers (Supabase Auth, Brevo Email OTP & Turnstile Bot Defense)
   async requestOtp(email: string, fullName?: string, audienceSegment: 'individual' | 'enterprise' = 'individual', turnstileToken?: string) {
     try {
-      const res = await fetch('http://localhost:3001/v1/auth/request-otp', {
+      const res = await fetch(`${API_BASE}/v1/auth/request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, fullName, audienceSegment, turnstileToken }),
@@ -64,7 +66,7 @@ export const SupabaseDashboardService = {
 
   async verifyOtp(email: string, otp: string, fullName?: string, audienceSegment: 'individual' | 'enterprise' = 'individual') {
     try {
-      const res = await fetch('http://localhost:3001/v1/auth/verify-otp', {
+      const res = await fetch(`${API_BASE}/v1/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, fullName, audienceSegment }),
@@ -160,29 +162,36 @@ export const SupabaseDashboardService = {
     }
   },
 
-  async setDemoSession(role: 'superadmin' | 'enterprise' | 'individual') {
-    const emailMap = {
+  async setDemoSession(role: 'superadmin' | 'enterprise' | 'individual' | 'guest') {
+    const emailMap: Record<string, string> = {
       superadmin: 'admin@zega.ai',
-      enterprise: 'enterprise@zega.ai',
-      individual: 'user@zega.ai',
+      enterprise: 'enterprise.guest@zegaai.site',
+      individual: 'guest@zegaai.site',
+      guest: 'guest@zegaai.site',
     };
-    const nameMap = {
+    const nameMap: Record<string, string> = {
       superadmin: 'SuperAdmin ZEGA Root',
-      enterprise: 'Acme Enterprise Admin',
-      individual: 'Alex Morgan',
+      enterprise: 'Acme Enterprise Admin (Guest Demo)',
+      individual: 'Guest Explorer (Demo Mode)',
+      guest: 'Guest Explorer (Demo Mode)',
     };
+
+    const isGuest = role === 'guest' || role === 'enterprise' || role === 'individual';
+
     const mockSession = {
       user: {
         id: 'demo-' + role,
-        email: emailMap[role],
+        email: emailMap[role] || 'guest@zegaai.site',
         user_metadata: {
-          full_name: nameMap[role],
-          role,
+          full_name: nameMap[role] || 'Guest Explorer',
+          role: role === 'guest' ? 'individual' : role,
+          is_guest: isGuest,
         }
       },
-      role,
-      fullName: nameMap[role],
-      email: emailMap[role],
+      role: role === 'guest' ? 'individual' : role,
+      fullName: nameMap[role] || 'Guest Explorer',
+      email: emailMap[role] || 'guest@zegaai.site',
+      isGuest,
     };
 
     localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
@@ -249,7 +258,7 @@ export const SupabaseDashboardService = {
       localStorage.removeItem('zega_auth_token');
       this.clearSessionCookie();
 
-      await fetch('http://localhost:3001/v1/auth/signout', {
+      await fetch(`${API_BASE}/v1/auth/signout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       }).catch(() => {});

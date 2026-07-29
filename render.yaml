@@ -1,0 +1,54 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ZEGA AI — RENDER CLOUD BLUEPRINT CONFIGURATION (BACKEND API SERVICE)
+#  Deploy Configuration for Fastify API Server on Render Cloud Platform
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: zega-api
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter api build
+    startCommand: pnpm --filter api start
+    healthCheckPath: /v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: LOG_LEVEL
+        value: info
+      - key: API_BASE_URL
+        value: https://zega-api.onrender.com
+      - key: CORS_ORIGIN
+        value: https://zegaai.site,https://*.vercel.app,http://localhost:5173
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CLOUDFLARE_TURNSTILE_SECRET_KEY
+        sync: false
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: siabang35@gmail.com
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: zega-ai
+      - key: R2_PUBLIC_DOMAIN
+        value: https://cdn.zegaai.site

@@ -57,6 +57,8 @@ const DOCS_NAV = [
     category: 'ENTERPRISE & COMPLIANCE',
     items: [
       { id: 'pii', title: 'PII Redaction & Audit' },
+      { id: 'auth', title: 'OTP & Bot Defense' },
+      { id: 'deployment', title: 'Vercel & Render Setup' },
       { id: 'sla', title: 'High Availability (SLA)' },
     ],
   },
@@ -127,6 +129,7 @@ print(f"Output: {response.output}")`,
 export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, triggerComingSoon }) => {
   const [activeTab, setActiveTab] = useState('quickstart');
   const [codeLang, setCodeLang] = useState<'typescript' | 'python' | 'curl'>('typescript');
+  const [pkgManager, setPkgManager] = useState<'npm' | 'pnpm' | 'yarn' | 'bun' | 'curl'>('npm');
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -297,10 +300,19 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
           {/* Title Header */}
           <div className="border-b border-border/40 pb-6 mb-8">
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight font-['Plus_Jakarta_Sans',sans-serif]">
-              Quickstart Guide
+              {DOCS_NAV.flatMap((g) => g.items).find((i) => i.id === activeTab)?.title || 'Documentation'}
             </h1>
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
-              Learn how to integrate the ZEGA AI client and leverage 9Router dynamic model selection for optimal latency and enterprise cost savings.
+              {activeTab === 'quickstart' && 'Learn how to integrate the ZEGA AI client and leverage 9Router dynamic model selection for optimal latency and enterprise cost savings.'}
+              {activeTab === 'architecture' && 'Understand the 5-layer architecture powering autonomous swarms, sandbox environments, and real-time LLM orchestration.'}
+              {activeTab === 'installation' && 'Set up the ZEGA AI SDK in TypeScript, Python, or raw cURL HTTP calls for your production backend.'}
+              {activeTab === '9router' && 'Dynamic latency & cost-based AI model routing with zero-downtime automatic fallback across OpenAI, Anthropic, and Google AI.'}
+              {activeTab === 'guardrails' && '5-layer security guardrail system ensuring PII redaction, prompt injection defense, and schema validation.'}
+              {activeTab === 'orchestrator' && 'Manage multi-agent swarms, sandbox task execution, and automated workflow triggers.'}
+              {activeTab === 'pii' && 'Automated real-time PII scrubbing, hashing, and audit logging to ensure strict HIPAA, GDPR, and SOC2 compliance.'}
+              {activeTab === 'auth' && 'Hardened authentication flow combining Cloudflare Turnstile bot defense, Brevo SMTP OTP delivery, and Supabase RLS policies.'}
+              {activeTab === 'deployment' && 'Production deployment instructions for hosting the Vite web application on Vercel and the Fastify API on Render Cloud.'}
+              {activeTab === 'sla' && 'Enterprise SLAs guaranteeing 99.9% uptime, global CDN distribution, and dedicated priority routing queues.'}
             </p>
           </div>
 
@@ -309,7 +321,13 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-blue-500 block mb-0.5">Enterprise Recommendation</strong>
-              For high-throughput production workloads, ensure your API Key has <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">9router-v2</code> permissions enabled in your ZEGA console.
+              {activeTab === 'deployment' ? (
+                <span>For Vercel deployment, configure <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">VITE_API_URL</code> pointing to your Render backend API service.</span>
+              ) : activeTab === 'auth' ? (
+                <span>Ensure <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">CLOUDFLARE_TURNSTILE_SECRET_KEY</code> is configured in backend environment variables.</span>
+              ) : (
+                <span>For high-throughput production workloads, ensure your API Key has <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">9router-v2</code> permissions enabled in your ZEGA console.</span>
+              )}
             </div>
           </div>
 
@@ -320,21 +338,54 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               Install the Client Library
             </h2>
             <p className="text-xs text-muted-foreground">
-              Install the official ZEGA AI SDK using your preferred package manager:
+              Select your package manager to install the official ZEGA AI SDK & CLI tools:
             </p>
 
-            <div className="rounded-xl border border-border/80 bg-slate-950 p-3.5 font-mono text-[11.5px] text-slate-200 dark:bg-slate-900 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-[#ff6b35] font-bold">$</span>
-                <code>npm install @zega/sdk</code>
+            {/* Package Manager Selector Tabs */}
+            <div className="rounded-xl border border-border/80 bg-slate-950 dark:bg-slate-950 overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/60 px-4 py-2">
+                <div className="flex items-center gap-1.5 overflow-x-auto">
+                  {(['npm', 'pnpm', 'yarn', 'bun', 'curl'] as const).map((pm) => (
+                    <button
+                      key={pm}
+                      onClick={() => setPkgManager(pm)}
+                      className={`rounded-md px-3 py-1 text-[10.5px] font-mono font-bold uppercase transition-all cursor-pointer ${
+                        pkgManager === pm
+                          ? 'bg-[#ff6b35] text-white shadow-xs'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      {pm}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const cmd =
+                      pkgManager === 'npm' ? 'npm install @zega/sdk' :
+                      pkgManager === 'pnpm' ? 'pnpm add @zega/sdk' :
+                      pkgManager === 'yarn' ? 'yarn add @zega/sdk' :
+                      pkgManager === 'bun' ? 'bun add @zega/sdk' :
+                      'curl -fsSL https://get.zegaai.site/install.sh | sh';
+                    copyCode(cmd);
+                  }}
+                  className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
               </div>
-              <button
-                onClick={() => copyCode('npm install @zega/sdk')}
-                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-white transition-colors"
-              >
-                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
+
+              <div className="p-4 font-mono text-[11.5px] text-slate-200 flex items-center gap-3">
+                <span className="text-[#ff6b35] font-bold">$</span>
+                <code>
+                  {pkgManager === 'npm' && 'npm install @zega/sdk'}
+                  {pkgManager === 'pnpm' && 'pnpm add @zega/sdk'}
+                  {pkgManager === 'yarn' && 'yarn add @zega/sdk'}
+                  {pkgManager === 'bun' && 'bun add @zega/sdk'}
+                  {pkgManager === 'curl' && 'curl -fsSL https://get.zegaai.site/install.sh | sh'}
+                </code>
+              </div>
             </div>
           </section>
 

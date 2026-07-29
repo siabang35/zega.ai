@@ -48,6 +48,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { CookieConsent } from "./components/CookieConsent";
+import { TermsOfService } from "./pages/TermsOfService";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { DocsPage } from "./DocsPage";
 import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { UserDashboard } from "./dashboard/UserDashboard";
@@ -1277,8 +1280,89 @@ function AuthModal({
   );
 }
 
+function getInitialPath(): string {
+  if (typeof window === "undefined") return "/home";
+  const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/home";
+  if (path === "/" || path === "" || path === "/home") {
+    if (typeof window !== "undefined" && window.location.pathname !== "/home") {
+      window.history.replaceState({}, "", "/home");
+    }
+    return "/home";
+  }
+  if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/products", "/pricing"].includes(path)) {
+    return path;
+  }
+  return "/home";
+}
+
 export default function App() {
   const { t } = useLanguage();
+  const [currentPath, setCurrentPath] = useState<string>(getInitialPath);
+
+  const navigateTo = (path: string) => {
+    const targetPath = path === "/" ? "/home" : path;
+    if (typeof window !== "undefined" && window.location.pathname !== targetPath) {
+      window.history.pushState({}, "", targetPath);
+    }
+    setCurrentPath(targetPath);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      let path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/home";
+      if (path === "/") path = "/home";
+      setCurrentPath(path);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (currentPath === "/products") {
+      setTimeout(() => {
+        const el = document.getElementById("products");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } else if (currentPath === "/pricing") {
+      setTimeout(() => {
+        const el = document.getElementById("pricing");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } else if (currentPath === "/home") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Dynamic SEO Title & Meta Description Best Practice
+    let title = "ZEGA AI | Autonomous Enterprise Orchestration Platform";
+    let desc = "ZEGA AI is the industrial-grade autonomous agent and workflow orchestration platform.";
+
+    if (currentPath === "/docs") {
+      title = "Documentation & API Spec — ZEGA AI";
+      desc = "Official ZEGA AI Documentation, SDK setup (npm, pnpm, yarn, bun, curl), and 9Router API spec.";
+    } else if (currentPath === "/terms") {
+      title = "Terms of Service — ZEGA AI";
+      desc = "ZEGA AI Enterprise Terms of Service, compliance, SLAs, and usage policies.";
+    } else if (currentPath === "/privacy") {
+      title = "Privacy Policy — ZEGA AI";
+      desc = "ZEGA AI Privacy Policy, GDPR compliance, data security, and retention commitments.";
+    } else if (currentPath === "/console" || currentPath === "/dashboard") {
+      title = "Enterprise Console — ZEGA AI";
+      desc = "Manage your autonomous agents, mission control, API keys, and workflow automation.";
+    } else if (currentPath === "/products") {
+      title = "Products & AI Engines — ZEGA AI";
+      desc = "Explore ZEGA multi-agent orchestrator engines, 9Router LLM gateway, and 5-layer safety guardrails.";
+    } else if (currentPath === "/pricing") {
+      title = "Enterprise Pricing & Tiers — ZEGA AI";
+      desc = "Transparent pricing models for developer, business, and enterprise autonomous agent deployments.";
+    }
+
+    document.title = title;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute("content", desc);
+    }
+  }, [currentPath]);
+
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window !== "undefined" && !hasShownSplash) {
       hasShownSplash = true;
@@ -1299,6 +1383,7 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState<"self-serve" | "enterprise">("self-serve");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
   const [showDashboard, setShowDashboard] = useState(false);
+  const [activePage, setActivePage] = useState<'home' | 'terms' | 'privacy'>('home');
 
   const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
     setAuthModalMode(mode);
@@ -1589,13 +1674,78 @@ export default function App() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  if (showDocs) {
+  if (currentPath === '/terms' || activePage === 'terms') {
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <TermsOfService onBack={() => { setActivePage('home'); navigateTo('/home'); }} />
+      </div>
+    );
+  }
+
+  if (currentPath === '/privacy' || activePage === 'privacy') {
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <PrivacyPolicy onBack={() => { setActivePage('home'); navigateTo('/home'); }} />
+      </div>
+    );
+  }
+
+  if (currentPath === '/docs' || showDocs) {
     return (
       <DocsPage
-        onBack={() => setShowDocs(false)}
+        onBack={() => {
+          setShowDocs(false);
+          navigateTo('/home');
+        }}
         dark={dark}
         setDark={setDark}
         triggerComingSoon={triggerComingSoon}
+      />
+    );
+  }
+
+  if (currentPath === '/console' || currentPath === '/dashboard') {
+    const mock = localStorage.getItem('zega_mock_session');
+    const session = mock ? JSON.parse(mock) : null;
+    const role = session?.role || 'enterprise';
+
+    if (role === 'superadmin') {
+      return (
+        <SuperAdminDashboard
+          onClose={() => navigateTo('/home')}
+          dark={dark}
+          setDark={setDark}
+          onSwitchToUserMode={() => {
+            const userSession = {
+              ...session,
+              role: 'enterprise',
+              email: 'enterprise@zega.ai',
+              fullName: 'Acme Enterprise Admin',
+            };
+            localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+            navigateTo('/console');
+          }}
+        />
+      );
+    }
+    return (
+      <UserDashboard
+        onClose={() => navigateTo('/home')}
+        dark={dark}
+        setDark={setDark}
+        userRole={role as any}
+        userEmail={session?.email || 'user@zega.ai'}
+        userName={session?.fullName || 'Alex Morgan'}
+        onSwitchToAdminMode={() => {
+          const adminSession = {
+            ...session,
+            role: 'superadmin',
+            email: 'admin@zega.ai',
+            fullName: 'ZEGA SuperAdmin',
+          };
+          localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
+          navigateTo('/console');
+        }}
       />
     );
   }
@@ -1613,11 +1763,10 @@ export default function App() {
         <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-6 lg:px-12">
           {/* Logo */}
           <a
-            href="#home"
+            href="/home"
             onClick={(e) => {
               e.preventDefault();
-              if (showDocs) setShowDocs(false);
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              navigateTo("/home");
             }}
             className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50 cursor-pointer"
             aria-label="ZEGA AI — Back to home"
@@ -1628,36 +1777,34 @@ export default function App() {
           {/* Desktop Nav Links */}
           <nav className="hidden items-center gap-8 text-[13px] font-medium text-muted-foreground md:flex">
             {[
-              { id: "home", label: t.nav.home },
-              { id: "products", label: t.nav.products },
-              { id: "docs", label: t.nav.docs },
-              { id: "pricing", label: t.nav.pricing },
+              { id: "home", label: t.nav.home, href: "/home" },
+              { id: "products", label: t.nav.products, href: "/products" },
+              { id: "docs", label: t.nav.docs, href: "/docs" },
+              { id: "pricing", label: t.nav.pricing, href: "/pricing" },
             ].map((item) => {
-              const isDocsActive = item.id === "docs" && showDocs;
+              const isActive =
+                item.id === "docs" ? (currentPath === "/docs" || showDocs) :
+                item.id === "products" ? currentPath === "/products" :
+                item.id === "pricing" ? currentPath === "/pricing" :
+                (currentPath === "/home" || currentPath === "/");
               return (
                 <a
                   key={item.id}
-                  href={`#${item.id}`}
+                  href={item.href}
                   onClick={(e) => {
+                    e.preventDefault();
                     if (item.id === "docs") {
-                      e.preventDefault();
-                      setShowDocs(true);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("/docs");
+                    } else if (item.id === "products") {
+                      navigateTo("/products");
+                    } else if (item.id === "pricing") {
+                      navigateTo("/pricing");
                     } else {
-                      if (showDocs) setShowDocs(false);
-                      if (item.id === "products") {
-                        e.preventDefault();
-                        setTimeout(() => {
-                          const el = document.getElementById("products");
-                          if (el) {
-                            el.scrollIntoView({ behavior: "smooth" });
-                          }
-                        }, 50);
-                      }
+                      navigateTo("/home");
                     }
                   }}
                   className={`nav-link-animated transition-colors hover:text-foreground ${
-                    isDocsActive ? "text-[#ff6b35] font-bold" : ""
+                    isActive ? "text-[#ff6b35] font-bold" : ""
                   }`}
                 >
                   {item.label}
@@ -1685,7 +1832,7 @@ export default function App() {
               onClick={async () => {
                 const session = await SupabaseDashboardService.getCurrentSession();
                 if (session) {
-                  setShowDashboard(true);
+                  navigateTo("/console");
                 } else {
                   handleOpenAuth("self-serve");
                 }
@@ -1723,32 +1870,26 @@ export default function App() {
         <div className="fixed inset-x-0 top-[60px] z-40 border-b border-border/60 bg-background/95 p-5 backdrop-blur-2xl shadow-2xl transition-all md:hidden animate-fadeIn">
           <div className="mx-auto flex max-w-md flex-col gap-1.5">
             {[
-              { label: "Home", sub: "Platform Overview & Features", Icon: Home, href: "#home" },
-              { label: "Products", sub: "Core AI Engines & Guardrails", Icon: Layers3, href: "#products" },
-              { label: "Docs", sub: "Developer Guides & API Spec", Icon: BookOpen, href: "#docs" },
-              { label: "Pricing", sub: "Flexible Enterprise Tiers", Icon: Tag, href: "#pricing" },
-            ].map(({ label, sub, Icon, href }) => (
+              { label: "Home", id: "home", sub: "Platform Overview & Features", Icon: Home, href: "/home" },
+              { label: "Products", id: "products", sub: "Core AI Engines & Guardrails", Icon: Layers3, href: "/products" },
+              { label: "Docs", id: "docs", sub: "Developer Guides & API Spec", Icon: BookOpen, href: "/docs" },
+              { label: "Pricing", id: "pricing", sub: "Flexible Enterprise Tiers", Icon: Tag, href: "/pricing" },
+            ].map(({ label, id, sub, Icon, href }) => (
               <a
                 key={label}
                 href={href}
                 className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/60 active:scale-[0.99]"
                 onClick={(e) => {
+                  e.preventDefault();
                   setMobileOpen(false);
-                  if (label === "Docs") {
-                    e.preventDefault();
-                    setShowDocs(true);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  if (id === "docs") {
+                    navigateTo("/docs");
+                  } else if (id === "products") {
+                    navigateTo("/products");
+                  } else if (id === "pricing") {
+                    navigateTo("/pricing");
                   } else {
-                    if (showDocs) setShowDocs(false);
-                    if (label === "Products") {
-                      e.preventDefault();
-                      setTimeout(() => {
-                        const el = document.getElementById("products");
-                        if (el) {
-                          el.scrollIntoView({ behavior: "smooth" });
-                        }
-                      }, 50);
-                    }
+                    navigateTo("/home");
                   }
                 }}
               >
@@ -3090,7 +3231,7 @@ export default function App() {
         onSubmitSuccess={(msg) => {
           setIsAuthModalOpen(false);
           setToastMessage(msg);
-          setShowDashboard(true);
+          navigateTo("/console");
         }}
       />
 
@@ -3148,6 +3289,11 @@ export default function App() {
               </a>
             </div>
             <p className="text-[10px] text-muted-foreground">© 2026 ZEGA AI. All rights reserved.</p>
+            <div className="flex items-center gap-3 mt-1.5">
+              <button onClick={() => navigateTo('/terms')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Terms of Service</button>
+              <span className="text-[10px] text-muted-foreground/40">·</span>
+              <button onClick={() => navigateTo('/privacy')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Privacy Policy</button>
+            </div>
           </div>
         </div>
 
@@ -3161,6 +3307,10 @@ export default function App() {
           </span>
         </div>
       </footer>
+    <CookieConsent
+      onNavigatePrivacy={() => navigateTo('/privacy')}
+      onNavigateTerms={() => navigateTo('/terms')}
+    />
     </div>
   </LanguageProvider>
   );

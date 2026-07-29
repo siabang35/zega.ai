@@ -21,6 +21,7 @@ interface UserDashboardProps {
   userRole?: 'individual' | 'enterprise';
   userEmail?: string;
   userName?: string;
+  onSwitchToAdminMode?: () => void;
 }
 
 export function UserDashboard({ 
@@ -29,7 +30,8 @@ export function UserDashboard({
   setDark, 
   userRole = 'enterprise',
   userEmail = 'user@zega.ai',
-  userName = 'Alex Morgan'
+  userName = 'Alex Morgan',
+  onSwitchToAdminMode
 }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<string>('console');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -83,11 +85,15 @@ export function UserDashboard({
           {/* User Status Card */}
           <div className="mt-4 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-900 dark:text-slate-100">{userName}</span>
-              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                userRole === 'enterprise' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+              <span className="font-bold text-slate-900 dark:text-slate-100 truncate pr-1">{userName}</span>
+              <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md shrink-0 ${
+                userEmail?.includes('guest') || userName?.includes('Guest')
+                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+                  : userRole === 'enterprise'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30'
               }`}>
-                {userRole}
+                {userEmail?.includes('guest') || userName?.includes('Guest') ? 'GUEST DEMO' : userRole}
               </span>
             </div>
             <p className="text-[10px] text-slate-400 truncate mt-0.5">{userEmail}</p>
@@ -143,7 +149,7 @@ export function UserDashboard({
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
           >
             <LogOut size={13} />
-            <span>Sign Out Workspace</span>
+            <span>{userEmail?.includes('guest') || userName?.includes('Guest') ? 'Exit Guest Demo' : 'Sign Out Workspace'}</span>
           </button>
         </div>
       </aside>
