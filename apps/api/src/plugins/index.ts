@@ -32,9 +32,36 @@ export async function registerPlugins(app: FastifyInstance) {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 
-  // ── 2. CORS ──
+  // ── 2. Dynamic Enterprise CORS ──
+  const configuredOrigins = envConfig.CORS_ORIGIN.split(',').map((o) => o.trim());
+
   await app.register(fastifyCors, {
-    origin: envConfig.CORS_ORIGIN.split(',').map((o) => o.trim()),
+    origin: (origin, cb) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) {
+        return cb(null, true);
+      }
+
+      // Check if origin matches configured origins, zegaai.site subdomains, or localhost
+      const isConfigured = configuredOrigins.some((allowed) => {
+        if (allowed === origin) return true;
+        if (allowed.includes('*')) {
+          const pattern = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+          return pattern.test(origin);
+        }
+        return false;
+      });
+
+      const isZegaDomain = /^https:\/\/(www\.)?zegaai\.site$/i.test(origin) || origin.endsWith('.zegaai.site');
+      const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+
+      if (isConfigured || isZegaDomain || isLocalhost) {
+        return cb(null, true);
+      }
+
+      app.log.warn({ origin }, 'CORS request blocked from origin');
+      return cb(new Error('CORS Not Allowed'), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-CSRF-Token'],

@@ -23,7 +23,7 @@ services:
       - key: API_BASE_URL
         value: https://zega-ai.onrender.com
       - key: CORS_ORIGIN
-        value: https://zegaai.site,https://*.vercel.app,http://localhost:5173
+        value: https://zegaai.site,https://www.zegaai.site,https://*.zegaai.site,https://*.vercel.app,http://localhost:5173
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
