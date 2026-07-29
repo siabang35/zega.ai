@@ -21,6 +21,11 @@ export async function registerRoutes(app: FastifyInstance) {
     timestamp: new Date().toISOString(),
   }));
 
+  // ── Swagger UI Aliases ──
+  app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
+  app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));
+  app.get('/documentation', async (_req, reply) => reply.redirect('/docs'));
+
   // ── API v1 routes ──
   app.register(
     async (v1) => {
@@ -29,11 +34,13 @@ export async function registerRoutes(app: FastifyInstance) {
       const { agentRoutes } = await import('./v1/agent.routes.js');
       const { orchestrationRoutes } = await import('./v1/orchestration.routes.js');
       const { paymentRoutes } = await import('./v1/payment.routes.js');
+      const { storageRoutes } = await import('./v1/storage.routes.js');
 
       v1.register(authRoutes, { prefix: '/auth' });
       v1.register(agentRoutes, { prefix: '/agents' });
       v1.register(orchestrationRoutes, { prefix: '/orchestration' });
       v1.register(paymentRoutes, { prefix: '/payments' });
+      v1.register(storageRoutes, { prefix: '/storage' });
     },
     { prefix: '/v1' },
   );

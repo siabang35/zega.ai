@@ -162,11 +162,13 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               title="ZEGA AI Home"
             >
               <img
-                src="/assets/logo/zegalogo.png"
+                src="https://cdn.zegaai.site/assets/logo/zegalogo.png"
                 alt="ZEGA AI"
                 width={120}
                 height={34}
                 className="h-6 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
+                loading="eager"
+                decoding="async"
               />
             </button>
 

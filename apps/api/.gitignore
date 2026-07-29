@@ -1,0 +1,32 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ZEGA AI — BACKEND API SERVICE GITIGNORE (apps/api)
+#  OWASP Compliance: Secret, Token, Key & Build Output Guards
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── 1. ENVIRONMENT VARIABLES & SECRETS ───────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ─── 2. BUILD & COMPILED OUTPUTS ─────────────────────────────────────────────
+dist/
+build/
+*.tsbuildinfo
+
+# ─── 3. DEPENDENCIES ─────────────────────────────────────────────────────────
+node_modules/
+
+# ─── 4. LOGS & TEMPORARY FILES ───────────────────────────────────────────────
+*.log
+logs/
+/tmp/
+*.tmp
+
+# ─── 5. OS & IDE ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

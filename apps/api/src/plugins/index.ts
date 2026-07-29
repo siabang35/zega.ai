@@ -5,6 +5,9 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyJwt from '@fastify/jwt';
 import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyWebsocket from '@fastify/websocket';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
+import fastifyMultipart from '@fastify/multipart';
 import { envConfig } from '../config/env.js';
 import { ZegaError } from '../utils/errors.js';
 
@@ -17,8 +20,10 @@ import { ZegaError } from '../utils/errors.js';
  * 3. Cookie parsing
  * 4. JWT authentication
  * 5. Rate limiting
- * 6. WebSocket support (A2A protocol)
- * 7. Global error handler
+ * 6. Multipart file uploads (R2 CDN)
+ * 7. WebSocket support (A2A protocol)
+ * 8. Swagger OpenAPI & Swagger UI (/docs)
+ * 9. Global error handler
  */
 export async function registerPlugins(app: FastifyInstance) {
   // ── 1. Security Headers ──
@@ -79,8 +84,60 @@ export async function registerPlugins(app: FastifyInstance) {
     }),
   });
 
+  // ── 6. Multipart File Uploads (Cloudflare R2 CDN) ──
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB file limit
+      files: 5,
+    },
+  });
+
   // ── 6. WebSocket (A2A Agent Communication) ──
   await app.register(fastifyWebsocket);
+
+  // ── 7. Swagger & OpenAPI Documentation ──
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'ZEGA AI — Enterprise Orchestration API',
+        description: 'OpenAPI 3.0 Documentation for ZEGA AI Autonomous Agent & Workflow Platform.',
+        version: '3.2.0',
+      },
+      servers: [
+        {
+          url: 'http://localhost:3001',
+          description: 'Local Development Server',
+        },
+        {
+          url: 'https://api.zegaai.site',
+          description: 'Production Gateway',
+        },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+      tags: [
+        { name: 'Auth', description: 'Authentication & Session Operations' },
+        { name: 'Agents', description: 'AI Agent Swarm & Orchestration' },
+        { name: 'Workflows', description: 'Workflow Automation Canvas' },
+        { name: 'Telemetry', description: 'System Analytics & Guardrails' },
+      ],
+    },
+  });
+
+  await app.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
+  });
 
   // ── 7. Global Error Handler ──
   app.setErrorHandler((err, _request, reply) => {

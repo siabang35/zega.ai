@@ -1,0 +1,29 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ZEGA AI — FRONTEND WEB CONSOLE GITIGNORE (apps/web)
+#  OWASP Compliance: Secret & Web Build Artifact Guards
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── 1. ENVIRONMENT VARIABLES & SECRETS ───────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+
+# ─── 2. BUILD & VITE CACHES ──────────────────────────────────────────────────
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ─── 3. DEPENDENCIES ─────────────────────────────────────────────────────────
+node_modules/
+
+# ─── 4. LOGS & TEMPORARY FILES ───────────────────────────────────────────────
+*.log
+logs/
+
+# ─── 5. OS & IDE ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

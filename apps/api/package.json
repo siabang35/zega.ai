@@ -5,16 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "start:dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1097.0",
+    "@aws-sdk/s3-request-presigner": "^3.1097.0",
     "@fastify/cookie": "^11.0.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
     "@fastify/jwt": "^9.0.0",
+    "@fastify/multipart": "^10.1.0",
     "@fastify/rate-limit": "^10.0.0",
     "@fastify/swagger": "^9.0.0",
     "@fastify/swagger-ui": "^5.0.0",
@@ -24,6 +28,7 @@
     "bullmq": "^5.30.0",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.0",
+    "nodemailer": "^9.0.3",
     "openai": "^4.80.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
@@ -33,6 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

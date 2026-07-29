@@ -1,4 +1,18 @@
 import { z } from 'zod';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Native Node.js 20 environment loader
+try {
+  process.loadEnvFile(path.resolve(__dirname, '../../.env'));
+} catch (e) {
+  try {
+    process.loadEnvFile();
+  } catch (err) {}
+}
 
 /**
  * ZEGA AI — Environment Configuration
@@ -35,6 +49,22 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32).default('zega-ai-dev-jwt-secret-change-in-production-32chars'),
   COOKIE_SECRET: z.string().min(32).default('zega-ai-dev-cookie-secret-change-in-production-32ch'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+
+  // Cloudflare Turnstile & Brevo Email Service
+  CLOUDFLARE_TURNSTILE_SECRET_KEY: z.string().default(''),
+  SMTP_HOST: z.string().default('smtp-relay.brevo.com'),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default('no-reply@zegaai.site'),
+
+  // Cloudflare R2 Storage
+  R2_ACCOUNT_ID: z.string().default(''),
+  R2_ACCESS_KEY_ID: z.string().default(''),
+  R2_SECRET_ACCESS_KEY: z.string().default(''),
+  R2_BUCKET_NAME: z.string().default('zega-ai'),
+  R2_ENDPOINT: z.string().default(''),
+  R2_PUBLIC_DOMAIN: z.string().default('https://cdn.zegaai.site'),
 
   // x402
   X402_NETWORK: z.enum(['base', 'base-sepolia', 'arbitrum', 'polygon']).default('base-sepolia'),

@@ -106,11 +106,35 @@
   50%      { border-color: rgba(155,39,212,0.4); }
 }
 
-/* ══════════════════════════════════════════════
-   Utility Classes
-   ══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   ZEGA AI — Typography & Flat Minimal Shadow System
+   ═══════════════════════════════════════════════ */
 
-/* Scroll Reveal */
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
+}
+
+code, pre, .font-mono, .console-mono {
+  font-family: 'DM Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Reduced shadow utilities for clean enterprise UI */
+.shadow-minimal {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+}
+.dark .shadow-minimal {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-flat {
+  box-shadow: none !important;
+}
+
+/* ── Scroll Reveal ───────────────────────────── */
 .scroll-reveal {
   opacity: 0;
   transform: translateY(28px);

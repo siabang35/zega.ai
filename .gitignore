@@ -1,43 +1,83 @@
-# Dependencies
-node_modules
-.pnpm-store
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ZEGA AI — ROOT REPOSITORY PRODUCTION GITIGNORE
+#  OWASP Security Compliance: Strict Zero Secret Exposure Policy
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Production build output
-dist
-dist-ssr
-.next
-.vercel
-*.local
-
-# Turbo
-.turbo
-
-# Environment variables
+# ─── 1. ENVIRONMENT VARIABLES & SECRETS (CRITICAL SECURITY) ───────────────────
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
 
-# Supabase
-supabase/.temp
+# ─── 2. DEPENDENCIES ─────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
 
-# Logs
+# ─── 3. BUILD OUTPUTS & CACHES ───────────────────────────────────────────────
+dist/
+build/
+out/
+.turbo/
+.cache/
+.parcel-cache/
+.vite/
+.next/
+.nuxt/
+*.tsbuildinfo
+
+# ─── 4. LOGS & TEMPORARY FILES ───────────────────────────────────────────────
+*.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
+/tmp/
+*.tmp
+*.temp
 
-# Editor / OS files
+# ─── 5. SUPABASE & LOCAL DATABASE CACHES ──────────────────────────────────────
+.supabase/
+supabase/.temp/
+
+# ─── 6. OPERATING SYSTEM & IDE FILES ──────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE & Editor Settings
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-.idea
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
 
-# TypeScript
-*.tsbuildinfo
+# ─── 7. TESTING & COVERAGE ───────────────────────────────────────────────────
+coverage/
+.nyc_output/
+.cypress/
+playwright-report/
+test-results/

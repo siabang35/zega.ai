@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { safeInfer } from '../../services/ai/inference.pipeline.js';
+import { SupabaseService } from '../../services/supabaseService.js';
 
 /**
  * ZEGA AI — Agent Management Routes
  *
  * CRUD operations for AI agents with lifecycle management.
- * All agents are registered in an in-memory registry backed by persistence.
+ * Connected to Supabase DB public.agents with resilient fallback.
  */
 
 // ── In-Memory Agent Registry ──
@@ -61,13 +62,26 @@ export async function agentRoutes(app: FastifyInstance) {
     };
 
     agentRegistry.set(id, agent);
-    app.log.info({ agentId: id, mesh: body.meshId }, 'Agent deployed');
+
+    // Sync to Supabase public.agents table
+    await SupabaseService.createAgent({
+      name: body.name,
+      systemPrompt: `Agent Mesh ${body.meshId} with model ${body.modelPreference}`,
+      modelName: body.modelPreference,
+      metadata: { meshId: body.meshId, capabilities: body.capabilities },
+    });
+
+    app.log.info({ agentId: id, mesh: body.meshId }, 'Agent deployed and synced to Supabase DB');
 
     return reply.status(201).send({ success: true, data: agent });
   });
 
   /** GET /v1/agents — List all agents */
   app.get('/', async () => {
+    const dbAgents = await SupabaseService.getAgents();
+    if (dbAgents && dbAgents.length > 0) {
+      return { success: true, data: dbAgents, total: dbAgents.length };
+    }
     const agents = Array.from(agentRegistry.values());
     return { success: true, data: agents, total: agents.length };
   });

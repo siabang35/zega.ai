@@ -23,7 +23,9 @@ import {
   Grid3X3,
   Headphones,
   Home,
+  KeyRound,
   Layers3,
+  LayoutDashboard,
   Lock,
   Mail,
   Menu,
@@ -39,6 +41,7 @@ import {
   Star,
   Sun,
   Tag,
+  Terminal,
   TrendingUp,
   UserRoundPlus,
   Wrench,
@@ -46,6 +49,15 @@ import {
   Zap,
 } from "lucide-react";
 import { DocsPage } from "./DocsPage";
+import { DashboardLayout } from "./dashboard/DashboardLayout";
+import { UserDashboard } from "./dashboard/UserDashboard";
+import { SuperAdminDashboard } from "./dashboard/SuperAdminDashboard";
+import { SupabaseDashboardService } from "./dashboard/services/supabaseService";
+import { LanguageProvider, useLanguage } from "../i18n/translations";
+import { LanguageSelector } from "./components/LanguageSelector";
+import { ImageWithFallback } from "./components/figma/ImageWithFallback";
+import { ZegaLogo } from "./components/ZegaLogo";
+import { getR2CdnUrl, generateInitialsAvatar } from "./utils/cdn";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -743,7 +755,7 @@ const ACTION_TABS_DATA = {
       maintainAspectRatio: false,
     },
     insights: [
-      { label: "9Router Efficiency", val: "62% low-cost routing", trend: "+14.2%" },
+      { label: "Router Efficiency", val: "62% low-cost routing", trend: "+14.2%" },
       { label: "Avg Resolution", val: "142ms per step", trend: "-18ms" },
       { label: "Accuracy Score", val: "99.9% verified", trend: "+0.3%" },
     ],
@@ -764,57 +776,184 @@ function AuthModal({
   prefillEmail?: string;
   onSubmitSuccess: (msg: string) => void;
 }) {
-  const [mode, setMode] = useState<"self-serve" | "enterprise">(initialMode);
+  const [audienceSegment, setAudienceSegment] = useState<"individual" | "enterprise">(
+    initialMode === "enterprise" ? "enterprise" : "individual"
+  );
+  const [step, setStep] = useState<"request" | "verify">("request");
   const [email, setEmail] = useState(prefillEmail);
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [teamSize, setTeamSize] = useState("1-10");
-  const [useCase, setUseCase] = useState("Workflow Automation");
+  const [teamSize, setTeamSize] = useState("1-10 employees");
+  const [objective, setObjective] = useState("Enterprise Workflow Automation");
+  const [otpInput, setOtpInput] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY || "0x4AAAAAAEAtk2-CKEtMSCuy";
 
   useEffect(() => {
-    setMode(initialMode);
+    setAudienceSegment(initialMode === "enterprise" ? "enterprise" : "individual");
   }, [initialMode]);
 
   useEffect(() => {
     if (prefillEmail) setEmail(prefillEmail);
   }, [prefillEmail]);
 
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setInterval(() => setOtpCountdown((c) => c - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [otpCountdown]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let widgetId: string | null = null;
+
+    const renderTurnstile = () => {
+      if (typeof window !== "undefined" && (window as any).turnstile && turnstileContainerRef.current) {
+        try {
+          turnstileContainerRef.current.innerHTML = "";
+          widgetId = (window as any).turnstile.render(turnstileContainerRef.current, {
+            sitekey: turnstileSiteKey,
+            callback: (token: string) => {
+              setTurnstileToken(token);
+            },
+            'error-callback': () => {
+              setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
+            },
+            'expired-callback': () => {
+              setTurnstileToken("");
+            },
+          });
+        } catch (e) {
+          console.warn("Turnstile widget render note:", e);
+        }
+      }
+    };
+
+    if (typeof window !== "undefined" && !(window as any).turnstile) {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setTimeout(renderTurnstile, 200);
+      document.head.appendChild(script);
+    } else {
+      setTimeout(renderTurnstile, 150);
+    }
+
+    return () => {
+      if (widgetId && typeof window !== "undefined" && (window as any).turnstile) {
+        try {
+          (window as any).turnstile.remove(widgetId);
+        } catch (e) {}
+      }
+    };
+  }, [isOpen, step, audienceSegment]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleQuickRoleLogin = async (role: 'superadmin' | 'enterprise' | 'individual') => {
+    setLoading(true);
+    setAuthError(null);
+    const mockSession = await SupabaseDashboardService.setDemoSession(role);
+    await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: mockSession.email });
+    setLoading(false);
+    onSubmitSuccess(`Authenticated as ${mockSession.fullName} (${role.toUpperCase()})! Opening Dashboard...`);
+    onClose();
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === "self-serve") {
-      onSubmitSuccess(
-        `Welcome to ZEGA! Account created for ${email || "your workspace"}.`
-      );
-    } else {
-      onSubmitSuccess(
-        `Enterprise Consultation requested! Our team will contact ${email || fullName || "your team"} within 2 hours.`
-      );
+    setLoading(true);
+    setAuthError(null);
+    setInfoMessage(null);
+
+    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
+    const tokenToSend = turnstileToken || (import.meta.env.PROD ? "" : "DEVELOPMENT_BYPASS_TOKEN");
+
+    const res = await SupabaseDashboardService.requestOtp(
+      userEmail,
+      fullName || 'Alex Morgan',
+      audienceSegment,
+      tokenToSend
+    );
+
+    setLoading(false);
+
+    if (res.error) {
+      setAuthError((res.error as any)?.message || 'Failed to send verification passcode. Check your email address.');
+      return;
     }
+
+    setStep("verify");
+    setOtpCountdown(60);
+    setInfoMessage(`Security passcode sent via Brevo Email Gateway to ${userEmail}.`);
+  };
+
+  const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpInput || otpInput.trim().length !== 6) {
+      setAuthError('Please enter the full 6-digit OTP code sent to your email.');
+      return;
+    }
+
+    setLoading(true);
+    setAuthError(null);
+
+    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
+
+    const res = await SupabaseDashboardService.verifyOtp(
+      userEmail,
+      otpInput.trim(),
+      fullName || 'Alex Morgan',
+      audienceSegment
+    );
+
+    setLoading(false);
+
+    if (res.error) {
+      setAuthError((res.error as any)?.message || 'Invalid or expired security code.');
+      return;
+    }
+
+    const session = res.data?.session;
+    const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
+    const name = session?.fullName || 'Alex Morgan';
+
+    onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`);
+    onClose();
+  };
+
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+    setLoading(true);
+    const demoEmail = provider === 'google' ? 'user@zega.ai' : 'enterprise@zega.ai';
+    const mockSession = await SupabaseDashboardService.setDemoSession('individual');
+    setLoading(false);
+    onSubmitSuccess(`Authenticated via ${provider.toUpperCase()} as ${demoEmail}!`);
     onClose();
   };
 
   return (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/45 dark:bg-black/75 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/55 dark:bg-black/80 backdrop-blur-sm animate-fadeIn"
       onClick={onClose}
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       <div
-        className="relative w-full max-w-[500px] overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xl shadow-slate-900/10 dark:shadow-2xl dark:shadow-black/70 flex flex-col sm:flex-row transition-all"
+        className="relative w-full max-w-[510px] overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md dark:shadow-black/40 flex flex-col sm:flex-row transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Left Vertical Side Rail - Clean Monochrome Enterprise */}
-        <div className="relative hidden sm:flex w-[76px] flex-shrink-0 flex-col items-center justify-center border-r border-border/50 bg-muted/20 py-8 select-none overflow-hidden">
-          {/* Vertical Rotated Logo + Ideal CONSOLE Badge */}
+        <div className="relative hidden sm:flex w-[74px] flex-shrink-0 flex-col items-center justify-center border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 py-8 select-none overflow-hidden">
           <div className="flex flex-col items-center justify-center space-y-12 my-auto">
-            {/* Best Practice CONSOLE Badge */}
-            <span className="-rotate-90 whitespace-nowrap text-[11px] font-extrabold tracking-[0.22em] uppercase text-muted-foreground/80 font-mono">
+            <span className="-rotate-90 whitespace-nowrap text-[10.5px] font-extrabold tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500 font-mono">
               CONSOLE
             </span>
-
-            {/* Prominent Rotated Logo with Smooth Professional Hover */}
             <div className="-rotate-90 group cursor-default">
               <img
                 src="/assets/logo/zegalogo.png"
@@ -825,234 +964,313 @@ function AuthModal({
           </div>
         </div>
 
-        {/* Main Content Form Area */}
         <div className="relative flex-1 p-6 sm:p-7">
-          {/* Close Button */}
           <button
-            onClick={onClose}
-            className="absolute right-4 top-4 grid size-8 place-items-center rounded-full border border-border/50 bg-muted/30 text-muted-foreground transition-all hover:bg-muted hover:text-foreground cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-4 top-4 z-50 grid size-8 place-items-center rounded-full border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
             aria-label="Close Modal"
           >
             <X size={14} />
           </button>
 
-          {/* Mobile Brand Header */}
-          <div className="flex sm:hidden items-center gap-2.5 pr-8 mb-3">
-            <img
-              src="/assets/logo/zegalogo.png"
-              alt="ZEGA"
-              className="h-6 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
-            />
-          </div>
-
           <div>
-            <h3 className="text-lg font-bold tracking-tight text-foreground pr-6">
-              {mode === "self-serve" ? "Get started with ZEGA" : "Schedule Enterprise Demo"}
+            <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 pr-6">
+              {step === "verify" ? "Enter Security Passcode" : audienceSegment === "enterprise" ? "Schedule Enterprise Demo" : "Get started with ZEGA"}
             </h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5 font-normal leading-normal">
-              {mode === "self-serve"
-                ? "Build and deploy autonomous agent workflows."
-                : "Private VPC deployment, dedicated SLA, and enterprise control."}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-normal leading-normal">
+              {step === "verify"
+                ? `6-digit Brevo OTP code sent to ${email || 'your email'}.`
+                : audienceSegment === "enterprise"
+                ? "Private VPC deployment, dedicated SLA, and enterprise control."
+                : "Build and deploy autonomous agent workflows."}
             </p>
           </div>
 
-          {/* Target Segment Selector Tabs */}
-          <div className="mt-4 flex rounded-xl border border-border/60 bg-muted/30 p-1">
-            <button
-              type="button"
-              onClick={() => setMode("self-serve")}
-              className={`flex-1 rounded-lg py-1.5 text-[11.5px] transition-all cursor-pointer ${mode === "self-serve"
-                  ? "bg-card text-foreground border border-border/60 shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground font-semibold"
+          {authError && (
+            <div className="mt-3 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+              {authError}
+            </div>
+          )}
+
+          {step === "request" && (
+            <div className="mt-4 mb-4 flex rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 p-1">
+              <button
+                type="button"
+                onClick={() => setAudienceSegment("individual")}
+                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${
+                  audienceSegment === "individual"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
+                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                 }`}
-            >
-              Individual & UMKM
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("enterprise")}
-              className={`flex-1 rounded-lg py-1.5 text-[11.5px] transition-all cursor-pointer ${mode === "enterprise"
-                  ? "bg-card text-foreground border border-border/60 shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground font-semibold"
+              >
+                Individual & UMKM
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudienceSegment("enterprise")}
+                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${
+                  audienceSegment === "enterprise"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
+                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                 }`}
-            >
-              Enterprise Scale
-            </button>
-          </div>
+              >
+                Enterprise Scale
+              </button>
+            </div>
+          )}
 
-          {/* Form Body */}
-          <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-            {mode === "self-serve" ? (
-              <>
-                {/* Quick OAuth Buttons */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSubmitSuccess("Logged in via Google OAuth Sandbox!");
-                      onClose();
-                    }}
-                    className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 py-2 text-[12px] font-semibold text-foreground transition-all hover:bg-muted/50 active:scale-[0.98] cursor-pointer"
-                  >
-                    <svg className="size-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>Google</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSubmitSuccess("Logged in via GitHub Developer OAuth!");
-                      onClose();
-                    }}
-                    className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 py-2 text-[12px] font-semibold text-foreground transition-all hover:bg-muted/50 active:scale-[0.98] cursor-pointer"
-                  >
-                    <svg className="size-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
-                    </svg>
-                    <span>GitHub</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2.5 my-2 text-[9.5px] text-muted-foreground uppercase font-bold tracking-wider">
-                  <span className="h-px flex-1 bg-border/60" />
-                  <span>Or continue with email</span>
-                  <span className="h-px flex-1 bg-border/60" />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-medium text-foreground/80">Email Address</label>
-                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
-                    <Mail size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                    />
+          {step === "request" ? (
+            <form onSubmit={handleSendOtp} className="space-y-3.5">
+              {audienceSegment === "individual" ? (
+                <>
+                  {/* Social OAuth Buttons */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOAuthLogin('google')}
+                      className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs cursor-pointer"
+                    >
+                      <svg className="size-4" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                      <span>Google</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOAuthLogin('github')}
+                      className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs cursor-pointer"
+                    >
+                      <svg className="size-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
+                      </svg>
+                      <span>GitHub</span>
+                    </button>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-[11px] font-medium text-foreground/80">Full Name</label>
-                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
-                    <UserRoundPlus size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
-                    <input
-                      type="text"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Alex Morgan"
-                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                    />
+                  <div className="flex items-center gap-3 my-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+                    <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                    <span>Or continue with Brevo OTP</span>
+                    <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full h-10.5 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all active:scale-[0.99] cursor-pointer mt-2"
-                >
-                  <span>Continue to Free Sandbox</span>
-                  <ArrowRight size={14} />
-                </button>
-
-                <p className="text-center text-[10px] text-muted-foreground mt-1.5 font-medium">
-                  Free 14-day trial • No credit card required
-                </p>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="text-[11px] font-medium text-foreground/80">Work Email</label>
-                  <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
-                    <Mail size={14} className="text-muted-foreground mr-2.5 flex-shrink-0" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="alex@enterprise.com"
-                      className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] font-medium text-foreground/80">Company Name</label>
-                    <div className="mt-1 flex items-center rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs focus-within:border-foreground/50 focus-within:bg-card transition-all">
-                      <Building2 size={14} className="text-muted-foreground mr-2 flex-shrink-0" />
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                    <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+                      <Mail size={14} className="text-slate-400 mr-2 flex-shrink-0" />
                       <input
-                        type="text"
+                        type="email"
                         required
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="Acme Corp"
-                        className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="user@zega.ai or name@company.com"
+                        className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="text-[11px] font-medium text-foreground/80">Team Size</label>
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
+                    <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+                      <UserRoundPlus size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Alex Morgan"
+                        className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cloudflare Turnstile Security Widget */}
+                  <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex flex-col items-center justify-center text-[11px] text-slate-500 dark:text-slate-400">
+                    <div ref={turnstileContainerRef} className="my-1 flex justify-center" />
+                    {!turnstileToken && (
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-1">
+                        <ShieldCheck size={13} className="text-emerald-500" />
+                        <span>CLOUDFLARE TURNSTILE CAPTCHA BOT DEFENSE</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white text-xs font-bold transition-all shadow-xs active:scale-[0.99] cursor-pointer mt-3 disabled:opacity-50"
+                  >
+                    <span>{loading ? "Sending Brevo Security Passcode..." : "Send Security OTP Code"}</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Enterprise Scale Form */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Work Email</label>
+                    <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+                      <Mail size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="enterprise@zega.ai or alex@enterprise.com"
+                        className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Company Name</label>
+                      <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+                        <Building2 size={14} className="text-slate-400 mr-2 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder="Acme Corp"
+                          className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Team Size</label>
+                      <select
+                        value={teamSize}
+                        onChange={(e) => setTeamSize(e.target.value)}
+                        className="mt-1 flex h-[38px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 text-xs text-slate-900 dark:text-slate-100 focus:border-slate-800 dark:focus:border-slate-300 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all cursor-pointer"
+                      >
+                        <option value="1-10">1-10 employees</option>
+                        <option value="10-50">10-50 employees</option>
+                        <option value="50-250">50-250 employees</option>
+                        <option value="250+">250+ employees</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Primary Objective</label>
                     <select
-                      value={teamSize}
-                      onChange={(e) => setTeamSize(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-foreground focus:outline-none focus:border-foreground/50 focus:bg-card transition-all cursor-pointer"
+                      value={objective}
+                      onChange={(e) => setObjective(e.target.value)}
+                      className="mt-1 flex h-[38px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 text-xs text-slate-900 dark:text-slate-100 focus:border-slate-800 dark:focus:border-slate-300 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all cursor-pointer"
                     >
-                      <option value="1-10">1-10 employees</option>
-                      <option value="11-50">11-50 employees</option>
-                      <option value="50-250">50-250 employees</option>
-                      <option value="250+">250+ Enterprise</option>
+                      <option value="Enterprise Workflow Automation">Enterprise Workflow Automation</option>
+                      <option value="Custom Agent Integration">Custom Agent Integration</option>
+                      <option value="Private VPC / On-Premise">Private VPC / On-Premise Deployment</option>
+                      <option value="Security & Compliance Audit">Security & Compliance Audit</option>
                     </select>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-[11px] font-medium text-foreground/80">Primary Objective</label>
-                  <select
-                    value={useCase}
-                    onChange={(e) => setUseCase(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-foreground focus:outline-none focus:border-foreground/50 focus:bg-card transition-all cursor-pointer"
+                  {/* Cloudflare Turnstile Security Widget */}
+                  <div className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex flex-col items-center justify-center text-[11px] text-slate-500 dark:text-slate-400">
+                    <div ref={turnstileContainerRef} className="my-1 flex justify-center" />
+                    {!turnstileToken && (
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-1">
+                        <ShieldCheck size={13} className="text-emerald-500" />
+                        <span>CLOUDFLARE TURNSTILE CAPTCHA BOT DEFENSE</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white text-xs font-bold transition-all shadow-xs active:scale-[0.99] cursor-pointer mt-3 disabled:opacity-50"
                   >
-                    <option value="Workflow Automation">Enterprise Workflow Automation</option>
-                    <option value="Custom Agent Swarm">Custom AI Agent Swarms & MCP</option>
-                    <option value="VPC & SLA Compliance">Private VPC Deployment & SLA</option>
-                    <option value="White Labeling">White-Label Product Integration</option>
-                  </select>
-                </div>
+                    <span>{loading ? "Scheduling Enterprise Demo..." : "Request Enterprise Demo via OTP"}</span>
+                    <ArrowRight size={14} />
+                  </button>
 
+                  <div className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+                    <ShieldCheck size={13} className="text-emerald-500" />
+                    <span>Zero-Trust Architecture • SOC2 Ready • 24/7 Dedicated SLA</span>
+                  </div>
+                </>
+              )}
+            </form>
+          ) : (
+            /* STEP 2: 6-DIGIT BREVO OTP VERIFICATION FORM */
+            <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Enter 6-Digit Passcode</label>
+                <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2.5 text-base focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+                  <KeyRound size={16} className="text-slate-400 mr-2.5 flex-shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    className="w-full bg-transparent font-mono tracking-[0.4em] font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:tracking-normal focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <button
-                  type="submit"
-                  className="w-full h-10.5 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all active:scale-[0.99] cursor-pointer mt-2"
+                  type="button"
+                  onClick={() => setStep("request")}
+                  className="hover:underline text-slate-600 dark:text-slate-300 cursor-pointer"
                 >
-                  <span>Request Enterprise Demo</span>
-                  <ArrowRight size={14} />
+                  ← Change Email
                 </button>
 
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground pt-1">
-                  <ShieldCheck size={12} className="text-emerald-500" />
-                  <span>Zero-Trust Architecture • SOC2 Ready • 24/7 Dedicated SLA</span>
-                </div>
-              </>
-            )}
-          </form>
+                <button
+                  type="button"
+                  disabled={otpCountdown > 0}
+                  onClick={handleSendOtp}
+                  className="hover:underline text-slate-600 dark:text-slate-300 disabled:opacity-50 cursor-pointer"
+                >
+                  {otpCountdown > 0 ? `Resend code in ${otpCountdown}s` : 'Resend Code'}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || otpInput.length !== 6}
+                className="w-full h-10 flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white text-xs font-bold transition-all shadow-xs active:scale-[0.99] cursor-pointer mt-3 disabled:opacity-50"
+              >
+                <span>{loading ? "Verifying Security Passcode..." : "Verify & Access Portal"}</span>
+                <ArrowRight size={14} />
+              </button>
+            </form>
+          )}
+
+          {/* Corporate Footer Quick Demo Link */}
+          <div className="mt-3.5 pt-3 border-t border-slate-200/80 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => handleQuickRoleLogin(audienceSegment === 'enterprise' ? 'enterprise' : 'individual')}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Terminal size={12} className="text-slate-400 dark:text-slate-500" />
+              <span>Or test immediately with <strong className="underline underline-offset-2 font-semibold">1-Click {audienceSegment === 'enterprise' ? 'Enterprise Demo' : 'User Sandbox'} Mode</strong></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1060,6 +1278,7 @@ function AuthModal({
 }
 
 export default function App() {
+  const { t } = useLanguage();
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window !== "undefined" && !hasShownSplash) {
       hasShownSplash = true;
@@ -1079,6 +1298,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"self-serve" | "enterprise">("self-serve");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
     setAuthModalMode(mode);
@@ -1381,10 +1601,11 @@ export default function App() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
-      style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
-    >
+    <LanguageProvider>
+      <div
+        className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
+        style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
+      >
       {showSplash && <ZegaSplashLoader onComplete={() => setShowSplash(false)} />}
 
       {/* NAV */}
@@ -1401,33 +1622,30 @@ export default function App() {
             className="flex-shrink-0 flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50 cursor-pointer"
             aria-label="ZEGA AI — Back to home"
           >
-            <img
-              src="/assets/logo/zegalogo.png"
-              alt="ZEGA AI"
-              width={140}
-              height={40}
-              className="h-8 w-auto object-contain lg:h-9 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.15)] transition-[filter] duration-300"
-              loading="eager"
-              decoding="async"
-            />
+            <ZegaLogo size={42} showText={false} imgClassName="h-8.5 sm:h-10 lg:h-11.5 w-auto" />
           </a>
 
           {/* Desktop Nav Links */}
           <nav className="hidden items-center gap-8 text-[13px] font-medium text-muted-foreground md:flex">
-            {NAV_LINKS.map((l) => {
-              const isDocsActive = l === "Docs" && showDocs;
+            {[
+              { id: "home", label: t.nav.home },
+              { id: "products", label: t.nav.products },
+              { id: "docs", label: t.nav.docs },
+              { id: "pricing", label: t.nav.pricing },
+            ].map((item) => {
+              const isDocsActive = item.id === "docs" && showDocs;
               return (
                 <a
-                  key={l}
-                  href={l === "Docs" ? "#docs" : `#${l.toLowerCase()}`}
+                  key={item.id}
+                  href={`#${item.id}`}
                   onClick={(e) => {
-                    if (l === "Docs") {
+                    if (item.id === "docs") {
                       e.preventDefault();
                       setShowDocs(true);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     } else {
                       if (showDocs) setShowDocs(false);
-                      if (l === "Products") {
+                      if (item.id === "products") {
                         e.preventDefault();
                         setTimeout(() => {
                           const el = document.getElementById("products");
@@ -1438,10 +1656,11 @@ export default function App() {
                       }
                     }
                   }}
-                  className={`nav-link-animated transition-colors hover:text-foreground ${isDocsActive ? "text-[#ff6b35] font-bold" : ""
-                    }`}
+                  className={`nav-link-animated transition-colors hover:text-foreground ${
+                    isDocsActive ? "text-[#ff6b35] font-bold" : ""
+                  }`}
                 >
-                  {l}
+                  {item.label}
                 </a>
               );
             })}
@@ -1449,13 +1668,31 @@ export default function App() {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-3">
+            {/* Language Selector (EN, ID, ZH) */}
+            <LanguageSelector />
+
             {/* Theme Toggle */}
             <button
               onClick={() => setDark(!dark)}
-              className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border/80 bg-card/50 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground"
+              className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border/80 bg-card/50 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground cursor-pointer"
               aria-label="Toggle theme"
             >
               {dark ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+
+            {/* Launch Enterprise Console Dashboard CTA Button - Corporate SaaS Style */}
+            <button
+              onClick={async () => {
+                const session = await SupabaseDashboardService.getCurrentSession();
+                if (session) {
+                  setShowDashboard(true);
+                } else {
+                  handleOpenAuth("self-serve");
+                }
+              }}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs cursor-pointer"
+            >
+              <LayoutDashboard size={13} className="text-slate-500" /> {t.nav.console}
             </button>
 
             {/* Try Now CTA Button — Premium Multi-Tier */}
@@ -1464,7 +1701,7 @@ export default function App() {
               className="group relative hidden items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/30 transition-all duration-500 hover:bg-right hover:shadow-xl hover:shadow-[#ff6b35]/40 hover:scale-[1.04] active:scale-95 sm:inline-flex cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-1">
-                <Sparkles size={13} className="animate-pulse" /> Try Now
+                <Sparkles size={13} className="animate-pulse" /> {t.nav.tryNow}
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
@@ -1586,14 +1823,10 @@ export default function App() {
             className="hero-text-reveal text-[clamp(2.4rem,5.5vw,4.2rem)] font-light leading-[1.06] tracking-[-0.04em] text-foreground"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Tailored Plans for Every
-            <br />
-            <span className="font-black dark:text-white text-slate-900">
-              Enterprise Need
-            </span>
+            {t.hero.title}
           </h1>
           <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4 max-w-md text-[13.5px] leading-relaxed text-muted-foreground font-normal">
-            Flexible plans that fit your workflow and scale seamlessly with your enterprise.
+            {t.hero.subtitle}
           </p>
 
           {/* Interactive Glass Input Pill */}
@@ -1619,7 +1852,7 @@ export default function App() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleOpenAuth("self-serve", email);
               }}
-              placeholder="Enter Your Email"
+              placeholder={t.hero.enterEmail}
               className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
             />
             <button
@@ -1627,7 +1860,7 @@ export default function App() {
               className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-6 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/35 hover:scale-[1.03] active:scale-95 cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-1">
-                Try Free <ArrowRight size={13} />
+                {t.hero.tryFree} <ArrowRight size={13} />
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
@@ -2603,10 +2836,15 @@ export default function App() {
                   <Stars count={stars} />
                   <p className="mt-3 text-[11px] leading-5 text-muted-foreground">{text}</p>
                   <div className={`mt-5 flex items-center gap-3 ${featured ? "flex-col text-center" : ""}`}>
-                    <img
-                      src={img}
+                    <ImageWithFallback
+                      src={getR2CdnUrl(img)}
                       alt={name}
-                      className={`rounded-full object-cover ${featured ? "size-14" : "size-9"}`}
+                      loading="lazy"
+                      decoding="async"
+                      className={`rounded-full object-cover border border-white/10 ${featured ? "size-14" : "size-9"}`}
+                      onError={(e: any) => {
+                        e.currentTarget.src = generateInitialsAvatar(name);
+                      }}
                     />
                     <div>
                       <p className="text-[12px] font-bold">{name}</p>
@@ -2804,13 +3042,56 @@ export default function App() {
         </div>
       </section>
 
+      {/* Fullscreen Enterprise Dashboards — SuperAdmin or User View */}
+      {showDashboard && (() => {
+        const mock = localStorage.getItem('zega_mock_session');
+        const session = mock ? JSON.parse(mock) : null;
+        const role = session?.role || 'enterprise';
+
+        if (role === 'superadmin') {
+          return (
+            <SuperAdminDashboard
+              onClose={() => setShowDashboard(false)}
+              dark={dark}
+              setDark={setDark}
+              onSwitchToUserMode={() => {
+                const userSession = {
+                  ...session,
+                  role: 'enterprise',
+                  email: 'enterprise@zega.ai',
+                  fullName: 'Acme Enterprise Admin',
+                };
+                localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+                setShowDashboard(false);
+                setTimeout(() => setShowDashboard(true), 50);
+              }}
+            />
+          );
+        }
+
+        return (
+          <UserDashboard
+            onClose={() => setShowDashboard(false)}
+            dark={dark}
+            setDark={setDark}
+            userRole={role}
+            userEmail={session?.email || 'user@zega.ai'}
+            userName={session?.fullName || 'Alex Morgan'}
+          />
+        );
+      })()}
+
       {/* Auth & Onboarding Modal for Individual, UMKM & Enterprise */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authModalMode}
         prefillEmail={authPrefillEmail}
-        onSubmitSuccess={(msg) => setToastMessage(msg)}
+        onSubmitSuccess={(msg) => {
+          setIsAuthModalOpen(false);
+          setToastMessage(msg);
+          setShowDashboard(true);
+        }}
       />
 
       {/* PROFESSIONAL ENTERPRISE TOAST NOTIFICATION */}
@@ -2881,5 +3162,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+  </LanguageProvider>
   );
 }

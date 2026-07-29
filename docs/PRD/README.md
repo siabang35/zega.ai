@@ -22,26 +22,33 @@
 | 09 | [Development Roadmap](./09-DEVELOPMENT-ROADMAP.md) | `09-DEVELOPMENT-ROADMAP.md` | 5-phase / 24-month delivery plan, budget, risks, success metrics |
 | 10 | [Backend Technical Design](./10-BACKEND-TECHNICAL-DESIGN.md) | `10-BACKEND-TECHNICAL-DESIGN.md` | Fastify architecture, plugin system, caching, sessions, job queues, deployment |
 | 11 | [AI Guardrails & Safety](./11-AI-GUARDRAILS-SAFETY.md) | `11-AI-GUARDRAILS-SAFETY.md` | 5-layer guardrails, Chart.js symbol mapping, solid non-gradient color standards, prompt engineering |
+| 12 | [Implemented Features & Status](./12-IMPLEMENTED-FEATURES-STATUS.md) | `12-IMPLEMENTED-FEATURES-STATUS.md` | Dual-segment AuthModal, SuperAdmin & User/Enterprise Dashboards, Gaming-Professional UI, Supabase DB Schema |
 
 ---
 
 ## Key Implemented Platform Features
 
-### 1. Enterprise Documentation Portal (`DocsPage.tsx`)
+### 1. Dual-Segment Enterprise AuthModal (`App.tsx`)
+- **Individual & UMKM vs Enterprise Scale Tabs**: Dedicated onboarding workflows matching exact corporate spec.
+- **Social OAuth & Email Authentication**: Google/GitHub 1-click sign-in + custom domain email routing.
+- **Transactional Brevo OTP Email Gateway**: 6-digit cryptographic verification passcodes via Brevo API v3 with SHA-256 OTP hashing, 5-minute TTL, and 5-attempt brute-force protection.
+- **Cloudflare Turnstile Bot Defense**: Turnstile CAPTCHA token verification protecting `/request-otp` endpoints against automated bots and scrapers.
+- **Cloudflare R2 Object Storage CDN**: Production CDN media delivery via `cdn.zegaai.site`.
+- **1-Click Sandbox & Enterprise Demo**: Instant interactive demo access targeting `UserDashboard` (Individual or Enterprise workspace) with `admin@zega.ai` SuperAdmin direct route.
+- **Modal Lifecycle Safety**: Strict `if (!isOpen) return null` render guards, isolated z-index layer (`z-[99999]`), and explicit close button event handling.
+
+### 2. Dual Role-Based Dashboard Architecture (`App.tsx`)
+- **SuperAdmin Control Suite (`SuperAdminDashboard.tsx`)**: Tenant management table, RLS policy enforcement, live audit trails, platform telemetry, and live role switching.
+- **User & Enterprise Console (`UserDashboard.tsx`)**: Integrated AI Sandbox Console (`AiSandboxConsole.tsx`), model playground (ZEGA-Omni 4.5, Claude 3.5 Sonnet, GPT-4o), API key management, and workflow builder.
+
+### 3. Enterprise Documentation Portal (`DocsPage.tsx`)
 - **Stripe/Vercel Standard UI**: Full documentation suite accessible via `/docs` route with sidebar navigation, code snippets, interactive tabbed code blocks (TypeScript / Python / cURL / REST API).
 - **Global Search (`⌘K`)**: Instant search dialog filtering through getting started guides, agent templates, connector APIs, and 9Router model specs.
 - **Dedicated Responsive Header**: Enterprise top navigation bar with search shortcut, light/dark mode switcher, GitHub link, and seamless "Back to Main Site" routing.
 
-### 2. 60FPS Anti-Throttling Orchestrator Visualization (`App.tsx`)
-- **Identical Card Dimensions**: Locked 4-tab center card (`Agent`, `Integration`, `Automation`, `Memory`) dimensions (`max-w-[490px]`, Header: 76px, Pipeline: 235px, Footer: 38px) preventing layout jumping across tab switches.
-- **Layout Thrashing Removal**: Replaced interval calculations with debounced `requestAnimationFrame` + `ResizeObserver` SVG coordinate tracing.
-- **Hardware-Accelerated Transitions**: `transform-gpu` and key-based fade animations (`animate-fadeIn`) for ultra-smooth 60fps interaction.
-- **Full Brand Icon Asset Integration**: Dedicated switch-case logic rendering official webp/png/jpg brand assets for 7 LLM models (`GPT-4.1`, `Gemini 2.5`, `DeepSeek`, `Qwen 2.5`, `Llama 3.1`, `Claude`, `Mistral`).
-
-### 3. Production SEO Infrastructure (`zegaai.site`)
-- **Canonical Domain Target**: Configured `https://zegaai.site` across canonical tags, OpenGraph, Twitter Cards, and Schema.org structured data.
-- **Search Engine Keyword Optimization**: Meta tags tailored for high ranking on `"ZEGA AI"`, `"ZEGA Automation"`, `"ZEGA Orchestration"`, and `"Autonomous Agent Swarm"`.
-- **Crawler Infrastructure**: Production `robots.txt` and structured `sitemap.xml` automatically built under `apps/web/public/`.
+### 4. Gaming-Professional Design System
+- **High-Contrast Aesthetics**: Sharp card containers with minimal shadows, Plus Jakarta Sans typography, and Chakra Petch font for futuristic metrics.
+- **Theme Safety**: Safe dark mode (`#0a0b10`) and light mode styling with non-AI generic presentation.
 
 ---
 
