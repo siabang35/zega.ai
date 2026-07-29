@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Cookie, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 const CONSENT_KEY = 'zega_cookie_consent';
@@ -32,7 +33,7 @@ export function CookieConsent({ onNavigatePrivacy, onNavigateTerms }: { onNaviga
   useEffect(() => {
     const existing = getStoredConsent();
     if (!existing) {
-      const t = setTimeout(() => setVisible(true), 1200);
+      const t = setTimeout(() => setVisible(true), 400);
       return () => clearTimeout(t);
     }
   }, []);
@@ -75,14 +76,14 @@ export function CookieConsent({ onNavigatePrivacy, onNavigateTerms }: { onNaviga
 
   if (!visible) return null;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed bottom-0 left-0 right-0 z-[999999] px-4 pb-4 md:px-6 md:pb-6 transition-all duration-350 ${
-        animateOut ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+      className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-[480px] z-[9999999] transition-all duration-350 ${
+        animateOut ? 'translate-y-8 opacity-0 scale-95 blur-xs' : 'translate-y-0 opacity-100 scale-100'
       }`}
-      style={{ animation: animateOut ? undefined : 'cookieSlideUp 0.5s cubic-bezier(0.16,1,0.3,1)' }}
+      style={{ animation: animateOut ? undefined : 'cookieSlideUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards' }}
     >
-      <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5 md:p-6 font-sans">
+      <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl p-5 md:p-6 font-sans shadow-2xl dark:shadow-black/80 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all duration-300">
 
         {/* Header Row */}
         <div className="flex items-start justify-between gap-3">
@@ -198,10 +199,11 @@ export function CookieConsent({ onNavigatePrivacy, onNavigateTerms }: { onNaviga
 
       <style>{`
         @keyframes cookieSlideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
+          0%   { transform: translateY(32px) scale(0.96); opacity: 0; filter: blur(4px); }
+          100% { transform: translateY(0) scale(1);       opacity: 1; filter: blur(0px); }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

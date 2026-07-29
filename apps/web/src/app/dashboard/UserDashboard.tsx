@@ -43,7 +43,7 @@ export function UserDashboard({
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex bg-slate-900/40 backdrop-blur-xs font-sans text-slate-900 dark:text-slate-100 animate-fadeIn">
+    <div className={`fixed inset-0 z-[99999] flex bg-slate-900/40 backdrop-blur-xs font-sans text-slate-900 dark:text-slate-100 animate-fadeIn ${dark ? 'dark' : ''}`}>
       {/* MOBILE OVERLAY BACKDROP */}
       {mobileMenuOpen && (
         <div 

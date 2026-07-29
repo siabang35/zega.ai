@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   Activity,
   ArrowRight,
@@ -89,66 +90,109 @@ const AGENT_PILLS = [
   "Logistics agent",
 ];
 
-const WHY_CARDS = [
+const getWhyCards = (t: any) => [
   {
     icon: Sparkles,
-    title: "Speed",
-    desc: "Get quicker results with our enterprise AI solutions and AI agent marketplace.",
+    title: t.why.speedTitle,
+    desc: t.why.speedDesc,
     gradient: "from-[#ff6b35] via-[#e8295a] to-[#9b27d4]",
   },
   {
     icon: Layers3,
-    title: "Management",
-    desc: "Harness the capabilities of a standardized platform designed to meet every demand.",
+    title: t.why.managementTitle,
+    desc: t.why.managementDesc,
     gradient: "from-[#9b27d4] via-[#4f46e5] to-[#0ea5e9]",
   },
   {
     icon: Network,
-    title: "Adaptability",
-    desc: "We take an ecosystem-first approach, so you have the flexibility to decide.",
+    title: t.why.adaptabilityTitle,
+    desc: t.why.adaptabilityDesc,
     gradient: "from-[#0ea5e9] via-[#4f46e5] to-[#9b27d4]",
   },
 ];
 
-const PRODUCTS = [
+const getProducts = (t: any) => [
   {
     icon: Bot,
     gradient: "from-[#ff6b35] to-[#9b27d4]",
-    title: "Intelligent Agents",
-    desc: "Deploy pre-built AI workers for HR, Finance, and IT, customized to your brand voice.",
+    title: t.products.agentsTitle,
+    desc: t.products.agentsDesc,
   },
   {
     icon: Network,
     gradient: "from-[#9b27d4] to-[#4f46e5]",
-    title: "Workflow Orchestrator",
-    desc: "Visualize complex processes and automate triggers without writing a single line of code.",
+    title: t.products.workflowTitle,
+    desc: t.products.workflowDesc,
   },
   {
     icon: BarChart3,
     gradient: "from-[#4f46e5] to-[#0ea5e9]",
-    title: "Data Analytics",
-    desc: "Real-time insights into agent performance and enterprise ROI tracking.",
+    title: t.products.analyticsTitle,
+    desc: t.products.analyticsDesc,
   },
 ];
 
-const STEPS = [
+const getSteps = (t: any) => [
   {
     num: "01",
     icon: UserRoundPlus,
-    title: "Sign Up & Connect",
-    desc: "Securely connect the systems you are ready to orchestrate with your enterprise.",
+    title: t.steps.step1Title,
+    desc: t.steps.step1Desc,
   },
   {
     num: "02",
     icon: Wrench,
-    title: "Configure Agents",
-    desc: "Set objectives, policies, and meaningful approval gates for your AI agents.",
+    title: t.steps.step2Title,
+    desc: t.steps.step2Desc,
   },
   {
     num: "03",
     icon: TrendingUp,
-    title: "Deploy & Scale",
-    desc: "Launch, observe, and expand agents safely across the entire group.",
+    title: t.steps.step3Title,
+    desc: t.steps.step3Desc,
+  },
+];
+
+const getPlans = (t: any) => [
+  {
+    name: t.pricing.basicPlan,
+    monthly: 20,
+    yearly: 16,
+    featured: false,
+    features: [
+      "Up to 2 AI agents",
+      "10,000 requests/month",
+      "Basic analytics",
+      "Email support",
+      t.pricing.trustedBy,
+    ],
+  },
+  {
+    name: t.pricing.proPlan,
+    monthly: 40,
+    yearly: 32,
+    featured: true,
+    badge: t.pricing.mostPopular,
+    features: [
+      t.pricing.fullAccess,
+      t.pricing.unlimitedRequests,
+      "Essential integrations",
+      t.pricing.dedicatedSupport,
+      t.pricing.saveYearly,
+    ],
+  },
+  {
+    name: t.pricing.premiumPlan,
+    monthly: 99,
+    yearly: 79,
+    featured: false,
+    features: [
+      t.pricing.whiteLabel,
+      t.pricing.slaGuarantee,
+      t.pricing.customIntegrations,
+      t.pricing.dedicatedSupport,
+      "Your next major opportunity",
+    ],
   },
 ];
 
@@ -159,6 +203,7 @@ const TESTIMONIALS = [
     name: "Sarah M. Harvey",
     role: "CTO, GlobalVentures",
     img: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&fit=crop&crop=face",
+    featured: false,
   },
   {
     stars: 5,
@@ -174,49 +219,7 @@ const TESTIMONIALS = [
     name: "Evelyn P. Blake",
     role: "COO, Meridian Group",
     img: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face",
-  },
-];
-
-const PLANS = [
-  {
-    name: "Basic Plan",
-    monthly: 20,
-    yearly: 16,
     featured: false,
-    features: [
-      "Up to 2 AI agents",
-      "10,000 requests/month",
-      "Basic analytics",
-      "Email support",
-      "Trusted by over 500 teams",
-    ],
-  },
-  {
-    name: "Pro Plan",
-    monthly: 40,
-    yearly: 32,
-    featured: true,
-    badge: "Most Popular",
-    features: [
-      "Get full access to 20 agents",
-      "Unlimited requests/month",
-      "Essential integrations",
-      "Dedicated support",
-      "Save $80/year upgrading early",
-    ],
-  },
-  {
-    name: "Premium",
-    monthly: 99,
-    yearly: 79,
-    featured: false,
-    features: [
-      "White-label option",
-      "SLA guarantee",
-      "Custom integrations",
-      "Dedicated support",
-      "Your next major opportunity",
-    ],
   },
 ];
 
@@ -297,11 +300,13 @@ function ScrollReveal({
     const obs = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) {
-          el.classList.add("revealed");
+          requestAnimationFrame(() => {
+            el.classList.add("revealed");
+          });
           obs.unobserve(el);
         }
       },
-      { threshold: 0.12 }
+      { threshold: 0.05, rootMargin: "0px 0px -40px 0px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -554,25 +559,27 @@ let hasShownSplash = false;
 
 const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
   const [stage, setStage] = useState<'typing' | 'fade' | 'done'>('typing');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const t1 = setTimeout(() => setStage('fade'), 900);
     const t2 = setTimeout(() => {
       setStage('done');
-      onComplete();
+      onCompleteRef.current();
     }, 1400);
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [onComplete]);
+  }, []);
 
   if (stage === 'done') return null;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-[999999] flex flex-col items-center justify-center bg-[#060913] text-white transition-opacity duration-500 ease-out transform-gpu ${stage === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      className={`fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[#060913] text-white transition-opacity duration-500 ease-out transform-gpu ${stage === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
     >
       {/* Ambient background glow spot */}
@@ -590,7 +597,8 @@ const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
         {/* Blinking Typewriter Cursor Line */}
         <div className="h-10 sm:h-14 w-[3.5px] bg-[#ff6b35] animate-pulse rounded-full shadow-[0_0_16px_#ff6b35] flex-shrink-0 ml-1.5" />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -815,6 +823,12 @@ function AuthModal({
   useEffect(() => {
     if (!isOpen) return;
 
+    const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    if (isLocal) {
+      setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
+      return;
+    }
+
     let widgetId: string | null = null;
 
     const renderTurnstile = () => {
@@ -942,9 +956,9 @@ function AuthModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/55 dark:bg-black/80 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
       style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
@@ -1276,7 +1290,8 @@ function AuthModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1292,8 +1307,20 @@ function getInitialPath(): string {
   return "/";
 }
 
-export default function App() {
-  const { t } = useLanguage();
+function AppContent() {
+  const { language, t } = useLanguage();
+  const [isLangChanging, setIsLangChanging] = useState(false);
+  const prevLangRef = useRef(language);
+
+  useEffect(() => {
+    if (prevLangRef.current !== language) {
+      prevLangRef.current = language;
+      setIsLangChanging(true);
+      const timer = setTimeout(() => setIsLangChanging(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [language]);
+
   const [currentPath, setCurrentPath] = useState<string>(getInitialPath);
 
   const navigateTo = (path: string) => {
@@ -1371,13 +1398,7 @@ export default function App() {
     canonicalLink.setAttribute('href', canonicalUrl);
   }, [currentPath]);
 
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window !== "undefined" && !hasShownSplash) {
-      hasShownSplash = true;
-      return true;
-    }
-    return false;
-  });
+  const [showSplash, setShowSplash] = useState(true);
   const [dark, setDark] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
@@ -1778,11 +1799,12 @@ export default function App() {
   }
 
   return (
-    <LanguageProvider>
-      <div
-        className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased"
-        style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
-      >
+    <div
+      className={`min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased transition-all duration-200 ${
+        isLangChanging ? "opacity-50 scale-[0.998]" : "opacity-100 scale-100"
+      }`}
+      style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
+    >
       {showSplash && <ZegaSplashLoader onComplete={() => setShowSplash(false)} />}
 
       {/* NAV */}
@@ -1986,30 +2008,20 @@ export default function App() {
           <div className="absolute -top-10 right-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/03 blur-[90px]" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-2xl">
+        <div className="relative z-10 mx-auto max-w-3xl">
           <h1
-            className="hero-text-reveal text-[clamp(2.4rem,5.5vw,4.2rem)] font-light leading-[1.06] tracking-[-0.04em] text-foreground"
+            className="hero-text-reveal text-[clamp(2.2rem,5vw,3.9rem)] font-light leading-[1.08] tracking-[-0.035em] text-foreground"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             {t.hero.title}
           </h1>
-          <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4 max-w-md text-[13.5px] leading-relaxed text-muted-foreground font-normal">
+          <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4 max-w-lg text-[13.5px] sm:text-[14px] leading-relaxed text-muted-foreground font-normal">
             {t.hero.subtitle}
           </p>
 
-          {/* Interactive Glass Input Pill */}
-          <div className={`hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex max-w-[380px] items-center overflow-hidden rounded-full border p-1.5 backdrop-blur-xl shadow-xl transition-all duration-300 ${emailTouched && email.trim() !== ""
-            ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-              ? 'border-emerald-500/50 shadow-[#10b981]/10 bg-white/90 dark:bg-card/90'
-              : 'border-rose-500/50 shadow-[#f43f5e]/10 bg-white/90 dark:bg-card/90'
-            : 'border-border/80 focus-within:border-[#ff6b35]/60 focus-within:shadow-[#ff6b35]/10 dark:border-white/10 dark:bg-white/[0.03] bg-white/80'
-            }`}>
-            <Mail size={14} className={`ml-3.5 transition-colors ${emailTouched && email.trim() !== ""
-              ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-                ? 'text-emerald-500'
-                : 'text-rose-500'
-              : 'dark:text-white/30 text-slate-400'
-              }`} />
+          {/* Clean Enterprise Email Input Pill */}
+          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex w-full max-w-[400px] items-center overflow-hidden rounded-full border border-slate-200/80 dark:border-white/12 bg-white/90 dark:bg-[#0f111a]/90 p-1.5 backdrop-blur-xl shadow-xs transition-all duration-200 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-400/10 dark:focus-within:ring-white/5">
+            <Mail size={15} strokeWidth={1.75} className="ml-3.5 flex-shrink-0 text-slate-400 dark:text-slate-400 transition-colors" />
             <input
               type="email"
               value={email}
@@ -2020,14 +2032,15 @@ export default function App() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleNewsletterSubscribe(email);
               }}
-              placeholder="Enter your work email..."
-              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
+              placeholder={t.hero.enterEmail}
+              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12.5px] font-medium text-foreground placeholder:text-muted-foreground/60 border-none outline-none ring-0 focus:ring-0 focus:outline-none"
+              autoComplete="email"
             />
             <button
               onClick={() => handleNewsletterSubscribe(email)}
-              className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-6 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/35 hover:scale-[1.03] active:scale-95 cursor-pointer"
+              className="group relative flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2.5 text-[11.5px] font-bold text-white shadow-xs transition-all duration-300 hover:bg-right hover:opacity-95 active:scale-95 cursor-pointer"
             >
-              <span className="relative z-10 flex items-center gap-1">
+              <span className="relative z-10 flex items-center gap-1.5">
                 Subscribe <ArrowRight size={13} />
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
@@ -2530,23 +2543,19 @@ export default function App() {
         id="about"
         className="border-b border-border/40 px-6 py-14 lg:px-12 lg:py-18"
       >
-        <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-2 lg:items-center">
-          <h2
-            className="text-[clamp(1.9rem,4vw,3rem)] font-black leading-[1.04] tracking-[-0.04em]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            Collaborative agents
-            <br />
-            built for complex
-            <br />
-            workflows.
-          </h2>
-          <p className="max-w-sm text-[13px] leading-6 text-muted-foreground lg:ml-auto">
-            Experience a powerful network of AI agents collaborating in real time, combining
-            research, data analysis, workflow automation, and customer assistance into one unified,
-            intelligent system.
-          </p>
-        </div>
+        <ScrollReveal>
+          <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-2 lg:items-center">
+            <h2
+              className="text-[clamp(1.9rem,4vw,3rem)] font-black leading-[1.04] tracking-[-0.04em]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {t.collaborative.title}
+            </h2>
+            <p className="max-w-sm text-[13px] leading-6 text-muted-foreground lg:ml-auto">
+              {t.collaborative.subtitle}
+            </p>
+          </div>
+        </ScrollReveal>
 
         {/* scrolling pills */}
         <div
@@ -2554,7 +2563,7 @@ export default function App() {
           className="mt-8 flex gap-3 overflow-hidden whitespace-nowrap select-none py-1.5"
           style={{ WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}
         >
-          {[...AGENT_PILLS, ...AGENT_PILLS].map((pill, i) => (
+          {[...(t.hero.pills || AGENT_PILLS), ...(t.hero.pills || AGENT_PILLS)].map((pill, i) => (
             <div
               key={i}
               className="group relative flex-shrink-0 inline-flex items-center rounded-full p-[1px] overflow-hidden shadow-sm transition-all duration-300 hover:scale-105"
@@ -2578,41 +2587,44 @@ export default function App() {
       {/* WHY ZEGA STANDS OUT */}
       <section className="px-6 py-16 lg:px-12 lg:py-20">
         <div className="mx-auto max-w-[1000px]">
-          <h2
-            className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            Why ZEGA Stands Out
-          </h2>
-          <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            Intelligent, fast, and more adaptable than traditional AI solutions.
-          </p>
+          <ScrollReveal>
+            <h2
+              className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {t.why.title}
+            </h2>
+            <p className="mt-2 text-center text-[13px] text-muted-foreground">
+              {t.why.subtitle}
+            </p>
+          </ScrollReveal>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
-            {WHY_CARDS.map(({ icon: Icon, title, desc, gradient }, idx) => (
-              <article
-                key={title}
-                className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
-              >
-                {/* Rotating Border Beam Line */}
-                <div
-                  className="pointer-events-none absolute -inset-[200%] rounded-full opacity-40 group-hover:opacity-90 transition-opacity"
-                  style={{
-                    background: `conic-gradient(from 0deg, transparent 0deg, #ff6b35 35deg, #9b27d4 75deg, #0ea5e9 115deg, transparent 155deg)`,
-                    animation: `spin-beam ${7 + idx * 2}s linear infinite`,
-                  }}
-                />
-                <div className="pointer-events-none absolute inset-[1px] rounded-[15px] bg-card" />
-                <div className="relative z-10">
-                  <div className="flex justify-center">
-                    <GlowIcon icon={Icon} gradient={gradient} />
+            {getWhyCards(t).map(({ icon: Icon, title, desc, gradient }, idx) => (
+              <ScrollReveal key={title} delay={(idx % 3) + 1}>
+                <article
+                  className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 h-full"
+                >
+                  {/* Rotating Border Beam Line */}
+                  <div
+                    className="pointer-events-none absolute -inset-[200%] rounded-full opacity-40 group-hover:opacity-90 transition-opacity"
+                    style={{
+                      background: `conic-gradient(from 0deg, transparent 0deg, #ff6b35 35deg, #9b27d4 75deg, #0ea5e9 115deg, transparent 155deg)`,
+                      animation: `spin-beam ${7 + idx * 2}s linear infinite`,
+                    }}
+                  />
+                  <div className="pointer-events-none absolute inset-[1px] rounded-[15px] bg-card" />
+                  <div className="relative z-10">
+                    <div className="flex justify-center">
+                      <GlowIcon icon={Icon} gradient={gradient} />
+                    </div>
+                    <h3 className="mt-5 text-[14px] font-bold">{title}</h3>
+                    <p className="mx-auto mt-2 max-w-[180px] text-[11px] leading-5 text-muted-foreground">
+                      {desc}
+                    </p>
                   </div>
-                  <h3 className="mt-5 text-[14px] font-bold">{title}</h3>
-                  <p className="mx-auto mt-2 max-w-[180px] text-[11px] leading-5 text-muted-foreground">
-                    {desc}
-                  </p>
-                </div>
-              </article>
+                </article>
+              </ScrollReveal>
             ))}
           </div>
 
@@ -2632,10 +2644,9 @@ export default function App() {
                   icon={Layers3}
                   gradient="from-[#ff6b35] via-[#9b27d4] to-[#0ea5e9]"
                 />
-                <h3 className="mt-5 text-[14px] font-bold">Multi-Agent System</h3>
+                <h3 className="mt-5 text-[14px] font-bold">{t.why.multiAgentTitle}</h3>
                 <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                  Deploy specialized agents that communicate and collaborate seamlessly to handle
-                  complex workflows.
+                  {t.why.multiAgentDesc}
                 </p>
               </div>
             </article>
@@ -2644,23 +2655,23 @@ export default function App() {
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_120%,rgba(255,107,53,.2),transparent_50%),radial-gradient(ellipse_at_50%_120%,rgba(155,39,212,.18),transparent_45%),radial-gradient(ellipse_at_20%_120%,rgba(14,165,233,.15),transparent_50%)]" />
               <div className="relative">
                 <h3 className="text-[18px] font-black tracking-[-0.03em]">
-                  Are you ready to begin
+                  {t.why.readyTitle}
                 </h3>
                 <p className="mt-1.5 text-[12px] text-muted-foreground">
-                  Let's turn this into reality. We're ready when you are.
+                  {t.why.readyDesc}
                 </p>
                 <div className="mt-6 flex gap-2.5">
                   <a
                     href="#pricing"
                     className="rounded-full bg-foreground px-5 py-2.5 text-[11px] font-bold text-background transition-opacity hover:opacity-90"
                   >
-                    Get Started
+                    {t.why.getStarted}
                   </a>
                   <a
                     href="#contact"
                     className="rounded-full border border-border px-5 py-2.5 text-[11px] font-bold text-foreground transition-colors hover:bg-secondary"
                   >
-                    Contact us
+                    {t.why.contactUs}
                   </a>
                 </div>
               </div>
@@ -2672,19 +2683,21 @@ export default function App() {
       {/* EXPERIENCE IN ACTION */}
       <section id="blog" className="border-y border-border/40 px-6 py-16 lg:px-12 lg:py-20">
         <div className="mx-auto max-w-[1000px]">
-          <h2
-            className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            Experience ZEGA in Action
-          </h2>
-          <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            See how our AI agents seamlessly handle complex workflows in real time.
-          </p>
+          <ScrollReveal>
+            <h2
+              className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              {t.action.title}
+            </h2>
+            <p className="mt-2 text-center text-[13px] text-muted-foreground">
+              {t.action.subtitle}
+            </p>
 
-          <div className="mt-2 text-[11px] text-muted-foreground text-center">
-            Understand How Your Team Operates
-          </div>
+            <div className="mt-2 text-[11px] text-muted-foreground text-center">
+              {t.action.teamOperates}
+            </div>
+          </ScrollReveal>
 
           {/* Tabs */}
           <div className="mt-4 flex justify-center">
@@ -2886,14 +2899,14 @@ export default function App() {
             className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Our Products
+            {t.products.sectionTitle}
           </h2>
           <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            Complete suite of AI-powered solutions for modern enterprises.
+            {t.products.subtitle}
           </p>
 
           <div className="mt-10 grid gap-8 text-center sm:grid-cols-3">
-            {PRODUCTS.map(({ icon: Icon, gradient, title, desc }) => (
+            {getProducts(t).map(({ icon: Icon, gradient, title, desc }) => (
               <article key={title}>
                 <div className="flex justify-center">
                   <GlowIcon icon={Icon} gradient={gradient} />
@@ -2911,7 +2924,7 @@ export default function App() {
               href="#pricing"
               className="inline-flex rounded-full bg-foreground px-6 py-2.5 text-[11px] font-bold text-background transition-opacity hover:opacity-90"
             >
-              See All Products
+              {t.products.seeAll}
             </a>
           </div>
         </div>
@@ -2924,14 +2937,14 @@ export default function App() {
             className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Get Started in 3 Steps
+            {t.steps.sectionTitle}
           </h2>
           <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            Launch your enterprise intelligence in minutes.
+            {t.steps.subtitle}
           </p>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
-            {STEPS.map(({ num, icon: Icon, title, desc }, idx) => (
+            {getSteps(t).map(({ num, icon: Icon, title, desc }, idx) => (
               <article
                 key={num}
                 className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
@@ -2976,10 +2989,10 @@ export default function App() {
             className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Trusted by Our Customers
+            {t.testimonials.sectionTitle}
           </h2>
           <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            See what enterprise leaders say about ZEGA AI.
+            {t.testimonials.subtitle}
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3 items-start">
@@ -3006,13 +3019,11 @@ export default function App() {
                   <div className={`mt-5 flex items-center gap-3 ${featured ? "flex-col text-center" : ""}`}>
                     <ImageWithFallback
                       src={getR2CdnUrl(img)}
+                      fallbackSrc={generateInitialsAvatar(name)}
                       alt={name}
                       loading="lazy"
                       decoding="async"
                       className={`rounded-full object-cover border border-white/10 ${featured ? "size-14" : "size-9"}`}
-                      onError={(e: any) => {
-                        e.currentTarget.src = generateInitialsAvatar(name);
-                      }}
                     />
                     <div>
                       <p className="text-[12px] font-bold">{name}</p>
@@ -3036,10 +3047,10 @@ export default function App() {
             className="text-center text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em]"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Plans That Fit Your Needs
+            {t.pricing.sectionTitle}
           </h2>
           <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            Select the plan that supports your work and grows as your business expands.
+            {t.pricing.subtitle}
           </p>
 
           {/* Toggle */}
@@ -3054,19 +3065,14 @@ export default function App() {
                     : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                  {b}
-                  {b === "yearly" && (
-                    <span className="ml-1.5 rounded-full bg-gradient-to-r from-[#ff6b35] to-[#9b27d4] px-1.5 py-0.5 text-[8px] font-bold text-white">
-                      -20%
-                    </span>
-                  )}
+                  {b === "monthly" ? t.pricing.monthly : t.pricing.yearly}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3 items-start">
-            {PLANS.map(({ name, monthly, yearly, featured, badge, features }) => (
+            {getPlans(t).map(({ name, monthly, yearly, featured, badge, features }) => (
               <article
                 key={name}
                 className={`relative overflow-hidden rounded-2xl border p-6 ${featured
@@ -3094,13 +3100,13 @@ export default function App() {
                   </span>
                 </div>
                 <button
-                  onClick={() => handleOpenAuth(name.includes("Premium") ? "enterprise" : "self-serve")}
+                  onClick={() => handleOpenAuth(name.includes("Premium") || name.includes("Pelanggan") ? "enterprise" : "self-serve")}
                   className={`mt-5 flex w-full items-center justify-center rounded-full py-2.5 text-[11px] font-bold transition-all hover:opacity-90 cursor-pointer ${featured
                     ? "bg-white text-[#c2185b]"
                     : "border border-border text-foreground hover:bg-secondary"
                     }`}
                 >
-                  {name.includes("Premium") ? "Book Enterprise Demo" : name.includes("Pro") ? "Try Pro Free" : "Start Free Trial"}
+                  {name.includes("Premium") ? t.pricing.contactSales : t.pricing.startTrial}
                 </button>
                 <ul className="mt-5 space-y-2.5">
                   {features.map((f) => (
@@ -3127,7 +3133,7 @@ export default function App() {
       {/* CTA SECTION - PROPORTIONAL LIQUID WATER WAVE FILL */}
       <section
         id="contact"
-        className="relative mx-6 mb-6 overflow-hidden rounded-2xl p-12 text-center lg:mx-12 lg:mb-12 bg-[#0a0b10] border border-white/10 shadow-2xl"
+        className="relative mx-4 my-8 overflow-hidden rounded-3xl py-14 px-6 text-center sm:mx-6 sm:my-12 sm:py-16 sm:px-8 lg:mx-12 lg:my-16 lg:py-20 lg:px-12 bg-[#0a0b10] border border-white/10 shadow-2xl"
       >
         {/* Proportional Liquid Water Waves filling bottom of card */}
         <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
@@ -3142,7 +3148,7 @@ export default function App() {
 
           {/* Liquid Water SVG Wave Layer 1 */}
           <div
-            className="absolute -bottom-2 left-0 w-[200%] h-[68%] sm:h-[62%] lg:h-[55%] opacity-70"
+            className="absolute -bottom-2 left-0 w-[200%] h-[68%] sm:h-[72%] lg:h-[70%] opacity-75"
             style={{ animation: "water-wave-1 10s ease-in-out infinite alternate" }}
           >
             <svg
@@ -3156,9 +3162,9 @@ export default function App() {
               />
               <defs>
                 <linearGradient id="cta-water-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#ff6b35" stopOpacity="0.75" />
-                  <stop offset="50%" stopColor="#d42060" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.75" />
+                  <stop offset="0%" stopColor="#ff6b35" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#d42060" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.8" />
                 </linearGradient>
               </defs>
             </svg>
@@ -3166,7 +3172,7 @@ export default function App() {
 
           {/* Liquid Water SVG Wave Layer 2 */}
           <div
-            className="absolute -bottom-1 left-0 w-[200%] h-[58%] sm:h-[52%] lg:h-[45%] opacity-85"
+            className="absolute -bottom-1 left-0 w-[200%] h-[58%] sm:h-[62%] lg:h-[60%] opacity-90"
             style={{ animation: "water-wave-2 7s ease-in-out infinite alternate" }}
           >
             <svg
@@ -3180,32 +3186,30 @@ export default function App() {
               />
               <defs>
                 <linearGradient id="cta-water-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.65" />
-                  <stop offset="45%" stopColor="#c2185b" stopOpacity="0.7" />
-                  <stop offset="100%" stopColor="#0284c7" stopOpacity="0.65" />
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.7" />
+                  <stop offset="45%" stopColor="#c2185b" stopOpacity="0.75" />
+                  <stop offset="100%" stopColor="#0284c7" stopOpacity="0.7" />
                 </linearGradient>
               </defs>
             </svg>
           </div>
         </div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 mx-auto max-w-xl">
           <h2
-            className="text-[clamp(1.8rem,3.5vw,2.75rem)] font-black tracking-[-0.04em] text-white drop-shadow-sm"
+            className="text-[clamp(1.85rem,5.5vw,2.75rem)] font-black leading-[1.14] tracking-[-0.04em] text-white drop-shadow-sm"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Ready to Shape the Future
-            <br />
-            with ZEGA AI?
+            {t.cta.title}
           </h2>
-          <p className="mt-3 text-[13px] text-white/80 font-medium">
-            All your enterprise needs, orchestrated in one place.
+          <p className="mt-3.5 text-[12px] sm:text-[13px] text-white/80 font-medium max-w-[280px] sm:max-w-none mx-auto leading-relaxed">
+            {t.cta.subtitle}
           </p>
           <button
             onClick={() => handleOpenAuth("self-serve")}
-            className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-[12px] font-bold text-[#0a0b10] shadow-lg transition-all duration-300 hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
+            className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-[12px] font-bold text-[#0a0b10] shadow-xl transition-all duration-300 hover:opacity-95 hover:scale-105 active:scale-95 cursor-pointer"
           >
-            Try ZEGA Free
+            {t.cta.tryFree}
           </button>
         </div>
       </section>
@@ -3296,14 +3300,14 @@ export default function App() {
               />
             </a>
             <p className="text-[11px] text-muted-foreground max-w-[200px]">
-              Zero-Friction Enterprise Generative Automation.
+              {t.footer.tag}
             </p>
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-3.5">
             <div className="flex gap-3">
-              <a href="#" className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-all duration-300">
-                <span className="sr-only">Twitter</span>
+              <a href="https://x.com/zegaai" target="_blank" rel="noopener noreferrer" className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-all duration-300">
+                <span className="sr-only">X (Twitter)</span>
                 <svg className="size-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
               </a>
               <a href="#" className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-all duration-300">
@@ -3315,11 +3319,11 @@ export default function App() {
                 <svg className="size-3.5 fill-current" viewBox="0 0 24 24"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" /></svg>
               </a>
             </div>
-            <p className="text-[10px] text-muted-foreground">© 2026 ZEGA AI. All rights reserved.</p>
+            <p className="text-[10px] text-muted-foreground">© 2026 ZEGA AI. {t.footer.rights}</p>
             <div className="flex items-center gap-3 mt-1.5">
-              <button onClick={() => navigateTo('/terms')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Terms of Service</button>
+              <button onClick={() => navigateTo('/terms')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">{t.footer.terms}</button>
               <span className="text-[10px] text-muted-foreground/40">·</span>
-              <button onClick={() => navigateTo('/privacy')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Privacy Policy</button>
+              <button onClick={() => navigateTo('/privacy')} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer">{t.footer.privacy}</button>
             </div>
           </div>
         </div>
@@ -3334,11 +3338,20 @@ export default function App() {
           </span>
         </div>
       </footer>
-    <CookieConsent
-      onNavigatePrivacy={() => navigateTo('/privacy')}
-      onNavigateTerms={() => navigateTo('/terms')}
-    />
+    {!showSplash && (
+      <CookieConsent
+        onNavigatePrivacy={() => navigateTo('/privacy')}
+        onNavigateTerms={() => navigateTo('/terms')}
+      />
+    )}
     </div>
-  </LanguageProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }

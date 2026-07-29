@@ -293,6 +293,7 @@ export const SupabaseDashboardService = {
       await fetch(`${API_BASE}/v1/auth/signout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       }).catch(() => {});
 
       await this.logAuditTrail('USER_SIGNOUT', { timestamp: new Date().toISOString() });

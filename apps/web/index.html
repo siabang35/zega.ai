@@ -40,8 +40,8 @@
 
   <!-- Twitter Card Meta Tags -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@zega_ai" />
-  <meta name="twitter:creator" content="@zega_ai" />
+  <meta name="twitter:site" content="@zegaai" />
+  <meta name="twitter:creator" content="@zegaai" />
   <meta name="twitter:title" content="ZEGA AI | Enterprise Autonomous Agent & Workflow Orchestration Platform" />
   <meta name="twitter:description"
     content="Orchestrate autonomous AI agents, automate enterprise workflows, and deploy multi-model AI routing with ZEGA AI on zegaai.site." />
@@ -58,7 +58,7 @@
         "logo": "https://zegaai.site/assets/logo/zegalogo.png",
         "description": "Enterprise Autonomous Agent & Workflow Orchestration Platform.",
         "sameAs": [
-          "https://twitter.com/zega_ai",
+          "https://x.com/zegaai",
           "https://github.com/zega-ai",
           "https://linkedin.com/company/zega-ai"
         ]
@@ -115,8 +115,16 @@
       height: 100%;
     }
   </style>
-  <!-- Cloudflare Turnstile Real Bot Defense API -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <!-- Cloudflare Turnstile Real Bot Defense API (Production Only / Avoid localhost 110200 dev warning) -->
+  <script>
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      var turnstileScript = document.createElement('script');
+      turnstileScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      turnstileScript.async = true;
+      turnstileScript.defer = true;
+      document.head.appendChild(turnstileScript);
+    }
+  </script>
 </head>
 
 <body>
