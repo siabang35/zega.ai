@@ -29,7 +29,7 @@ export async function registerRoutes(app: FastifyInstance) {
     uptime: process.uptime(),
   }));
 
-  // ── Swagger UI Aliases (Disabled in Production & Render) ──
+  // ── Swagger UI Aliases (Development Only) ──
   const isProduction =
     process.env.NODE_ENV === 'production' ||
     process.env.RENDER === 'true' ||
@@ -41,22 +41,6 @@ export async function registerRoutes(app: FastifyInstance) {
     app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
     app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));
     app.get('/documentation', async (_req, reply) => reply.redirect('/docs'));
-  } else {
-    const handleBlockedSwagger = async (_req: any, reply: any) =>
-      reply.status(403).send({
-        success: false,
-        error: {
-          code: 'SWAGGER_DISABLED_IN_PRODUCTION',
-          message: 'API Documentation (Swagger UI) is disabled in production environment for security compliance.',
-          statusCode: 403,
-        },
-      });
-    app.all('/api/docs', handleBlockedSwagger);
-    app.all('/api/docs/*', handleBlockedSwagger);
-    app.all('/v1/docs', handleBlockedSwagger);
-    app.all('/v1/docs/*', handleBlockedSwagger);
-    app.all('/documentation', handleBlockedSwagger);
-    app.all('/documentation/*', handleBlockedSwagger);
   }
 
   // ── API v1 routes ──

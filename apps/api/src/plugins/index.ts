@@ -144,21 +144,25 @@ export async function registerPlugins(app: FastifyInstance) {
       },
     });
   } else {
-    const handleBlockedSwagger = async (_req: any, reply: any) => {
-      return reply.status(403).send({
-        success: false,
-        error: {
-          code: 'SWAGGER_DISABLED_IN_PRODUCTION',
-          message: 'API Documentation (Swagger UI) is disabled in production environment for security compliance.',
-          statusCode: 403,
-        },
-      });
-    };
-
-    app.all('/docs', handleBlockedSwagger);
-    app.all('/docs/*', handleBlockedSwagger);
-    app.all('/documentation', handleBlockedSwagger);
-    app.all('/documentation/*', handleBlockedSwagger);
+    // Intercept all Swagger & OpenAPI requests in production before routing
+    app.addHook('onRequest', async (request, reply) => {
+      const url = request.url.toLowerCase();
+      if (
+        url.startsWith('/docs') ||
+        url.startsWith('/api/docs') ||
+        url.startsWith('/v1/docs') ||
+        url.startsWith('/documentation')
+      ) {
+        return reply.status(403).send({
+          success: false,
+          error: {
+            code: 'SWAGGER_DISABLED_IN_PRODUCTION',
+            message: 'API Documentation (Swagger UI) is disabled in production environment for security compliance.',
+            statusCode: 403,
+          },
+        });
+      }
+    });
   }
 
   // ── 7. Global Error Handler ──
