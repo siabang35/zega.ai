@@ -869,7 +869,7 @@ function AuthModal({
       if (widgetId && typeof window !== "undefined" && (window as any).turnstile) {
         try {
           (window as any).turnstile.remove(widgetId);
-        } catch (e) {}
+        } catch (e) { }
       }
     };
   }, [isOpen, step, audienceSegment]);
@@ -1004,8 +1004,8 @@ function AuthModal({
               {step === "verify"
                 ? `6-digit Brevo OTP code sent to ${email || 'your email'}.`
                 : audienceSegment === "enterprise"
-                ? "Private VPC deployment, dedicated SLA, and enterprise control."
-                : "Build and deploy autonomous agent workflows."}
+                  ? "Private VPC deployment, dedicated SLA, and enterprise control."
+                  : "Build and deploy autonomous agent workflows."}
             </p>
           </div>
 
@@ -1020,22 +1020,20 @@ function AuthModal({
               <button
                 type="button"
                 onClick={() => setAudienceSegment("individual")}
-                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${
-                  audienceSegment === "individual"
+                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${audienceSegment === "individual"
                     ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
                     : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
-                }`}
+                  }`}
               >
                 Individual & UMKM
               </button>
               <button
                 type="button"
                 onClick={() => setAudienceSegment("enterprise")}
-                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${
-                  audienceSegment === "enterprise"
+                className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${audienceSegment === "enterprise"
                     ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
                     : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
-                }`}
+                  }`}
               >
                 Enterprise Scale
               </button>
@@ -1758,54 +1756,70 @@ function AppContent() {
   if (currentPath === '/console' || currentPath === '/dashboard') {
     const mock = localStorage.getItem('zega_mock_session');
     const session = mock ? JSON.parse(mock) : null;
-    const role = session?.role || 'enterprise';
+    if (session) {
+      const role = session?.role || 'enterprise';
 
-    if (role === 'superadmin') {
+      if (role === 'superadmin') {
+        return (
+          <SuperAdminDashboard
+            onClose={() => {
+              localStorage.removeItem('zega_mock_session');
+              setShowDashboard(false);
+              setCurrentPath('/');
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', '/');
+              }
+            }}
+            dark={dark}
+            setDark={setDark}
+            onSwitchToUserMode={() => {
+              const userSession = {
+                ...session,
+                role: 'enterprise',
+                email: 'enterprise@zega.ai',
+                fullName: 'Acme Enterprise Admin',
+              };
+              localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+              navigateTo('/console');
+            }}
+          />
+        );
+      }
       return (
-        <SuperAdminDashboard
-          onClose={() => navigateTo('/home')}
+        <UserDashboard
+          onClose={() => {
+            localStorage.removeItem('zega_mock_session');
+            setShowDashboard(false);
+            setCurrentPath('/');
+            if (typeof window !== 'undefined') {
+              window.history.pushState({}, '', '/');
+            }
+          }}
           dark={dark}
           setDark={setDark}
-          onSwitchToUserMode={() => {
-            const userSession = {
+          userRole={role as any}
+          userEmail={session?.email || 'guest@zegaai.site'}
+          userName={session?.fullName || 'Guest Explorer (Demo Mode)'}
+          isGuest={session?.isGuest ?? true}
+          onSwitchToAdminMode={() => {
+            const adminSession = {
               ...session,
-              role: 'enterprise',
-              email: 'enterprise@zega.ai',
-              fullName: 'Acme Enterprise Admin',
+              role: 'superadmin',
+              email: 'admin@zega.ai',
+              fullName: 'ZEGA SuperAdmin',
             };
-            localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+            localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
             navigateTo('/console');
           }}
         />
       );
     }
-    return (
-      <UserDashboard
-        onClose={() => navigateTo('/home')}
-        dark={dark}
-        setDark={setDark}
-        userRole={role as any}
-        userEmail={session?.email || 'user@zega.ai'}
-        userName={session?.fullName || 'Alex Morgan'}
-        onSwitchToAdminMode={() => {
-          const adminSession = {
-            ...session,
-            role: 'superadmin',
-            email: 'admin@zega.ai',
-            fullName: 'ZEGA SuperAdmin',
-          };
-          localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
-          navigateTo('/console');
-        }}
-      />
-    );
   }
 
   return (
     <div
-      className={`min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased transition-all duration-200 ${
-        isLangChanging ? "opacity-50 scale-[0.998]" : "opacity-100 scale-100"
-      }`}
+      className={`min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased transition-all duration-200 ${isLangChanging ? "opacity-50 scale-[0.998]" : "opacity-100 scale-100"
+        }`}
       style={{ fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif" }}
     >
       {showSplash && <ZegaSplashLoader onComplete={() => setShowSplash(false)} />}
@@ -1836,9 +1850,9 @@ function AppContent() {
             ].map((item) => {
               const isActive =
                 item.id === "docs" ? (currentPath === "/docs" || showDocs) :
-                item.id === "products" ? currentPath === "/products" :
-                item.id === "pricing" ? currentPath === "/pricing" :
-                (currentPath === "/home" || currentPath === "/" || currentPath === "");
+                  item.id === "products" ? currentPath === "/products" :
+                    item.id === "pricing" ? currentPath === "/pricing" :
+                      (currentPath === "/home" || currentPath === "/" || currentPath === "");
               return (
                 <a
                   key={item.id}
@@ -1855,9 +1869,8 @@ function AppContent() {
                       navigateTo("/");
                     }
                   }}
-                  className={`nav-link-animated transition-colors hover:text-foreground ${
-                    isActive ? "text-[#ff6b35] font-bold" : ""
-                  }`}
+                  className={`nav-link-animated transition-colors hover:text-foreground ${isActive ? "text-[#ff6b35] font-bold" : ""
+                    }`}
                 >
                   {item.label}
                 </a>
@@ -1884,6 +1897,7 @@ function AppContent() {
               onClick={async () => {
                 const session = await SupabaseDashboardService.getCurrentSession();
                 if (session) {
+                  setShowDashboard(true);
                   navigateTo("/console");
                 } else {
                   handleOpenAuth("self-serve");
@@ -3243,12 +3257,20 @@ function AppContent() {
 
         return (
           <UserDashboard
-            onClose={() => setShowDashboard(false)}
+            onClose={() => {
+              localStorage.removeItem('zega_mock_session');
+              setShowDashboard(false);
+              setCurrentPath('/');
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', '/');
+              }
+            }}
             dark={dark}
             setDark={setDark}
             userRole={role}
-            userEmail={session?.email || 'user@zega.ai'}
-            userName={session?.fullName || 'Alex Morgan'}
+            userEmail={session?.email || 'guest@zegaai.site'}
+            userName={session?.fullName || 'Guest Explorer (Demo Mode)'}
+            isGuest={session?.isGuest ?? true}
           />
         );
       })()}
@@ -3338,12 +3360,12 @@ function AppContent() {
           </span>
         </div>
       </footer>
-    {!showSplash && (
-      <CookieConsent
-        onNavigatePrivacy={() => navigateTo('/privacy')}
-        onNavigateTerms={() => navigateTo('/terms')}
-      />
-    )}
+      {!showSplash && (
+        <CookieConsent
+          onNavigatePrivacy={() => navigateTo('/privacy')}
+          onNavigateTerms={() => navigateTo('/terms')}
+        />
+      )}
     </div>
   );
 }

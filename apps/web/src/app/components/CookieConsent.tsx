@@ -199,8 +199,8 @@ export function CookieConsent({ onNavigatePrivacy, onNavigateTerms }: { onNaviga
 
       <style>{`
         @keyframes cookieSlideUp {
-          0%   { transform: translateY(32px) scale(0.96); opacity: 0; filter: blur(4px); }
-          100% { transform: translateY(0) scale(1);       opacity: 1; filter: blur(0px); }
+          from { transform: translateY(100%); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>
     </div>,

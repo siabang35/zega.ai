@@ -4,73 +4,65 @@
 ![Production Domain](https://img.shields.io/badge/Production-zegaai.site-059669?style=for-the-badge&logo=vercel)
 ![Cloudflare CDN](https://img.shields.io/badge/CDN-cdn.zegaai.site-F38020?style=for-the-badge&logo=cloudflare)
 ![Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)
+![Fastify](https://img.shields.io/badge/API-Fastify-000000?style=for-the-badge&logo=fastify)
 ![pnpm](https://img.shields.io/badge/pnpm-9.x-orange?style=for-the-badge&logo=pnpm)
 ![Turborepo](https://img.shields.io/badge/Turborepo-2.x-red?style=for-the-badge&logo=turborepo)
 ![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react)
-![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript)
 
-**ZEGA AI** ([zegaai.site](https://zegaai.site)) is an enterprise-grade monorepo designed for autonomous agent orchestration, high-performance workflow automation, real-time analytics, and seamless backend API services powered by Supabase, Fastify, Cloudflare R2 CDN, Cloudflare Turnstile, and Brevo SMTP Relay.
+**ZEGA AI** ([zegaai.site](https://zegaai.site)) is an enterprise-grade monorepo designed for autonomous agent orchestration, high-performance workflow automation, real-time telemetry analytics, and backend microservices powered by **Fastify**, **Supabase PostgreSQL**, **Cloudflare R2 CDN**, **Cloudflare Turnstile**, and **Brevo SMTP Relay**.
 
 ---
 
 ## 🏗️ Monorepo Architecture Overview
 
-The repository is structured as a high-performance **pnpm + Turborepo monorepo** for enterprise scalability and modularity:
+The repository is organized as a high-performance **pnpm + Turborepo monorepo** built for enterprise scale, code reusability, and modular separation of concerns:
 
 ```
 ZEGA/
 ├── apps/
-│   ├── web/               # Frontend Application (React 18 + Vite + Tailwind CSS)
-│   └── api/               # Backend API Microservice (Fastify + Node.js)
+│   ├── web/               # Frontend Web Console (React 18 + Vite + Tailwind CSS)
+│   └── api/               # Backend Microservices Engine (Fastify + TypeScript)
 ├── packages/
-│   ├── config/            # Shared TypeScript & Tooling Configurations
-│   ├── shared/            # Shared Types, Constants & Utility Functions
-│   └── supabase/          # Supabase Client Factory & Database Types
-├── supabase/              # Master SQL Migrations (20260729000001), Schema & RLS Policies
-├── docs/                  # Enterprise Product & Architectural Specifications (PRD)
-│   └── PRD/
-│       ├── 12-IMPLEMENTED-FEATURES-STATUS.md
-│       └── 13-ENTERPRISE-SECURITY-CDN-SUPABASE-HARDENING.md
-├── vercel.json            # Vercel Monorepo Deployment Configuration
-├── turbo.json             # Turborepo Task Pipeline Configuration
-├── pnpm-workspace.yaml    # Workspace Packages Mapping
-├── .gitignore             # OWASP-Compliant Root Zero-Secret Exposure Policy
-└── README.md
+│   ├── config/            # Shared ESLint, TypeScript & Tooling Configurations
+│   ├── shared/            # Shared Types, DTO Interfaces & Utility Libraries
+│   └── supabase/          # Supabase Client Factory & Master Database Types
+├── supabase/              # SQL Migrations (20260729000001), RLS Policies & Triggers
+├── docs/                  # Enterprise Product & Architecture Specs (PRD 01-16)
+│   └── PRD/               # Comprehensive System Architecture Documents
+├── vercel.json            # Vercel Deployment & Route Rewrites Configuration
+├── turbo.json             # Turborepo Build & Task Cache Pipeline
+├── pnpm-workspace.yaml    # Workspace Monorepo Package Topology
+└── README.md              # Project Master Documentation
 ```
 
 ---
 
-## ✨ Implemented Platform & Security Features
+## ✨ Key Implemented Architecture Features
 
-### 1. 🛡️ OWASP ASVS 4.0 Supabase Database Schema (`20260729000001`)
-- **Comprehensive 12-Table Schema**: `profiles`, `organizations`, `organization_members`, `user_api_keys`, `agents`, `workflows`, `sandboxes`, `sandbox_executions`, `integrations`, `agent_memory_store`, `security_audit_logs`, `rate_limit_logs`.
-- **100% Idempotent Execution**: Guarded with `DROP TRIGGER IF EXISTS` and `DROP POLICY IF EXISTS` for repeatable migration execution.
-- **OWASP Anti-Throttling**: Stored procedure `check_rate_limit()` tracks request rate limits per IP & User UUID.
-- **OWASP Anti-Chunking Guard**: Check constraint `chk_input_payload_size` caps execution JSON payloads at 10MB (`octet_length <= 10485760`).
-- **Row-Level Security (RLS)**: Enforced default-deny isolation policies across all core tables.
+### 1. 🔐 Multi-Tenant Authentication & Session Management
+- **Dual-Segment Onboarding (`AuthModal`)**: Dedicated workflows for Individual/UMKM developers and Enterprise organization accounts.
+- **Transactional Brevo OTP Email Gateway**: 6-digit cryptographic verification passcodes via Brevo API v3 (`SMTP_BREVO`), backed by SHA-256 OTP hashing and 5-minute expiration window.
+- **Cloudflare Turnstile Bot Defense**: Protection against automated scraping and bot requests on `/v1/auth/request-otp`.
+- **Strict Session Clearance & Route Guarding**: Sign Out clears session keys (`zega_mock_session`), cookies, and cache with safe fall-through redirects to `/`. Accessing `/console` when logged out prompts users via `AuthModal`.
+- **Guest Demo Mode**: 1-Click interactive Guest Demo mode for potential clients (`Guest Explorer` and `Acme Enterprise Guest`) with non-intrusive notification banner.
 
-### 2. ⚡ Cloudflare R2 CDN Asset Delivery (`https://cdn.zegaai.site`)
-- All static media and brand logos (`zegalogo.png`) are served globally from Cloudflare R2 CDN (`https://cdn.zegaai.site`).
-- Automated upload script (`apps/api/src/scripts/uploadAssetsToR2.ts`) provisions R2 S3 buckets with HTTP cache headers (`max-age=31536000, immutable`).
+### 2. 🎛️ Role-Based Workspaces & Dynamic Dashboards
+- **SuperAdmin Console (`SuperAdminDashboard.tsx`)**: Global tenant management, security policy enforcement, real-time audit trail logs, and instant role switching.
+- **Enterprise & User Workspace (`UserDashboard.tsx`)**:
+  - **AI Sandbox Console (`AiSandboxConsole.tsx`)**: Interactive playground for **ZEGA-Omni 4.5**, **Claude 3.5 Sonnet**, and **GPT-4o**.
+  - **Collapsible Accordion Navigation**: Enterprise sidebar organized into smooth, collapsible categories (`Orchestration & Agents`, `Intelligence & MCP`, `Autonomous Payments & Wallets`, `Governance & Security`, `Infrastructure & Control`) with automatic active tab expansion.
+  - **Mobile Responsive Drawer**: Hamburger menu toggle (`Menu` icon) opening a slide-out backdrop-blurred sidebar drawer for mobile devices.
 
-### 3. 🔐 Cloudflare Turnstile Bot Defense, Brevo OTP & Auth Guards
-- **Console Authentication Guards**: Console access requires active user session authentication while providing 1-Click Guest Demo mode for potential clients.
-- **Interactive Cloudflare Turnstile**: Embedded widget in `AuthModal` validates CAPTCHA tokens via `/v1/auth/request-otp`.
-- **Brevo Email OTP**: Primary HTTP API v3 delivery with Nodemailer Brevo SMTP Relay using verified sender (`siabang35@gmail.com`).
-- **Session Cookies & Cache**: Cookie tracking (`zega_session`) with 7-day TTL and local telemetry caching (`auth_cache`).
+### 3. 🎨 Corporate Design System & Visual Polish
+- **Flat 1px Border Standard**: Enforced `border-slate-200` in Light Mode and `border-slate-800` in Dark Mode across all components.
+- **Official ZEGA AI Logo Display**: High-resolution `zegalogo.png` header branding with dark mode filter inversion.
+- **Theme-Safe Emerald WhatsApp CS Bot**: High-contrast, theme-safe Emerald status badges (`text-emerald-700 dark:text-emerald-300`, `bg-emerald-50 dark:bg-emerald-950/60`, `border-emerald-200 dark:border-emerald-800`).
 
-### 4. 🗄️ Master Supabase Migrations (`20260729000000` — `20260729000003`)
-- `public.users` master table synced automatically with `auth.users` & `public.profiles` via trigger `handle_user_sync()`.
-- `public.user_sessions` and `public.auth_cache` stored procedures for secure session revocation and fast telemetry caching.
-
-### 5. 🔒 Production-Grade Repository `.gitignore`
-- Strict zero secret exposure policy across root `.gitignore`, `apps/api/.gitignore`, and `apps/web/.gitignore`.
-- Blocks all `.env`, `.env.*`, keys, certs, and node_modules while preserving `.env.example` templates.
-
-### 5. 🚀 Enterprise Documentation & Visual Console
-- Interactive documentation hub accessible at `/docs` with global `⌘K` search dialog.
-- Gaming-professional responsive UI for User, Enterprise, and SuperAdmin Workspaces.
+### 4. 🛡️ OWASP ASVS 4.0 Supabase Schema (`20260729000001`)
+- **12 Core Tables**: `profiles`, `organizations`, `organization_members`, `user_api_keys`, `agents`, `workflows`, `sandboxes`, `sandbox_executions`, `integrations`, `agent_memory_store`, `security_audit_logs`, `rate_limit_logs`.
+- **Anti-Chunking Guard**: Input payload size cap (`octet_length <= 10485760` / 10MB).
+- **Row-Level Security (RLS)**: Enforced isolation policies preventing cross-tenant data leaks.
 
 ---
 
@@ -90,47 +82,39 @@ cd ZEGA
 # 2. Install workspace dependencies
 pnpm install
 
-# 3. Copy environment variables template
+# 3. Copy environment configuration
 cp .env.example .env
 
-# 4. Start all applications concurrently
+# 4. Start frontend and backend concurrently
 pnpm dev
 ```
 
-The web application will be live at `http://localhost:5173` and API server at `http://localhost:3001`.
+The web application runs locally at `http://localhost:5173` and the Fastify API server at `http://localhost:3001`.
 
 ### Workspace Commands
 
 | Command | Description |
 | :--- | :--- |
-| `pnpm dev` | Run all applications (`apps/web` and `apps/api`) in development mode |
-| `pnpm dev:web` | Run only the web frontend application |
-| `pnpm dev:api` | Run only the Fastify backend service |
-| `pnpm build` | Build all workspaces using Turborepo |
-| `pnpm type-check` | Perform type-checking across all monorepo packages |
-| `pnpm lint` | Run ESLint across all apps and packages |
-
----
-
-## 🌐 Production Deployment
-
-This monorepo is pre-configured for deployment on **Vercel** targeting primary production domain `zegaai.site` and CDN `cdn.zegaai.site`.
-
-### Supabase Migration Steps
-1. Open **Supabase Dashboard** → **SQL Editor**.
-2. Run `supabase/schema.sql` or run `npx supabase db push`.
+| `pnpm dev` | Start `apps/web` and `apps/api` concurrently in development mode |
+| `pnpm dev:web` | Run only the React web frontend application |
+| `pnpm dev:api` | Run only the Fastify API backend service |
+| `pnpm build` | Build all workspaces using Turborepo pipeline |
+| `pnpm type-check` | Execute TypeScript verification across all packages |
+| `pnpm lint` | Run ESLint across apps and shared packages |
 
 ---
 
 ## 📄 Comprehensive Documentation
 
-Detailed enterprise specs are available in `/docs`:
-- [Implemented Features & Status](docs/PRD/12-IMPLEMENTED-FEATURES-STATUS.md)
-- [Enterprise Security, CDN & Hardening](docs/PRD/13-ENTERPRISE-SECURITY-CDN-SUPABASE-HARDENING.md)
-- [Monorepo Architecture Guide](docs/MONOREPO_ARCHITECTURE.md)
+Product Requirement Documents (PRD) are organized in `/docs/PRD`:
+- [01. Executive Summary](docs/PRD/01-EXECUTIVE-SUMMARY.md)
+- [02. System Architecture](docs/PRD/02-SYSTEM-ARCHITECTURE.md)
+- [12. Implemented Features & Status](docs/PRD/12-IMPLEMENTED-FEATURES-STATUS.md)
+- [13. Enterprise Security & CDN Hardening](docs/PRD/13-ENTERPRISE-SECURITY-CDN-SUPABASE-HARDENING.md)
+- [16. Authentication, Sessions & UI/UX Specs](docs/PRD/16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md)
 
 ---
 
 ## 📄 License
 
-Copyright © 2026 ZEGA AI (`zegaai.site`). All rights reserved.
+Copyright © 2026 **ZEGA AI** ([zegaai.site](https://zegaai.site)). All rights reserved.
