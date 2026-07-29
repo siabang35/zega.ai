@@ -30,6 +30,7 @@ export const TRANSLATIONS = {
       title: 'Autonomous AI Workforce for Modern Enterprises',
       subtitle: 'Deploy autonomous agent swarms that reason, execute, and collaborate with your enterprise systems natively.',
       enterEmail: 'Enter Your Work Email...',
+      invalidEmail: 'Invalid email format. Please enter a valid work email (e.g. name@company.com).',
       tryFree: 'Try Free',
       exploreDocs: 'Explore Architecture',
       pills: [
@@ -182,6 +183,7 @@ export const TRANSLATIONS = {
       title: 'Tenaga Kerja AI Otonom untuk Enterprise Modern',
       subtitle: 'Terapkan kawanan agen otonom yang mampu bernalar, mengeksekusi, dan berkolaborasi secara langsung dengan sistem perusahaan Anda.',
       enterEmail: 'Masukkan Email Kerja Anda...',
+      invalidEmail: 'Format email tidak valid. Harap gunakan email kerja yang benar (contoh: nama@perusahaan.com).',
       tryFree: 'Coba Gratis',
       exploreDocs: 'Jelajahi Arsitektur',
       pills: [
@@ -334,6 +336,7 @@ export const TRANSLATIONS = {
       title: '面向现代企业的下一代 AI 劳动力',
       subtitle: '部署能够自主推理、执行并与企业系统原生协作的自主 AI 代理集群。',
       enterEmail: '输入您的工作邮箱...',
+      invalidEmail: '电子邮件格式不正确。请输入有效的工作邮箱（例：name@company.com）。',
       tryFree: '免费体验',
       exploreDocs: '探索架构',
       pills: [

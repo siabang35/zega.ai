@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import {
   Activity,
+  AlertCircle,
   ArrowRight,
   ArrowUpRight,
   BarChart3,
@@ -1359,22 +1360,22 @@ function AppContent() {
     let desc = "ZEGA AI is the industrial-grade autonomous agent and workflow orchestration platform.";
 
     if (currentPath === "/docs") {
-      title = "Documentation & API Spec — ZEGA AI";
+      title = "Documentation & API Spec | ZEGA AI";
       desc = "Official ZEGA AI Documentation, SDK setup (npm, pnpm, yarn, bun, curl), and 9Router API spec.";
     } else if (currentPath === "/terms") {
-      title = "Terms of Service — ZEGA AI";
+      title = "Terms of Service | ZEGA AI";
       desc = "ZEGA AI Enterprise Terms of Service, compliance, SLAs, and usage policies.";
     } else if (currentPath === "/privacy") {
-      title = "Privacy Policy — ZEGA AI";
+      title = "Privacy Policy | ZEGA AI";
       desc = "ZEGA AI Privacy Policy, GDPR compliance, data security, and retention commitments.";
     } else if (currentPath === "/console" || currentPath === "/dashboard") {
-      title = "Enterprise Console — ZEGA AI";
+      title = "Enterprise Console | ZEGA AI";
       desc = "Manage your autonomous agents, mission control, API keys, and workflow automation.";
     } else if (currentPath === "/products") {
-      title = "Products & AI Engines — ZEGA AI";
+      title = "Products & AI Engines | ZEGA AI";
       desc = "Explore ZEGA multi-agent orchestrator engines, 9Router LLM gateway, and 5-layer safety guardrails.";
     } else if (currentPath === "/pricing") {
-      title = "Enterprise Pricing & Tiers — ZEGA AI";
+      title = "Enterprise Pricing & Tiers | ZEGA AI";
       desc = "Transparent pricing models for developer, business, and enterprise autonomous agent deployments.";
     }
 
@@ -1668,14 +1669,16 @@ function AppContent() {
   }, [updateCoordinates]);
 
   const handleNewsletterSubscribe = async (subEmail?: string) => {
-    const targetEmail = subEmail || email;
-    if (!targetEmail || targetEmail.trim() === "") {
-      setToastMessage("Please enter your work email to subscribe.");
+    const targetEmail = (subEmail || email).trim();
+    if (!targetEmail) {
+      setToastMessage("Please enter your work email address.");
       setTimeout(() => setToastMessage(null), 3500);
       return;
     }
-    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail);
-    if (!isEmailValid) {
+
+    // Standard RFC 5322 Email Validation
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!EMAIL_REGEX.test(targetEmail)) {
       setToastMessage("Please enter a valid email address.");
       setTimeout(() => setToastMessage(null), 3500);
       return;
@@ -2025,10 +2028,7 @@ function AppContent() {
             <input
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setEmailTouched(true);
-              }}
+              onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleNewsletterSubscribe(email);
               }}
