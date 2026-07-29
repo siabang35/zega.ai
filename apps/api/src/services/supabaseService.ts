@@ -9,6 +9,18 @@ const logger = pino({ name: 'SupabaseService' });
  * Handles user profile synchronization, OWASP audit logging, multi-tenant RLS enforcement,
  * agent deployment, workflow state, and anti-throttling / rate-limiting stored procedures.
  */
+// Ensure WebSocket polyfill exists for Node.js < 22 environments to prevent @supabase/realtime-js initialization failure
+if (typeof (globalThis as any).WebSocket === 'undefined') {
+  class NodeWebSocketFallback {
+    constructor() {}
+    close() {}
+    send() {}
+    addEventListener() {}
+    removeEventListener() {}
+  }
+  (globalThis as any).WebSocket = NodeWebSocketFallback;
+}
+
 class SupabaseBackendService {
   private client: SupabaseClient | null = null;
 
