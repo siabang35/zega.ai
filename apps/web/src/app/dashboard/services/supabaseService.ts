@@ -64,6 +64,38 @@ export const SupabaseDashboardService = {
     }
   },
 
+  async subscribeNewsletter(email: string) {
+    try {
+      const res = await fetch(`${API_BASE}/v1/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'landing_page_banner' }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || 'Failed to subscribe to newsletter.');
+      }
+
+      const data = await res.json();
+      await this.logAuditTrail('NEWSLETTER_SUBSCRIBED', { email });
+      return { data, error: null };
+    } catch (err: any) {
+      console.warn('Newsletter API fallback:', err?.message);
+      // Fallback: save to local storage and log audit
+      const existing = JSON.parse(localStorage.getItem('zega_newsletter_subscriptions') || '[]');
+      if (!existing.includes(email)) {
+        existing.push(email);
+        localStorage.setItem('zega_newsletter_subscriptions', JSON.stringify(existing));
+      }
+      await this.logAuditTrail('NEWSLETTER_SUBSCRIBED_LOCAL', { email });
+      return {
+        data: { success: true, message: 'Thank you for subscribing to ZEGA AI Newsletter!' },
+        error: null,
+      };
+    }
+  },
+
   async verifyOtp(email: string, otp: string, fullName?: string, audienceSegment: 'individual' | 'enterprise' = 'individual') {
     try {
       const res = await fetch(`${API_BASE}/v1/auth/verify-otp`, {

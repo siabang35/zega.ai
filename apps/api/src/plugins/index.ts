@@ -95,45 +95,58 @@ export async function registerPlugins(app: FastifyInstance) {
   // ── 6. WebSocket (A2A Agent Communication) ──
   await app.register(fastifyWebsocket);
 
-  // ── 7. Swagger & OpenAPI Documentation ──
-  await app.register(fastifySwagger, {
-    openapi: {
-      info: {
-        title: 'ZEGA AI — Enterprise Orchestration API',
-        description: 'OpenAPI 3.0 Documentation for ZEGA AI Autonomous Agent & Workflow Platform.',
-        version: '3.2.0',
-      },
-      servers: [
-        {
-          url: envConfig.API_BASE_URL,
-          description: envConfig.NODE_ENV === 'production' ? 'Production Server' : 'Development Server',
+  // ── 7. Swagger & OpenAPI Documentation (Disabled in Production) ──
+  if (envConfig.NODE_ENV !== 'production') {
+    await app.register(fastifySwagger, {
+      openapi: {
+        info: {
+          title: 'ZEGA AI — Enterprise Orchestration API',
+          description: 'OpenAPI 3.0 Documentation for ZEGA AI Autonomous Agent & Workflow Platform.',
+          version: '3.2.0',
         },
-      ],
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
+        servers: [
+          {
+            url: envConfig.API_BASE_URL,
+            description: 'Development Server',
+          },
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+            },
           },
         },
+        tags: [
+          { name: 'Auth', description: 'Authentication & Session Operations' },
+          { name: 'Agents', description: 'AI Agent Swarm & Orchestration' },
+          { name: 'Workflows', description: 'Workflow Automation Canvas' },
+          { name: 'Telemetry', description: 'System Analytics & Guardrails' },
+        ],
       },
-      tags: [
-        { name: 'Auth', description: 'Authentication & Session Operations' },
-        { name: 'Agents', description: 'AI Agent Swarm & Orchestration' },
-        { name: 'Workflows', description: 'Workflow Automation Canvas' },
-        { name: 'Telemetry', description: 'System Analytics & Guardrails' },
-      ],
-    },
-  });
+    });
 
-  await app.register(fastifySwaggerUi, {
-    routePrefix: '/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: true,
-    },
-  });
+    await app.register(fastifySwaggerUi, {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: true,
+      },
+    });
+  } else {
+    app.get('/docs', async (_req, reply) => {
+      return reply.status(403).send({
+        success: false,
+        error: {
+          code: 'SWAGGER_DISABLED_IN_PRODUCTION',
+          message: 'API Documentation (Swagger UI) is disabled in production environment for security compliance.',
+          statusCode: 403,
+        },
+      });
+    });
+  }
 
   // ── 7. Global Error Handler ──
   app.setErrorHandler((err, _request, reply) => {

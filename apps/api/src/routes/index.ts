@@ -29,10 +29,25 @@ export async function registerRoutes(app: FastifyInstance) {
     uptime: process.uptime(),
   }));
 
-  // ── Swagger UI Aliases ──
-  app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
-  app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));
-  app.get('/documentation', async (_req, reply) => reply.redirect('/docs'));
+  // ── Swagger UI Aliases (Disabled in Production) ──
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
+    app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));
+    app.get('/documentation', async (_req, reply) => reply.redirect('/docs'));
+  } else {
+    const handleBlockedSwagger = async (_req: any, reply: any) =>
+      reply.status(403).send({
+        success: false,
+        error: {
+          code: 'SWAGGER_DISABLED_IN_PRODUCTION',
+          message: 'API Documentation (Swagger UI) is disabled in production environment for security compliance.',
+          statusCode: 403,
+        },
+      });
+    app.get('/api/docs', handleBlockedSwagger);
+    app.get('/v1/docs', handleBlockedSwagger);
+    app.get('/documentation', handleBlockedSwagger);
+  }
 
   // ── API v1 routes ──
   app.register(
@@ -43,12 +58,14 @@ export async function registerRoutes(app: FastifyInstance) {
       const { orchestrationRoutes } = await import('./v1/orchestration.routes.js');
       const { paymentRoutes } = await import('./v1/payment.routes.js');
       const { storageRoutes } = await import('./v1/storage.routes.js');
+      const { newsletterRoutes } = await import('./v1/newsletter.routes.js');
 
       v1.register(authRoutes, { prefix: '/auth' });
       v1.register(agentRoutes, { prefix: '/agents' });
       v1.register(orchestrationRoutes, { prefix: '/orchestration' });
       v1.register(paymentRoutes, { prefix: '/payments' });
       v1.register(storageRoutes, { prefix: '/storage' });
+      v1.register(newsletterRoutes, { prefix: '/newsletter' });
     },
     { prefix: '/v1' },
   );

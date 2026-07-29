@@ -21,7 +21,7 @@ services:
       - key: LOG_LEVEL
         value: info
       - key: API_BASE_URL
-        value: https://zega-api.onrender.com
+        value: https://zega-ai.onrender.com
       - key: CORS_ORIGIN
         value: https://zegaai.site,https://*.vercel.app,http://localhost:5173
       - key: SUPABASE_URL

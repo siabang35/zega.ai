@@ -1638,16 +1638,35 @@ export default function App() {
     };
   }, [updateCoordinates]);
 
+  const handleNewsletterSubscribe = async (subEmail?: string) => {
+    const targetEmail = subEmail || email;
+    if (!targetEmail || targetEmail.trim() === "") {
+      setToastMessage("Please enter your work email to subscribe.");
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail);
+    if (!isEmailValid) {
+      setToastMessage("Please enter a valid email address.");
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+
+    const res = await SupabaseDashboardService.subscribeNewsletter(targetEmail);
+    if (res.error) {
+      setToastMessage((res.error as any)?.message || "Failed to subscribe to newsletter.");
+    } else {
+      setToastMessage(`Subscribed! ${targetEmail} is registered for ZEGA AI updates.`);
+      setEmail("");
+      setEmailTouched(false);
+    }
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   const triggerComingSoon = (msg = "Coming Soon — ZEGA AI Enterprise Sign Up will open shortly.") => {
     if (email && email.trim() !== "") {
-      const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-      if (!isEmailValid) {
-        msg = "Please enter a valid email address.";
-      } else {
-        msg = `White-listed! ${email} is registered for ZEGA AI early access.`;
-        setEmail("");
-        setEmailTouched(false);
-      }
+      handleNewsletterSubscribe(email);
+      return;
     }
     setToastMessage(msg);
     setTimeout(() => {
@@ -1991,17 +2010,17 @@ export default function App() {
                 setEmailTouched(true);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleOpenAuth("self-serve", email);
+                if (e.key === "Enter") handleNewsletterSubscribe(email);
               }}
-              placeholder={t.hero.enterEmail}
+              placeholder="Enter your work email..."
               className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12px] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
             />
             <button
-              onClick={() => handleOpenAuth("self-serve", email)}
+              onClick={() => handleNewsletterSubscribe(email)}
               className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-6 py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/35 hover:scale-[1.03] active:scale-95 cursor-pointer"
             >
               <span className="relative z-10 flex items-center gap-1">
-                {t.hero.tryFree} <ArrowRight size={13} />
+                Subscribe <ArrowRight size={13} />
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
