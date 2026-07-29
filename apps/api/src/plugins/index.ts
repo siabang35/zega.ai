@@ -95,8 +95,16 @@ export async function registerPlugins(app: FastifyInstance) {
   // ── 6. WebSocket (A2A Agent Communication) ──
   await app.register(fastifyWebsocket);
 
-  // ── 7. Swagger & OpenAPI Documentation (Disabled in Production) ──
-  if (envConfig.NODE_ENV !== 'production') {
+  // ── 7. Swagger & OpenAPI Documentation (Disabled in Production & Render) ──
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    envConfig.NODE_ENV === 'production' ||
+    process.env.RENDER === 'true' ||
+    !!process.env.RENDER_SERVICE_ID ||
+    !!process.env.RENDER_INSTANCE_ID ||
+    process.env.ENABLE_SWAGGER === 'false';
+
+  if (!isProduction) {
     await app.register(fastifySwagger, {
       openapi: {
         info: {
@@ -136,7 +144,7 @@ export async function registerPlugins(app: FastifyInstance) {
       },
     });
   } else {
-    app.get('/docs', async (_req, reply) => {
+    const handleBlockedSwagger = async (_req: any, reply: any) => {
       return reply.status(403).send({
         success: false,
         error: {
@@ -145,7 +153,12 @@ export async function registerPlugins(app: FastifyInstance) {
           statusCode: 403,
         },
       });
-    });
+    };
+
+    app.all('/docs', handleBlockedSwagger);
+    app.all('/docs/*', handleBlockedSwagger);
+    app.all('/documentation', handleBlockedSwagger);
+    app.all('/documentation/*', handleBlockedSwagger);
   }
 
   // ── 7. Global Error Handler ──

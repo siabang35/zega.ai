@@ -29,8 +29,15 @@ export async function registerRoutes(app: FastifyInstance) {
     uptime: process.uptime(),
   }));
 
-  // ── Swagger UI Aliases (Disabled in Production) ──
-  if (process.env.NODE_ENV !== 'production') {
+  // ── Swagger UI Aliases (Disabled in Production & Render) ──
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    process.env.RENDER === 'true' ||
+    !!process.env.RENDER_SERVICE_ID ||
+    !!process.env.RENDER_INSTANCE_ID ||
+    process.env.ENABLE_SWAGGER === 'false';
+
+  if (!isProduction) {
     app.get('/api/docs', async (_req, reply) => reply.redirect('/docs'));
     app.get('/v1/docs', async (_req, reply) => reply.redirect('/docs'));
     app.get('/documentation', async (_req, reply) => reply.redirect('/docs'));
@@ -44,9 +51,12 @@ export async function registerRoutes(app: FastifyInstance) {
           statusCode: 403,
         },
       });
-    app.get('/api/docs', handleBlockedSwagger);
-    app.get('/v1/docs', handleBlockedSwagger);
-    app.get('/documentation', handleBlockedSwagger);
+    app.all('/api/docs', handleBlockedSwagger);
+    app.all('/api/docs/*', handleBlockedSwagger);
+    app.all('/v1/docs', handleBlockedSwagger);
+    app.all('/v1/docs/*', handleBlockedSwagger);
+    app.all('/documentation', handleBlockedSwagger);
+    app.all('/documentation/*', handleBlockedSwagger);
   }
 
   // ── API v1 routes ──
