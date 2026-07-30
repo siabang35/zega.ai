@@ -144,17 +144,25 @@ export class BrevoService {
       }
 
       const errorText = await response.text();
+      if (response.status === 401) {
+        logger.error(`[BrevoService] Brevo API Key invalid (401 Unauthorized - Key not found). Please update BREVO_API_KEY / SMTP_KEY in Render Dashboard. [OTP for ${email}: ${otp}]`);
+        return { success: false, messageId: 'unauthorized-api-key', devMode: true };
+      }
+
       logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
     } catch (apiErr) {
       logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
     }
 
-    // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server
+    // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server (with 4s connection timeout)
     try {
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
         port: Number(process.env.SMTP_PORT) || 587,
         secure: false,
+        connectionTimeout: 4000,
+        greetingTimeout: 4000,
+        socketTimeout: 5000,
         auth: {
           user: smtpUser,
           pass: apiKey,
@@ -178,9 +186,9 @@ export class BrevoService {
           `Solution: Go to Brevo Dashboard -> SMTP & API -> Authorized IP Addresses to disable IP restriction or generate a v3 API Key (xkeysib-...).`
         );
       } else {
-        logger.error({ err: smtpErr }, `[BrevoService] Failed to send email via Brevo SMTP Relay.`);
+        logger.error({ err: smtpErr }, `[BrevoService] Failed to send email via Brevo SMTP Relay (Timeout/Error).`);
       }
-      return { success: true, messageId: 'fallback-err-' + Date.now(), devMode: true };
+      return { success: false, messageId: 'smtp-timeout-' + Date.now(), devMode: true };
     }
   }
 }

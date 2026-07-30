@@ -151,6 +151,16 @@ export async function authRoutes(app: FastifyInstance) {
         payloadSummary: `Email: ${body.email}, Segment: ${body.audienceSegment}`,
       });
 
+      if (!emailResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            message: 'Email service error: Brevo API key is unauthorized or invalid on server. Please update BREVO_API_KEY in Render environment settings.',
+            code: 'EMAIL_SERVICE_UNAUTHORIZED',
+          },
+        });
+      }
+
       return {
         success: true,
         data: {

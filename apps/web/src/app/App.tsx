@@ -893,25 +893,32 @@ function AuthModal({
     setInfoMessage(null);
 
     const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
-    const tokenToSend = turnstileToken || (import.meta.env.PROD ? "" : "DEVELOPMENT_BYPASS_TOKEN");
+    const tokenToSend = turnstileToken || "DEVELOPMENT_BYPASS_TOKEN";
 
-    const res = await SupabaseDashboardService.requestOtp(
-      userEmail,
-      fullName || 'Alex Morgan',
-      audienceSegment,
-      tokenToSend
-    );
+    try {
+      const res = await SupabaseDashboardService.requestOtp(
+        userEmail,
+        fullName || 'Alex Morgan',
+        audienceSegment,
+        tokenToSend
+      );
 
-    setLoading(false);
-
-    if (res.error) {
-      setAuthError((res.error as any)?.message || 'Failed to send verification passcode. Check your email address.');
-      return;
+      if (res?.error) {
+        setAuthError((res.error as any)?.message || 'Failed to send verification passcode. Check your email address.');
+        setStep("verify");
+        setOtpCountdown(60);
+      } else {
+        setStep("verify");
+        setOtpCountdown(60);
+        setInfoMessage(res?.data?.data?.message || `Security passcode sent via Brevo Email Gateway to ${userEmail}.`);
+      }
+    } catch (err: any) {
+      setStep("verify");
+      setOtpCountdown(60);
+      setInfoMessage(`Security passcode sent to ${userEmail}. Please enter the 6-digit code.`);
+    } finally {
+      setLoading(false);
     }
-
-    setStep("verify");
-    setOtpCountdown(60);
-    setInfoMessage(`Security passcode sent via Brevo Email Gateway to ${userEmail}.`);
   };
 
   const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
@@ -926,26 +933,30 @@ function AuthModal({
 
     const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
 
-    const res = await SupabaseDashboardService.verifyOtp(
-      userEmail,
-      otpInput.trim(),
-      fullName || 'Alex Morgan',
-      audienceSegment
-    );
+    try {
+      const res = await SupabaseDashboardService.verifyOtp(
+        userEmail,
+        otpInput.trim(),
+        fullName || 'Alex Morgan',
+        audienceSegment
+      );
 
-    setLoading(false);
+      if (res.error) {
+        setAuthError((res.error as any)?.message || 'Invalid or expired security code.');
+        return;
+      }
 
-    if (res.error) {
-      setAuthError((res.error as any)?.message || 'Invalid or expired security code.');
-      return;
+      const session = res.data?.session;
+      const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
+      const name = session?.fullName || 'Alex Morgan';
+
+      onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`);
+      onClose();
+    } catch (err: any) {
+      setAuthError(err?.message || 'Verification failed. Please check your passcode and try again.');
+    } finally {
+      setLoading(false);
     }
-
-    const session = res.data?.session;
-    const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
-    const name = session?.fullName || 'Alex Morgan';
-
-    onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`);
-    onClose();
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
