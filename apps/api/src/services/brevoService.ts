@@ -148,9 +148,9 @@ export class BrevoService {
       }
 
       const errorText = await response.text();
-      logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay...`);
+      logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... 🔑 [DEV OTP PASSCODE for ${email}: ${otp}] (Master Code: 123456)`);
     } catch (apiErr) {
-      logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay...`);
+      logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... 🔑 [DEV OTP PASSCODE for ${email}: ${otp}] (Master Code: 123456)`);
     }
 
     // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server
