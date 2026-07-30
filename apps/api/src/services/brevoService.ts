@@ -155,35 +155,42 @@ export class BrevoService {
       logger.info(`[BrevoService] Detected Brevo SMTP Key (xsmtpsib-). Directing to Nodemailer Brevo SMTP Relay with user ${smtpUser}...`);
     }
 
-    // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server (with 4s connection timeout)
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false,
-        connectionTimeout: 4000,
-        greetingTimeout: 4000,
-        socketTimeout: 5000,
-        auth: {
-          user: smtpUser,
-          pass: apiKey,
-        },
-      });
+    // 2. Secondary Route: Nodemailer SMTP Relay via Brevo (tries ports 587, 2525, 465 for cloud hosting compatibility)
+    const portsToTry = [Number(process.env.SMTP_PORT) || 587, 2525, 465];
 
-      const info = await transporter.sendMail({
-        from: `"ZEGA AI Gatekeeper" <${senderEmail}>`,
-        replyTo: senderEmail,
-        to: email,
-        subject: `[ZEGA AI] ${otp} is your Security Passcode`,
-        html: htmlContent,
-      });
+    for (const port of portsToTry) {
+      try {
+        const isSecure = port === 465;
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+          port,
+          secure: isSecure,
+          connectionTimeout: 2500,
+          greetingTimeout: 2500,
+          socketTimeout: 3000,
+          auth: {
+            user: smtpUser,
+            pass: apiKey,
+          },
+        });
 
-      logger.info(`[BrevoService] Successfully sent OTP email via Brevo SMTP Relay to ${email} (From: ${senderEmail}). MessageID: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
-    } catch (smtpErr: any) {
-      logger.warn({ err: smtpErr }, `[BrevoService] Brevo SMTP Relay failed/timed out. Fallback OTP logged for ${email}: ${otp}`);
-      // Fail-safe fallback so authentication never blocks users
-      return { success: true, messageId: 'fallback-logged-' + Date.now(), devMode: true };
+        const info = await transporter.sendMail({
+          from: `"ZEGA AI Gatekeeper" <${senderEmail}>`,
+          replyTo: senderEmail,
+          to: email,
+          subject: `[ZEGA AI] ${otp} is your Security Passcode`,
+          html: htmlContent,
+        });
+
+        logger.info(`[BrevoService] Successfully sent OTP email via Brevo SMTP Relay (Port ${port}) to ${email}. MessageID: ${info.messageId}`);
+        return { success: true, messageId: info.messageId };
+      } catch (smtpErr: any) {
+        logger.warn(`[BrevoService] SMTP Port ${port} failed/timed out: ${smtpErr?.message || smtpErr}`);
+      }
     }
+
+    logger.warn(`[BrevoService] All SMTP ports failed. Fallback OTP logged for ${email}: ${otp}`);
+    // Fail-safe fallback so authentication never blocks users
+    return { success: true, messageId: 'fallback-logged-' + Date.now(), devMode: true };
   }
 }
