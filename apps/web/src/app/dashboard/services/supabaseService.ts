@@ -118,11 +118,12 @@ export const SupabaseDashboardService = {
         user: {
           id: 'user-' + Date.now(),
           email,
-          user_metadata: { full_name: name, role }
+          user_metadata: { full_name: name, role, is_guest: false }
         },
         role,
         fullName: name,
         email,
+        isGuest: false,
         accessToken: resData?.data?.accessToken,
       };
 
@@ -134,7 +135,7 @@ export const SupabaseDashboardService = {
       console.warn('Backend API verify-otp fallback:', err?.message);
       // Dev mode fallback for test OTP passcodes (e.g. 123456)
       if (otp.length === 6) {
-        return this.signIn(email, 'pass123');
+        return this.signIn(email, 'pass123', fullName);
       }
       return { data: null, error: err };
     }
@@ -158,18 +159,23 @@ export const SupabaseDashboardService = {
     }
   },
 
-  async signIn(email: string, pass: string) {
+  async signIn(email: string, pass: string, nameInput?: string) {
     try {
       let role: 'superadmin' | 'enterprise' | 'individual' = 'individual';
-      let fullName = 'Alex Morgan';
-
+      
       if (email.includes('admin@zega.ai') || email.includes('superadmin')) {
         role = 'superadmin';
-        fullName = 'SuperAdmin ZEGA Root';
       } else if (email.includes('enterprise@zega.ai') || email.includes('enterprise')) {
         role = 'enterprise';
-        fullName = 'Enterprise Admin';
       }
+
+      const defaultName = role === 'superadmin' 
+        ? 'SuperAdmin ZEGA Root' 
+        : role === 'enterprise' 
+        ? 'Enterprise Admin' 
+        : (email ? email.split('@')[0] : 'User');
+
+      const fullName = nameInput || defaultName;
 
       const mockSession = {
         user: {
@@ -178,11 +184,13 @@ export const SupabaseDashboardService = {
           user_metadata: {
             full_name: fullName,
             role,
+            is_guest: false,
           }
         },
         role,
         fullName,
         email,
+        isGuest: false,
       };
 
       localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));

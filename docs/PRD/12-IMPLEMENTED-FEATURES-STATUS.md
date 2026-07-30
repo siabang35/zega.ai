@@ -127,13 +127,17 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Component | File Path | Status |
 |---|---|---|
 | Main App Hub & AuthModal | `apps/web/src/app/App.tsx` | Verified & Production Ready |
+| Role Router Delegator | `apps/web/src/app/dashboard/UserDashboard.tsx` | Verified & Production Ready |
+| Enterprise Dashboard Container | `apps/web/src/app/dashboard/enterprise/EnterpriseDashboard.tsx` | Verified & Production Ready |
+| Enterprise Sub-Views | `apps/web/src/app/dashboard/enterprise/views/*.tsx` | Verified & Production Ready (9 Modules) |
+| UMKM Dashboard Container | `apps/web/src/app/dashboard/umkm/UmkmDashboardContainer.tsx` | Verified & Production Ready |
+| SuperAdmin Console Module | `apps/web/src/app/dashboard/superadmin/SuperAdminDashboard.tsx` | Verified & Production Ready |
 | Brevo Email OTP Service | `apps/api/src/services/brevoService.ts` | Verified & Production Ready |
 | Turnstile Bot Defense | `apps/api/src/services/turnstileService.ts` | Verified & Production Ready |
 | In-Memory OTP Store | `apps/api/src/services/otpStore.ts` | Verified & Production Ready |
 | Cloudflare R2 Storage | `apps/api/src/services/r2StorageService.ts` | Verified & Production Ready |
 | Auth Routes & JWT | `apps/api/src/routes/v1/auth.routes.ts` | Verified & Production Ready |
-| User & Enterprise Dashboard | `apps/web/src/app/dashboard/UserDashboard.tsx` | Verified & Production Ready |
-| SuperAdmin Console | `apps/web/src/app/dashboard/SuperAdminDashboard.tsx` | Verified & Production Ready |
-| AI Sandbox Console | `apps/web/src/app/dashboard/components/AiSandboxConsole.tsx` | Verified & Production Ready |
 | Supabase Service & RBAC | `apps/web/src/app/dashboard/services/supabaseService.ts` | Verified & Production Ready |
 | Database Migration SQL | `supabase/migrations/20260729000000_enterprise_schema_and_security.sql` | Executed & Migration Ready |
+| Modular Enterprise PRD Spec | `docs/PRD/18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md` | Documented & Verified |
+

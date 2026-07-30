@@ -786,7 +786,7 @@ function AuthModal({
   onClose: () => void;
   initialMode?: "self-serve" | "enterprise";
   prefillEmail?: string;
-  onSubmitSuccess: (msg: string) => void;
+  onSubmitSuccess: (msg: string, role?: 'superadmin' | 'enterprise' | 'individual') => void;
 }) {
   const [audienceSegment, setAudienceSegment] = useState<"individual" | "enterprise">(
     initialMode === "enterprise" ? "enterprise" : "individual"
@@ -882,7 +882,7 @@ function AuthModal({
     const mockSession = await SupabaseDashboardService.setDemoSession(role);
     await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: mockSession.email });
     setLoading(false);
-    onSubmitSuccess(`Authenticated as ${mockSession.fullName} (${role.toUpperCase()})! Opening Dashboard...`);
+    onSubmitSuccess(`Authenticated as ${mockSession.fullName} (${role.toUpperCase()})! Opening Dashboard...`, role);
     onClose();
   };
 
@@ -950,7 +950,7 @@ function AuthModal({
       const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
       const name = session?.fullName || 'Alex Morgan';
 
-      onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`);
+      onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`, role as any);
       onClose();
     } catch (err: any) {
       setAuthError(err?.message || 'Verification failed. Please check your passcode and try again.');
@@ -961,10 +961,11 @@ function AuthModal({
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setLoading(true);
+    const role = audienceSegment === 'enterprise' ? 'enterprise' : 'individual';
     const demoEmail = provider === 'google' ? 'user@zega.ai' : 'enterprise@zega.ai';
-    const mockSession = await SupabaseDashboardService.setDemoSession('individual');
+    const mockSession = await SupabaseDashboardService.setDemoSession(role);
     setLoading(false);
-    onSubmitSuccess(`Authenticated via ${provider.toUpperCase()} as ${demoEmail}!`);
+    onSubmitSuccess(`Authenticated via ${provider.toUpperCase()} as ${demoEmail}!`, role);
     onClose();
   };
 
@@ -1828,6 +1829,8 @@ function AppContent() {
         ? 'superadmin'
         : currentPath.startsWith('/console')
         ? 'enterprise'
+        : currentPath.startsWith('/dashboard')
+        ? 'individual'
         : (session?.role || 'individual');
 
       if (role === 'superadmin') {
@@ -1969,7 +1972,14 @@ function AppContent() {
                 const session = await SupabaseDashboardService.getCurrentSession();
                 if (session) {
                   setShowDashboard(true);
-                  navigateTo("/console");
+                  const userRole = session.role || 'individual';
+                  if (userRole === 'individual') {
+                    navigateTo("/dashboard");
+                  } else if (userRole === 'superadmin') {
+                    navigateTo("/admin");
+                  } else {
+                    navigateTo("/console");
+                  }
                 } else {
                   handleOpenAuth("self-serve");
                 }
@@ -3352,10 +3362,18 @@ function AppContent() {
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authModalMode}
         prefillEmail={authPrefillEmail}
-        onSubmitSuccess={(msg) => {
+        onSubmitSuccess={(msg, role) => {
           setIsAuthModalOpen(false);
           setToastMessage(msg);
-          navigateTo("/console");
+          setShowDashboard(true);
+          const targetRole = role || (authModalMode === 'enterprise' ? 'enterprise' : 'individual');
+          if (targetRole === 'individual') {
+            navigateTo("/dashboard");
+          } else if (targetRole === 'superadmin') {
+            navigateTo("/admin");
+          } else {
+            navigateTo("/console");
+          }
         }}
       />
 
