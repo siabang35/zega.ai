@@ -44,6 +44,8 @@ async function uploadDirectory(dir: string, baseFolder = 'assets') {
       else if (ext === '.webp') contentType = 'image/webp';
       else if (ext === '.svg') contentType = 'image/svg+xml';
       else if (ext === '.json') contentType = 'application/json';
+      else if (ext === '.mp4') contentType = 'video/mp4';
+      else if (ext === '.webm') contentType = 'video/webm';
 
       logger.info(`[R2BatchUploader] Uploading ${entry.name} -> Key: ${r2Key}`);
       const result = await R2StorageService.uploadFile({

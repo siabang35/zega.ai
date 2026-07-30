@@ -77,13 +77,15 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                     
                     {/* Live Animated Video */}
                     <video 
-                      src="/assets/3D/robotic.mp4" 
                       autoPlay 
                       loop 
                       muted 
                       playsInline
                       className="w-full h-full object-cover rounded-2xl relative z-10 filter drop-shadow-lg cursor-pointer"
-                    />
+                    >
+                      <source src="https://cdn.zegaai.site/assets/3D/robotic.mp4" type="video/mp4" />
+                      <source src="/assets/3D/robotic.mp4" type="video/mp4" />
+                    </video>
 
                     {/* AI Active Status Dot */}
                     <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-slate-900/90 px-2 py-0.5 rounded-full border border-slate-700/80 backdrop-blur-xs">

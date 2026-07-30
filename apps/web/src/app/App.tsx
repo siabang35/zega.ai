@@ -1813,7 +1813,11 @@ function AppContent() {
     }
     const session = mock ? JSON.parse(mock) : null;
     if (session) {
-      const role = currentPath.startsWith('/admin') ? 'superadmin' : (session?.role || 'individual');
+      const role = currentPath.startsWith('/admin')
+        ? 'superadmin'
+        : currentPath.startsWith('/console')
+        ? 'enterprise'
+        : (session?.role || 'individual');
 
       if (role === 'superadmin') {
         return (
@@ -1865,7 +1869,7 @@ function AppContent() {
               fullName: 'ZEGA SuperAdmin',
             };
             localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
-            navigateTo('/console');
+            navigateTo('/admin');
           }}
         />
       );

@@ -290,7 +290,8 @@ export const SupabaseDashboardService = {
       localStorage.removeItem('zega_auth_token');
       this.clearSessionCookie();
 
-      await fetch(`${API_BASE}/v1/auth/signout`, {
+      // Call backend logout/signout endpoint
+      await fetch(`${API_BASE}/v1/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

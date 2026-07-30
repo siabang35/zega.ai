@@ -148,20 +148,21 @@ export function StoreView({ triggerToast }: StoreViewProps) {
               </div>
             ))}
           </div>
-          <button onClick={() => triggerToast('Viewing stock alerts')} className="w-full text-center text-xs font-bold text-slate-400 hover:text-slate-600 pt-1 cursor-pointer">Lihat Semua Alert &gt;</button>
         </div>
 
-        {/* Top Selling Products Table */}
+        {/* Top Selling Products Card */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Top Selling Products</h3>
+            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <span className="size-2 rounded-full bg-emerald-500" /> Top Selling Products
+            </h3>
+            <span className="text-[10px] text-slate-400 font-mono">Bulan Ini</span>
           </div>
           <div className="space-y-2.5 text-xs">
             <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1 border-b border-slate-100 dark:border-slate-800">
-              <span className="col-span-5">Produk</span>
-              <span className="col-span-3 text-center">Terjual</span>
-              <span className="col-span-3 text-right">Revenue</span>
-              <span className="col-span-1 text-right">Trend</span>
+              <span className="col-span-5">Product</span>
+              <span className="col-span-3 text-center">Unit Terjual</span>
+              <span className="col-span-4 text-right">Revenue</span>
             </div>
             {[
               { 
@@ -169,35 +170,35 @@ export function StoreView({ triggerToast }: StoreViewProps) {
                 sold: '32', 
                 rev: 'Rp1.920.000', 
                 trend: '📈',
-                img: '/assets/products/kaoshitam.png'
+                img: 'https://cdn.zegaai.site/assets/products/kaoshitam.png'
               },
               { 
                 name: 'Tumbler Premium', 
                 sold: '28', 
                 rev: 'Rp2.800.000', 
                 trend: '📈',
-                img: '/assets/products/tumbler.png'
+                img: 'https://cdn.zegaai.site/assets/products/tumbler.png'
               },
               { 
                 name: 'Botol Minum 500ml', 
                 sold: '24', 
                 rev: 'Rp1.680.000', 
                 trend: '📈',
-                img: '/assets/products/botolminum.jpeg'
+                img: 'https://cdn.zegaai.site/assets/products/botolminum.jpeg'
               },
               { 
                 name: 'Hoodie Full Zip', 
                 sold: '18', 
                 rev: 'Rp3.600.000', 
                 trend: '📈',
-                img: '/assets/products/hoodie.webp'
+                img: 'https://cdn.zegaai.site/assets/products/hoodie.webp'
               },
               { 
                 name: 'Totebag Canvas', 
                 sold: '15', 
                 rev: 'Rp750.000', 
                 trend: '📈',
-                img: '/assets/products/tottebag.jpeg'
+                img: 'https://cdn.zegaai.site/assets/products/tottebag.jpeg'
               },
             ].map((p, i) => (
               <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">

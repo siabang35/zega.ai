@@ -154,7 +154,9 @@ export async function authRoutes(app: FastifyInstance) {
       return {
         success: true,
         data: {
-          message: `Security passcode dispatched to ${body.email}. Check your inbox.`,
+          message: emailResult.devMode
+            ? `Security passcode dispatched to ${body.email}. (Dev mode / Fallback active: use code 123456)`
+            : `Security passcode dispatched to ${body.email}. Check your inbox.`,
           expiresInSeconds: 300,
           devMode: emailResult.devMode || false,
         },
@@ -338,6 +340,13 @@ export async function authRoutes(app: FastifyInstance) {
 
   /** POST /v1/auth/logout — Clear session */
   app.post('/logout', async (_request, reply) => {
+    reply.clearCookie('__zega_token', { path: '/' });
+    reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
+    return { success: true, data: { message: 'Session terminated' } };
+  });
+
+  /** POST /v1/auth/signout — Alias for /logout */
+  app.post('/signout', async (_request, reply) => {
     reply.clearCookie('__zega_token', { path: '/' });
     reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
     return { success: true, data: { message: 'Session terminated' } };

