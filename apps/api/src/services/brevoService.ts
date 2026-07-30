@@ -120,38 +120,39 @@ export class BrevoService {
       return { success: true, messageId: 'simulated-' + Date.now(), devMode: true };
     }
 
-    // 1. Primary Route: Attempt Brevo HTTP API v3 (Fastest & bypasses SMTP IP locks)
-    try {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': apiKey,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          sender: { name: 'ZEGA AI Gatekeeper', email: senderEmail },
-          to: [{ email, name: fullName }],
-          subject: `[ZEGA AI] ${otp} is your Security Passcode`,
-          htmlContent,
-        }),
-      });
+    const isSmtpKey = apiKey.startsWith('xsmtpsib-');
 
-      if (response.ok) {
-        const resData = (await response.json()) as { messageId?: string };
-        logger.info(`[BrevoService] Successfully sent OTP email via Brevo HTTP API to ${email}. MessageID: ${resData.messageId}`);
-        return { success: true, messageId: resData.messageId };
+    // 1. Primary Route: Attempt Brevo HTTP API v3 if key is an API Key (xkeysib- or non-xsmtp)
+    if (!isSmtpKey) {
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': apiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { name: 'ZEGA AI Gatekeeper', email: senderEmail },
+            to: [{ email, name: fullName }],
+            subject: `[ZEGA AI] ${otp} is your Security Passcode`,
+            htmlContent,
+          }),
+        });
+
+        if (response.ok) {
+          const resData = (await response.json()) as { messageId?: string };
+          logger.info(`[BrevoService] Successfully sent OTP email via Brevo HTTP API to ${email}. MessageID: ${resData.messageId}`);
+          return { success: true, messageId: resData.messageId };
+        }
+
+        const errorText = await response.text();
+        logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
+      } catch (apiErr) {
+        logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
       }
-
-      const errorText = await response.text();
-      if (response.status === 401) {
-        logger.error(`[BrevoService] Brevo API Key invalid (401 Unauthorized - Key not found). Please update BREVO_API_KEY / SMTP_KEY in Render Dashboard. [OTP for ${email}: ${otp}]`);
-        return { success: false, messageId: 'unauthorized-api-key', devMode: true };
-      }
-
-      logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
-    } catch (apiErr) {
-      logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
+    } else {
+      logger.info(`[BrevoService] Detected Brevo SMTP Key (xsmtpsib-). Directing to Nodemailer Brevo SMTP Relay with user ${smtpUser}...`);
     }
 
     // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server (with 4s connection timeout)
