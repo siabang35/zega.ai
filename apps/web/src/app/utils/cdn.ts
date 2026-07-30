@@ -7,23 +7,22 @@
 export const R2_PUBLIC_CDN_DOMAIN = import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://cdn.zegaai.site';
 
 /**
- * Normalizes any asset path or remote URL to the production Cloudflare R2 CDN URL.
+ * Normalizes any asset path or remote URL to local public assets or Cloudflare R2 CDN URL.
  */
 export function getR2CdnUrl(assetPath: string): string {
-  if (!assetPath) return `${R2_PUBLIC_CDN_DOMAIN}/assets/placeholder-avatar.svg`;
+  if (!assetPath) return '/assets/logo/zegalogo.png';
 
-  // If already pointing to Cloudflare R2 CDN domain
-  if (assetPath.includes('cdn.zegaai.site')) {
+  // If already pointing to absolute http/https domain
+  if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
     return assetPath;
   }
 
-  // If it's a relative path (e.g. /assets/hero.png)
+  // If it's a relative path (e.g. /assets/logo/webhook.webp), return relative path to guarantee local static asset loading
   if (assetPath.startsWith('/')) {
-    return `${R2_PUBLIC_CDN_DOMAIN}${assetPath}`;
+    return assetPath;
   }
 
-  // For external avatar placeholders, fallback to CDN avatar proxy or formatted URL
-  return assetPath;
+  return `/assets/${assetPath}`;
 }
 
 /**

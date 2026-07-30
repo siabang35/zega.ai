@@ -352,10 +352,153 @@ export function UmkmDashboardContainer({
         </header>
 
         {/* View Renderer */}
-        <div className="p-3 sm:p-4 md:p-6 flex-1">
+        <div className="p-3 sm:p-4 md:p-6 flex-1 pb-20 md:pb-6">
           <UmkmDashboardView activeTab={activeTab} userName={userName} isGuest={isGuest} />
         </div>
+
+        {/* MOBILE BOTTOM NAVIGATION BAR */}
+        <div className="md:hidden sticky bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-around text-[10px] font-bold text-slate-500">
+          <button
+            onClick={() => setActiveTab('umkm')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'umkm' || activeTab === 'overview' ? 'text-orange-600 dark:text-orange-400 font-extrabold' : ''}`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Home</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('my_agents')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'my_agents' ? 'text-orange-600 dark:text-orange-400 font-extrabold' : ''}`}
+          >
+            <Bot size={18} />
+            <span>Agents</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('wa_bot')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'wa_bot' || activeTab === 'inbox' ? 'text-orange-600 dark:text-orange-400 font-extrabold' : ''}`}
+          >
+            <MessageSquare size={18} />
+            <span>Inbox</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('sales_rekap')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'sales_rekap' || activeTab === 'sales' ? 'text-orange-600 dark:text-orange-400 font-extrabold' : ''}`}
+          >
+            <BarChart3 size={18} />
+            <span>Sales</span>
+          </button>
+
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex flex-col items-center gap-0.5 text-slate-700 dark:text-slate-300"
+          >
+            <Menu size={18} />
+            <span>Menu</span>
+          </button>
+        </div>
       </main>
+
+      {/* MOBILE SIDE DRAWER OVERLAY */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+          />
+
+          <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 z-10 shadow-2xl border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/assets/logo/zegalogo.png"
+                    alt="ZEGA AI Platform"
+                    className="h-6 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
+                  />
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">ZEGA UMKM</span>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                <div className="truncate">
+                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail}</p>
+                </div>
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800">
+                  UMKM
+                </span>
+              </div>
+
+              <nav className="space-y-1">
+                {[
+                  { id: 'umkm', label: 'Home', icon: LayoutDashboard },
+                  { id: 'my_agents', label: 'My AI Employees', icon: Bot },
+                  { id: 'sandbox', label: 'Automation', icon: Workflow },
+                  { id: 'wa_bot', label: 'Inbox', icon: MessageSquare, badge: '8' },
+                  { id: 'sales_rekap', label: 'Sales', icon: BarChart3 },
+                  { id: 'ai_copywriter', label: 'Marketing', icon: Sparkles },
+                  { id: 'invoice_gen', label: 'Finance', icon: FileText },
+                  { id: 'store', label: 'Store', icon: Store },
+                  { id: 'customers', label: 'Customers', icon: Users },
+                  { id: 'reports', label: 'Reports', icon: PieChart },
+                  { id: 'knowledge', label: 'Knowledge', icon: Brain },
+                  { id: 'integrations', label: 'Marketplace', icon: Link2 },
+                  { id: 'billing', label: 'Billing', icon: CreditCard },
+                  { id: 'settings', label: 'Settings', icon: Settings },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id || (activeTab === 'umkm' && item.id === 'umkm');
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
+                        isActive
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon size={16} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                onClick={async () => {
+                  await SupabaseDashboardService.signOut();
+                  onClose();
+                }}
+                className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <LogOut size={15} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,6 +47,12 @@ async function uploadDirectory(dir: string, baseFolder = 'assets') {
       else if (ext === '.mp4') contentType = 'video/mp4';
       else if (ext === '.webm') contentType = 'video/webm';
 
+      const exists = await R2StorageService.checkObjectExists(r2Key);
+      if (exists) {
+        logger.info(`[R2BatchUploader] ⏭️ Skipped (Already on CDN): ${r2Key}`);
+        continue;
+      }
+
       logger.info(`[R2BatchUploader] Uploading ${entry.name} -> Key: ${r2Key}`);
       const result = await R2StorageService.uploadFile({
         key: r2Key,

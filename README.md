@@ -52,10 +52,16 @@ ZEGA/
 - **SuperAdmin Console (`SuperAdminDashboard.tsx`)**: Global tenant management, security policy enforcement, real-time audit trail logs, and instant role switching.
 - **Enterprise & User Workspace (`UserDashboard.tsx`)**:
   - **AI Sandbox Console (`AiSandboxConsole.tsx`)**: Interactive playground for **ZEGA-Omni 4.5**, **Claude 3.5 Sonnet**, and **GPT-4o**.
-  - **Collapsible Accordion Navigation**: Enterprise sidebar organized into smooth, collapsible categories (`Orchestration & Agents`, `Intelligence & MCP`, `Autonomous Payments & Wallets`, `Governance & Security`, `Infrastructure & Control`) with automatic active tab expansion.
-  - **Mobile Responsive Drawer**: Hamburger menu toggle (`Menu` icon) opening a slide-out backdrop-blurred sidebar drawer for mobile devices.
+  - **Collapsible Accordion Navigation**: Enterprise sidebar organized into smooth, collapsible categories (`MAIN MENU`, `ANALYTICS`, `PLATFORM`, `DEVELOPER PORTAL`, `GOVERNANCE`) with active tab expansion.
+  - **Mobile Responsive Drawer & Bottom Bar**: Slide-out backdrop-blurred sidebar drawer and 1-tap fixed bottom navigation bar (`Overview`, `Swarms`, `ZeroClaw`, `Dev Portal`, `Menu`) across Enterprise and UMKM dashboards.
 
-### 3. 🎨 Corporate Design System & Visual Polish
+### 3. 🏛️ Enterprise Governance & Developer Suite
+- **Organizations Module (`OrganizationView.tsx`)**: All Organizations list with active/pending status filter, selected organization detail card (Acme Enterprise), 4 usage progress bars, and owner profile (**Danz Assyidq**, `danz@acme.com`).
+- **Team & Roles Module (`TeamRolesView.tsx`)**: Member roster table with **Danz Assyidq** as `Enterprise Admin`, role count cards, and permission matrix.
+- **Settings Module (`SettingsView.tsx`)**: 8-section navigation panel, organization profile editor, regional settings (`(GMT+7) Asia/Jakarta`), Security Status audit card, and recent activity audit log.
+- **Developer Suite & Official Domain**: Developer Portal, API & SDK playground, Webhooks manager, and System Logs with real-time streaming — all standardized to the official `zegaai.site` production domain.
+
+### 4. 🎨 Corporate Design System & Visual Polish
 - **Flat 1px Border Standard**: Enforced `border-slate-200` in Light Mode and `border-slate-800` in Dark Mode across all components.
 - **Official ZEGA AI Logo Display**: High-resolution `zegalogo.png` header branding with dark mode filter inversion.
 - **Theme-Safe Emerald WhatsApp CS Bot**: High-contrast, theme-safe Emerald status badges (`text-emerald-700 dark:text-emerald-300`, `bg-emerald-50 dark:bg-emerald-950/60`, `border-emerald-200 dark:border-emerald-800`).
@@ -120,7 +126,9 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [12. Implemented Features & Status](docs/PRD/12-IMPLEMENTED-FEATURES-STATUS.md)
 - [13. Enterprise Security & CDN Hardening](docs/PRD/13-ENTERPRISE-SECURITY-CDN-SUPABASE-HARDENING.md)
 - [16. Authentication, Sessions & UI/UX Specs](docs/PRD/16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md)
+- [18. Modular Enterprise Dashboard & Role Routing](docs/PRD/18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md)
 - [19. ZeroClaw Solana Agent Integration](docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md)
+- [20. High-Fidelity Dashboard Redesign & Governance](docs/PRD/20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md)
 
 ---
 

@@ -146,4 +146,10 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Web Documentation Portal | `apps/web/src/app/DocsPage.tsx` | Verified & Interactive Renderers |
 | Modular Enterprise PRD Spec | `docs/PRD/18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md` | Documented & Verified |
 | ZeroClaw Solana Integration Spec | `docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md` | Documented & Verified |
+| High-Fidelity Redesign & Governance PRD | `docs/PRD/20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md` | Documented & Verified |
+| Organizations Governance View | `apps/web/src/app/dashboard/enterprise/views/OrganizationView.tsx` | Verified & Danz Owner Profile |
+| Team & Roles Governance View | `apps/web/src/app/dashboard/enterprise/views/TeamRolesView.tsx` | Verified & Enterprise Admin Danz |
+| Settings Governance View | `apps/web/src/app/dashboard/enterprise/views/SettingsView.tsx` | Verified & Security Status Card |
+| Developer Suite Views | `apps/web/src/app/dashboard/enterprise/views/DevPortalView.tsx`, `ApiSdkView.tsx`, `WebhooksView.tsx`, `DeveloperLogsView.tsx` | Verified & zegaai.site Domain |
+| Mobile Navigation Drawer & Bottom Bar | `apps/web/src/app/dashboard/enterprise/EnterpriseDashboard.tsx`, `UmkmDashboardContainer.tsx` | Verified & Backdrop Blur Overlay |
 

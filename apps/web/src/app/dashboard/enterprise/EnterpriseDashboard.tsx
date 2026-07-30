@@ -12,8 +12,10 @@ import { OverviewView } from '../views/OverviewView';
 import { SandboxWorkflowView } from '../views/SandboxWorkflowView';
 import { M2mPaymentsView } from '../views/M2mPaymentsView';
 import { LanguageSelector } from '../../components/LanguageSelector';
+import { ZegaLogo } from '../../components/ZegaLogo';
 import { SupabaseDashboardService } from '../services/supabaseService';
 
+import { AiCommandCenterView } from './views/AiCommandCenterView';
 import { AgentSwarmsView } from './views/AgentSwarmsView';
 import { KnowledgeBrainView } from './views/KnowledgeBrainView';
 import { McpConnectorsView } from './views/McpConnectorsView';
@@ -24,6 +26,18 @@ import { AiSafetyView } from './views/AiSafetyView';
 import { AuditLogsView } from './views/AuditLogsView';
 import { RbacSsoView } from './views/RbacSsoView';
 import { ZeroClawTerminalView } from './views/ZeroClawTerminalView';
+import { IntegrationsView } from './views/IntegrationsView';
+import { AnalyticsView } from './views/AnalyticsView';
+import { CostIntelligenceView } from './views/CostIntelligenceView';
+import { ReportsView } from './views/ReportsView';
+import { InfrastructureView } from './views/InfrastructureView';
+import { DevPortalView } from './views/DevPortalView';
+import { ApiSdkView } from './views/ApiSdkView';
+import { WebhooksView } from './views/WebhooksView';
+import { DeveloperLogsView } from './views/DeveloperLogsView';
+import { OrganizationView } from './views/OrganizationView';
+import { TeamRolesView } from './views/TeamRolesView';
+import { SettingsView } from './views/SettingsView';
 
 interface EnterpriseDashboardProps {
   onClose: () => void;
@@ -51,12 +65,16 @@ export function EnterpriseDashboardView({
     knowledge_brain: 'rag',
     mcp_connectors: 'mcp',
     agent_evals: 'evals',
-    m2m_payments: 'payments',
+    payments_bills: 'payments',
     zeroclaw_terminal: 'zeroclaw',
-    crypto_wallets: 'wallets',
+    infrastructure: 'infra',
     usage_billing: 'billing',
     ai_safety: 'safety',
     audit_logs: 'audit',
+    dev_portal: 'developer',
+    api_sdk: 'api-sdk',
+    webhooks: 'webhooks',
+    system_logs: 'logs',
     rbac_sso: 'sso',
   };
 
@@ -68,12 +86,16 @@ export function EnterpriseDashboardView({
     rag: 'knowledge_brain',
     mcp: 'mcp_connectors',
     evals: 'agent_evals',
-    payments: 'm2m_payments',
+    payments: 'payments_bills',
     zeroclaw: 'zeroclaw_terminal',
-    wallets: 'crypto_wallets',
+    infra: 'infrastructure',
     billing: 'usage_billing',
     safety: 'ai_safety',
     audit: 'audit_logs',
+    developer: 'dev_portal',
+    'api-sdk': 'api_sdk',
+    webhooks: 'webhooks',
+    logs: 'system_logs',
     sso: 'rbac_sso',
   };
 
@@ -155,10 +177,10 @@ export function EnterpriseDashboardView({
     {
       category: 'PLATFORM',
       items: [
-        { id: 'm2m_payments', label: 'Payments & Billing', icon: CreditCard, badge: 'Solana' },
+        { id: 'payments_bills', label: 'Payments & Billing', icon: CreditCard, badge: 'Solana' },
         { id: 'zeroclaw_terminal', label: 'ZeroClaw Solana Terminal', icon: Cpu, badge: 'Keyless Tier 1' },
         { id: 'ai_safety', label: 'Security Center', icon: ShieldCheck, badge: 'Firewall' },
-        { id: 'crypto_wallets', label: 'Infrastructure', icon: Server },
+        { id: 'infrastructure', label: 'Infrastructure', icon: Server },
         { id: 'audit_logs_platform', label: 'Audit Logs', icon: ShieldAlert, badge: 'SHA-256' },
       ],
     },
@@ -224,11 +246,7 @@ export function EnterpriseDashboardView({
           {/* Workspace Title & Badge */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
-              <img
-                src="/assets/logo/zegalogo.png"
-                alt="ZEGA AI Enterprise"
-                className="h-7 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter] duration-300"
-              />
+              <ZegaLogo size={32} showText={false} />
               <div>
                 <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">ZEGA Enterprise</span>
                 <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block font-mono font-bold">
@@ -402,8 +420,8 @@ export function EnterpriseDashboardView({
         </header>
 
         {/* Dynamic Sub-View Router */}
-        <div className="p-3 sm:p-4 md:p-6 flex-1">
-          {(activeTab === 'console' || activeTab === 'overview' || activeTab === 'ai_command') && (
+        <div className="p-3 sm:p-4 md:p-6 flex-1 pb-20 md:pb-6">
+          {(activeTab === 'console' || activeTab === 'overview') && (
             <OverviewView 
               onNavigateToSandbox={() => setActiveTab('sandbox')} 
               isGuest={isGuest}
@@ -411,22 +429,168 @@ export function EnterpriseDashboardView({
               userEmail={userEmail}
             />
           )}
+          {activeTab === 'ai_command' && <AiCommandCenterView onTriggerToast={triggerToast} />}
           {activeTab === 'sandbox' && <SandboxWorkflowView />}
           {(activeTab === 'agent_swarms' || activeTab === 'multi_agents') && <AgentSwarmsView onTriggerToast={triggerToast} />}
           {activeTab === 'knowledge_brain' && <KnowledgeBrainView onTriggerToast={triggerToast} />}
-          {(activeTab === 'mcp_connectors' || activeTab === 'integrations' || activeTab === 'dev_portal' || activeTab === 'webhooks') && (
-            <McpConnectorsView onTriggerToast={triggerToast} />
-          )}
-          {activeTab === 'agent_evals' && <AgentEvalsView onTriggerToast={triggerToast} />}
-          {(activeTab === 'm2m_payments' || activeTab === 'api_sdk') && <M2mPaymentsView />}
+          {activeTab === 'integrations' && <IntegrationsView onTriggerToast={triggerToast} />}
+          {activeTab === 'mcp_connectors' && <McpConnectorsView onTriggerToast={triggerToast} />}
+          {activeTab === 'agent_evals' && <AnalyticsView onTriggerToast={triggerToast} />}
+          {activeTab === 'dev_portal' && <DevPortalView onTriggerToast={triggerToast} />}
+          {activeTab === 'api_sdk' && <ApiSdkView onTriggerToast={triggerToast} />}
+          {activeTab === 'webhooks' && <WebhooksView onTriggerToast={triggerToast} />}
+          {activeTab === 'system_logs' && <DeveloperLogsView onTriggerToast={triggerToast} />}
           {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
-          {activeTab === 'usage_billing' && <UsageBillingView />}
-          {activeTab === 'ai_safety' && <AiSafetyView />}
-          {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform' || activeTab === 'system_logs') && <AuditLogsView />}
-          {(activeTab === 'rbac_sso' || activeTab === 'team_roles' || activeTab === 'settings') && <RbacSsoView />}
+          {(activeTab === 'usage_billing' || activeTab === 'payments_bills') && <UsageBillingView onTriggerToast={triggerToast} />}
+          {(activeTab === 'ai_safety' || activeTab === 'security_center') && <AiSafetyView onTriggerToast={triggerToast} />}
+          {activeTab === 'infrastructure' && <InfrastructureView onTriggerToast={triggerToast} />}
+          {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform') && <AuditLogsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'rbac_sso' || activeTab === 'organization') && <OrganizationView onTriggerToast={triggerToast} />}
+          {activeTab === 'team_roles' && <TeamRolesView onTriggerToast={triggerToast} />}
+          {activeTab === 'settings' && <SettingsView onTriggerToast={triggerToast} />}
+        </div>
+
+        {/* MOBILE BOTTOM NAVIGATION BAR */}
+        <div className="md:hidden sticky bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-around text-[10px] font-bold text-slate-500">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'overview' || activeTab === 'console' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Overview</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('agent_swarms')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'agent_swarms' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+          >
+            <Bot size={18} />
+            <span>Swarms</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('zeroclaw_terminal')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'zeroclaw_terminal' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+          >
+            <Zap size={18} />
+            <span>ZeroClaw</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('dev_portal')}
+            className={`flex flex-col items-center gap-0.5 ${activeTab === 'dev_portal' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+          >
+            <Code size={18} />
+            <span>Dev Portal</span>
+          </button>
+
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex flex-col items-center gap-0.5 text-slate-700 dark:text-slate-300"
+          >
+            <Menu size={18} />
+            <span>Menu</span>
+          </button>
         </div>
       </main>
+
+      {/* MOBILE SIDE DRAWER OVERLAY */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+          />
+
+          <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 z-10 shadow-2xl border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <ZegaLogo size={28} showText={false} />
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">ZEGA Enterprise</span>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                <div className="truncate">
+                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail}</p>
+                </div>
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
+                  ENTERPRISE
+                </span>
+              </div>
+
+              <nav className="space-y-3">
+                {enterpriseMenuCategories.map((cat, idx) => {
+                  const isExpanded = expandedCategories[cat.category] ?? (idx === 0);
+                  return (
+                    <div key={idx} className="space-y-1 rounded-xl p-1 border border-slate-200/40 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/50">
+                      <button
+                        onClick={() => toggleCategory(cat.category)}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {isExpanded ? <ChevronDown size={13} className="text-indigo-500" /> : <ChevronRight size={13} className="text-slate-400" />}
+                          <span>{cat.category}</span>
+                        </span>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="space-y-1 pt-0.5">
+                          {cat.items.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.id;
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  setActiveTab(item.id);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  isActive
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <Icon size={16} />
+                                  <span>{item.label}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                onClick={async () => {
+                  await SupabaseDashboardService.signOut();
+                  onClose();
+                }}
+                className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <LogOut size={15} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

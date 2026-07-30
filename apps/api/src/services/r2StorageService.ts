@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, HeadBucketCommand, ObjectCannedACL } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand, HeadBucketCommand, ObjectCannedACL } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import pino from 'pino';
 import { envConfig } from '../config/env.js';
@@ -163,6 +163,27 @@ export class R2StorageService {
         key: finalKey,
         sizeBytes: content.length,
       };
+    }
+  }
+
+  /**
+   * Check if object key already exists in Cloudflare R2 bucket to prevent duplicate re-uploads
+   */
+  static async checkObjectExists(key: string): Promise<boolean> {
+    const client = this.getS3Client();
+    const bucket = this.getBucketName();
+    if (!client) return false;
+
+    try {
+      await client.send(
+        new HeadObjectCommand({
+          Bucket: bucket,
+          Key: key.replace(/^\//, ''),
+        })
+      );
+      return true;
+    } catch {
+      return false;
     }
   }
 
