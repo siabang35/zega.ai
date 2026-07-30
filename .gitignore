@@ -81,3 +81,12 @@ coverage/
 .cypress/
 playwright-report/
 test-results/
+
+# ─── 8. LARGE MEDIA & DESIGN ASSETS (SERVED VIA CLOUDFLARE R2 CDN) ───────────
+apps/web/public/assets/3D/
+apps/web/public/assets/products/
+apps/web/public/design/
+*.mp4
+*.mov
+*.avi
+

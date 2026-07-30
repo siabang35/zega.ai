@@ -1397,8 +1397,32 @@ function AppContent() {
     canonicalLink.setAttribute('href', canonicalUrl);
   }, [currentPath]);
 
+  const [dark, setDarkState] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const userToggled = localStorage.getItem('zega_theme_user_toggled');
+      if (userToggled) {
+        return localStorage.getItem('zega_theme_mode') === 'dark';
+      }
+      const path = window.location.pathname;
+      const isDash = 
+        path === '/console' || path.startsWith('/console/') ||
+        path === '/dashboard' || path.startsWith('/dashboard/') ||
+        path === '/admin' || path.startsWith('/admin/');
+      if (isDash) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const setDark = (val: boolean) => {
+    setDarkState(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('zega_theme_user_toggled', 'true');
+      localStorage.setItem('zega_theme_mode', val ? 'dark' : 'light');
+    }
+  };
   const [showSplash, setShowSplash] = useState(true);
-  const [dark, setDark] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [activeTab, setActiveTab] = useState("Utilization");
@@ -1709,6 +1733,22 @@ function AppContent() {
   }, [dark]);
 
   useEffect(() => {
+    const isDash = 
+      currentPath === '/console' || currentPath.startsWith('/console/') ||
+      currentPath === '/dashboard' || currentPath.startsWith('/dashboard/') ||
+      currentPath === '/admin' || currentPath.startsWith('/admin/');
+    
+    const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('zega_theme_user_toggled') : null;
+    if (!savedTheme) {
+      if (isDash || showDashboard) {
+        setDarkState(false);
+      } else {
+        setDarkState(true);
+      }
+    }
+  }, [currentPath, showDashboard]);
+
+  useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let frame: number;
@@ -1753,11 +1793,27 @@ function AppContent() {
     );
   }
 
-  if (currentPath === '/console' || currentPath === '/dashboard') {
-    const mock = localStorage.getItem('zega_mock_session');
+  const isDashboardRoute = 
+    currentPath === '/console' || currentPath.startsWith('/console/') ||
+    currentPath === '/dashboard' || currentPath.startsWith('/dashboard/') ||
+    currentPath === '/admin' || currentPath.startsWith('/admin/');
+
+  if (isDashboardRoute) {
+    let mock = localStorage.getItem('zega_mock_session');
+    if (!mock) {
+      const defaultRole = currentPath.startsWith('/admin') ? 'superadmin' : currentPath.startsWith('/console') ? 'enterprise' : 'individual';
+      const defaultSession = {
+        role: defaultRole,
+        email: 'guest@zegaai.site',
+        fullName: 'Guest User (UMKM)',
+        isGuest: true,
+      };
+      localStorage.setItem('zega_mock_session', JSON.stringify(defaultSession));
+      mock = JSON.stringify(defaultSession);
+    }
     const session = mock ? JSON.parse(mock) : null;
     if (session) {
-      const role = session?.role || 'enterprise';
+      const role = currentPath.startsWith('/admin') ? 'superadmin' : (session?.role || 'individual');
 
       if (role === 'superadmin') {
         return (

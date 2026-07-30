@@ -12,7 +12,7 @@ import { OverviewView } from './views/OverviewView';
 import { AgentRosterView } from './views/AgentRosterView';
 import { SandboxWorkflowView } from './views/SandboxWorkflowView';
 import { MissionControlView } from './views/MissionControlView';
-import { UmkmDashboardView } from './views/UmkmDashboardView';
+import { UmkmDashboardView } from './umkm/UmkmDashboard';
 import { M2mPaymentsView } from './views/M2mPaymentsView';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { useLanguage } from '../../i18n/translations';
@@ -40,10 +40,90 @@ export function UserDashboard({
   isGuest = true,
   onSwitchToAdminMode
 }: UserDashboardProps) {
-  const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<string>(
-    userRole === 'enterprise' ? 'console' : 'umkm'
-  );
+  const tabToSlugMap: Record<string, string> = {
+    umkm: 'home',
+    overview: 'home',
+    home: 'home',
+    my_agents: 'ai-employees',
+    my_ai_employees: 'ai-employees',
+    sandbox: 'automation',
+    automation: 'automation',
+    wa_bot: 'inbox',
+    inbox: 'inbox',
+    sales_rekap: 'sales',
+    sales: 'sales',
+    ai_copywriter: 'marketing',
+    marketing: 'marketing',
+    invoice_gen: 'finance',
+    finance: 'finance',
+    store: 'store',
+    customers: 'customers',
+    reports: 'reports',
+    knowledge: 'knowledge',
+    integrations: 'marketplace',
+    marketplace: 'marketplace',
+    billing: 'billing',
+    settings: 'settings',
+  };
+
+  const slugToTabMap: Record<string, string> = {
+    home: 'umkm',
+    'ai-employees': 'my_agents',
+    automation: 'sandbox',
+    inbox: 'wa_bot',
+    sales: 'sales_rekap',
+    marketing: 'ai_copywriter',
+    finance: 'invoice_gen',
+    store: 'store',
+    customers: 'customers',
+    reports: 'reports',
+    knowledge: 'knowledge',
+    marketplace: 'integrations',
+    billing: 'billing',
+    settings: 'settings',
+  };
+
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        const slug = parts[1];
+        if (slugToTabMap[slug]) return slugToTabMap[slug];
+      }
+    }
+    return userRole === 'enterprise' ? 'console' : 'umkm';
+  };
+
+  const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
+
+  const setActiveTab = (tabId: string) => {
+    setActiveTabState(tabId);
+    if (typeof window !== 'undefined') {
+      const prefix = userRole === 'enterprise' ? '/console' : '/dashboard';
+      const slug = tabToSlugMap[tabId] || tabId;
+      const newPath = `${prefix}/${slug}`;
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({}, '', newPath);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        if (parts.length >= 2) {
+          const slug = parts[1];
+          if (slugToTabMap[slug]) {
+            setActiveTabState(slugToTabMap[slug]);
+          }
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -224,73 +304,123 @@ export function UserDashboard({
                 );
               })
             ) : (
-              [
-                { id: 'umkm', label: 'UMKM Dashboard', icon: LayoutDashboard, badge: 'Solopreneur' },
-                { id: 'wa_bot', label: 'WhatsApp CS Bot', icon: MessageSquare, badge: 'Auto' },
-                { id: 'invoice_gen', label: 'Invoice & Tagihan PDF', icon: FileText, badge: 'PDF' },
-                { id: 'ai_copywriter', label: 'AI Copywriter IG/TikTok', icon: Sparkles, badge: 'AI' },
-                { id: 'sales_rekap', label: 'Rekap Penjualan Harian', icon: BarChart3, badge: 'Kas' },
-                { id: 'integrations', label: 'Integrasi API & Toko', icon: Link2, badge: 'API' },
-                { id: 'my_agents', label: 'My AI Agents', icon: Bot, badge: '4 Active' },
-                { id: 'sandbox', label: 'Workflow Builder', icon: Workflow, badge: 'v2' },
-                { id: 'settings', label: 'Setelan & Paket', icon: CreditCard, badge: 'Plan' },
-              ].map((item: { id: string; label: string; icon: any; badge?: string }) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-indigo-600 dark:bg-indigo-500 text-white font-semibold shadow-none'
-                        : 'text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon size={16} />
-                      <span>{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={`text-[9px] font-mono font-medium px-2 py-0.5 rounded-md ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })
+              <div>
+                <div className="px-3 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                  Business Overview
+                </div>
+                <div className="space-y-0.5 mt-1">
+                  {[
+                    { id: 'umkm', label: 'Home', icon: LayoutDashboard },
+                    { id: 'my_agents', label: 'My AI Employees', icon: Bot },
+                    { id: 'sandbox', label: 'Automation', icon: Workflow },
+                    { id: 'wa_bot', label: 'Inbox', icon: MessageSquare, badge: '8' },
+                    { id: 'sales_rekap', label: 'Sales', icon: BarChart3 },
+                    { id: 'ai_copywriter', label: 'Marketing', icon: Sparkles },
+                    { id: 'invoice_gen', label: 'Finance', icon: FileText },
+                    { id: 'store', label: 'Store', icon: Store },
+                    { id: 'customers', label: 'Customers', icon: Users },
+                    { id: 'reports', label: 'Reports', icon: PieChart },
+                    { id: 'knowledge', label: 'Knowledge', icon: Brain },
+                    { id: 'integrations', label: 'Marketplace', icon: Link2 },
+                    { id: 'billing', label: 'Billing', icon: CreditCard },
+                    { id: 'settings', label: 'Settings', icon: Settings },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id || (activeTab === 'umkm' && item.id === 'umkm');
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/50 dark:border-orange-800/50'
+                            : 'text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon size={16} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white flex-shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </nav>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
-          {userRole === 'superadmin' && onSwitchToAdminMode && (
+        {/* Bottom Current Plan Card */}
+        {userRole !== 'enterprise' && (
+          <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium block">Current Plan</span>
+                  <span className="font-bold text-orange-600 dark:text-orange-400 text-sm">Starter</span>
+                </div>
+                <button 
+                  onClick={() => triggerToast('Upgrade to Pro clicked')}
+                  className="px-2.5 py-1 rounded-lg border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 text-[11px] font-semibold hover:bg-orange-50 cursor-pointer"
+                >
+                  Upgrade
+                </button>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-500 font-medium mb-1">
+                  <span>Usage</span>
+                  <span className="font-bold">38%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                  <div className="h-full bg-orange-500 rounded-full" style={{ width: '38%' }} />
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-400 font-mono">Resets on 1 Aug 2026</p>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Profile & Sign Out */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 truncate">
+              <img 
+                src={isGuest ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces" : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"}
+                alt={isGuest ? "Guest User" : "Wildan Assyidiq"}
+                className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+              />
+              <div className="truncate text-left">
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {isGuest ? 'Guest User (UMKM)' : 'Wildan Assyidiq'}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {isGuest ? 'guest@zegaai.site' : 'wildan@zegaai.site'}
+                </p>
+              </div>
+            </div>
             <button
-              onClick={onSwitchToAdminMode}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer hover:bg-amber-500/20"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await SupabaseDashboardService.signOut();
+                onClose();
+              }}
+              title="Sign Out"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <ShieldCheck size={14} /> Mode SuperAdmin
+              <LogOut size={16} />
             </button>
-          )}
-          <button
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              await SupabaseDashboardService.signOut();
-              onClose();
-            }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <LogOut size={14} /> Sign Out
-          </button>
+          </div>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
         {/* Guest Demo Mode Banner */}
         {isGuest && (
           <div className="bg-slate-100/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-2 flex items-center gap-2 text-[11px] md:text-xs text-slate-600 dark:text-slate-400 font-medium">
@@ -304,23 +434,59 @@ export function UserDashboard({
         )}
 
         {/* Top Header Navigation */}
-        <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-3 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
-          <div className="flex items-center gap-2.5">
+        <header className="h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
+          <div className="flex items-center gap-4 flex-1 max-w-md">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden cursor-pointer"
             >
               <Menu size={18} />
             </button>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:inline">STATUS</span>
-            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 px-2.5 py-1 rounded-md">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="hidden sm:inline">Operational (All Nodes Online)</span>
-              <span className="sm:hidden">Operational</span>
-            </span>
+            <div className="relative w-full hidden sm:block">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search anything... (⌘K)"
+                className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-all"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+              <Sparkles size={14} className="text-orange-500" />
+              <span>What's new</span>
+              <span className="size-1.5 rounded-full bg-orange-500" />
+            </button>
+            
+            <button className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+              <Bell size={16} />
+              <span className="absolute top-1 right-1 size-2 rounded-full bg-orange-500" />
+            </button>
+
+            <button className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+              <MessageSquare size={16} />
+              <span className="absolute -top-1 -right-1 size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                3
+              </span>
+            </button>
+
+            {/* Store Selector */}
+            <div className="flex items-center gap-2 p-1.5 px-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
+              <div className="size-7 rounded-xl bg-orange-100 dark:bg-orange-950/60 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                <Store size={15} />
+              </div>
+              <div className="text-left hidden sm:block">
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                  {isGuest ? 'Guest Store' : 'Toko Wildan'}
+                </p>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {isGuest ? 'Store ID: GUEST-1283' : 'Store ID: 1283'}
+                </p>
+              </div>
+              <ChevronDown size={14} className="text-slate-400" />
+            </div>
+
             <button
               onClick={() => setDark(!dark)}
               className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
@@ -343,16 +509,16 @@ export function UserDashboard({
 
         {/* View Renderer */}
         <div className="p-3 sm:p-4 md:p-6 flex-1">
-          {(activeTab === 'console' || activeTab === 'overview') && (
-            <OverviewView onNavigateToSandbox={() => setActiveTab('sandbox')} />
+          {userRole !== 'enterprise' ? (
+            <UmkmDashboardView activeTab={activeTab} userName={userName} isGuest={isGuest} />
+          ) : (
+            <>
+              {(activeTab === 'console' || activeTab === 'overview') && (
+                <OverviewView onNavigateToSandbox={() => setActiveTab('sandbox')} />
+              )}
+              {activeTab === 'sandbox' && <SandboxWorkflowView />}
+            </>
           )}
-
-          {(activeTab === 'umkm' || activeTab === 'wa_bot' || activeTab === 'invoice_gen' || activeTab === 'ai_copywriter' || activeTab === 'sales_rekap' || activeTab === 'integrations') && (
-            <UmkmDashboardView activeTab={activeTab} />
-          )}
-
-          {(activeTab === 'my_agents' || activeTab === 'multi_agents') && <AgentRosterView />}
-          {activeTab === 'sandbox' && <SandboxWorkflowView />}
 
           {/* ENTERPRISE SUB-VIEW 1: AGENT SWARMS */}
           {activeTab === 'agent_swarms' && (

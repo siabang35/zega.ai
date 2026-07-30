@@ -24,6 +24,7 @@
 | 11 | [AI Guardrails & Safety](./11-AI-GUARDRAILS-SAFETY.md) | `11-AI-GUARDRAILS-SAFETY.md` | 5-layer guardrails, Chart.js symbol mapping, solid non-gradient color standards, prompt engineering |
 | 12 | [Implemented Features & Status](./12-IMPLEMENTED-FEATURES-STATUS.md) | `12-IMPLEMENTED-FEATURES-STATUS.md` | Dual-segment AuthModal, SuperAdmin & User/Enterprise Dashboards, Gaming-Professional UI, Supabase DB Schema |
 | 16 | [Auth, Sessions & UI/UX](./16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md) | `16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md` | Session clearance, Console CTA route guarding, Guest Demo standards, Enterprise accordion sidebar, theme ergonomics |
+| 17 | [Dashboard Theme, Store CDN & Avatars](./17-DASHBOARD-THEME-STORE-CDN-INBOX-AVATARS-SPEC.md) | `17-DASHBOARD-THEME-STORE-CDN-INBOX-AVATARS-SPEC.md` | Light mode default for dashboards, Dark mode default for landing page, Cloudflare R2 Store CDN, Customer avatars, 3D mascot popover |
 
 ---
 
