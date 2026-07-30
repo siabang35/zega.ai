@@ -24,11 +24,7 @@ export class BrevoService {
   }
 
   private static getSenderEmail(): string {
-    const from = process.env.EMAIL_FROM || envConfig.EMAIL_FROM || 'siabang35@gmail.com';
-    if (from.includes('zegaai.site')) {
-      return 'siabang35@gmail.com';
-    }
-    return from;
+    return process.env.EMAIL_FROM || envConfig.EMAIL_FROM || 'noreply@zegaai.site';
   }
 
   /**
@@ -148,9 +144,9 @@ export class BrevoService {
       }
 
       const errorText = await response.text();
-      logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... 🔑 [DEV OTP PASSCODE for ${email}: ${otp}] (Master Code: 123456)`);
+      logger.warn(`[BrevoService] Brevo HTTP API status ${response.status} (${errorText}). Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
     } catch (apiErr) {
-      logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... 🔑 [DEV OTP PASSCODE for ${email}: ${otp}] (Master Code: 123456)`);
+      logger.warn({ err: apiErr }, `[BrevoService] Brevo HTTP API error. Falling back to Nodemailer Brevo SMTP Relay... [OTP for ${email}: ${otp}]`);
     }
 
     // 2. Secondary Route: Nodemailer SMTP Relay via Brevo SMTP Server

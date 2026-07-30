@@ -154,9 +154,7 @@ export async function authRoutes(app: FastifyInstance) {
       return {
         success: true,
         data: {
-          message: emailResult.devMode
-            ? `Security passcode dispatched to ${body.email}. (Dev mode / Fallback active: use code 123456)`
-            : `Security passcode dispatched to ${body.email}. Check your inbox.`,
+          message: `Security passcode dispatched to ${body.email}. Check your inbox.`,
           expiresInSeconds: 300,
           devMode: emailResult.devMode || false,
         },
