@@ -3465,7 +3465,7 @@ function AppContent() {
       {/* FOOTER */}
       <footer className="relative overflow-hidden border-t border-border/40 bg-card/10 pt-16 pb-6 px-6 lg:px-12">
         <div className="mx-auto max-w-[1100px] flex flex-col items-center justify-between gap-8 md:flex-row">
-          <div className="flex flex-col gap-2.5 text-center md:text-left">
+          <div className="flex flex-col gap-3 text-center md:text-left items-center md:items-start">
             <a
               href="#home"
               className="inline-flex items-center rounded-md transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b35]/50"
@@ -3474,16 +3474,30 @@ function AppContent() {
               <img
                 src="/assets/logo/zegalogo.png"
                 alt="ZEGA AI"
-                width={160}
-                height={44}
-                className="h-9 w-auto object-contain lg:h-11 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.15)] transition-[filter] duration-300"
+                width={200}
+                height={55}
+                className="h-11 w-auto object-contain lg:h-14 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.15)] transition-[filter] duration-300"
                 loading="lazy"
                 decoding="async"
               />
             </a>
-            <p className="text-[11px] text-muted-foreground max-w-[200px]">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 max-w-[320px] leading-relaxed">
               {t.footer.tag}
             </p>
+
+            {/* Supported by Superteam Indonesia Badge */}
+            <div className="mt-2 flex items-center gap-3 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md w-fit shadow-xs">
+              <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Supported by</span>
+              <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
+              <div className="flex items-center gap-2">
+                <img
+                  src={getR2CdnUrl('/assets/logo/superteam.jpg')}
+                  alt="Superteam Indonesia"
+                  className="size-8 rounded-full object-cover border-2 border-indigo-500/30 shadow-xs"
+                />
+                <span className="text-sm font-black text-slate-900 dark:text-slate-50 font-sans tracking-tight">Superteam ID</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-3.5">

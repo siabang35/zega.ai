@@ -4,7 +4,8 @@ import {
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronDown, Menu,
   ShieldCheck, Bot, Key, CreditCard, UserCheck, Zap, Activity,
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
-  Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Cpu
+  Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Cpu,
+  Code, Building, Globe
 } from 'lucide-react';
 
 import { OverviewView } from '../views/OverviewView';
@@ -124,48 +125,68 @@ export function EnterpriseDashboardView({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
+  // Determine displayed organization name based on auth state
+  const displayOrgName = isGuest 
+    ? 'Guest Enterprise (Demo)' 
+    : (userName && userName !== 'Acme Enterprise Admin (Guest Demo)' ? userName : 'PT Zenith Enterprise');
+  const displayUserRole = isGuest ? 'Enterprise Guest Admin' : 'Enterprise Admin';
+
   const enterpriseMenuCategories = [
     {
-      category: 'Orchestration & Agents',
+      category: 'MAIN MENU',
       items: [
-        { id: 'console', label: 'AI Telemetry Hub', icon: LayoutDashboard, badge: 'Live' },
-        { id: 'multi_agents', label: 'Multi-Agent Roster', icon: Bot, badge: 'Orchestrator' },
-        { id: 'sandbox', label: 'Workflow Pipeline Builder', icon: Workflow, badge: 'v2.4' },
-        { id: 'agent_swarms', label: 'Autonomous Agent Swarms', icon: Layers, badge: 'Autonomous' },
+        { id: 'console', label: 'Overview', icon: LayoutDashboard, badge: 'Live' },
+        { id: 'ai_command', label: 'AI Command Center', icon: Zap, badge: 'v2.4' },
+        { id: 'multi_agents', label: 'AI Agents', icon: Bot, badge: '638 Active' },
+        { id: 'sandbox', label: 'Workflow Studio', icon: Workflow, badge: 'Studio' },
+        { id: 'knowledge_brain', label: 'Knowledge Hub', icon: Brain, badge: 'Qdrant' },
+        { id: 'mcp_connectors', label: 'MCP Hub', icon: Database, badge: '14 Active' },
+        { id: 'integrations', label: 'Integrations', icon: Layers, badge: 'Cloud' },
       ],
     },
     {
-      category: 'Intelligence & MCP',
+      category: 'ANALYTICS',
       items: [
-        { id: 'knowledge_brain', label: 'RAG Knowledge Indexing', icon: Brain, badge: 'Qdrant' },
-        { id: 'mcp_connectors', label: 'MCP Connectors Registry', icon: Database, badge: '14 Active' },
-        { id: 'agent_evals', label: 'Agent Evals & Benchmarks', icon: Target, badge: '98.6%' },
+        { id: 'agent_evals', label: 'Analytics', icon: BarChart3, badge: '98.6%' },
+        { id: 'usage_billing', label: 'Cost Intelligence', icon: DollarSign, badge: 'Savings' },
+        { id: 'audit_logs', label: 'Reports', icon: FileText },
       ],
     },
     {
-      category: 'Autonomous Payments & Wallets',
+      category: 'PLATFORM',
       items: [
-        { id: 'm2m_payments', label: 'Machine-to-Machine (x402)', icon: Zap, badge: 'x402 / Solana' },
+        { id: 'm2m_payments', label: 'Payments & Billing', icon: CreditCard, badge: 'Solana' },
         { id: 'zeroclaw_terminal', label: 'ZeroClaw Solana Terminal', icon: Cpu, badge: 'Keyless Tier 1' },
-        { id: 'crypto_wallets', label: 'Autonomous Multi-Sig Wallets', icon: Key, badge: 'Vault' },
-        { id: 'usage_billing', label: 'Metered Usage & Tokens', icon: CreditCard, badge: 'Usage' },
+        { id: 'ai_safety', label: 'Security Center', icon: ShieldCheck, badge: 'Firewall' },
+        { id: 'crypto_wallets', label: 'Infrastructure', icon: Server },
+        { id: 'audit_logs_platform', label: 'Audit Logs', icon: ShieldAlert, badge: 'SHA-256' },
       ],
     },
     {
-      category: 'Governance & Security',
+      category: 'DEVELOPERS',
       items: [
-        { id: 'ai_safety', label: 'OWASP AI Safety Guardrails', icon: ShieldAlert, badge: 'Firewall' },
-        { id: 'audit_logs', label: 'Immutable Audit Ledger', icon: ShieldCheck, badge: 'SHA-256' },
-        { id: 'rbac_sso', label: 'Enterprise RBAC & SAML SSO', icon: Lock, badge: 'Okta' },
+        { id: 'dev_portal', label: 'Developer Portal', icon: Code },
+        { id: 'api_sdk', label: 'API & SDK', icon: Key },
+        { id: 'webhooks', label: 'Webhooks', icon: Globe },
+        { id: 'system_logs', label: 'Logs', icon: Activity },
+      ],
+    },
+    {
+      category: 'GOVERNANCE',
+      items: [
+        { id: 'rbac_sso', label: 'Organization', icon: Building },
+        { id: 'team_roles', label: 'Team & Roles', icon: Users },
+        { id: 'settings', label: 'Settings', icon: Settings },
       ],
     },
   ];
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    'Orchestration & Agents': true,
-    'Intelligence & MCP': false,
-    'Autonomous Payments & Wallets': false,
-    'Governance & Security': false,
+    'MAIN MENU': true,
+    'ANALYTICS': true,
+    'PLATFORM': true,
+    'DEVELOPERS': false,
+    'GOVERNANCE': false,
   });
 
   useEffect(() => {
@@ -382,21 +403,28 @@ export function EnterpriseDashboardView({
 
         {/* Dynamic Sub-View Router */}
         <div className="p-3 sm:p-4 md:p-6 flex-1">
-          {(activeTab === 'console' || activeTab === 'overview') && (
-            <OverviewView onNavigateToSandbox={() => setActiveTab('sandbox')} />
+          {(activeTab === 'console' || activeTab === 'overview' || activeTab === 'ai_command') && (
+            <OverviewView 
+              onNavigateToSandbox={() => setActiveTab('sandbox')} 
+              isGuest={isGuest}
+              userName={displayOrgName}
+              userEmail={userEmail}
+            />
           )}
           {activeTab === 'sandbox' && <SandboxWorkflowView />}
-          {activeTab === 'agent_swarms' && <AgentSwarmsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'agent_swarms' || activeTab === 'multi_agents') && <AgentSwarmsView onTriggerToast={triggerToast} />}
           {activeTab === 'knowledge_brain' && <KnowledgeBrainView onTriggerToast={triggerToast} />}
-          {activeTab === 'mcp_connectors' && <McpConnectorsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'mcp_connectors' || activeTab === 'integrations' || activeTab === 'dev_portal' || activeTab === 'webhooks') && (
+            <McpConnectorsView onTriggerToast={triggerToast} />
+          )}
           {activeTab === 'agent_evals' && <AgentEvalsView onTriggerToast={triggerToast} />}
-          {activeTab === 'm2m_payments' && <M2mPaymentsView />}
+          {(activeTab === 'm2m_payments' || activeTab === 'api_sdk') && <M2mPaymentsView />}
           {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
           {activeTab === 'usage_billing' && <UsageBillingView />}
           {activeTab === 'ai_safety' && <AiSafetyView />}
-          {activeTab === 'audit_logs' && <AuditLogsView />}
-          {activeTab === 'rbac_sso' && <RbacSsoView />}
+          {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform' || activeTab === 'system_logs') && <AuditLogsView />}
+          {(activeTab === 'rbac_sso' || activeTab === 'team_roles' || activeTab === 'settings') && <RbacSsoView />}
         </div>
       </main>
     </div>

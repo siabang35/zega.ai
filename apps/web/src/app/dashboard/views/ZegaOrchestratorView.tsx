@@ -15,6 +15,7 @@ export interface ZegaOrchestratorViewProps {
   userRole?: 'individual' | 'enterprise';
   userName?: string;
   userEmail?: string;
+  isGuest?: boolean;
   dark?: boolean;
   onNavigateToSandbox?: () => void;
   onSwitchWorkspace?: (workspace: 'enterprise' | 'umkm') => void;
@@ -24,10 +25,17 @@ export function ZegaOrchestratorView({
   userRole = 'enterprise',
   userName = 'PT Zenith Enterprise',
   userEmail = 'wildan@zenith.ai',
+  isGuest = true,
   dark = false,
   onNavigateToSandbox,
   onSwitchWorkspace
 }: ZegaOrchestratorViewProps) {
+  // Determine displayed organization name based on auth state
+  const isGuestUser = isGuest || userEmail?.includes('guest') || userName?.includes('Guest');
+  const displayOrgName = isGuestUser 
+    ? 'Guest Enterprise (Demo)' 
+    : (userName && userName !== 'Acme Enterprise Admin (Guest Demo)' ? userName : 'PT Zenith Enterprise');
+
   // Time Range State
   const [timeRange, setTimeRange] = useState('Last 24 hours');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -152,10 +160,10 @@ export function ZegaOrchestratorView({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 flex items-center gap-2">
-            Good Morning, PT Zenith Enterprise 👋
+            Good Morning, {displayOrgName} 👋
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-            Enterprise AI Operating System
+            Enterprise AI Operating System {isGuestUser && '(Guest Preview)'}
           </p>
         </div>
 
