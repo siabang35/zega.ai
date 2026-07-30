@@ -1,0 +1,34 @@
+# ZeroClaw Standard Operating Procedure (SOP)
+# Solana Merchant Payment Reconciliation & Refund Approval Checkpoint
+
+name = "solana_merchant_payment_reconciliation"
+description = "Polls Solana RPC for reference key signatures and handles refund requests via human approval checkpoint."
+version = "1.0.0"
+
+[trigger]
+type = "cron"
+schedule = "*/10 * * * * *" # Run every 10 seconds
+
+[[steps]]
+id = "poll_pending_invoices"
+name = "Poll Solana RPC for Pending Reference Keys"
+action = "solana_rpc_query"
+rpc_method = "getSignaturesForAddress"
+params = { limit = 1, commitment = "confirmed" }
+
+[[steps]]
+id = "reconcile_to_zega"
+name = "Dispatch Event to ZEGA AI Monorepo Dashboard"
+action = "http_request"
+method = "POST"
+url = "http://localhost:4000/api/v1/zeroclaw/events"
+headers = { "Content-Type" = "application/json" }
+
+[[steps]]
+id = "refund_approval_checkpoint"
+name = "Human Owner Approval Checkpoint for Refunds"
+type = "human_approval"
+require_approval = true
+prompt = "Refund request detected from customer. Do you authorize sending refund to requested wallet address?"
+timeout_seconds = 86400 # 24 hours
+fail_action = "reject_refund_and_log"

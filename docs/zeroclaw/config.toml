@@ -1,0 +1,35 @@
+# ZeroClaw Self-Hosted Agent Configuration
+# ZEGA AI Solana Merchant & Financial Guardian
+
+[agent]
+name = "ZEGA-Solana-Merchant-Agent"
+description = "Self-hosted AI agent managing Solana Pay transactions and financial reconciliation."
+custody_tier = "T1" # Build / Keyless / Unsigned (Zero private key exposure)
+network = "solana-devnet" # Change to 'solana-mainnet' for mainnet deployment
+
+[solana]
+rpc_url = "https://api.devnet.solana.com" # Or Helius/QuickNode RPC URL
+usdc_mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" # Devnet USDC mint
+merchant_wallet = "ZeGAMerchantPublicKey111111111111111111111"
+
+[zega_integration]
+api_url = "http://localhost:4000/api/v1/zeroclaw"
+sync_interval_seconds = 10
+
+[channels.whatsapp]
+enabled = true
+phone_number = "+628123456789"
+webhook_url = "http://localhost:4000/api/v1/zeroclaw/events"
+
+[channels.telegram]
+enabled = true
+bot_token = "ENV_TELEGRAM_BOT_TOKEN"
+
+[tools]
+http_request = true
+web_fetch = true
+
+[security]
+prompt_injection_guard = true
+fail_closed = true
+human_approval_checkpoints = true

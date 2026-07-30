@@ -11,37 +11,58 @@ ZEGA AI uses a enterprise-grade monorepo architecture built with **pnpm workspac
 ```
 ZEGA/
 ├── apps/
-│   ├── web/                     # Frontend Application
+│   ├── web/                     # Frontend React + Vite Application
 │   │   ├── src/
-│   │   │   ├── app/             # React Application & Components
+│   │   │   ├── app/             # Modular Dashboards (Enterprise, UMKM, SuperAdmin)
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── enterprise/views/ZeroClawTerminalView.tsx # ZeroClaw Solana Terminal
+│   │   │   │   │   └── umkm/views/FinanceView.tsx               # UMKM Solana Pay Finance View
+│   │   │   │   └── DocsPage.tsx  # Web Documentation Portal (/docs)
 │   │   │   ├── main.tsx         # Entrypoint
 │   │   │   └── index.css        # Core Design System & Tokens
 │   │   ├── public/              # Static Assets (Logo, Fonts)
 │   │   ├── vercel.json          # Sub-workspace Vercel Config
 │   │   └── package.json
-│   └── api/                     # Backend Microservice
-│       ├── src/                 # Hono Server & Routes
+│   └── api/                     # Backend Fastify Microservice
+│       ├── src/
+│       │   └── routes/v1/
+│       │       ├── zeroclaw.routes.ts # ZeroClaw Solana RPC & Checkpoint Endpoints
+│       │       └── auth.routes.ts     # Brevo OTP & Turnstile Auth Routes
 │       └── package.json
 ├── packages/
 │   ├── config/                  # Base TypeScript & Tooling Configs
-│   │   ├── tsconfig.base.json
-│   │   └── package.json
 │   ├── shared/                  # Monorepo Shared Utilities & Types
-│   │   ├── src/index.ts
-│   │   └── package.json
 │   └── supabase/                # Supabase Integration Client & Types
-│       ├── src/
-│       │   ├── client.ts
-│       │   └── types.ts
-│       └── package.json
 ├── supabase/                    # Database Migrations & Seeds
 │   ├── migrations/
+│   │   ├── 20260729000000_enterprise_schema_and_security.sql
+│   │   └── 20260730233500_zeroclaw_solana_settlements.sql # ZeroClaw Settlements & SOP Checkpoints
 │   └── seeds/
+├── docs/                        # Complete PRD & Architectural Documentation
 ├── vercel.json                  # Monorepo Vercel Deployment Configuration
 ├── turbo.json                   # Pipeline Configuration
 ├── pnpm-workspace.yaml          # Monorepo Workspace Definitions
 └── README.md
 ```
+
+---
+
+## ZeroClaw Solana Agent Runtime Infrastructure
+
+ZEGA AI incorporates **ZeroClaw**, a self-hosted Rust AI agent runtime operating on **Keyless Tier 1 Custody**:
+
+1. **Fastify REST API Routes (`apps/api/src/routes/v1/zeroclaw.routes.ts`)**:
+   - `GET /v1/zeroclaw/status`: Agent node status & active channel telemetry.
+   - `GET /v1/zeroclaw/solana-rpc`: Solana Devnet RPC live slot stream.
+   - `POST /v1/zeroclaw/events`: Solana Pay reference key generation & invoice registration.
+   - `POST /v1/zeroclaw/approve-checkpoint`: SOP prompt injection refund checkpoint clearance.
+
+2. **Database & Idempotent Migrations (`supabase/migrations/20260730233500_zeroclaw_solana_settlements.sql`)**:
+   - Tables: `zeroclaw_solana_settlements` and `zeroclaw_sop_checkpoints`.
+   - Idempotent policy guards (`DROP POLICY IF EXISTS`) to prevent deployment collisions.
+
+3. **Dual USD/IDR Currency Switcher**:
+   - Fixed conversion rate **1 USD = Rp 18.000 IDR** applied across all metrics, Chart.js sparklines, and live stream rows.
 
 ---
 
@@ -61,6 +82,7 @@ VITE_API_BASE_URL=http://localhost:3001
 PORT=3001
 SUPABASE_URL=https://your-supabase-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+CLOUDFLARE_TURNSTILE_SECRET_KEY=your-turnstile-secret
 ```
 
 ---
@@ -90,3 +112,4 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
    ```bash
    pnpm --filter=@zega/supabase generate-types
    ```
+

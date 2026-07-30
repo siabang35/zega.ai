@@ -4,6 +4,7 @@
 ![Production Domain](https://img.shields.io/badge/Production-zegaai.site-059669?style=for-the-badge&logo=vercel)
 ![Cloudflare CDN](https://img.shields.io/badge/CDN-cdn.zegaai.site-F38020?style=for-the-badge&logo=cloudflare)
 ![Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)
+![Solana](https://img.shields.io/badge/Blockchain-Solana%20Devnet-14F195?style=for-the-badge&logo=solana)
 ![Fastify](https://img.shields.io/badge/API-Fastify-000000?style=for-the-badge&logo=fastify)
 ![pnpm](https://img.shields.io/badge/pnpm-9.x-orange?style=for-the-badge&logo=pnpm)
 ![Turborepo](https://img.shields.io/badge/Turborepo-2.x-red?style=for-the-badge&logo=turborepo)
@@ -59,8 +60,15 @@ ZEGA/
 - **Official ZEGA AI Logo Display**: High-resolution `zegalogo.png` header branding with dark mode filter inversion.
 - **Theme-Safe Emerald WhatsApp CS Bot**: High-contrast, theme-safe Emerald status badges (`text-emerald-700 dark:text-emerald-300`, `bg-emerald-50 dark:bg-emerald-950/60`, `border-emerald-200 dark:border-emerald-800`).
 
-### 4. 🛡️ OWASP ASVS 4.0 Supabase Schema (`20260729000001`)
-- **12 Core Tables**: `profiles`, `organizations`, `organization_members`, `user_api_keys`, `agents`, `workflows`, `sandboxes`, `sandbox_executions`, `integrations`, `agent_memory_store`, `security_audit_logs`, `rate_limit_logs`.
+### 4. 🦀 ZeroClaw Solana Agent Runtime & Payment Infrastructure
+- **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile wallets (Phantom, Solflare) sign transactions directly.
+- **Solana Pay QR Invoicing & RPC Stream**: Instant payment request QR generation (`solana:recipient?amount=...&reference=...`) and real-time Devnet RPC slot verification (`Slot 480013691+`).
+- **Human-in-the-Loop SOP Checkpoints**: Automated frozen state for prompt injection refund attempts with Fastify `/v1/zeroclaw/approve-checkpoint` admin clearance.
+- **Dual Currency Switcher**: Fixed conversion rate **1 USD = Rp 18.000 IDR** applied across all metrics, Chart.js micro-sparklines, and live stream rows.
+- **Role-Separated Reconciliation Streams**: Dedicated history streams for UMKM retail sales (`FinanceView.tsx`) vs Enterprise corporate treasury settlements (`ZeroClawTerminalView.tsx`).
+
+### 5. 🛡️ OWASP ASVS 4.0 Supabase Schema (`20260729000001` & `20260730233500`)
+- **14 Core Tables**: Includes `zeroclaw_solana_settlements` and `zeroclaw_sop_checkpoints` with idempotent SQL guards (`DROP POLICY IF EXISTS`).
 - **Anti-Chunking Guard**: Input payload size cap (`octet_length <= 10485760` / 10MB).
 - **Row-Level Security (RLS)**: Enforced isolation policies preventing cross-tenant data leaks.
 
@@ -112,6 +120,7 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [12. Implemented Features & Status](docs/PRD/12-IMPLEMENTED-FEATURES-STATUS.md)
 - [13. Enterprise Security & CDN Hardening](docs/PRD/13-ENTERPRISE-SECURITY-CDN-SUPABASE-HARDENING.md)
 - [16. Authentication, Sessions & UI/UX Specs](docs/PRD/16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md)
+- [19. ZeroClaw Solana Agent Integration](docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md)
 
 ---
 
