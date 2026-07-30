@@ -4,7 +4,7 @@ import {
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronDown, Menu,
   ShieldCheck, Bot, Key, CreditCard, UserCheck, Zap, Activity,
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
-  Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2
+  Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Cpu
 } from 'lucide-react';
 
 import { OverviewView } from '../views/OverviewView';
@@ -22,6 +22,7 @@ import { UsageBillingView } from './views/UsageBillingView';
 import { AiSafetyView } from './views/AiSafetyView';
 import { AuditLogsView } from './views/AuditLogsView';
 import { RbacSsoView } from './views/RbacSsoView';
+import { ZeroClawTerminalView } from './views/ZeroClawTerminalView';
 
 interface EnterpriseDashboardProps {
   onClose: () => void;
@@ -50,6 +51,7 @@ export function EnterpriseDashboardView({
     mcp_connectors: 'mcp',
     agent_evals: 'evals',
     m2m_payments: 'payments',
+    zeroclaw_terminal: 'zeroclaw',
     crypto_wallets: 'wallets',
     usage_billing: 'billing',
     ai_safety: 'safety',
@@ -66,6 +68,7 @@ export function EnterpriseDashboardView({
     mcp: 'mcp_connectors',
     evals: 'agent_evals',
     payments: 'm2m_payments',
+    zeroclaw: 'zeroclaw_terminal',
     wallets: 'crypto_wallets',
     billing: 'usage_billing',
     safety: 'ai_safety',
@@ -143,6 +146,7 @@ export function EnterpriseDashboardView({
       category: 'Autonomous Payments & Wallets',
       items: [
         { id: 'm2m_payments', label: 'Machine-to-Machine (x402)', icon: Zap, badge: 'x402 / Solana' },
+        { id: 'zeroclaw_terminal', label: 'ZeroClaw Solana Terminal', icon: Cpu, badge: 'Keyless Tier 1' },
         { id: 'crypto_wallets', label: 'Autonomous Multi-Sig Wallets', icon: Key, badge: 'Vault' },
         { id: 'usage_billing', label: 'Metered Usage & Tokens', icon: CreditCard, badge: 'Usage' },
       ],
@@ -387,6 +391,7 @@ export function EnterpriseDashboardView({
           {activeTab === 'mcp_connectors' && <McpConnectorsView onTriggerToast={triggerToast} />}
           {activeTab === 'agent_evals' && <AgentEvalsView onTriggerToast={triggerToast} />}
           {activeTab === 'm2m_payments' && <M2mPaymentsView />}
+          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
           {activeTab === 'usage_billing' && <UsageBillingView />}
           {activeTab === 'ai_safety' && <AiSafetyView />}
