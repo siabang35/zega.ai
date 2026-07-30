@@ -101,7 +101,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           params: [address, { encoding: 'jsonParsed' }],
         }),
       });
-      const accountJson = await accountRes.json();
+      const accountJson = (await accountRes.json()) as any;
 
       // Query 2: getSignaturesForAddress
       const sigRes = await fetch(DEVNET_RPC_URL, {
@@ -114,7 +114,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           params: [address, { limit: 5, commitment: 'confirmed' }],
         }),
       });
-      const sigJson = await sigRes.json();
+      const sigJson = (await sigRes.json()) as any;
 
       return reply.send({
         success: true,
