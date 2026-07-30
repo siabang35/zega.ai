@@ -482,6 +482,12 @@ function ChartJsStepSymbol({ color = "#4BC0C0", className = "size-3.5" }: { colo
 
 const BrandIcon = ({ name }: { name: string }) => {
   switch (name) {
+    case "ZeroClaw":
+    case "ZeroClaw Agent":
+      return <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-5.5 rounded-md object-cover border border-slate-700/50" alt="ZeroClaw Agent" />;
+    case "Solana":
+    case "Solana Pay":
+      return <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-5.5 rounded-md object-contain" alt="Solana Pay" />;
     case "9Router":
     case "9Router Engine":
       return <img src="/assets/visualization/9router.jpeg" className="size-5.5 rounded-md object-cover" alt="9Router Engine" />;
@@ -722,6 +728,8 @@ const ACTION_TABS_DATA = {
     ],
     type: "tools" as const,
     connectors: [
+      { name: "ZeroClaw Agent", sub: "Rust Autonomous Runtime", status: "Active" },
+      { name: "Solana Pay", sub: "Keyless On-Chain Terminal", status: "Active" },
       { name: "Stripe Connect", sub: "Payments API", status: "Active" },
       { name: "WhatsApp Business", sub: "Messaging Gateway", status: "Active" },
       { name: "Google BigQuery", sub: "Data Warehouse", status: "Active" },
@@ -1900,7 +1908,7 @@ function AppContent() {
 
       {/* NAV */}
       <header className="sticky top-0 z-50 h-[60px] border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all">
-        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-6 lg:px-12">
+        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <a
             href="/"
@@ -2095,30 +2103,43 @@ function AppContent() {
       {/* HERO */}
       <section
         id="home"
-        className="relative overflow-hidden px-6 pb-0 pt-16 text-center lg:px-12 lg:pt-22"
+        className="relative overflow-hidden px-4 sm:px-6 lg:px-8 pb-12 pt-16 sm:pt-20 lg:pt-24 text-center border-b border-slate-200/80 dark:border-white/[0.06]"
       >
         {/* Harmonious Multi-Tone Ambient Glow Aura */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center overflow-hidden">
           {/* Main Top Center Radial Glow */}
-          <div className="h-[420px] w-[960px] rounded-full dark:bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.22)_0%,rgba(194,24,91,0.16)_35%,rgba(14,165,233,0.12)_60%,transparent_80%)] bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.05)_0%,rgba(244,114,182,0.03)_40%,rgba(56,189,248,0.03)_70%,transparent_85%)] blur-3xl" />
+          <div className="h-[460px] w-[1040px] rounded-full dark:bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.22)_0%,rgba(194,24,91,0.16)_35%,rgba(14,165,233,0.12)_60%,transparent_80%)] bg-[radial-gradient(ellipse_at_top,rgba(255,107,53,0.08)_0%,rgba(244,114,182,0.05)_40%,rgba(56,189,248,0.05)_70%,transparent_85%)] blur-3xl" />
           {/* Subtle Accent Flairs */}
-          <div className="absolute -top-10 left-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#ff6b35]/15 bg-[#ff6b35]/03 blur-[90px]" />
-          <div className="absolute -top-10 right-1/4 h-[300px] w-[300px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/03 blur-[90px]" />
+          <div className="absolute -top-10 left-1/4 h-[320px] w-[320px] rounded-full dark:bg-[#ff6b35]/15 bg-[#ff6b35]/05 blur-[90px]" />
+          <div className="absolute -top-10 right-1/4 h-[320px] w-[320px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/05 blur-[90px]" />
         </div>
 
         <div className="relative z-10 mx-auto max-w-3xl">
+          {/* Seamless Enterprise Announcement Pill */}
+          <div 
+            onClick={() => handleOpenAuth('enterprise')}
+            className="hero-text-reveal mx-auto mb-6 inline-flex items-center gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3.5 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group"
+          >
+            <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-3.5 rounded object-cover" alt="ZeroClaw" />
+            <span className="text-[11px] font-semibold dark:text-slate-200 text-slate-700">ZeroClaw AI Engine</span>
+            <span className="text-slate-400 dark:text-slate-600 font-bold text-[9px]">•</span>
+            <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-3.5 rounded object-contain" alt="Solana" />
+            <span className="text-[11px] font-semibold dark:text-slate-300 text-slate-600">Solana Pay Settlement</span>
+            <ArrowRight size={12} className="text-orange-500 ml-0.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </div>
+
           <h1
-            className="hero-text-reveal text-[clamp(2.2rem,5vw,3.9rem)] font-light leading-[1.08] tracking-[-0.035em] text-foreground"
+            className="hero-text-reveal text-[clamp(2.2rem,5vw,3.9rem)] font-light leading-[1.08] tracking-[-0.035em] text-slate-900 dark:text-white"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             {t.hero.title}
           </h1>
-          <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4 max-w-lg text-[13.5px] sm:text-[14px] leading-relaxed text-muted-foreground font-normal">
+          <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-xl text-[14px] sm:text-[15px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal">
             {t.hero.subtitle}
           </p>
 
           {/* Clean Enterprise Email Input Pill */}
-          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 flex w-full max-w-[400px] items-center overflow-hidden rounded-full border border-slate-200/80 dark:border-white/12 bg-white/90 dark:bg-[#0f111a]/90 p-1.5 backdrop-blur-xl shadow-xs transition-all duration-200 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-400/10 dark:focus-within:ring-white/5">
+          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 sm:mt-10 flex w-full max-w-[420px] items-center overflow-hidden rounded-full border border-slate-300 dark:border-white/12 bg-white dark:bg-[#0f111a]/90 p-1.5 backdrop-blur-xl shadow-none transition-all duration-200 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-400/10 dark:focus-within:ring-white/5">
             <Mail size={15} strokeWidth={1.75} className="ml-3.5 flex-shrink-0 text-slate-400 dark:text-slate-400 transition-colors" />
             <input
               type="email"
@@ -2128,7 +2149,7 @@ function AppContent() {
                 if (e.key === "Enter") handleNewsletterSubscribe(email);
               }}
               placeholder={t.hero.enterEmail}
-              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12.5px] font-medium text-foreground placeholder:text-muted-foreground/60 border-none outline-none ring-0 focus:ring-0 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12.5px] font-medium text-slate-900 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground/60 border-none outline-none ring-0 focus:ring-0 focus:outline-none"
               autoComplete="email"
             />
             <button
@@ -2144,19 +2165,28 @@ function AppContent() {
         </div>
 
         {/* ORCHESTRATION FLOW VISUALIZATION */}
-        <div className="relative mx-auto mt-12 w-full max-w-[1200px] overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 pb-4 px-2">
-          {/* Flow animation styling */}
-          <style>{`
-            @keyframes flowDash { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
-            .orch-line { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite; }
-            .orch-line-rev { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite reverse; }
-            @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-            .orch-fade { animation: fadeInUp 0.5s ease both; }
-            @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
-            .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
-          `}</style>
-          <div ref={containerRef} className="relative min-w-[1000px] lg:min-w-full rounded-2xl border dark:border-white/[0.06] border-gray-200/80 dark:bg-[#0a0e1a]/90 bg-white/70 backdrop-blur-xl p-4 sm:p-5 lg:p-6 overflow-hidden shadow-2xl dark:shadow-black/50 shadow-gray-200/40">
-            {/* Dot grid */}
+        <div className="relative mx-auto mt-8 sm:mt-12 lg:mt-14 mb-8 sm:mb-12 w-full max-w-[1280px] px-3 sm:px-6 lg:px-8">
+          <div className="w-full overflow-x-auto pb-2 lg:pb-0 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+            {/* Ambient Orange & Pink Glow Orbs */}
+            <div className="pointer-events-none absolute -top-16 -left-16 size-80 rounded-full bg-gradient-to-br from-[#ff6b35]/20 via-[#e8295a]/15 to-transparent blur-3xl dark:opacity-40 opacity-70" />
+            <div className="pointer-events-none absolute -bottom-16 -right-16 size-80 rounded-full bg-gradient-to-tl from-[#e8295a]/20 via-[#ff6b35]/15 to-transparent blur-3xl dark:opacity-40 opacity-70" />
+
+            {/* Flow animation styling */}
+            <style>{`
+              @keyframes flowDash { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+              .orch-line { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite; }
+              .orch-line-rev { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite reverse; }
+              @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+              .orch-fade { animation: fadeInUp 0.5s ease both; }
+              @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
+              .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
+            `}</style>
+
+            <div ref={containerRef} className="relative w-full min-w-[880px] lg:min-w-0 rounded-2xl border dark:border-white/[0.08] border-slate-200/90 dark:bg-[#0a0e1a]/95 bg-white/85 backdrop-blur-2xl p-4 sm:p-5 lg:p-6 shadow-none dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition-all overflow-hidden">
+              {/* Glassmorphic Top Border Glow Line */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ff6b35]/50 dark:via-[#ff6b35]/70 via-[#e8295a]/40 to-transparent z-20" />
+
+              {/* Dot grid */}
             <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
             {/* Dynamic Curved Bezier Connectors Overlay — Direct child of containerRef */}
@@ -2307,7 +2337,7 @@ function AppContent() {
 
             {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
             <div className="orch-fade relative z-10 mb-4">
-              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/60 text-indigo-400 mb-2">Layer 1 · Event Sources</p>
+              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/70 text-indigo-700 mb-2">Layer 1 · Event Sources</p>
               <div className="grid grid-cols-5 gap-2">
                 {([
                   { Icon: Globe, label: 'API', sub: 'REST / GraphQL' },
@@ -2319,12 +2349,12 @@ function AppContent() {
                   <div
                     key={label}
                     ref={(el) => { topPointsRef.current[i] = el; }}
-                    className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-gray-200/80 dark:bg-white/[0.02] bg-white/80 px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-white hover:shadow-sm"
+                    className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-slate-200/80 dark:bg-white/[0.02] bg-white px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-slate-50 hover:shadow-xs"
                   >
                     <Icon size={14} className="flex-shrink-0 dark:text-[#818cf8] text-indigo-500" />
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold dark:text-white/85 text-gray-800 truncate">{label}</p>
-                      <p className="text-[7.5px] dark:text-white/30 text-gray-400 truncate">{sub}</p>
+                      <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{label}</p>
+                      <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
                     </div>
                   </div>
                 ))}
@@ -2332,13 +2362,13 @@ function AppContent() {
             </div>
 
             {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div className="orch-fade relative z-10 grid grid-cols-[24%_52%_24%] justify-between gap-0 items-center">
+            <div className="orch-fade relative z-10 grid grid-cols-[28%_44%_28%] justify-between gap-0 items-center">
 
               {/* LEFT — Layer 2: Integrations */}
               <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/60 text-emerald-500 mb-1 text-left">Layer 2 · Integrations</p>
-                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-left">Connected tools and services</p>
-                <div className="space-y-1.5">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/70 text-emerald-700 mb-1 text-left">Layer 2 · Integrations</p>
+                <p className="text-[7px] dark:text-white/20 text-slate-400 mb-2 text-left font-medium">Connected tools and services</p>
+                <div className="space-y-1">
                   {([
                     { name: 'Google Maps', sub: 'Location & Geo Data' },
                     { name: 'WhatsApp Business', sub: 'Messaging API' },
@@ -2351,19 +2381,19 @@ function AppContent() {
                     { name: 'GitHub', sub: 'Code & Repos' },
                     { name: 'Slack', sub: 'Team Collaboration' },
                   ] as const).map(({ name, sub }, i) => (
-                    <div key={name} className="flex items-center justify-between rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2.5 py-2 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50/50 hover:border-slate-300 hover:shadow-md">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex-shrink-0 size-7 rounded-md dark:bg-white/[0.04] bg-indigo-50 flex items-center justify-center">
+                    <div key={name} className="flex items-center justify-between rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex-shrink-0 size-6 rounded-md dark:bg-white/[0.04] bg-slate-100 flex items-center justify-center">
                           <BrandIcon name={name} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
-                          <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
+                          <p className="text-[9.5px] font-semibold dark:text-white/90 text-slate-900 truncate">{name}</p>
+                          <p className="text-[7px] dark:text-white/40 text-slate-500 font-medium truncate">{sub}</p>
                         </div>
                       </div>
                       <span
                         ref={(el) => { leftPointsRef.current[i] = el; }}
-                        className="size-1.5 rounded-full bg-emerald-400 animate-pulse ml-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                        className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse ml-1.5 flex-shrink-0"
                       />
                     </div>
                   ))}
@@ -2371,8 +2401,8 @@ function AppContent() {
               </div>
 
               {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
-              <div className="relative z-10 w-full max-w-[490px] mx-auto px-2">
-                <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-[0_8px_32px_rgba(255,107,53,0.08),0_1px_3px_rgba(0,0,0,0.02)] transition-all">
+              <div className="relative z-10 w-full max-w-[440px] mx-auto px-1 sm:px-2">
+                <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-none dark:shadow-[0_8px_32px_rgba(255,107,53,0.08)] transition-all mt-4 sm:mt-6">
                   {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
                   <div ref={leftHubRef} className="flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
                     <Database size={13} className="text-[#ff6b35]" />
@@ -2383,13 +2413,13 @@ function AppContent() {
                     <ShieldCheck size={13} className="text-[#ff6b35]" />
                   </div>
 
-                  {/* Tabs bar — Fixed height 40px */}
-                  <div className="flex h-[40px] border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-2xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                  {/* Tabs bar — Fixed height 38px at the top of the card */}
+                  <div className="flex h-[38px] border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-2xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
                     {(['Agent', 'Integration', 'Automation', 'Memory'] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setVizTab(tab)}
-                        className={`flex-1 py-2.5 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
+                        className={`flex-1 py-2 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
                           ? 'dark:text-white text-gray-900 dark:bg-white/[0.06] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35] font-bold shadow-xs'
                           : 'dark:text-white/40 text-gray-500 hover:dark:text-white/70 hover:text-gray-700 hover:bg-slate-100/50 dark:hover:bg-white/[0.02]'
                           }`}
@@ -2401,34 +2431,34 @@ function AppContent() {
 
                   {/* Dynamic Smooth Animated Tab Content Container */}
                   <div key={vizTab} className="animate-fadeIn transition-opacity duration-300 transform-gpu will-change-[opacity]">
-                    {/* Logo + Title — Fixed Height 76px Header across all tabs */}
-                    <div className="flex flex-col items-center h-[76px] justify-center px-4 pt-3.5 pb-2">
+                    {/* Logo + Title — Fixed Height 70px Header across all tabs */}
+                    <div className="flex flex-col items-center h-[70px] justify-center px-4 pt-2.5 pb-1.5">
                       <img
                         src="/assets/logo/zegalogo.png"
                         alt="ZEGA AI"
-                        className="h-7 sm:h-8 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
+                        className="h-6 sm:h-7 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
                       />
                       {VIZ_TAB_DATA[vizTab].title && (
-                        <h3 className="mt-1 text-[13px] sm:text-[14px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
+                        <h3 className="mt-0.5 text-[12.5px] sm:text-[13.5px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
                           {VIZ_TAB_DATA[vizTab].title}
                         </h3>
                       )}
-                      <p className="mt-0.5 text-[8.5px] sm:text-[9px] dark:text-white/40 text-slate-500 font-semibold text-center">
+                      <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center">
                         {VIZ_TAB_DATA[vizTab].sub}
                       </p>
                     </div>
 
-                    {/* Workflow Pipeline — Fixed 235px Height across all tabs */}
-                    <div className="px-4 sm:px-5 pb-3 space-y-1.5 h-[235px] flex flex-col justify-center transition-all duration-300">
+                    {/* Workflow Pipeline — Fixed 215px Height across all tabs */}
+                    <div className="px-4 sm:px-5 pb-2.5 space-y-1.5 h-[215px] flex flex-col justify-center transition-all duration-300">
                       {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }, idx) => (
                         <div
                           key={label}
-                          className="flex items-center gap-3 rounded-xl dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/70 border-slate-200/80 px-3 py-1.8 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm transform-gpu"
+                          className="flex items-center gap-3 rounded-xl dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/70 border-slate-200/80 px-3 py-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs transform-gpu"
                           style={{ animationDelay: `${idx * 40}ms` }}
                         >
                           <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/80 text-indigo-550" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] sm:text-[10.5px] font-semibold dark:text-white/85 text-gray-800">{label}</p>
+                            <p className="text-[9.5px] sm:text-[10px] font-semibold dark:text-white/85 text-gray-800">{label}</p>
                             <p className="text-[7.5px] sm:text-[8px] dark:text-white/30 text-slate-500 font-medium">{sub}</p>
                           </div>
                           <Check size={12} className="flex-shrink-0 dark:text-emerald-400/80 text-emerald-500" />
@@ -2436,8 +2466,8 @@ function AppContent() {
                       ))}
                     </div>
 
-                    {/* Live status bar — Fixed Height 38px */}
-                    <div className="flex items-center justify-between px-4 sm:px-5 h-[38px] border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50 rounded-b-2xl">
+                    {/* Live status bar — Fixed Height 36px */}
+                    <div className="flex items-center justify-between px-4 sm:px-5 h-[36px] border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50 rounded-b-2xl">
                       <div className="flex items-center gap-1.5">
                         <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
                         <span className={`text-[8px] sm:text-[8.5px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-2 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
@@ -2460,10 +2490,12 @@ function AppContent() {
 
               {/* RIGHT — Layer 4: AI Agents */}
               <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/60 text-sky-500 mb-1 text-left">Layer 4 · AI Agents</p>
-                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2.5 text-left">Autonomous agents working on your business</p>
-                <div className="space-y-1.5">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/70 text-sky-700 mb-1 text-left">Layer 4 · AI Agents</p>
+                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2 text-left">Autonomous agents working on your business</p>
+                <div className="space-y-1">
                   {([
+                    { Icon: Zap, name: 'Agentic Payment Agent', sub: 'Solana Pay · ZeroClaw Escrow · Settle', active: true },
+                    { Icon: Cpu, name: 'DeFi Guardian Agent', sub: 'Solana DEX · Auto-Yield · Protection', active: true },
                     { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
                     { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
                     { Icon: Headphones, name: 'CS Agent', sub: 'WhatsApp · Telegram · Email', active: true },
@@ -2476,17 +2508,17 @@ function AppContent() {
                     <div
                       ref={(el) => { rightPointsRef.current[i] = el; }}
                       key={name}
-                      className="flex items-center gap-2.5 rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2.5 py-2 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50/50 hover:border-slate-300 hover:shadow-md"
+                      className="flex items-center gap-2 rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300"
                     >
-                      <div className={`flex-shrink-0 size-7 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-slate-50'}`}>
-                        <Icon size={13} className={active ? 'dark:text-sky-400 text-sky-600' : 'dark:text-white/25 text-slate-400'} />
+                      <div className={`flex-shrink-0 size-6 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-slate-50'}`}>
+                        <Icon size={12} className={active ? 'dark:text-sky-400 text-sky-600' : 'dark:text-white/25 text-slate-400'} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
+                          <p className="text-[9.5px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
                           <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200' : 'dark:bg-white/[0.04] bg-slate-100 dark:text-white/30 text-slate-400 border dark:border-white/[0.05] border-slate-200'}`}>{active ? 'Active' : 'Idle'}</span>
                         </div>
-                        <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
+                        <p className="text-[7px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
                       </div>
                     </div>
                   ))}
@@ -2519,7 +2551,7 @@ function AppContent() {
                       { Icon: GitBranch, label: 'Fallback Mgmt' },
                       { Icon: Activity, label: 'AI Scoring' },
                       { Icon: Sparkles, label: 'Smart Routing' },
-                      { Icon: CircleDot, label: 'FX Netting' },
+                      { Icon: Cpu, label: 'Multi-LLM Load Balance' },
                     ] as const).map(({ Icon, label }) => (
                       <div key={label} className="flex items-center gap-1 rounded-md dark:bg-white/[0.03] bg-slate-50 border dark:border-white/[0.05] border-slate-200/60 px-2 py-1 transition-all hover:border-orange-500/40">
                         <Icon size={10} className="dark:text-orange-400 text-[#ff6b35]" />
@@ -2629,9 +2661,48 @@ function AppContent() {
                 ))}
               </div>
             </div>
+
+            {/* ═══════════ SETTLEMENT & EXECUTION LAYER ═══════════ */}
+            <div className="relative z-10 mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl dark:bg-[#091522] bg-slate-50 dark:border-white/[0.08] border-slate-200 border p-3 shadow-none">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                <span className="text-[11.5px] font-bold dark:text-slate-100 text-slate-900 tracking-tight">Autonomous Execution & On-Chain Terminal</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border dark:border-slate-800 border-slate-200/80 shadow-none">
+                  <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-4 rounded object-cover border border-slate-700/50" alt="ZeroClaw" />
+                  <span className="text-[11px] font-semibold dark:text-slate-100 text-slate-900">ZeroClaw AI</span>
+                  <span className="text-[9px] text-slate-500 font-mono">(Rust)</span>
+                </div>
+
+                <span className="text-slate-400 dark:text-slate-600 font-bold text-xs">×</span>
+
+                <a
+                  href="https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors shadow-none cursor-pointer group"
+                  title="View live ZeroClaw settlement transactions on Solana Devnet Explorer"
+                >
+                  <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-4 rounded object-contain" alt="Solana" />
+                  <span className="text-[11px] font-semibold">Solana Devnet</span>
+                  <ArrowUpRight size={12} className="text-emerald-500 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                </a>
+
+                <button
+                  onClick={() => handleOpenAuth('enterprise')}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white font-semibold text-xs transition-all shadow-none flex items-center gap-1.5 cursor-pointer ml-1"
+                >
+                  <span>Demo Terminal</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* COLLABORATIVE AGENTS */}
       <section

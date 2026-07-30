@@ -54,6 +54,15 @@ const DOCS_NAV = [
     ],
   },
   {
+    category: 'SOLANA & ZEROCLAW AGENTS',
+    items: [
+      { id: 'zeroclaw', title: 'ZeroClaw Rust Agent Node' },
+      { id: 'solana-pay', title: 'Solana Pay QR & Devnet RPC' },
+      { id: 'sop-checkpoints', title: 'SOP Human Approval Checkpoints' },
+      { id: 'enterprise-zeroclaw', title: 'Enterprise Swarm & Guardrails' },
+    ],
+  },
+  {
     category: 'ENTERPRISE & COMPLIANCE',
     items: [
       { id: 'pii', title: 'PII Redaction & Audit' },
@@ -303,6 +312,9 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               {DOCS_NAV.flatMap((g) => g.items).find((i) => i.id === activeTab)?.title || 'Documentation'}
             </h1>
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
+              {activeTab === 'zeroclaw' && 'Self-hosted Rust AI agent runtime operating under Keyless Tier 1 custody for secure Solana Pay QR settlements and SOP approval checkpoints.'}
+              {activeTab === 'solana-pay' && 'Real-time Solana Devnet RPC transaction verification, preset merchant invoices, and global USD/IDR currency conversion.'}
+              {activeTab === 'sop-checkpoints' && 'Human-in-the-loop audit checkpoints protecting AI agent financial execution against prompt injection and unauthorized refund requests.'}
               {activeTab === 'quickstart' && 'Learn how to integrate the ZEGA AI client and leverage 9Router dynamic model selection for optimal latency and enterprise cost savings.'}
               {activeTab === 'architecture' && 'Understand the 5-layer architecture powering autonomous swarms, sandbox environments, and real-time LLM orchestration.'}
               {activeTab === 'installation' && 'Set up the ZEGA AI SDK in TypeScript, Python, or raw cURL HTTP calls for your production backend.'}
@@ -321,7 +333,9 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-blue-500 block mb-0.5">Enterprise Recommendation</strong>
-              {activeTab === 'deployment' ? (
+              {activeTab === 'zeroclaw' || activeTab === 'solana-pay' || activeTab === 'sop-checkpoints' ? (
+                <span>ZeroClaw operates on <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">Keyless Tier 1 Custody</code>. All Devnet signatures are 100% verifiable via Solana Explorer.</span>
+              ) : activeTab === 'deployment' ? (
                 <span>For Vercel deployment, configure <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">VITE_API_URL</code> pointing to your Render backend API service.</span>
               ) : activeTab === 'auth' ? (
                 <span>Ensure <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">CLOUDFLARE_TURNSTILE_SECRET_KEY</code> is configured in backend environment variables.</span>
@@ -330,6 +344,166 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               )}
             </div>
           </div>
+
+          {/* ZeroClaw Specific Interactive Article Renderers */}
+          {activeTab === 'zeroclaw' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🦀 ZeroClaw Agent Node Overview
+                </h2>
+                <p>
+                  <strong>ZeroClaw</strong> is a self-hosted, ultra-lightweight Rust AI agent runtime built to handle Solana Pay QR invoicing, real-time RPC signature verification, and human-in-the-loop SOP approval checkpoints.
+                </p>
+                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Key Principles Implemented</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Keyless Tier 1 Custody:</strong> Zero private keys stored server-side. Transactions are signed directly by user wallets (Phantom / Solflare).</li>
+                    <li><strong>Fastify REST API Endpoints:</strong> Live endpoints for telemetry (<code className="font-mono">/v1/zeroclaw/status</code>), Devnet RPC (<code className="font-mono">/v1/zeroclaw/solana-rpc</code>), events (<code className="font-mono">/v1/zeroclaw/events</code>), and approvals (<code className="font-mono">/v1/zeroclaw/approve-checkpoint</code>).</li>
+                    <li><strong>Supabase PostgreSQL RLS:</strong> Table <code className="font-mono">zeroclaw_solana_settlements</code> and <code className="font-mono">zeroclaw_sop_checkpoints</code> with automated Realtime publication.</li>
+                  </ul>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">ZeroClaw REST API Endpoint Reference</h3>
+                <div className="rounded-xl border border-border/80 overflow-hidden font-mono text-[11px]">
+                  <table className="w-full text-left">
+                    <thead className="bg-muted/50 border-b border-border/60 text-muted-foreground font-bold">
+                      <tr>
+                        <th className="p-3">Endpoint</th>
+                        <th className="p-3">Method</th>
+                        <th className="p-3">Functionality</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      <tr>
+                        <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/status</td>
+                        <td className="p-3 text-slate-400">GET</td>
+                        <td className="p-3 font-sans">Get agent node health status, custody tier, and active messaging channels.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/solana-rpc</td>
+                        <td className="p-3 text-slate-400">GET</td>
+                        <td className="p-3 font-sans">Fetch live slot and confirmed transaction signatures directly from Solana Devnet RPC.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/events</td>
+                        <td className="p-3 text-slate-400">POST</td>
+                        <td className="p-3 font-sans">Generate reference keys and register reconciled Solana Pay invoices into Supabase.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/approve-checkpoint</td>
+                        <td className="p-3 text-slate-400">POST</td>
+                        <td className="p-3 font-sans">Submit human admin approval decision for security-flagged prompt injection checkpoints.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'solana-pay' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  ⚡ Solana Pay QR & Devnet RPC Reconciliation
+                </h2>
+                <p>
+                  ZeroClaw integrates standardized <strong>Solana Pay Transfer Request Scheme</strong> (<code className="font-mono">solana:recipient?amount=...&reference=...</code>) enabling instant mobile QR checkout for UMKM merchants and individual creators.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Merchant Quick Presets</h4>
+                    <p className="text-[11px] text-slate-500">Includes <em>Pay for Product (15 USDC)</em>, <em>Kasir Settlement</em>, <em>Agent Micro-Pay (0.05 USDC)</em>, and <em>Swarm Escrow (250 USDC)</em>.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Dual Currency Mode (USD/IDR)</h4>
+                    <p className="text-[11px] text-slate-500">Fixed exchange rate <strong>1 USD = Rp 18.000 IDR</strong> applied dynamically across metrics, charts, and stream rows.</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Devnet RPC Signature Pool</h3>
+                <p>
+                  All generated transactions link directly to active, verifiable Solana Devnet RPC signatures (<code className="font-mono">Slot 480013691+</code>). Users can click <strong>Solana Explorer</strong> on any row to verify transaction status live on-chain without encounter 'Not Found' errors.
+                </p>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'sop-checkpoints' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🛡️ Human-in-the-Loop SOP Approval Checkpoints
+                </h2>
+                <p>
+                  ZeroClaw enforces Standard Operating Procedure (SOP) guardrails to shield autonomous financial operations from <strong>prompt injection attacks</strong>.
+                </p>
+                <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+                  <h3 className="font-bold text-amber-600 dark:text-amber-400 text-sm">Security Workflow</h3>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li>WhatsApp/Telegram chat user requests a high-value financial refund or wallet drain.</li>
+                    <li>ZeroClaw AI prompt guard flags suspicious injection patterns and creates a pending record in <code className="font-mono">zeroclaw_sop_checkpoints</code>.</li>
+                    <li>Financial execution is frozen until an authorized human admin reviews the checkpoint and clicks <strong>Approve</strong> or <strong>Reject</strong> in ZeroClaw Terminal.</li>
+                  </ol>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'enterprise-zeroclaw' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🏢 Enterprise Swarm Escrow & Custom Policy Guardrails
+                </h2>
+                <p>
+                  For large-scale corporate deployments, ZeroClaw provides multi-agent task orchestration, spending caps, and automated enterprise ERP integration.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-2">
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Multi-Agent Swarm Escrow</h3>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      Deploys autonomous task delegation between primary AI coordinators and sub-task executors with funds safely locked in Solana Pay escrow reference contracts until sub-task completion.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-2">
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Policy Configuration (config.toml)</h3>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      Enforces hard spending limits per transaction (<code className="font-mono">max_usdc_per_tx = 500</code>), allowed token mints (USDC, SOL), and custom injection regex rules.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Enterprise ERP & Webhook Streaming</h3>
+                <p>
+                  Connect ZeroClaw real-time events directly to SAP, Salesforce, or internal corporate accounting tools via HTTP Webhooks and Supabase Realtime WebSocket listeners.
+                </p>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                  <pre>
+{`// Enterprise Webhook Listener Example
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+
+supabase
+  .channel('enterprise_settlements')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'zeroclaw_solana_settlements' }, (payload) => {
+    console.log('Real-time Enterprise Solana Settlement:', payload.new);
+    // Forward to ERP System (SAP / Salesforce)
+  })
+  .subscribe();`}
+                  </pre>
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* Step 1: Installation */}
           <section className="space-y-4 my-8">

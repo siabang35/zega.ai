@@ -139,5 +139,11 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Auth Routes & JWT | `apps/api/src/routes/v1/auth.routes.ts` | Verified & Production Ready |
 | Supabase Service & RBAC | `apps/web/src/app/dashboard/services/supabaseService.ts` | Verified & Production Ready |
 | Database Migration SQL | `supabase/migrations/20260729000000_enterprise_schema_and_security.sql` | Executed & Migration Ready |
+| ZeroClaw Solana Settlements SQL | `supabase/migrations/20260730233500_zeroclaw_solana_settlements.sql` | Executed & Idempotent Guarded |
+| ZeroClaw Fastify API Routes | `apps/api/src/routes/v1/zeroclaw.routes.ts` | Verified & Production Ready |
+| ZeroClaw Terminal View | `apps/web/src/app/dashboard/enterprise/views/ZeroClawTerminalView.tsx` | Verified & Chart.js Sparklines |
+| UMKM Finance Settlement View | `apps/web/src/app/dashboard/umkm/views/FinanceView.tsx` | Verified & Dual USD/IDR Mode |
+| Web Documentation Portal | `apps/web/src/app/DocsPage.tsx` | Verified & Interactive Renderers |
 | Modular Enterprise PRD Spec | `docs/PRD/18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md` | Documented & Verified |
+| ZeroClaw Solana Integration Spec | `docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md` | Documented & Verified |
 

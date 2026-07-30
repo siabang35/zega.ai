@@ -26,6 +26,7 @@
 | 16 | [Auth, Sessions & UI/UX](./16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md) | `16-AUTHENTICATION-SESSION-HARDENING-AND-UX-SPEC.md` | Session clearance, Console CTA route guarding, Guest Demo standards, Enterprise accordion sidebar, theme ergonomics |
 | 17 | [Dashboard Theme, Store CDN & Avatars](./17-DASHBOARD-THEME-STORE-CDN-INBOX-AVATARS-SPEC.md) | `17-DASHBOARD-THEME-STORE-CDN-INBOX-AVATARS-SPEC.md` | Light mode default for dashboards, Dark mode default for landing page, Cloudflare R2 Store CDN, Customer avatars, 3D mascot popover |
 | 18 | [Modular Enterprise Dashboard & Role Routing](./18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md) | `18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md` | Role-based routing (/dashboard vs /console vs /admin), domain-isolated enterprise/superadmin/umkm modules, 0-error build verification |
+| 19 | [ZeroClaw Solana Agent Integration](./19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md) | `19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md` | Self-hosted Rust node, Keyless Tier 1 Custody, Solana Pay QR, Devnet RPC signatures, SOP Checkpoints, dual USD/IDR mode, role-separated streams |
 
 ---
 
