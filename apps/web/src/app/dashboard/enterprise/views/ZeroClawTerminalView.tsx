@@ -267,38 +267,38 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   const [events, setEvents] = useState<ReconciledEvent[]>([
     {
       id: 'ent_real_001',
-      signature: 'STLy51nZPUD4sLueM6V7y8tCY1mzpm2jX8ZBFmPxKHhD2hFEsRiJvmQRtpdZQhDbRY85ccZRBgaUDYYotParPD23',
+      signature: '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
       amount: 1250.00,
       currency: 'USDC',
-      timestamp: 'Slot 231,881,234',
+      timestamp: 'Slot 480,263,953',
       channel: 'SOLANA-DEVNET',
       network: 'solana-devnet',
       memo: 'Corporate Treasury B2B Settlement',
-      slot: 231881234,
+      slot: 480263953,
       timeAgo: '2s ago'
     },
     {
       id: 'ent_real_002',
-      signature: '3UNyJSv8qwmSvxc4dgG3CT9tct92ACYWVRGdZJZ3rt9qm9hGSyjUKF793rx7WDDtxTv3ohKDUwVgf5zc9vpcwgTbJ',
+      signature: '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
       amount: 250.00,
       currency: 'USDC',
-      timestamp: 'Slot 231,881,203',
+      timestamp: 'Slot 480,263,928',
       channel: 'SOLANA-DEVNET',
       network: 'solana-devnet',
       memo: 'Multi-Agent Swarm Escrow (#8812)',
-      slot: 231881203,
+      slot: 480263928,
       timeAgo: '12s ago'
     },
     {
       id: 'ent_real_003',
-      signature: 'rVSAQEbmntGhktzPhahNuhbauxRJsZzZJQVW5169BbVwTGouSNh4XjUQjz4MruZhRfRgZ9yZGKGgWFErvBDFte',
+      signature: 'xaCDsf4hnS6V19xuub2YGQX2mpSMsXQt1kkwRYmjg6kupB6qa3H1m6B3jSc5mnMRtefUm5UsmQVS74KjPvKdkjQ',
       amount: 500.00,
       currency: 'USDC',
-      timestamp: 'Slot 231,881,102',
+      timestamp: 'Slot 480,263,919',
       channel: 'SOLANA-DEVNET',
       network: 'solana-devnet',
       memo: 'Cross-Border Supply Chain Settlement',
-      slot: 231881102,
+      slot: 480263919,
       timeAgo: '28s ago'
     },
     {
@@ -381,26 +381,39 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   };
 
   // Fetch REAL Solana Devnet signatures directly from api.devnet.solana.com via API proxy
-  const fetchLiveDevnetSignatures = async () => {
+  const fetchLiveDevnetSignatures = async (showToast: boolean = false) => {
     setLoading(true);
     try {
-      const res = await fetch('/v1/zeroclaw/solana-rpc?address=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+      const res = await fetch('/v1/zeroclaw/solana-rpc?address=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU');
       if (res.ok) {
         const json = await res.json();
         if (json.signatures?.length > 0) {
           const liveEvents: ReconciledEvent[] = json.signatures.map((s: any, idx: number) => ({
-            id: `devnet_live_${s.slot}_${idx}`,
+            id: `devnet_live_${s.slot}_${idx}_${Date.now()}`,
             signature: s.signature,
             amount: 15.00,
             currency: 'USDC',
             timestamp: `Slot ${s.slot}`,
             channel: 'SOLANA-DEVNET',
             network: 'solana-devnet',
-            memo: 'Live RPC Settlement Feed',
+            memo: s.memo || 'Live RPC Settlement Feed',
             slot: s.slot,
             timeAgo: 'Just now'
           }));
-          setEvents(liveEvents);
+
+          setEvents(prev => {
+            const existingSigs = new Set(prev.map(e => e.signature));
+            const newFetched = liveEvents.filter(e => !existingSigs.has(e.signature));
+            if (newFetched.length > 0) {
+              return [...newFetched, ...prev];
+            }
+            // If no new signatures, return existing or updated array
+            return prev.length > 0 ? prev : liveEvents;
+          });
+
+          if (showToast) {
+            onTriggerToast('🔄 Real-Time Settlement Stream & Devnet Ledger Updated!');
+          }
         }
       }
     } catch (e) {
@@ -412,15 +425,20 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
   useEffect(() => {
     fetchZeroClawStatus();
-    fetchLiveDevnetSignatures();
+    fetchLiveDevnetSignatures(false);
+    // Real-Time 5-Second Settlement Stream Poller
+    const interval = setInterval(() => {
+      fetchLiveDevnetSignatures(false);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const REAL_DEVNET_SIGNATURES = [
-    '4pjnZPqZvd4bAUf1mFk98WSAeGix7HY2GBCPcumXvCRDCvGaYxHzExu1RMt3j2zyiCkymv9oJuNdNc8FZC7SdrGN',
-    '3kvBE4Z8J4M34FKmLhseYf2hpcBaxhc8Fk6aFip5hE7HdskV8DVqCKqnseVdPU9hiNG6KQZnYYxXSdqSvairK2fF',
-    '3jGc9T17arPTSH14aqzmMYQFFJhzNmLEDKMQ2BiFenJwzWEEKBhCeDoCAZo346ZuK4g7BzYEQmFCXjgvmi4gCRnm',
-    'na56pv4N4WQ9nDqiRqrrk4YohTPtSo1VshsVtSB5LbU3KfSJPNUhW8Y5sPiKTh5dJSSYaB7HHsx6eGLi8bGEzaM',
-    '3ej7aLeG7zN8eTR1jjDniTchQdGeXgGEgrdjZyNM9roLTgDNPtWC9pcJi6qKMturDedawJVF7kFpKUPv7DezyZTs',
+    '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
+    '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
+    'xaCDsf4hnS6V19xuub2YGQX2mpSMsXQt1kkwRYmjg6kupB6qa3H1m6B3jSc5mnMRtefUm5UsmQVS74KjPvKdkjQ',
+    '4cvA5FSLFDXjRPx4LHqN32Kc5aSxmb1zKcarxirFBZ3fhv5ohrjkHZcgwKZSV89HCUSXd9WX28TMccfpE159p1rM',
+    '4LW5vqnoEq835LtkjSqnwCQwNw6KHAZyAszRegBhnMnnsGnLpqCuUPtEQvQc83kHyJVmAfjEQusHbZcvDxMfprhS',
   ];
 
   const formatCurrencyAmount = (amountUsdc: number) => {
@@ -562,8 +580,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
           <button 
             onClick={() => {
               fetchZeroClawStatus();
-              fetchLiveDevnetSignatures();
-              onTriggerToast('ZeroClaw Terminal Re-synchronized');
+              fetchLiveDevnetSignatures(true);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer transition-colors shadow-xs"
           >
@@ -1156,7 +1173,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                               const targetAmt = parseFloat(cleanAmountStr) || 15.00;
                               const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                               const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                              const refKey = generatedUrl.split('&reference=')[1]?.split('&')[0] || defaultBase58Ref;
+                              const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
                               const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
                               setPaymentSuccessModal({
                                 show: true,
@@ -1167,6 +1184,20 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                                 memo: invoiceMessage || 'Pembayaran Kasir Solana Pay',
                                 reference: refKey,
                               });
+
+                              setEvents(prev => [{
+                                id: `sim_exact_${Date.now()}`,
+                                signature: activeSig,
+                                amount: targetAmt,
+                                currency: 'USDC',
+                                timestamp: 'Slot 231,889,102',
+                                channel: 'SOLANA-DEVNET',
+                                network: 'solana-devnet',
+                                memo: invoiceMessage || 'Pembayaran Kasir Solana Pay',
+                                slot: 231889102,
+                                timeAgo: 'Just now'
+                              }, ...prev]);
+
                               onTriggerToast('🟢 PAYMENT RECONCILED! 100% Exact amount settled on Devnet.');
                             }}
                             className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
@@ -1183,7 +1214,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                               const underpaidAmt = Math.max(1, targetAmt - 5);
                               const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                               const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                              const refKey = generatedUrl.split('&reference=')[1]?.split('&')[0] || defaultBase58Ref;
+                              const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
                               const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
                               setPaymentSuccessModal({
                                 show: true,
@@ -1194,6 +1225,20 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                                 memo: invoiceMessage || 'Pembayaran Kasir Solana Pay (Partial)',
                                 reference: refKey,
                               });
+
+                              setEvents(prev => [{
+                                id: `sim_under_${Date.now()}`,
+                                signature: activeSig,
+                                amount: underpaidAmt,
+                                currency: 'USDC',
+                                timestamp: 'Slot 231,889,103',
+                                channel: 'SOLANA-DEVNET',
+                                network: 'solana-devnet',
+                                memo: invoiceMessage || 'Pembayaran Kasir Solana Pay (Partial)',
+                                slot: 231889103,
+                                timeAgo: 'Just now'
+                              }, ...prev]);
+
                               onTriggerToast('🟡 WARNING: Kurang Bayar terdeteksi! Top-Up QR Dibuat.');
                             }}
                             className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
@@ -1210,7 +1255,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                               const overpaidAmt = targetAmt + 5;
                               const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                               const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                              const refKey = generatedUrl.split('&reference=')[1]?.split('&')[0] || defaultBase58Ref;
+                              const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
                               const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
                               setPaymentSuccessModal({
                                 show: true,
@@ -1221,6 +1266,20 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                                 memo: invoiceMessage || 'Pembayaran Kasir Solana Pay (Overpay)',
                                 reference: refKey,
                               });
+
+                              setEvents(prev => [{
+                                id: `sim_over_${Date.now()}`,
+                                signature: activeSig,
+                                amount: overpaidAmt,
+                                currency: 'USDC',
+                                timestamp: 'Slot 231,889,104',
+                                channel: 'SOLANA-DEVNET',
+                                network: 'solana-devnet',
+                                memo: invoiceMessage || 'Pembayaran Kasir Solana Pay (Overpay)',
+                                slot: 231889104,
+                                timeAgo: 'Just now'
+                              }, ...prev]);
+
                               onTriggerToast('🔵 NOTICE: Lebih Bayar terdeteksi! Fitur Auto-Refund Siap.');
                             }}
                             className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
@@ -1262,7 +1321,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                   </div>
 
                   <button 
-                    onClick={fetchLiveDevnetSignatures}
+                    onClick={() => fetchLiveDevnetSignatures(true)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-900/60 font-bold text-[10.5px] cursor-pointer"
                   >
                     <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
@@ -1482,7 +1541,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
               </h3>
               <p className="text-[10.5px] text-slate-400 mt-0.5">Real-time ledger of confirmed merchant payouts and agent escrows</p>
             </div>
-            <button onClick={fetchLiveDevnetSignatures} className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 border border-teal-200 dark:border-teal-900 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
+            <button onClick={() => fetchLiveDevnetSignatures(true)} className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 border border-teal-200 dark:border-teal-900 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               <span>Refresh Devnet Ledger</span>
             </button>
