@@ -103,9 +103,16 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   const [generatorMode, setGeneratorMode] = useState<'presets' | 'builder'>('presets');
 
   const [showVideoModal, setShowVideoModal] = useState(false);
-
-  // Multi-LLM Layer Engine State
   const [selectedModel, setSelectedModel] = useState<'auto' | 'groq' | 'gemini' | 'openrouter' | 'jatevo' | '9router' | 'huggingface'>('auto');
+
+  // Invoices & Payment Generator State
+  const [invoiceAmount, setInvoiceAmount] = useState('15.00');
+  const [invoiceMessage, setInvoiceMessage] = useState('Invoice #9012 - Cafe Latte x2');
+  const [buyerEmail, setBuyerEmail] = useState('customer@example.com');
+  const [refKeyType, setRefKeyType] = useState('Short (22 chars)');
+  const [expiresIn, setExpiresIn] = useState('24 Hours');
+  const [callbackUrl, setCallbackUrl] = useState('https://api.acme.com/webhook/zeroclaw');
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
   // QRIS Payment Success Banner & Auto-Reconciliation State
   const [paymentSuccessModal, setPaymentSuccessModal] = useState<{
@@ -218,7 +225,10 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
           responseText = `Generated Solana Pay link for ${extractedAmount} USDC${tableStr}. Standard scannable QR Code active.`;
           payUrl = `solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=${extractedAmount}`;
 
-
+          // Automatically sync UI state with AI generated payment details
+          setInvoiceAmount(extractedAmount);
+          setInvoiceMessage(`Invoice Table ${tableMatch ? tableMatch[2] : '3'} (${extractedAmount} USDC)`);
+          setGeneratedUrl(payUrl);
         } else if (promptToRun.includes('Escrow') || promptToRun.includes('250 USDC') || promptToRun.includes('Swarm')) {
           responseText = '[9ROUTER SWARM ORCHESTRATOR] Swarm consensus achieved across sub-agents for Escrow Settlement 250 USDC. Zero-trust SOP checkpoints verified.';
         } else if (promptToRun.includes('RPC') || promptToRun.includes('Health') || promptToRun.includes('Slot')) {
@@ -254,18 +264,20 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
     setAgentPrompt('');
   };
 
-
-  // Invoices & Payment Generator State
-  const [invoiceAmount, setInvoiceAmount] = useState('15.00');
-  const [invoiceMessage, setInvoiceMessage] = useState('Invoice #9012 - Cafe Latte x2');
-  const [buyerEmail, setBuyerEmail] = useState('customer@example.com');
-  const [refKeyType, setRefKeyType] = useState('Short (22 chars)');
-  const [expiresIn, setExpiresIn] = useState('24 Hours');
-  const [callbackUrl, setCallbackUrl] = useState('https://api.acme.com/webhook/zeroclaw');
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
-
   // State populated from API / real Solana Devnet RPC
   const [events, setEvents] = useState<ReconciledEvent[]>([
+    {
+      id: 'ent_real_solscan_001',
+      signature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
+      amount: 1.20,
+      currency: 'USDC',
+      timestamp: 'Slot 480,269,120',
+      channel: 'SOLANA-DEVNET',
+      network: 'solana-devnet',
+      memo: 'Invoice Table 3 (1.20 USDC)',
+      slot: 480269120,
+      timeAgo: 'Just now'
+    },
     {
       id: 'ent_real_001',
       signature: '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
@@ -448,16 +460,11 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
               return [liveEvents[0], ...prev];
             }
 
-            const existingSigs = new Set(prev.map(e => e.signature));
-            const newFetched = liveEvents.filter(e => !existingSigs.has(e.signature));
-            if (newFetched.length > 0 && showToast) {
-              return [...newFetched, ...prev];
-            }
-            return prev.length > 0 ? prev : liveEvents;
+            return prev;
           });
 
           if (showToast) {
-            onTriggerToast('🔄 Real-Time Settlement Stream & Devnet Ledger Updated!');
+            onTriggerToast('🔄 Real-Time RPC Connection Synced & Cluster Healthy!');
           }
         }
       }
