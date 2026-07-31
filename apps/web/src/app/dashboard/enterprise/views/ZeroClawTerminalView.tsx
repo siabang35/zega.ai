@@ -102,6 +102,9 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'checkpoints' | 'settlements' | 'channels' | 'audit' | 'config'>('overview');
   const [generatorMode, setGeneratorMode] = useState<'presets' | 'builder'>('presets');
 
+  // Partitioned RLS Security Mode State: 'demo' (Public) vs 'authenticated' (Private User Wallet)
+  const [accountMode, setAccountMode] = useState<'demo' | 'authenticated'>('demo');
+
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'auto' | 'groq' | 'gemini' | 'openrouter' | 'jatevo' | '9router' | 'huggingface'>('auto');
 
@@ -370,20 +373,36 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
     },
   ]);
 
-  // Fetch live state from backend API if available
+  // Fetch live state from backend API (Partitioned by Demo Public vs Authenticated Private RLS)
   const fetchZeroClawStatus = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/v1/zeroclaw/status');
+      const isDemoParam = accountMode === 'demo';
+      const res = await fetch(`/v1/zeroclaw/settlement/list?isDemo=${isDemoParam}&userId=danz-enterprise-user-id`);
       if (res.ok) {
         const json = await res.json();
-        if (json.data) {
-          if (json.data.recentReconciledEvents?.length > 0) {
-            setEvents(json.data.recentReconciledEvents);
-          }
-          if (json.data.pendingCheckpoints?.length > 0) {
-            setCheckpoints(json.data.pendingCheckpoints);
-          }
+        if (json.data && json.data.length > 0) {
+          const mappedEvents: ReconciledEvent[] = json.data.map((e: any, idx: number) => ({
+            id: e.id || `evt_${idx}`,
+            signature: e.signature,
+            amount: e.amount,
+            currency: e.currency || 'USDC',
+            timestamp: e.timestamp || 'Just now',
+            channel: e.channel || (isDemoParam ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE'),
+            network: e.network || 'solana-devnet',
+            memo: e.memo || `Settlement (${e.amount} USDC)`,
+            slot: e.slot || 480269120,
+            timeAgo: 'Just now'
+          }));
+          setEvents(mappedEvents);
+        }
+      }
+
+      const statusRes = await fetch('/v1/zeroclaw/status');
+      if (statusRes.ok) {
+        const statusJson = await statusRes.json();
+        if (statusJson.data?.pendingCheckpoints?.length > 0) {
+          setCheckpoints(statusJson.data.pendingCheckpoints);
         }
       }
     } catch (e) {
@@ -649,6 +668,43 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
         {/* Top Right Controls Bar */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          {/* Partitioned Account Mode Switcher (Demo Public vs Authenticated Private) */}
+          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountMode('demo');
+                onTriggerToast('🌐 Account Mode: Demo Public (Setiap Orang Bisa Melihat Stream)');
+                setTimeout(() => fetchZeroClawStatus(), 50);
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                accountMode === 'demo'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Globe size={11} />
+              <span>Demo (Publik)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAccountMode('authenticated');
+                onTriggerToast('🔒 Account Mode: Authenticated User (Privat Hanya Wallet Ini)');
+                setTimeout(() => fetchZeroClawStatus(), 50);
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                accountMode === 'authenticated'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Lock size={11} />
+              <span>Terautentikasi (Privat)</span>
+            </button>
+          </div>
+
           {/* Network Switcher */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-300">
             <span className="text-[10px] text-slate-400 font-mono">Network</span>

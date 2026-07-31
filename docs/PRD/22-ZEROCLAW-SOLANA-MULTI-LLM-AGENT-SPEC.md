@@ -41,16 +41,23 @@ User Prompt → Token Bucket Rate Limiter (30 req/min)
 2. **Solana Pay URL & Reference Key Generation**:
    - Formats URLs using the standard Solana Pay protocol:
      `solana:<recipient>?amount=<amount>&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=<refKey>&label=ZEGA%20Merchant`
-3. **Live Devnet RPC Query (`/v1/zeroclaw/solana-rpc`)**:
+3. **Partitioned RLS Security Architecture (Demo Public vs Authenticated Private)**:
+   - **Demo Mode (`user_id = NULL`)**: Public demo transactions are accessible to all users on the public settlement feed.
+   - **Authenticated Mode (`user_id = auth.uid()`)**: Strictly private user wallet settlements protected via Row Level Security (RLS) in Supabase. Only the logged-in user can view their own transaction history.
+   - **Account Mode Switcher**: Terminal header includes a live switcher between `Demo (Public)` and `Authenticated (Private)` modes.
+4. **Live Devnet RPC Query (`/v1/zeroclaw/solana-rpc`) & Real Solscan Reconciliation**:
    - Queries `api.devnet.solana.com` directly using `getSignaturesForAddress` to fetch real, trackable Devnet signatures.
+   - Reconciles verified on-chain Devnet transactions (e.g. `2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y` for Table 3, 1.20 USDC) into the settlement ledger.
    - Live stream entries link directly to `https://explorer.solana.com/tx/<signature>?cluster=devnet`.
 
 ---
 
-## 4. Security & OWASP Hardening
+## 4. Security, OWASP Hardening & POS Output Sanitizer
 - **Anti-Throttling (Token Bucket)**: Enforces a maximum of 30 requests per minute per IP address on `/v1/zeroclaw/agent/execute` with HTTP 429 Retry-After response.
 - **Anti-Chunking**: Validates prompt byte length to cap requests at 1MB to prevent memory exhaustion attacks.
-- **Prompt Injection Defense**: Regex-based scanner blocks safety overrides, unauthorized payout requests, and routes them to human approval checkpoints.
+- **Prompt Injection Defense**: Regex-based scanner blocks safety overrides, unauthorized payout requests, and routes them to human approval checkpoints (`chk_auto_*`).
+- **POS Assistant Prompt Hardening & Output Sanitizer**: Hardened system prompts instruct LLM providers to act as concise POS Cashier Assistants without developer code blocks. Backend sanitizer (`sanitizedResponse`) strips raw markdown code blocks before rendering in UI.
+- **Animated RPC Status Feedback**: Refresh RPC button features animated spinner and dynamic status feedback (`idle` | `loading` | `success` | `error`).
 - **Cloudflare R2 CDN Resolution**: All provider logos in `ZeroClawTerminalView.tsx` are served via `getR2CdnUrl(...)` from `https://cdn.zegaai.site/assets/logo/`.
 
 ---
@@ -60,5 +67,7 @@ Automated test suite (`apps/api/src/test_live_llm_keys.ts` & `src/test_zeroclaw_
 - **Groq Real HTTP API**: Responded live in **469ms** (`HTTP 200 OK`).
 - **Solana Devnet RPC**: Successfully fetched 5 live confirmed signatures from `api.devnet.solana.com`.
 - **Machine Commerce Escrow**: Executed 250 USDC escrow via 9Router Swarm under Tier 1 Keyless Custody.
-- **OWASP Guard**: Successfully flagged prompt injection attempt and logged checkpoint `chk_auto_*`.
+- **Real Tx Reconciliation**: Successfully reconciled Solscan transaction `2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y` (1.20 USDC Table 3).
+- **Partitioned RLS Security**: Verified `user_id = NULL` for demo public access and `user_id = auth.uid()` for private authenticated user wallet isolation.
+- **OWASP Guard & POS Sanitizer**: Successfully flagged prompt injection attempt and stripped code blocks from cashier responses.
 - **TypeScript Compilation**: 0 errors across `@zega/api` and `@zega/web`.

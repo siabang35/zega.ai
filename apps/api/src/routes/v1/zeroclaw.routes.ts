@@ -69,16 +69,18 @@ const reconciledEvents: Array<{
   channel: string;
   network: string;
   slot?: number;
+  memo?: string;
 }> = [
   {
-    id: 'tx_rec_001',
-    signature: '5K2bM7xP9q8Z1a3N8xY2wLzR4w9M3k',
-    amount: 15.00,
+    id: 'tx_rec_solscan_001',
+    signature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
+    amount: 1.20,
     currency: 'USDC',
-    timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    channel: 'WhatsApp (+628123456789)',
+    timestamp: new Date().toISOString(),
+    channel: 'Solana Pay (Invoice Meja 3)',
     network: 'solana-devnet',
-    slot: 480000100,
+    slot: 480269120,
+    memo: 'Invoice Table 3 (1.20 USDC)'
   },
 ];
 
@@ -244,6 +246,70 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       mode: (userId && !isDemo) ? 'authenticated' : 'demo',
       persisted: persistedInDb,
       data: newEvent
+    });
+  });
+
+  // ── GET /v1/zeroclaw/settlement/list ── Fetch Partitioned Settlements (Demo Public vs Authenticated Private)
+  fastify.get<{ Querystring: { userId?: string; isDemo?: string } }>('/settlement/list', async (request, reply) => {
+    const { userId, isDemo } = request.query || {};
+    const isDemoBool = isDemo === 'true' || !userId;
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        // Query filter: If demo, fetch user_id IS NULL (public to all). If authenticated, fetch user_id = userId (private to user).
+        const queryParam = isDemoBool
+          ? 'user_id=is.null'
+          : `user_id=eq.${encodeURIComponent(userId!)}`;
+
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}&order=created_at.desc&limit=20`, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (dbRes.ok) {
+          const rows = (await dbRes.json()) as any[];
+          const mappedEvents = rows.map((r) => ({
+            id: r.id,
+            signature: r.tx_signature || r.reference_key,
+            amount: parseFloat(r.amount_usdc),
+            currency: 'USDC',
+            timestamp: new Date(r.created_at).toLocaleTimeString(),
+            channel: isDemoBool ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE',
+            network: r.network || 'solana-devnet',
+            memo: r.memo || (isDemoBool ? 'Public Demo Settlement' : 'Private Authenticated Settlement'),
+            slot: 480269120,
+            timeAgo: 'Just now'
+          }));
+
+          return reply.send({
+            success: true,
+            partition: isDemoBool ? 'public_demo' : 'private_authenticated',
+            count: mappedEvents.length,
+            data: mappedEvents
+          });
+        }
+      } catch (err) {
+        // Graceful fallback to memory stream
+      }
+    }
+
+    // Fallback to in-memory partitioned stream
+    const filteredMemoryEvents = isDemoBool
+      ? reconciledEvents.slice(0, 10)
+      : reconciledEvents.filter(e => (e as any).userId === userId);
+
+    return reply.send({
+      success: true,
+      partition: isDemoBool ? 'public_demo' : 'private_authenticated',
+      count: filteredMemoryEvents.length,
+      data: filteredMemoryEvents
     });
   });
 

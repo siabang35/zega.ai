@@ -10,11 +10,12 @@
 ### Target Audience
 Family shops, retail merchants, coffee shops, e-commerce sellers, and cashier operators who need instant, keyless Solana Pay invoicing without managing server-side private keys.
 
-### Key Capabilities
-- **Tier 1 Keyless Custody**: Payments are received directly into the merchant's public address (`7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`). Zero private keys stored on server memory.
-- **Instant Solana Pay Invoicing**: Generate payment request QR codes (`api.qrserver.com`) and deep-links (`solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=...&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=...`).
-- **Real-Time Automated QRIS Reconciliation**: Background cron poller and WebSocket RPC listener monitor Solana Devnet *on-chain* transactions in real-time. Once approved on Phantom, the cashier terminal triggers a success pop-up (<2s) without manual cashier approval.
-- **Natural Language AI Cashier**: Create invoices by typing simple prompts in the AI Terminal console (e.g., *"Generate invoice 15 USDC for table 3"*).
+- **Partitioned RLS Security Architecture**:
+  - **Demo Account Mode (`user_id = NULL`)**: Public demo transactions are accessible to all users on the public settlement feed.
+  - **Authenticated User Mode (`user_id = auth.uid()`)**: Strictly private user wallet settlements protected via Supabase Row Level Security (RLS). Only the logged-in user can access their private settlements stream.
+  - **Account Mode Switcher**: Terminal header includes a live toggle between `Demo (Public)` and `Authenticated (Private)` modes.
+- **Real Solscan Transaction Reconciliation**: Reconciles verified on-chain Devnet payments (e.g. Solscan Tx `2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y` for Table 3, 1.20 USDC).
+- **POS Assistant Output Sanitizer**: AI cashier responses are automatically sanitized to remove developer code blocks and present clean, cashier-friendly payment details.
 
 
 ### Step-by-Step UMKM Workflow

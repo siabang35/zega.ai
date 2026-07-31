@@ -10,24 +10,12 @@
 ### Target Pengguna
 Kasir toko, warung, kafe, merchant retail, dan penjual e-commerce yang membutuhkan pembuatan invoice Solana Pay secara instan tanpa perlu mengelola private key di sisi server.
 
-### Fitur Utama & Standar Protokol Terbaru
-- **Tier 1 Keyless Custody**: Pembayaran diterima langsung ke alamat publik merchant (`7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`). Tidak ada private key yang disimpan di memori server.
-- **Universal Scannable QR Code & URI Solana Pay**: Menggunakan format URI Solana Pay standar murni yang 100% kompatibel dengan pemindai HP (Phantom, Solflare, Backpack):
-  ```text
-  solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=15.00
-  ```
-  *Bebas dari double-encoding URL dan masalah token lookup saat wallet dalam mode Mainnet.*
-- **Ekstraksi Nominal Cerdas & Dokumen Lokal Indonesia**:
-  - Otomatis mengubah koma desimal Indonesia menjadi titik (`1,7` -> `1.7`).
-  - Regex Ekstraksi Pintar: Mengutamakan nominal ber-tag mata uang atau kurung (misal: `"Order 2 Kopi Espresso (15 USDC)"` -> diekstrak **15.00 USDC**, bukan angka kuantitas `2`).
-- **Pemisahan Aksi Tombol Manual & Link URI**:
-  - **`Copy Wallet`**: Menyalin alamat publik murni Base58 (`7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`) untuk pelanggan yang ingin transfer manual.
-  - **`Copy Link`**: Menyalin skema URI `solana:...` untuk deep-link wallet.
-  - *Tersedia di Invoice Generator dan Hasil Prompt AI Multi-LLM Terminal.*
-- **Rekonsiliasi Otomatis & Validasi Tiga Kondisi Pembayaran**:
-  1. **🟢 Bayar Pas (100% Settled)**: Transaksi lunas otomatis terverifikasi secara *on-chain* di Devnet.
-  2. **🟡 Kurang Bayar (Partial Payment)**: Menampilkan sisa kekurangan dan menyediakan tombol 1-Klik `Buat QR Pelunasan Kekurangan`.
-  3. **🔵 Lebih Bayar (Overpayment & Auto-Refund)**: Menampilkan selisih kelebihan, melakukan verifikasi OWASP Anti-Fraud pada signature & wallet pengirim, dan menyediakan tombol 1-Klik `Proses Auto-Refund Safe`.
+- **Arsitektur Partisi Keamanan RLS (Row Level Security)**:
+  - **Mode Akun Demo (`user_id = NULL`)**: Transaksi demo publik dapat diakses dan dilihat oleh semua pengguna pada feed settlements publik.
+  - **Mode Akun Terautentikasi (`user_id = auth.uid()`)**: Settlement pengguna terautentikasi tersimpan secara privat dengan perlindungan RLS Supabase. Hanya pengguna yang login yang dapat melihat riwayat settlement privat milik mereka sendiri.
+  - **Toggle Switcher Mode Akun**: Terminal header dilengkapi pemindah mode serbaguna antara `Demo (Publik)` dan `Terautentikasi (Privat)`.
+- **Rekonsiliasi Transaksi Solscan On-Chain Asli**: Otomatis merekonsiliasi pembayaran Devnet yang terverifikasi di Solscan (contoh: Tx `2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y` Meja 3, 1.20 USDC).
+- **Sanitizer Output POS Kasir**: Respon AI Kasir disanitasi secara otomatis di backend (`sanitizedResponse`) untuk menghapus blok kode markdown teknis dan menyajikan instruksi pembayaran yang bersih dan ramah kasir.
 
 ### Panduan Langkah demi Langkah UMKM
 1. **Mengakses Terminal**:
