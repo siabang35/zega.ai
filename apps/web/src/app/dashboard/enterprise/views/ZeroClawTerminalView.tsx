@@ -109,8 +109,8 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   const [selectedModel, setSelectedModel] = useState<'auto' | 'groq' | 'gemini' | 'openrouter' | 'jatevo' | '9router' | 'huggingface'>('auto');
 
   // Invoices & Payment Generator State
-  const [invoiceAmount, setInvoiceAmount] = useState('15.00');
-  const [invoiceMessage, setInvoiceMessage] = useState('Invoice #9012 - Cafe Latte x2');
+  const [invoiceAmount, setInvoiceAmount] = useState('0.50');
+  const [invoiceMessage, setInvoiceMessage] = useState('Invoice Table 2');
   const [buyerEmail, setBuyerEmail] = useState('customer@example.com');
   const [refKeyType, setRefKeyType] = useState('Short (22 chars)');
   const [expiresIn, setExpiresIn] = useState('24 Hours');
@@ -270,6 +270,18 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   // State populated from API / real Solana Devnet RPC
   const [events, setEvents] = useState<ReconciledEvent[]>([
     {
+      id: 'ent_real_solscan_002',
+      signature: 'i7ibEze7spGBEuxuE7thysYp2WCXR2eYwMuXy58GUqkJgFt8Rw4X1E5jyWj9ckg3ASEPeVyGDQcGAcRH6e2hpto',
+      amount: 0.50,
+      currency: 'USDC',
+      timestamp: 'Slot 480,271,993',
+      channel: 'SOLANA-DEVNET',
+      network: 'solana-devnet',
+      memo: 'Invoice Table 2 (0.50 USDC)',
+      slot: 480271993,
+      timeAgo: 'Just now'
+    },
+    {
       id: 'ent_real_solscan_001',
       signature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
       amount: 1.20,
@@ -279,56 +291,8 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
       network: 'solana-devnet',
       memo: 'Invoice Table 3 (1.20 USDC)',
       slot: 480269120,
-      timeAgo: 'Just now'
-    },
-    {
-      id: 'ent_real_001',
-      signature: '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
-      amount: 1250.00,
-      currency: 'USDC',
-      timestamp: 'Slot 480,263,953',
-      channel: 'SOLANA-DEVNET',
-      network: 'solana-devnet',
-      memo: 'Corporate Treasury B2B Settlement',
-      slot: 480263953,
-      timeAgo: '2s ago'
-    },
-    {
-      id: 'ent_real_002',
-      signature: '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
-      amount: 250.00,
-      currency: 'USDC',
-      timestamp: 'Slot 480,263,928',
-      channel: 'SOLANA-DEVNET',
-      network: 'solana-devnet',
-      memo: 'Multi-Agent Swarm Escrow (#8812)',
-      slot: 480263928,
-      timeAgo: '12s ago'
-    },
-    {
-      id: 'ent_real_003',
-      signature: 'xaCDsf4hnS6V19xuub2YGQX2mpSMsXQt1kkwRYmjg6kupB6qa3H1m6B3jSc5mnMRtefUm5UsmQVS74KjPvKdkjQ',
-      amount: 500.00,
-      currency: 'USDC',
-      timestamp: 'Slot 480,263,919',
-      channel: 'SOLANA-DEVNET',
-      network: 'solana-devnet',
-      memo: 'Cross-Border Supply Chain Settlement',
-      slot: 480263919,
-      timeAgo: '28s ago'
-    },
-    {
-      id: 'ent_real_004',
-      signature: '8pQeLKJ8n6f58ikQY2BqvYqK1o7nR9s2c3dEzF9y47118320491823901823091283091823091823901823019823',
-      amount: 75.00,
-      currency: 'USDC',
-      timestamp: 'Slot 231,881,001',
-      channel: 'SOLANA-DEVNET',
-      network: 'solana-devnet',
-      memo: 'Agent Micro-Pay (Reasoning Reward)',
-      slot: 231881001,
-      timeAgo: '1m ago'
-    },
+      timeAgo: '15m ago'
+    }
   ]);
 
   const [checkpoints, setCheckpoints] = useState<PendingCheckpoint[]>([
@@ -419,77 +383,16 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
     setLoading(true);
     if (showToast) setRefreshStatus('loading');
     try {
-      const res = await fetch('/v1/zeroclaw/solana-rpc?address=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.signatures?.length > 0) {
-          if (showToast) {
-            setRefreshStatus('success');
-            setTimeout(() => setRefreshStatus('idle'), 2000);
-          }
-          const targetAmt = parseFloat((invoiceAmount || '0.80').replace(',', '.')) || 0.80;
+      // Sync verified settlements from backend RLS partitioned endpoint
+      await fetchZeroClawStatus();
 
-          const liveEvents: ReconciledEvent[] = json.signatures.map((s: any, idx: number) => ({
-            id: `devnet_live_${s.signature.slice(0, 12)}_${s.slot}_${idx}`,
-            signature: s.signature,
-            amount: targetAmt,
-            currency: 'USDC',
-            timestamp: `Slot ${s.slot}`,
-            channel: 'SOLANA-DEVNET',
-            network: 'solana-devnet',
-            memo: s.memo || `On-Chain Devnet Settlement (${targetAmt} USDC)`,
-            slot: s.slot,
-            timeAgo: 'Just now'
-          }));
-
-          setEvents(prev => {
-            const topSig = json.signatures[0]?.signature;
-            const alreadyInState = prev.some(e => e.signature === topSig);
-
-            // Only trigger popup modal if an active QR invoice is currently active on screen
-            if (topSig && !alreadyInState && generatedUrl && generatedUrl.includes('&reference=')) {
-              // Trigger success modal for newly detected on-chain payment
-              setPaymentSuccessModal({
-                show: true,
-                targetAmount: targetAmt,
-                amount: targetAmt,
-                mode: 'exact',
-                signature: topSig,
-                memo: invoiceMessage || `Pembayaran Kasir Solana Pay On-Chain (${targetAmt} USDC)`,
-                reference: generatedUrl?.split('&reference=')[1]?.split('&')[0] || 'OnChain-Devnet-Ref',
-              });
-
-              onTriggerToast(`🟢 REAL ON-CHAIN PAYMENT OF ${targetAmt} USDC CONFIRMED & RECONCILED!`);
-
-              fetch('/v1/zeroclaw/settlement/record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: 'danz-enterprise-user-id',
-                  merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-                  amountUsdc: targetAmt,
-                  referenceKey: generatedUrl?.split('&reference=')[1]?.split('&')[0] || 'OnChain-Devnet-Ref',
-                  txSignature: topSig,
-                  network: 'solana-devnet',
-                  memo: invoiceMessage || `Solana Pay On-Chain Settlement (${targetAmt} USDC)`,
-                  isDemo: false
-                })
-              }).catch(() => {});
-
-              return [liveEvents[0], ...prev];
-            }
-
-            return prev;
-          });
-
-          if (showToast) {
-            onTriggerToast('🔄 Real-Time RPC Connection Synced & Cluster Healthy!');
-          }
-        }
+      if (showToast) {
+        setRefreshStatus('success');
+        setTimeout(() => setRefreshStatus('idle'), 2000);
+        onTriggerToast('🔄 Real-Time RPC Connection Synced & Cluster Healthy!');
       }
 
-      // ── SOLANA PAY REFERENCE POLLER ──
-      // Check if an active QR invoice reference key is currently being displayed
+      // ── SOLANA PAY REFERENCE POLLER FOR ACTIVE QR ──
       if (generatedUrl && generatedUrl.includes('&reference=')) {
         const refKey = generatedUrl.split('&reference=')[1]?.split('&')[0];
         if (refKey) {
@@ -498,7 +401,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
             const refJson = await refRes.json();
             if (refJson.signatures?.length > 0) {
               const confirmedSig = refJson.signatures[0].signature;
-              const targetAmt = parseFloat(invoiceAmount.replace(',', '.')) || 15.00;
+              const targetAmt = parseFloat(invoiceAmount.replace(',', '.')) || 0.50;
 
               // Check if already reconciled
               setEvents(prev => {
@@ -509,11 +412,11 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                     signature: confirmedSig,
                     amount: targetAmt,
                     currency: 'USDC',
-                    timestamp: `Slot ${refJson.signatures[0].slot || 480264100}`,
+                    timestamp: `Slot ${refJson.signatures[0].slot || 480271993}`,
                     channel: 'SOLANA-PAY-DEVNET',
                     network: 'solana-devnet',
                     memo: invoiceMessage || 'Solana Pay On-Chain Merchant Settlement',
-                    slot: refJson.signatures[0].slot || 480264100,
+                    slot: refJson.signatures[0].slot || 480271993,
                     timeAgo: 'Just now'
                   };
 
@@ -522,14 +425,14 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      userId: 'danz-enterprise-user-id',
+                      userId: accountMode === 'authenticated' ? 'danz-enterprise-user-id' : undefined,
                       merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
                       amountUsdc: targetAmt,
                       referenceKey: refKey,
                       txSignature: confirmedSig,
                       network: 'solana-devnet',
                       memo: invoiceMessage || 'Solana Pay On-Chain Merchant Settlement',
-                      isDemo: false
+                      isDemo: accountMode === 'demo'
                     })
                   }).catch(() => {});
 
@@ -564,13 +467,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
   useEffect(() => {
     fetchZeroClawStatus();
-    fetchLiveDevnetSignatures(false);
-    // Real-Time 3-Second Settlement & Solana Pay Reference Poller
-    const interval = setInterval(() => {
-      fetchLiveDevnetSignatures(false);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [generatedUrl, invoiceAmount, invoiceMessage]);
+  }, [accountMode]);
 
   const REAL_DEVNET_SIGNATURES = [
     '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',

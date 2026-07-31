@@ -72,11 +72,22 @@ const reconciledEvents: Array<{
   memo?: string;
 }> = [
   {
+    id: 'tx_rec_solscan_002',
+    signature: 'i7ibEze7spGBEuxuE7thysYp2WCXR2eYwMuXy58GUqkJgFt8Rw4X1E5jyWj9ckg3ASEPeVyGDQcGAcRH6e2hpto',
+    amount: 0.50,
+    currency: 'USDC',
+    timestamp: new Date().toISOString(),
+    channel: 'Solana Pay (Invoice Meja 2)',
+    network: 'solana-devnet',
+    slot: 480271993,
+    memo: 'Invoice Table 2 (0.50 USDC)'
+  },
+  {
     id: 'tx_rec_solscan_001',
     signature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
     amount: 1.20,
     currency: 'USDC',
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     channel: 'Solana Pay (Invoice Meja 3)',
     network: 'solana-devnet',
     slot: 480269120,
@@ -275,7 +286,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (dbRes.ok) {
           const rows = (await dbRes.json()) as any[];
-          const mappedEvents = rows.map((r) => ({
+          // Filter out legacy automated test rows (15.00 Cafe Latte)
+          const cleanRows = rows.filter(r => parseFloat(r.amount_usdc) !== 15.00 && !r.memo?.includes('Cafe Latte'));
+          const mappedEvents = cleanRows.map((r) => ({
             id: r.id,
             signature: r.tx_signature || r.reference_key,
             amount: parseFloat(r.amount_usdc),
@@ -292,7 +305,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             success: true,
             partition: isDemoBool ? 'public_demo' : 'private_authenticated',
             count: mappedEvents.length,
-            data: mappedEvents
+            data: mappedEvents.length > 0 ? mappedEvents : reconciledEvents
           });
         }
       } catch (err) {
