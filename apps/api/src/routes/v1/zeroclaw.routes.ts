@@ -207,7 +207,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (userId && !isDemo && supabaseUrl && supabaseKey) {
+    if (supabaseUrl && supabaseKey) {
       try {
         const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements`, {
           method: 'POST',
@@ -218,14 +218,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             'Prefer': 'return=minimal'
           },
           body: JSON.stringify({
-            user_id: userId,
+            user_id: isDemo ? null : (userId || null),
             merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
             amount_usdc: amountUsdc,
             reference_key: referenceKey,
             tx_signature: txSignature,
             network: network || 'solana-devnet',
             status: 'confirmed',
-            memo: memo || 'Solana Pay Settlement'
+            memo: memo || (isDemo ? 'Public Demo Solana Pay Settlement' : 'Private Authenticated Solana Pay Settlement')
           })
         });
         if (dbRes.ok) {
