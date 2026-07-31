@@ -74,66 +74,58 @@ const DOCS_NAV = [
 ];
 
 const CODE_EXAMPLES = {
-  typescript: `import { ZegaClient } from '@zega/sdk';
+  typescript: `import { ZegaClient, ZeroClawAgent } from '@zega/sdk';
 
-// Initialize ZEGA AI Client with 9Router
-const zega = new ZegaClient({
-  apiKey: process.env.ZEGA_API_KEY!,
-  routing: {
-    engine: '9router-v2',
-    strategy: 'cost-optimized', // 'latency-first' | 'cost-optimized'
-    maxLatencyMs: 350,
-  },
-  guardrails: {
-    inputSanitize: true,
-    piiRedaction: true,
-    injectionBlock: true,
-  },
+// Initialize ZEGA ZeroClaw Solana Pay Agent
+const agent = new ZeroClawAgent({
+  network: 'solana-devnet',
+  merchantAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', // Valid Base58 Pubkey
+  usdcMint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
 });
 
-// Run multi-agent orchestrator workflow
-const result = await zega.orchestrate({
-  task: 'Process quarterly financial audit report',
-  modelFallback: ['gpt-5.1', 'claude-3.7-sonnet', 'deepseek-v4'],
-  timeoutMs: 5000,
+// Generate 100% Locked Amount Solana Pay Invoice (QRIS POS Style)
+const invoice = await agent.createSolanaPayInvoice({
+  amountUsdc: 15.00,
+  label: 'ZEGA Coffee Store',
+  message: 'Invoice #9012 - Cafe Latte x2',
 });
 
-console.log('Result:', result.output);
-console.log('Routed via:', result.telemetry.routedModel);`,
+console.log('Scannable QR URL:', invoice.solanaPayUrl);
+// output: solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=15.00&spl-token=4zMMC...
 
-  python: `from zega import ZegaClient
+// Listen for Real-Time On-Chain Settlement (<2s auto-reconciliation)
+invoice.onReconciled((settlement) => {
+  console.log('🎉 PAYMENT CONFIRMED ON-CHAIN!', settlement.signature);
+  // Triggers POS Cashier Success Pop-Up automatically
+});`,
 
-# Initialize Python SDK
-zega = ZegaClient(
-    api_key="zeg_live_849204810293",
-    routing_strategy="latency-first",
-    pii_redaction=True
+  python: `from zega import ZeroClawAgent
+
+# Initialize ZeroClaw Solana Agent
+agent = ZeroClawAgent(
+    network="solana-devnet",
+    merchant_address="7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
 )
 
-# Execute autonomous task
-response = zega.orchestrate(
-    task="Summarize customer feedback & flag compliance issues",
-    fallback_models=["claude-3.7-sonnet", "gpt-5.1"],
-    guardrails_enabled=True
+# Create Solana Pay Invoice with locked amount
+invoice = agent.create_invoice(
+    amount_usdc=15.00,
+    message="Table 3 - Espresso x2"
 )
 
-print(f"Status: {response.status}")
-print(f"Output: {response.output}")`,
+print(f"QRIS Solana Pay URL: {invoice.solana_pay_url}")`,
 
-  curl: `curl -X POST https://api.zega.ai/v1/orchestrate \\
-  -H "Authorization: Bearer zeg_live_849204810293" \\
+  curl: `curl -X POST https://zegaai.site/v1/zeroclaw/agent/execute \\
   -H "Content-Type: application/json" \\
   -d '{
-    "task": "Extract entity relations from contract PDF",
-    "routing": {
-      "strategy": "cost-optimized",
-      "maxLatencyMs": 400
-    },
-    "guardrails": {
-      "piiRedaction": true
+    "prompt": "Order 2 Kopi Espresso (15.00 USDC)",
+    "preferredModel": "auto",
+    "merchantContext": {
+      "usdcAddress": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
     }
   }'`,
 };
+
 
 export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, triggerComingSoon }) => {
   const [activeTab, setActiveTab] = useState('quickstart');

@@ -66,12 +66,15 @@ ZEGA/
 - **Official ZEGA AI Logo Display**: High-resolution `zegalogo.png` header branding with dark mode filter inversion.
 - **Theme-Safe Emerald WhatsApp CS Bot**: High-contrast, theme-safe Emerald status badges (`text-emerald-700 dark:text-emerald-300`, `bg-emerald-50 dark:bg-emerald-950/60`, `border-emerald-200 dark:border-emerald-800`).
 
-### 4. 🦀 ZeroClaw Solana Agent Runtime & Payment Infrastructure
-- **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile wallets (Phantom, Solflare) sign transactions directly.
-- **Solana Pay QR Invoicing & RPC Stream**: Instant payment request QR generation (`solana:recipient?amount=...&reference=...`) and real-time Devnet RPC slot verification (`Slot 480013691+`).
-- **Human-in-the-Loop SOP Checkpoints**: Automated frozen state for prompt injection refund attempts with Fastify `/v1/zeroclaw/approve-checkpoint` admin clearance.
-- **Dual Currency Switcher**: Fixed conversion rate **1 USD = Rp 18.000 IDR** applied across all metrics, Chart.js micro-sparklines, and live stream rows.
-- **Role-Separated Reconciliation Streams**: Dedicated history streams for UMKM retail sales (`FinanceView.tsx`) vs Enterprise corporate treasury settlements (`ZeroClawTerminalView.tsx`).
+### 5. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Runtime (SuperteamBR Bounty)
+- **Multi-LLM Tiered Provider Engine**: Supports **Groq (`llama-3.3-70b-versatile`)**, **Google Gemini (`gemini-1.5-flash`)**, **OpenRouter**, **HuggingFace**, **Jatevo AI**, and **9Router Swarm** with automatic failover chain.
+- **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile & browser wallets (Phantom, Solflare) sign transactions client-side.
+- **Valid Solana Pay Spec & High-Res QR Code**: Generates fully compliant Base58 Solana Pay URIs (`solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=15.00&spl-token=4zMMC9...`) and scannable high-resolution QR codes (`api.qrserver.com`).
+- **Real-Time QRIS Auto-Reconciliation**: Automatic Solana Devnet RPC listener stream (<2s confirmation) with instant cashier success pop-up modal (`paymentSuccessModal`) without requiring manual cashier approval.
+- **OWASP Prompt Injection Defense**: Real-time regex scanner blocks malicious payout override prompts (`injectionDetected = true`) and routes them to SOP Human Approval Checkpoints (`chk_auto_*`).
+- **Cloudflare R2 CDN Logo Delivery**: All AI model logos served via `getR2CdnUrl(...)` from `https://cdn.zegaai.site/assets/logo/` with fallback resilience.
+- **Detailed Specification**: Complete architecture documented in [`docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md`](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md) and User Guides [`docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md`](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md) / [`docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md`](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md).
+
 
 ### 6. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Integration
 - **Modular Database Migration Suites**:

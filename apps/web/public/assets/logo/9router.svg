@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <rect width="100" height="100" rx="24" fill="url(#bgGrad)"/>
+  <!-- Multi-Agent Router Nodes -->
+  <circle cx="50" cy="20" r="5" fill="#38BDF8"/>
+  <circle cx="80" cy="50" r="5" fill="#818CF8"/>
+  <circle cx="50" cy="80" r="5" fill="#C084FC"/>
+  <circle cx="20" cy="50" r="5" fill="#34D399"/>
+  <!-- Connecting Neural Lines -->
+  <path d="M50 25 L80 45 L50 75 L20 45 Z" stroke="#6366F1" stroke-width="2" stroke-dasharray="3 3" opacity="0.6"/>
+  <!-- Stylized "9" Router Icon -->
+  <path d="M56 32 C43 32 35 40 35 52 C35 64 44 70 55 70 C66 70 73 62 73 50 L73 32 L56 32 Z M55 56 C47 56 46 48 55 48 L61 48 L61 56 L55 56 Z" fill="url(#nineGrad)"/>
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="nineGrad" x1="35" y1="32" x2="73" y2="70" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.5" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#C084FC"/>
+    </linearGradient>
+  </defs>
+</svg>
