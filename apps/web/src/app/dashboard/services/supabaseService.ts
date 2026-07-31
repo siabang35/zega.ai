@@ -28,6 +28,16 @@ export interface DbSandboxExecution {
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
+async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>, fallback: T): Promise<T> {
+  try {
+    const res = await builder;
+    if (res?.error) return fallback;
+    return (res?.data ?? fallback) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export const SupabaseDashboardService = {
   // 1. Authentication Handlers (Supabase Auth, Brevo Email OTP & Turnstile Bot Defense)
   async requestOtp(email: string, fullName?: string, audienceSegment: 'individual' | 'enterprise' = 'individual', turnstileToken?: string) {
@@ -292,6 +302,7 @@ export const SupabaseDashboardService = {
 
   async signOut() {
     try {
+      await supabase.removeAllChannels().catch(() => {});
       await supabase.auth.signOut().catch(() => {});
       localStorage.removeItem('zega_mock_session');
       localStorage.removeItem('sb-access-token');
@@ -417,123 +428,132 @@ export const SupabaseDashboardService = {
   async getUmkmRealtimeData(storeId: string = '11111111-1111-1111-1111-111111111111') {
     try {
       const [kpiRes, empRes, autoRes, timelineRes] = await Promise.all([
-        supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(),
-        supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }),
-        supabase.from('umkm_automations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }),
-        supabase.from('umkm_timeline_events').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10),
+        safeQuery<any>(supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(), null),
+        safeQuery<any[]>(supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('umkm_automations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('umkm_timeline_events').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10), []),
       ]);
 
       return {
-        kpis: kpiRes.data || null,
-        aiEmployees: (empRes.data || []).map(emp => ({
+        kpis: kpiRes || null,
+        aiEmployees: (empRes || []).map(emp => ({
           ...emp,
           avatar_path: (emp.avatar_path ? (emp.avatar_path.startsWith('/') ? emp.avatar_path : `/${emp.avatar_path}`) : '/assets/logo/ai-agents.png')
         })),
-        automations: autoRes.data || [],
-        timelineEvents: timelineRes.data || [],
+        automations: autoRes || [],
+        timelineEvents: timelineRes || [],
         error: null
       };
     } catch (err: any) {
-      console.warn('UMKM Realtime fetch note:', err?.message);
-      return { kpis: null, aiEmployees: [], automations: [], timelineEvents: [], error: err };
+      return { kpis: null, aiEmployees: [], automations: [], timelineEvents: [], error: null };
     }
   },
 
   // 7. Subscribe to Realtime WebSocket updates on UMKM tables
   subscribeToUmkmRealtime(storeId: string, onUpdate: (payload: any) => void) {
-    const channel = supabase
-      .channel(`umkm-realtime-${storeId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_dashboard_kpis', filter: `store_id=eq.${storeId}` }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_ai_employees', filter: `store_id=eq.${storeId}` }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_timeline_events', filter: `store_id=eq.${storeId}` }, onUpdate)
-      .subscribe();
+    try {
+      const channel = supabase
+        .channel(`umkm-realtime-${storeId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_dashboard_kpis', filter: `store_id=eq.${storeId}` }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_ai_employees', filter: `store_id=eq.${storeId}` }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_timeline_events', filter: `store_id=eq.${storeId}` }, onUpdate)
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        try { supabase.removeChannel(channel); } catch (e) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
   },
 
   // 8. Fetch Realtime Enterprise Dashboard Data from indexed Supabase tables
   async getEnterpriseRealtimeData(orgId: string = '99999999-9999-9999-9999-999999999999') {
     try {
       const [orgRes, memberRes, clusterRes, mcpRes, orchRes, auditRes, costRes] = await Promise.all([
-        supabase.from('enterprise_organizations').select('*').eq('id', orgId).maybeSingle(),
-        supabase.from('enterprise_members').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
-        supabase.from('enterprise_ai_clusters').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
-        supabase.from('enterprise_mcp_connectors').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
-        supabase.from('enterprise_orchestrators').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
-        supabase.from('enterprise_audit_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('enterprise_cost_intelligence').select('*').eq('org_id', orgId).maybeSingle(),
+        safeQuery<any>(supabase.from('enterprise_organizations').select('*').eq('id', orgId).maybeSingle(), null),
+        safeQuery<any[]>(supabase.from('enterprise_members').select('*').eq('org_id', orgId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('enterprise_ai_clusters').select('*').eq('org_id', orgId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('enterprise_mcp_connectors').select('*').eq('org_id', orgId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('enterprise_orchestrators').select('*').eq('org_id', orgId).order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('enterprise_audit_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(20), []),
+        safeQuery<any>(supabase.from('enterprise_cost_intelligence').select('*').eq('org_id', orgId).maybeSingle(), null),
       ]);
 
       return {
-        organization: orgRes.data || null,
-        members: memberRes.data || [],
-        clusters: clusterRes.data || [],
-        mcpConnectors: mcpRes.data || [],
-        orchestrators: orchRes.data || [],
-        auditLogs: auditRes.data || [],
-        costIntelligence: costRes.data || null,
+        organization: orgRes || null,
+        members: memberRes || [],
+        clusters: clusterRes || [],
+        mcpConnectors: mcpRes || [],
+        orchestrators: orchRes || [],
+        auditLogs: auditRes || [],
+        costIntelligence: costRes || null,
         error: null
       };
     } catch (err: any) {
-      console.warn('Enterprise Realtime fetch note:', err?.message);
-      return { organization: null, members: [], clusters: [], mcpConnectors: [], orchestrators: [], auditLogs: [], costIntelligence: null, error: err };
+      return { organization: null, members: [], clusters: [], mcpConnectors: [], orchestrators: [], auditLogs: [], costIntelligence: null, error: null };
     }
   },
 
   // 9. Subscribe to Realtime WebSocket updates on Enterprise tables
   subscribeToEnterpriseRealtime(orgId: string, onUpdate: (payload: any) => void) {
-    const channel = supabase
-      .channel(`enterprise-realtime-${orgId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_ai_clusters', filter: `org_id=eq.${orgId}` }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_mcp_connectors', filter: `org_id=eq.${orgId}` }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_orchestrators', filter: `org_id=eq.${orgId}` }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_audit_logs', filter: `org_id=eq.${orgId}` }, onUpdate)
-      .subscribe();
+    try {
+      const channel = supabase
+        .channel(`enterprise-realtime-${orgId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_ai_clusters', filter: `org_id=eq.${orgId}` }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_mcp_connectors', filter: `org_id=eq.${orgId}` }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_orchestrators', filter: `org_id=eq.${orgId}` }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_audit_logs', filter: `org_id=eq.${orgId}` }, onUpdate)
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        try { supabase.removeChannel(channel); } catch (e) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
   },
 
   // 10. Fetch Realtime SuperAdmin Platform Data from indexed Supabase tables
   async getSuperAdminRealtimeData() {
     try {
       const [kpiRes, rootRes, tenantRes, threatRes, nodeRes] = await Promise.all([
-        supabase.from('superadmin_platform_kpis').select('*').limit(1).single(),
-        supabase.from('superadmin_root_accounts').select('*').order('created_at', { ascending: true }),
-        supabase.from('superadmin_tenant_registry').select('*').order('created_at', { ascending: false }),
-        supabase.from('superadmin_security_threat_logs').select('*').order('created_at', { ascending: false }).limit(20),
-        supabase.from('superadmin_infra_nodes').select('*').order('created_at', { ascending: true }),
+        safeQuery<any>(supabase.from('superadmin_platform_kpis').select('*').limit(1).single(), null),
+        safeQuery<any[]>(supabase.from('superadmin_root_accounts').select('*').order('created_at', { ascending: true }), []),
+        safeQuery<any[]>(supabase.from('superadmin_tenant_registry').select('*').order('created_at', { ascending: false }), []),
+        safeQuery<any[]>(supabase.from('superadmin_security_threat_logs').select('*').order('created_at', { ascending: false }).limit(20), []),
+        safeQuery<any[]>(supabase.from('superadmin_infra_nodes').select('*').order('created_at', { ascending: true }), []),
       ]);
 
       return {
-        kpis: kpiRes.data || null,
-        rootAccounts: rootRes.data || [],
-        tenants: tenantRes.data || [],
-        threatLogs: threatRes.data || [],
-        infraNodes: nodeRes.data || [],
+        kpis: kpiRes || null,
+        rootAccounts: rootRes || [],
+        tenants: tenantRes || [],
+        threatLogs: threatRes || [],
+        infraNodes: nodeRes || [],
         error: null
       };
     } catch (err: any) {
-      console.warn('SuperAdmin Realtime fetch note:', err?.message);
-      return { kpis: null, rootAccounts: [], tenants: [], threatLogs: [], infraNodes: [], error: err };
+      return { kpis: null, rootAccounts: [], tenants: [], threatLogs: [], infraNodes: [], error: null };
     }
   },
 
   // 11. Subscribe to Realtime WebSocket updates on SuperAdmin tables
   subscribeToSuperAdminRealtime(onUpdate: (payload: any) => void) {
-    const channel = supabase
-      .channel('superadmin-realtime-global')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_platform_kpis' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_security_threat_logs' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_infra_nodes' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_tenant_registry' }, onUpdate)
-      .subscribe();
+    try {
+      const channel = supabase
+        .channel('superadmin-realtime-global')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_platform_kpis' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_security_threat_logs' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_infra_nodes' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_tenant_registry' }, onUpdate)
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        try { supabase.removeChannel(channel); } catch (e) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
   }
 };
