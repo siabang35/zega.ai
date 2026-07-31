@@ -108,11 +108,14 @@ async function callGroqApi(prompt: string, apiKey: string): Promise<string> {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        { role: 'system', content: 'You are ZeroClaw Solana Agent, a high-performance Rust AI runtime managing Solana Devnet payments under Tier 1 Keyless custody.' },
+        { 
+          role: 'system', 
+          content: 'You are ZeroClaw Solana POS Assistant. Your task is to respond as a concise, helpful merchant cashier assistant. RULES: 1. Answer in 1-2 short friendly sentences. 2. NEVER output programming tutorials, step-by-step developer guides, or markdown code blocks (```rust, ```js, etc). 3. Focus solely on confirming the invoice and payment request for the merchant.' 
+        },
         { role: 'user', content: prompt }
       ],
       temperature: 0.2,
-      max_tokens: 500,
+      max_tokens: 150,
     }),
   });
   if (!res.ok) throw new Error(`Groq API returned status ${res.status}`);
@@ -127,7 +130,7 @@ async function callGeminiApi(prompt: string, apiKey: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{
-        parts: [{ text: `You are ZeroClaw Solana Agent runtime. Process prompt under Tier 1 Keyless custody: ${prompt}` }]
+        parts: [{ text: `You are ZeroClaw Solana POS Assistant. Respond concisely in 1-2 sentences as a merchant cashier. Do NOT output code blocks or Rust tutorials. Prompt: ${prompt}` }]
       }]
     }),
   });
@@ -506,6 +509,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    // Sanitize raw LLM response to remove developer code blocks and keep output clean for POS merchant UI
+    let sanitizedResponse = rawLlmOutput || '';
+    if (sanitizedResponse.includes('```')) {
+      sanitizedResponse = sanitizedResponse.replace(/```[\s\S]*?```/g, '').trim();
+    }
+    sanitizedResponse = sanitizedResponse.replace(/\n{3,}/g, '\n\n').trim();
+
     const latencyMs = Date.now() - startTime + Math.floor(Math.random() * 40 + 80);
     const tps = Math.floor(Math.random() * 120 + 220); // 220 - 340 Tokens Per Second
 
@@ -516,7 +526,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       fallbackChain: modelChain,
       latencyMs,
       tps,
-      response: rawLlmOutput,
+      response: sanitizedResponse || `Invoice created successfully. Solana Pay Link ready.`,
       solanaPayUrl: solanaPayUrl || null,
       referenceKey: referenceKey || null,
       custodyTier: 'T1 (Keyless / Unsigned)',
