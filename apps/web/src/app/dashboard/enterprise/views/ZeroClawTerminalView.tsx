@@ -389,7 +389,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
         const json = await res.json();
         if (json.signatures?.length > 0) {
           const liveEvents: ReconciledEvent[] = json.signatures.map((s: any, idx: number) => ({
-            id: `devnet_live_${s.slot}_${idx}_${Date.now()}`,
+            id: `devnet_live_${s.signature.slice(0, 12)}_${s.slot}_${idx}`,
             signature: s.signature,
             amount: 15.00,
             currency: 'USDC',
@@ -431,6 +431,55 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
           }
         }
       }
+
+      // ── SOLANA PAY REFERENCE POLLER ──
+      // Check if an active QR invoice reference key is currently being displayed
+      if (generatedUrl && generatedUrl.includes('&reference=')) {
+        const refKey = generatedUrl.split('&reference=')[1]?.split('&')[0];
+        if (refKey) {
+          const refRes = await fetch(`/v1/zeroclaw/solana-rpc?address=${refKey}`);
+          if (refRes.ok) {
+            const refJson = await refRes.json();
+            if (refJson.signatures?.length > 0) {
+              const confirmedSig = refJson.signatures[0].signature;
+              const targetAmt = parseFloat(invoiceAmount.replace(',', '.')) || 15.00;
+
+              // Check if already reconciled
+              setEvents(prev => {
+                const alreadyRecorded = prev.some(e => e.signature === confirmedSig);
+                if (!alreadyRecorded) {
+                  const newOnChainEvent: ReconciledEvent = {
+                    id: `solanapay_ref_${Date.now()}`,
+                    signature: confirmedSig,
+                    amount: targetAmt,
+                    currency: 'USDC',
+                    timestamp: `Slot ${refJson.signatures[0].slot || 480264100}`,
+                    channel: 'SOLANA-PAY-DEVNET',
+                    network: 'solana-devnet',
+                    memo: invoiceMessage || 'Solana Pay On-Chain Merchant Settlement',
+                    slot: refJson.signatures[0].slot || 480264100,
+                    timeAgo: 'Just now'
+                  };
+
+                  setPaymentSuccessModal({
+                    show: true,
+                    targetAmount: targetAmt,
+                    amount: targetAmt,
+                    mode: 'exact',
+                    signature: confirmedSig,
+                    memo: invoiceMessage || 'Pembayaran Kasir Solana Pay On-Chain',
+                    reference: refKey,
+                  });
+
+                  onTriggerToast('🟢 REAL ON-CHAIN PAYMENT DETECTED & RECONCILED!');
+                  return [newOnChainEvent, ...prev];
+                }
+                return prev;
+              });
+            }
+          }
+        }
+      }
     } catch (e) {
       // Ignore fallback
     } finally {
@@ -441,12 +490,12 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   useEffect(() => {
     fetchZeroClawStatus();
     fetchLiveDevnetSignatures(false);
-    // Real-Time 5-Second Settlement Stream Poller
+    // Real-Time 3-Second Settlement & Solana Pay Reference Poller
     const interval = setInterval(() => {
       fetchLiveDevnetSignatures(false);
-    }, 5000);
+    }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [generatedUrl, invoiceAmount, invoiceMessage]);
 
   const REAL_DEVNET_SIGNATURES = [
     '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
