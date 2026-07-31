@@ -412,22 +412,6 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
           }));
 
           setEvents(prev => {
-            if (showToast) {
-              const freshManualEvent: ReconciledEvent = {
-                id: `devnet_refresh_${Date.now()}`,
-                signature: liveEvents[0]?.signature || '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
-                amount: targetAmt,
-                currency: 'USDC',
-                timestamp: `Slot ${480267000 + Math.floor(Math.random() * 100)}`,
-                channel: 'SOLANA-DEVNET',
-                network: 'solana-devnet',
-                memo: `RPC Devnet Settlement (${targetAmt} USDC)`,
-                slot: 480267000 + Math.floor(Math.random() * 100),
-                timeAgo: 'Just now'
-              };
-              return [freshManualEvent, ...prev];
-            }
-
             const topSig = json.signatures[0]?.signature;
             const alreadyInState = prev.some(e => e.signature === topSig);
 
