@@ -1326,10 +1326,24 @@ function AuthModal({
 function getInitialPath(): string {
   if (typeof window === "undefined") return "/";
   const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
+
+  // Check if authenticated user has active session stored
+  try {
+    const mockStr = localStorage.getItem('zega_mock_session');
+    if (mockStr) {
+      const parsed = JSON.parse(mockStr);
+      if (parsed.isGuest === false) {
+        if (path === "/" || path === "" || path === "/home") {
+          return parsed.role === 'enterprise' ? '/console' : parsed.role === 'superadmin' ? '/admin' : '/dashboard';
+        }
+      }
+    }
+  } catch (e) {}
+
   if (path === "/" || path === "" || path === "/home") {
     return path === "/home" ? "/home" : "/";
   }
-  if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/products", "/pricing"].includes(path)) {
+  if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/admin", "/products", "/pricing"].includes(path)) {
     return path;
   }
   return "/";

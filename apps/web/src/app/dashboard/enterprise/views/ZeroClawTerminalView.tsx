@@ -66,6 +66,9 @@ const sparklineOptions = {
 
 interface ZeroClawTerminalViewProps {
   onTriggerToast: (msg: string) => void;
+  isGuest?: boolean;
+  userEmail?: string;
+  userName?: string;
 }
 
 interface ReconciledEvent {
@@ -95,19 +98,25 @@ interface PendingCheckpoint {
   age: string;
 }
 
-export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewProps) {
+export function ZeroClawTerminalView({
+  onTriggerToast,
+  isGuest: propIsGuest,
+  userEmail: propUserEmail,
+  userName: propUserName
+}: ZeroClawTerminalViewProps) {
   const [network, setNetwork] = useState<'solana-devnet' | 'solana-mainnet'>('solana-devnet');
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'SOL' | 'IDR'>('USDC');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'checkpoints' | 'settlements' | 'channels' | 'audit' | 'config'>('overview');
   const [generatorMode, setGeneratorMode] = useState<'presets' | 'builder'>('presets');
 
-  // Partitioned RLS Security Mode State: 'demo' (Public) vs 'authenticated' (Private User Wallet)
-  const [accountMode, setAccountMode] = useState<'demo' | 'authenticated'>('demo');
-  const [userEmail, setUserEmail] = useState<string>('guest@zegaai.site');
+  // Auto-detect authentication state from props / session
+  const isGuestSession = propIsGuest ?? true;
+  const userEmail = propUserEmail && !propUserEmail.includes('guest') ? propUserEmail : 'siabang35@gmail.com';
+  const accountMode: 'demo' | 'authenticated' = isGuestSession ? 'demo' : 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    if (!email || email.includes('guest')) {
+    if (!email || isGuestSession) {
       return '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
     }
     // Deterministic Keyless Solana Wallet address derivation from user identity
@@ -154,19 +163,23 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
     tps: number;
     injectionDetected: boolean;
     solanaPayUrl?: string;
-  }>>([
-    {
-      id: 'log_init_01',
-      timestamp: new Date().toLocaleTimeString(),
-      modelUsed: 'GROQ (Llama-3.3-70B)',
-      prompt: 'Order 2 Kopi Espresso (15 USDC)',
-      response: 'Generated Solana Pay link for 15.00 USDC. Reference Key registered and cron polling active.',
-      latencyMs: 142,
-      tps: 320,
-      injectionDetected: false,
-      solanaPayUrl: 'solana:ZeGAMerchantPubkey111111111111111111111?amount=15.00&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=RefKeyDEMO123'
-    }
-  ]);
+  }>>([]);
+
+  useEffect(() => {
+    setAgentLogs([
+      {
+        id: 'log_init_01',
+        timestamp: new Date().toLocaleTimeString(),
+        modelUsed: 'GROQ (Llama-3.3-70B)',
+        prompt: 'Order 2 Kopi Espresso (15 USDC)',
+        response: 'Generated Solana Pay link for 15.00 USDC. Reference Key registered and cron polling active.',
+        latencyMs: 142,
+        tps: 320,
+        injectionDetected: false,
+        solanaPayUrl: `solana:${activeMerchantWallet}?amount=15.00&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=RefKeyDEMO123`
+      }
+    ]);
+  }, [activeMerchantWallet]);
 
   const handleExecutePrompt = async (customPrompt?: string) => {
     const promptToRun = customPrompt || agentPrompt;
@@ -182,6 +195,9 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
         body: JSON.stringify({
           prompt: promptToRun,
           preferredModel: selectedModel,
+          merchantContext: {
+            usdcAddress: activeMerchantWallet
+          }
         }),
       });
 
@@ -204,6 +220,13 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
     let responseText = jsonResult?.response;
     let payUrl = jsonResult?.solanaPayUrl;
+
+    if (payUrl && accountMode === 'authenticated') {
+      payUrl = payUrl.replace(/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU/g, activeMerchantWallet);
+    }
+    if (responseText && accountMode === 'authenticated') {
+      responseText = responseText.replace(/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU/g, activeMerchantWallet);
+    }
 
     if (!responseText) {
       if (isInjection) {
@@ -439,7 +462,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       userId: accountMode === 'authenticated' ? 'danz-enterprise-user-id' : undefined,
-                      merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+                      merchantPubkey: activeMerchantWallet,
                       amountUsdc: targetAmt,
                       referenceKey: refKey,
                       txSignature: confirmedSig,
@@ -477,18 +500,6 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    try {
-      const mockStr = localStorage.getItem('zega_mock_session');
-      if (mockStr) {
-        const parsed = JSON.parse(mockStr);
-        if (parsed.isGuest === false) {
-          setAccountMode('authenticated');
-        }
-      }
-    } catch (e) {}
-  }, []);
 
   useEffect(() => {
     fetchZeroClawStatus();
@@ -590,42 +601,18 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
         {/* Top Right Controls Bar */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          {/* Partitioned Account Mode Switcher (Demo Public vs Authenticated Private) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMode('demo');
-                onTriggerToast('🌐 Account Mode: Demo Public (Setiap Orang Bisa Melihat Stream)');
-                setTimeout(() => fetchZeroClawStatus(), 50);
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                accountMode === 'demo'
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-              }`}
-            >
-              <Globe size={11} />
-              <span>Demo (Publik)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMode('authenticated');
-                onTriggerToast('🔒 Account Mode: Authenticated User (Privat Hanya Wallet Ini)');
-                setTimeout(() => fetchZeroClawStatus(), 50);
-              }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                accountMode === 'authenticated'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-              }`}
-            >
-              <Lock size={11} />
-              <span>Terautentikasi (Privat)</span>
-            </button>
-          </div>
+          {/* Account Mode Indicator */}
+          {accountMode === 'authenticated' ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold text-xs">
+              <Lock size={12} className="text-emerald-500" />
+              <span>Keyless Embedded Wallet ({activeMerchantWallet.substring(0, 6)}...{activeMerchantWallet.substring(activeMerchantWallet.length - 4)})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs">
+              <Globe size={12} className="text-amber-500" />
+              <span>Demo Sandbox (Public Receiver)</span>
+            </div>
+          )}
 
           {/* Network Switcher */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-300">
@@ -1071,7 +1058,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                           <button
                             type="button"
                             onClick={() => {
-                              const walletAddress = log.solanaPayUrl?.replace(/^solana:/, '').split('?')[0] || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+                              const walletAddress = log.solanaPayUrl?.replace(/^solana:/, '').split('?')[0] || activeMerchantWallet;
                               navigator.clipboard.writeText(walletAddress);
                               onTriggerToast('Alamat Wallet Disalin!');
                             }}
@@ -1328,7 +1315,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                     <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80 space-y-1.5 text-[9.5px]">
                       <div className="flex items-center justify-between text-slate-400">
                         <span>Alamat Wallet Merchant (Transfer Manual):</span>
-                        <span className="font-mono text-emerald-400 font-bold">7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU</span>
+                        <span className="font-mono text-emerald-400 font-bold">{activeMerchantWallet}</span>
                       </div>
                       <div className="flex items-center justify-between text-slate-400 border-t border-slate-800/60 pt-1.5">
                         <span>URI Solana Pay (Dipindai QR Code):</span>
@@ -2122,7 +2109,7 @@ checkpoint = "human_approval_on_refund"`}
                     const diff = ((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2);
                     setInvoiceAmount(diff);
                     setInvoiceMessage(`Pelunasan Kekurangan ${paymentSuccessModal.memo}`);
-                    setGeneratedUrl(`solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=${diff}`);
+                    setGeneratedUrl(`solana:${activeMerchantWallet}?amount=${diff}`);
                     setPaymentSuccessModal(null);
                     onTriggerToast(`💳 Top-Up QR Dibuat untuk sisa ${diff} USDC!`);
                   }}

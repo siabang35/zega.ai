@@ -78,6 +78,12 @@ ZEGA/
 - **Detailed Specification**: Complete architecture documented in [`docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md`](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md) and User Guides [`docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md`](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md) / [`docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md`](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md).
 
 
+### 5. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Engine & Keyless Embedded Wallet
+- **Multi-LLM Tiered Failover**: Automatic failover across 6 LLM providers (Groq Llama-3.3-70B, Gemini 1.5 Flash, OpenRouter, Jatevo, 9Router Swarm, HuggingFace) with sub-300ms execution times.
+- **Deterministic Keyless Embedded Wallet**: Automatically derives unique, private Solana merchant addresses (`4zMMC7x9...`) for authenticated users under Tier 1 Keyless Custody.
+- **Privy SDK Integration Compatibility**: Ready for optional Privy (`@privy-io/react-auth` / `@privy-io/solana-provider`) non-custodial user signer integration.
+- **Dashboard Refresh Route Persistence**: Automatically restores active dashboard routes (`/console`, `/dashboard`, `/admin`) for authenticated accounts on page refresh.
+
 ### 6. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Integration
 - **Modular Database Migration Suites**:
   - `supabase/migrations/sql_umkm/` (`20260731000000_master_umkm_realtime_schema.sql`): Store-level RLS, Token Bucket rate limiter (300 cap), real-time order streams.

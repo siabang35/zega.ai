@@ -381,7 +381,7 @@ export function UmkmDashboardContainer({
 
         {/* View Renderer */}
         <div className="p-3 sm:p-4 md:p-6 flex-1 pb-20 md:pb-6">
-          <UmkmDashboardView activeTab={activeTab} userName={userName} isGuest={isGuest} />
+          <UmkmDashboardView activeTab={activeTab} userName={userName} userEmail={userEmail} isGuest={isGuest} />
         </div>
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}

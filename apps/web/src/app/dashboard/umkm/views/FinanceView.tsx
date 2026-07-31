@@ -29,9 +29,12 @@ ChartJS.register(
 
 interface FinanceViewProps {
   triggerToast?: (msg: string) => void;
+  isGuest?: boolean;
+  userEmail?: string;
+  userName?: string;
 }
 
-export function FinanceView({ triggerToast }: FinanceViewProps) {
+export function FinanceView({ triggerToast, isGuest, userEmail, userName }: FinanceViewProps) {
   const [isGreetingVisible, setIsGreetingVisible] = useState(false);
   const [activeFinanceTab, setActiveFinanceTab] = useState<'overview' | 'zeroclaw'>('overview');
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'IDR'>('USDC');
@@ -172,7 +175,7 @@ export function FinanceView({ triggerToast }: FinanceViewProps) {
 
       {/* Render selected view */}
       {activeFinanceTab === 'zeroclaw' ? (
-        <ZeroClawTerminalView onTriggerToast={triggerToast || (() => {})} />
+        <ZeroClawTerminalView onTriggerToast={triggerToast || (() => {})} isGuest={isGuest} userEmail={userEmail} userName={userName} />
       ) : (
         <>
 

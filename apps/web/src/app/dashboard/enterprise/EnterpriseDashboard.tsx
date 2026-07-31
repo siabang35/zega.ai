@@ -467,7 +467,7 @@ export function EnterpriseDashboardView({
           {activeTab === 'api_sdk' && <ApiSdkView onTriggerToast={triggerToast} />}
           {activeTab === 'webhooks' && <WebhooksView onTriggerToast={triggerToast} />}
           {activeTab === 'system_logs' && <DeveloperLogsView onTriggerToast={triggerToast} />}
-          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} />}
+          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} isGuest={isGuest} userEmail={userEmail} userName={userName} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
           {(activeTab === 'usage_billing' || activeTab === 'payments_bills') && <UsageBillingView onTriggerToast={triggerToast} />}
           {(activeTab === 'ai_safety' || activeTab === 'security_center') && <AiSafetyView onTriggerToast={triggerToast} />}

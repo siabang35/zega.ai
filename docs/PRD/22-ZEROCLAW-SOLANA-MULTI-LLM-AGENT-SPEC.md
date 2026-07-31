@@ -35,16 +35,17 @@ User Prompt → Token Bucket Rate Limiter (30 req/min)
 ---
 
 ## 3. Solana On-Chain Payment & Reconciliation Engine
-1. **Tier 1 Keyless Custody**:
-   - Zero private keys are stored on server memory.
-   - Mobile and web wallets (Phantom, Solflare, Backpack) sign transactions client-side.
+1. **Tier 1 Keyless Custody & Deterministic Embedded Wallet**:
+   - Zero private keys are stored in server memory.
+   - Deterministic Keyless Solana Wallet address derivation (`deriveEmbeddedWallet(userEmail)`) assigns a unique, private merchant wallet address (`4zMMC7x9...`) to every authenticated user session.
+   - **Privy SDK Compatibility**: For client-side non-custodial key signers and seamless Web3 onboarding, Privy (`@privy-io/react-auth` / `@privy-io/solana-provider`) can be layered directly on top of ZeroClaw to manage user signers without holding private keys.
 2. **Solana Pay URL & Reference Key Generation**:
    - Formats URLs using the standard Solana Pay protocol:
      `solana:<recipient>?amount=<amount>&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=<refKey>&label=ZEGA%20Merchant`
-3. **Partitioned RLS Security Architecture (Demo Public vs Authenticated Private)**:
-   - **Demo Mode (`user_id = NULL`)**: Public demo transactions are accessible to all users on the public settlement feed.
+3. **Partitioned Security Architecture & Dashboard Refresh Persistence**:
+   - **Demo Mode (`user_id = NULL`)**: Public demo transactions are accessible to all users on the public sandbox settlement feed.
    - **Authenticated Mode (`user_id = auth.uid()`)**: Strictly private user wallet settlements protected via Row Level Security (RLS) in Supabase. Only the logged-in user can view their own transaction history.
-   - **Account Mode Switcher**: Terminal header includes a live switcher between `Demo (Public)` and `Authenticated (Private)` modes.
+   - **Route Refresh Persistence**: `getInitialPath()` in `App.tsx` checks stored session state. When an authenticated user refreshes on `/`, the application automatically restores their dedicated dashboard route (`/console`, `/dashboard`, or `/admin`) without redirecting back to the landing page.
 4. **Live Devnet RPC Query (`/v1/zeroclaw/solana-rpc`) & Real Solscan Reconciliation**:
    - Queries `api.devnet.solana.com` directly using `getSignaturesForAddress` to fetch real, trackable Devnet signatures.
    - Reconciles verified on-chain Devnet transactions (e.g. `2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y` for Table 3, 1.20 USDC) into the settlement ledger.

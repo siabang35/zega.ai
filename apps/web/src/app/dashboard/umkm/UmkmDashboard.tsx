@@ -18,11 +18,12 @@ import { SettingsView } from './views/SettingsView';
 export interface UmkmDashboardProps {
   activeTab?: string;
   userName?: string;
+  userEmail?: string;
   isGuest?: boolean;
   onNavigateTab?: (tab: string) => void;
 }
 
-export function UmkmDashboard({ activeTab: externalTab, userName, isGuest, onNavigateTab }: UmkmDashboardProps) {
+export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab }: UmkmDashboardProps) {
   const [internalTab, setInternalTab] = useState('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -84,7 +85,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, isGuest, onNav
       {currentTab === 'inbox' && <InboxView triggerToast={triggerToast} />}
       {currentTab === 'sales' && <SalesView />}
       {currentTab === 'marketing' && <MarketingView triggerToast={triggerToast} />}
-      {currentTab === 'finance' && <FinanceView />}
+      {currentTab === 'finance' && <FinanceView triggerToast={triggerToast} isGuest={isGuest} userEmail={userEmail} userName={userName} />}
       {currentTab === 'store' && <StoreView triggerToast={triggerToast} />}
       {currentTab === 'customers' && <CustomersView triggerToast={triggerToast} />}
       {currentTab === 'reports' && <ReportsView triggerToast={triggerToast} />}
