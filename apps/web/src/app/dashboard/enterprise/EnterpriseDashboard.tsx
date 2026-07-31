@@ -150,7 +150,7 @@ export function EnterpriseDashboardView({
   // Determine displayed organization name based on auth state
   const displayOrgName = isGuest 
     ? 'Guest Enterprise (Demo)' 
-    : (userName && userName !== 'Acme Enterprise Admin (Guest Demo)' ? userName : 'PT Zenith Enterprise');
+    : (userName && !userName.includes('Guest') ? userName : 'PT Zenith Enterprise');
   const displayUserRole = isGuest ? 'Enterprise Guest Admin' : 'Enterprise Admin';
 
   const enterpriseMenuCategories = [
@@ -428,16 +428,21 @@ export function EnterpriseDashboardView({
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <LanguageSelector />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            >
-              <X size={16} />
-            </button>
+            
+            {/* Close 'X' Button — Only available in Guest/Demo Mode to prevent accidental logout */}
+            {isGuest && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
+                title="Exit Demo Sandbox"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </header>
 

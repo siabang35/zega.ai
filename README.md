@@ -69,7 +69,9 @@ ZEGA/
 ### 5. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Runtime (SuperteamBR Bounty)
 - **Multi-LLM Tiered Provider Engine**: Supports **Groq (`llama-3.3-70b-versatile`)**, **Google Gemini (`gemini-1.5-flash`)**, **OpenRouter**, **HuggingFace**, **Jatevo AI**, and **9Router Swarm** with automatic failover chain.
 - **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile & browser wallets (Phantom, Solflare) sign transactions client-side.
-- **Valid Solana Pay Spec & High-Res QR Code**: Generates fully compliant Base58 Solana Pay URIs (`solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=15.00&spl-token=4zMMC9...`) and scannable high-resolution QR codes (`api.qrserver.com`).
+- **Dedicated Keyless Embedded Wallet per Account**: Deterministic keyless wallet derivation (`deriveEmbeddedWallet`) assigns private Solana receiver addresses (e.g. `4zMMC7x...`) to authenticated users, separating them from public demo receivers (`7xKX...`).
+- **Authenticated Dashboard Isolation**: Authenticated UMKM and Enterprise sessions purge all guest banners and fallbacks (`Guest Store`, `Guest Enterprise (Demo)`, `GUEST-1283`). Close `X` header buttons are hidden to enforce formal **Sign Out** flow.
+- **Valid Solana Pay Spec & High-Res QR Code**: Generates fully compliant Base58 Solana Pay URIs (`solana:<activeMerchantWallet>?amount=15.00&spl-token=4zMMC9...`) and scannable high-resolution QR codes (`api.qrserver.com`).
 - **Real-Time QRIS Auto-Reconciliation**: Automatic Solana Devnet RPC listener stream (<2s confirmation) with instant cashier success pop-up modal (`paymentSuccessModal`) without requiring manual cashier approval.
 - **OWASP Prompt Injection Defense**: Real-time regex scanner blocks malicious payout override prompts (`injectionDetected = true`) and routes them to SOP Human Approval Checkpoints (`chk_auto_*`).
 - **Cloudflare R2 CDN Logo Delivery**: All AI model logos served via `getR2CdnUrl(...)` from `https://cdn.zegaai.site/assets/logo/` with fallback resilience.

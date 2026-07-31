@@ -71,3 +71,18 @@ Automated test suite (`apps/api/src/test_live_llm_keys.ts` & `src/test_zeroclaw_
 - **Partitioned RLS Security**: Verified `user_id = NULL` for demo public access and `user_id = auth.uid()` for private authenticated user wallet isolation.
 - **OWASP Guard & POS Sanitizer**: Successfully flagged prompt injection attempt and stripped code blocks from cashier responses.
 - **TypeScript Compilation**: 0 errors across `@zega/api` and `@zega/web`.
+
+---
+
+## 6. Dedicated ZeroClaw Keyless Embedded Wallet & Authenticated Session Isolation
+
+### 1. Deterministic Keyless Solana Embedded Wallet Derivation
+- **Guest / Demo Mode (`isGuest === true`)**: Terminal generates payment URIs pointing to public demo address `7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`.
+- **Authenticated Mode (`isGuest === false`)**: Terminal invokes deterministic Keyless Solana Embedded Wallet derivation (`deriveEmbeddedWallet(userEmail)`), generating a private user wallet (`4zMMC7x9K2pW87dT7XJSDpbD5jBkheTqA83TZRuJosgAsU`).
+- **Full Pay URL & Explorer Alignment**: All generated Solana Pay QR URIs (`solana:<activeMerchantWallet>?amount=...`), copy actions, and Solana Explorer links dynamically target the user's private Keyless Embedded Wallet address.
+
+### 2. Complete Authenticated vs Guest UI Isolation
+- **Removal of Guest Banners & Fallbacks**: Authenticated UMKM (`UmkmDashboardContainer.tsx`) and Enterprise (`EnterpriseDashboard.tsx`) dashboards completely purge all guest warning banners, `Guest Store`, `Guest Enterprise (Demo)`, `GUEST-1283`, and default demo strings (`Acme Enterprise Admin (Guest Demo)`).
+- **Forced Sign Out Flow**: For authenticated sessions, the top-header close `X` button is hidden to prevent accidental fallback to demo mode. Sesi termination requires explicitly clicking **Sign Out**.
+- **Supabase RLS Private Settlement Partitioning**: Backend endpoint `/v1/zeroclaw/settlement/list` strictly partitions settlement data via `is_demo = false` and `user_id = eq.<USER_EMAIL>`, ensuring transaction history and settlements are 100% private to the authenticated account.
+

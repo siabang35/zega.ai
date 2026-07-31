@@ -345,10 +345,10 @@ export function UmkmDashboardContainer({
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                  {isGuest ? 'Guest Store' : 'Toko Wildan'}
+                  {isGuest ? 'Guest Store' : (userName && userName !== 'Guest Explorer (Demo Mode)' ? `Toko ${userName}` : 'Toko UMKM')}
                 </p>
                 <p className="text-[10px] text-slate-400 font-mono">
-                  {isGuest ? 'Store ID: GUEST-1283' : 'Store ID: 1283'}
+                  {isGuest ? 'Store ID: GUEST-1283' : `Store ID: ${userEmail.split('@')[0].toUpperCase()}`}
                 </p>
               </div>
               <ChevronDown size={14} className="text-slate-400" />
@@ -361,16 +361,21 @@ export function UmkmDashboardContainer({
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <LanguageSelector />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            >
-              <X size={16} />
-            </button>
+            
+            {/* Close 'X' Button — Only available in Guest/Demo Mode to prevent accidental logout */}
+            {isGuest && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
+                title="Exit Demo Sandbox"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </header>
 

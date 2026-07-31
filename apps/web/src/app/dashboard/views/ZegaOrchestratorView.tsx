@@ -31,10 +31,10 @@ export function ZegaOrchestratorView({
   onSwitchWorkspace
 }: ZegaOrchestratorViewProps) {
   // Determine displayed organization name based on auth state
-  const isGuestUser = isGuest || userEmail?.includes('guest') || userName?.includes('Guest');
-  const displayOrgName = isGuestUser 
-    ? 'Guest Enterprise (Demo)' 
-    : (userName && userName !== 'Acme Enterprise Admin (Guest Demo)' ? userName : 'PT Zenith Enterprise');
+  const isGuestUser = isGuest ?? true;
+  const displayOrgName = !isGuest 
+    ? (userName && !userName.includes('Guest') ? userName : 'PT Zenith Enterprise')
+    : 'Guest Enterprise (Demo)';
 
   // Time Range State
   const [timeRange, setTimeRange] = useState('Last 24 hours');

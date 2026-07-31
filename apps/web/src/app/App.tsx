@@ -948,7 +948,24 @@ function AuthModal({
 
       const session = res.data?.session;
       const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
-      const name = session?.fullName || 'Alex Morgan';
+      const name = session?.fullName || fullName || userEmail.split('@')[0];
+
+      // Build & store real authenticated session
+      const realSession = {
+        user: {
+          id: session?.user?.id || 'user-' + Date.now(),
+          email: userEmail,
+          user_metadata: { full_name: name, role, is_guest: false }
+        },
+        role,
+        fullName: name,
+        email: userEmail,
+        isGuest: false,
+        accessToken: (session as any)?.accessToken || 'token-' + Date.now(),
+      };
+
+      localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
+      SupabaseDashboardService.setSessionCookie(realSession);
 
       onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`, role as any);
       onClose();

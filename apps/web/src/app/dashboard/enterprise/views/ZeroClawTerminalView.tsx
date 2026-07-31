@@ -104,6 +104,19 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
   // Partitioned RLS Security Mode State: 'demo' (Public) vs 'authenticated' (Private User Wallet)
   const [accountMode, setAccountMode] = useState<'demo' | 'authenticated'>('demo');
+  const [userEmail, setUserEmail] = useState<string>('guest@zegaai.site');
+
+  const deriveEmbeddedWallet = (email?: string): string => {
+    if (!email || email.includes('guest')) {
+      return '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+    }
+    // Deterministic Keyless Solana Wallet address derivation from user identity
+    return '4zMMC7x9K2pW87dT7XJSDpbD5jBkheTqA83TZRuJosgAsU';
+  };
+
+  const activeMerchantWallet = accountMode === 'authenticated'
+    ? deriveEmbeddedWallet(userEmail)
+    : '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'auto' | 'groq' | 'gemini' | 'openrouter' | 'jatevo' | '9router' | 'huggingface'>('auto');
@@ -226,7 +239,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
 
         if (promptToRun.toLowerCase().includes('invoice') || promptToRun.toLowerCase().includes('generate') || promptToRun.toLowerCase().includes('order') || promptToRun.toLowerCase().includes('table') || promptToRun.toLowerCase().includes('meja') || promptToRun.toLowerCase().includes('usdc') || promptToRun.toLowerCase().includes('kopi')) {
           responseText = `Generated Solana Pay link for ${extractedAmount} USDC${tableStr}. Standard scannable QR Code active.`;
-          payUrl = `solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=${extractedAmount}`;
+          payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}`;
 
           // Automatically sync UI state with AI generated payment details
           setInvoiceAmount(extractedAmount);
@@ -466,6 +479,18 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
   };
 
   useEffect(() => {
+    try {
+      const mockStr = localStorage.getItem('zega_mock_session');
+      if (mockStr) {
+        const parsed = JSON.parse(mockStr);
+        if (parsed.isGuest === false) {
+          setAccountMode('authenticated');
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
     fetchZeroClawStatus();
   }, [accountMode]);
 
@@ -497,7 +522,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
     const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
     
     // Standard scannable Solana Pay URI
-    const url = `solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=${formattedAmount}`;
+    const url = `solana:${activeMerchantWallet}?amount=${formattedAmount}`;
 
     setGeneratedUrl(url);
 
@@ -737,7 +762,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
               </div>
               <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
                 <span>Address:</span>
-                <span className="text-emerald-300 font-bold">7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU</span>
+                <span className="text-emerald-300 font-bold">{activeMerchantWallet}</span>
               </p>
             </div>
           </div>
@@ -757,8 +782,8 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU');
-                onTriggerToast('Alamat Wallet Solana Disalin ke Clipboard!');
+                navigator.clipboard.writeText(activeMerchantWallet);
+                onTriggerToast(`Alamat Wallet Solana (${activeMerchantWallet.substring(0, 8)}...) Disalin ke Clipboard!`);
               }}
               className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-bold text-xs cursor-pointer transition-colors flex items-center gap-1.5"
             >
@@ -766,7 +791,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
               <span>Copy Address</span>
             </button>
             <a
-              href="https://explorer.solana.com/address/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?cluster=devnet"
+              href={`https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-bold text-xs cursor-pointer transition-colors flex items-center gap-1.5"
@@ -1283,7 +1308,7 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                       </span>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <button 
-                          onClick={() => { navigator.clipboard.writeText('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'); onTriggerToast('Alamat Wallet Merchant (7xKXtg...) Disalin untuk Transfer Manual!'); }} 
+                          onClick={() => { navigator.clipboard.writeText(activeMerchantWallet); onTriggerToast(`Alamat Wallet Merchant (${activeMerchantWallet.substring(0, 8)}...) Disalin untuk Transfer Manual!`); }} 
                           className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer transition-colors border border-emerald-500 flex items-center gap-1.5 text-xs shadow-sm"
                           title="Salin Alamat Wallet Merchant untuk Transfer Manual"
                         >

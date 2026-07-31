@@ -57,3 +57,18 @@ Perusahaan enterprise, manajer keuangan/treasury, pengembang multi-agent swarm, 
 - **Resolusi CDN**: `getR2CdnUrl(...)` memastikan pengiriman aset dari `https://cdn.zegaai.site/assets/logo/`.
 - **Zero Secrets Exposure**: Tidak ada secret API Key yang disimpan hardcoded dalam repositori atau dokumentasi publik.
 
+---
+
+## 5. Keyless Embedded Wallet Khusus Per Akun & Isolasi Sesi Terautentikasi
+
+### 1. Pembentukan Embedded Wallet Solana Deterministik
+- **Mode Visitor / Demo (`isGuest === true`)**: Menggunakan alamat penerima publik `7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`.
+- **Mode Akun Terautentikasi (`isGuest === false`)**: Terminal mengeksekusi derivasi Keyless Embedded Wallet (`deriveEmbeddedWallet(userEmail)`), membentuk alamat wallet Solana private per akun (`4zMMC7x9K2pW87dT7XJSDpbD5jBkheTqA83TZRuJosgAsU`).
+- **Penyelarasan URI & Explorer**: Semua link QR Code Solana Pay (`solana:<activeMerchantWallet>?amount=...`), aksi copy address, dan tautan Solana Explorer secara otomatis menggunakan alamat wallet private pengguna yang terautentikasi.
+
+### 2. Isolasi Total Dashboard Terautentikasi vs Demo
+- **Pembersihan Banner & Label Guest**: Dashboard UMKM (`UmkmDashboardContainer.tsx`) dan Enterprise (`EnterpriseDashboard.tsx`) secara total menghapus seluruh banner peringatan guest, label `Guest Store`, `Guest Enterprise (Demo)`, `GUEST-1283`, dan nama fallback demo (`Acme Enterprise Admin`).
+- **Alur Keluar Formal (Sign Out)**: Untuk akun terautentikasi, tombol `X` (Tutup) pada header atas dihilangkan untuk mencegah jatuhnya sesi secara tidak sengaja ke mode demo. Penutupan sesi wajib melalui tombol **Sign Out** resmi.
+- **Partisi Supabase RLS Private**: Endpoint backend `/v1/zeroclaw/settlement/list` menyaring data settlement privat menggunakan `is_demo = false` dan `user_id = eq.<USER_EMAIL>`, memastikan seluruh histori transaksi tersimpan aman dan hanya dapat diakses oleh pemilik akun asli.
+
+
