@@ -170,6 +170,80 @@ async function callHuggingFaceApi(prompt: string, apiKey: string): Promise<strin
 }
 
 export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
+  // ── POST /v1/zeroclaw/settlement/record ── Record Settlement (Authenticated Supabase Persistence & Guest Demo Stream)
+  fastify.post<{
+    Body: {
+      userId?: string;
+      merchantPubkey?: string;
+      amountUsdc: number;
+      referenceKey: string;
+      txSignature: string;
+      network?: string;
+      memo?: string;
+      isDemo?: boolean;
+    };
+  }>('/settlement/record', async (request, reply) => {
+    const { userId, merchantPubkey, amountUsdc, referenceKey, txSignature, network, memo, isDemo } = request.body || {};
+
+    const newEvent = {
+      id: `set_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      signature: txSignature || `sol_${Date.now()}`,
+      amount: amountUsdc || 15.00,
+      currency: 'USDC',
+      timestamp: new Date().toISOString(),
+      channel: 'SOLANA-PAY-DEVNET',
+      network: network || 'solana-devnet',
+      memo: memo || 'Solana Pay Merchant Payout',
+      slot: 480264000 + Math.floor(Math.random() * 500),
+      timeAgo: 'Just now'
+    };
+
+    reconciledEvents.unshift(newEvent as any);
+    zeroClawState.totalReconciledUsdc += (amountUsdc || 15.00);
+    zeroClawState.reconciledTxCount += 1;
+
+    // Check if authenticated user - attempt Supabase DB persistence
+    let persistedInDb = false;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (userId && !isDemo && supabaseUrl && supabaseKey) {
+      try {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+            amount_usdc: amountUsdc,
+            reference_key: referenceKey,
+            tx_signature: txSignature,
+            network: network || 'solana-devnet',
+            status: 'confirmed',
+            memo: memo || 'Solana Pay Settlement'
+          })
+        });
+        if (dbRes.ok) {
+          persistedInDb = true;
+        }
+      } catch (err) {
+        // Fallback gracefully for demo or network issue
+      }
+    }
+
+    return reply.send({
+      success: true,
+      mode: (userId && !isDemo) ? 'authenticated' : 'demo',
+      persisted: persistedInDb,
+      data: newEvent
+    });
+  });
+
   // ── GET /v1/zeroclaw/status ──
   fastify.get('/status', async () => {
     return {

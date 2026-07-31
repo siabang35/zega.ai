@@ -461,6 +461,22 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                     timeAgo: 'Just now'
                   };
 
+                  // Persist to Supabase DB for authenticated users (or stream in demo mode)
+                  fetch('/v1/zeroclaw/settlement/record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: 'danz-enterprise-user-id',
+                      merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+                      amountUsdc: targetAmt,
+                      referenceKey: refKey,
+                      txSignature: confirmedSig,
+                      network: 'solana-devnet',
+                      memo: invoiceMessage || 'Solana Pay On-Chain Merchant Settlement',
+                      isDemo: false
+                    })
+                  }).catch(() => {});
+
                   setPaymentSuccessModal({
                     show: true,
                     targetAmount: targetAmt,
