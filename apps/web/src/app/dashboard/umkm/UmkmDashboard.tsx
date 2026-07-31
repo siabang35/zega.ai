@@ -93,15 +93,15 @@ export function UmkmDashboard({ activeTab: externalTab, userName, isGuest, onNav
       {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} />}
 
       {/* FLOATING ZEGA COPILOT WIDGET */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
         <button 
           onClick={() => triggerToast('Opening ZEGA Copilot Assistant...')} 
-          className="px-4 py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-2xl flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
+          className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-md shadow-slate-900/10 dark:shadow-black/40 flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
         >
-          <Sparkles size={16} className="text-orange-400" />
-          <span>ZEGA Copilot</span>
-          <ChevronRight size={14} />
-          <span className="size-5 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center ml-0.5">2</span>
+          <Sparkles size={15} className="text-orange-400" />
+          <span className="text-[11px] sm:text-xs">ZEGA Copilot</span>
+          <ChevronRight size={13} />
+          <span className="size-4.5 sm:size-5 rounded-full bg-red-500 text-white text-[9.5px] sm:text-[10px] font-extrabold flex items-center justify-center ml-0.5">2</span>
         </button>
       </div>
     </div>

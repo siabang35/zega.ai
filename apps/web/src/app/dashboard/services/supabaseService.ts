@@ -407,11 +407,133 @@ export const SupabaseDashboardService = {
   // 5. Log Security Audit Trail (OWASP Standard)
   async logAuditTrail(action: string, metadata: any = {}) {
     try {
-      // Security audit trails are securely processed by the backend API server.
-      // Client-side logging is kept lightweight to adhere to OWASP client isolation.
       console.debug('[AuditTrail]', action, metadata);
     } catch (e) {
       // Non-blocking security audit logger
     }
+  },
+
+  // 6. Fetch Realtime UMKM Dashboard Data from Database indexed tables
+  async getUmkmRealtimeData(storeId: string = '11111111-1111-1111-1111-111111111111') {
+    try {
+      const [kpiRes, empRes, autoRes, timelineRes] = await Promise.all([
+        supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(),
+        supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }),
+        supabase.from('umkm_automations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }),
+        supabase.from('umkm_timeline_events').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10),
+      ]);
+
+      return {
+        kpis: kpiRes.data || null,
+        aiEmployees: (empRes.data || []).map(emp => ({
+          ...emp,
+          avatar_path: (emp.avatar_path ? (emp.avatar_path.startsWith('/') ? emp.avatar_path : `/${emp.avatar_path}`) : '/assets/logo/ai-agents.png')
+        })),
+        automations: autoRes.data || [],
+        timelineEvents: timelineRes.data || [],
+        error: null
+      };
+    } catch (err: any) {
+      console.warn('UMKM Realtime fetch note:', err?.message);
+      return { kpis: null, aiEmployees: [], automations: [], timelineEvents: [], error: err };
+    }
+  },
+
+  // 7. Subscribe to Realtime WebSocket updates on UMKM tables
+  subscribeToUmkmRealtime(storeId: string, onUpdate: (payload: any) => void) {
+    const channel = supabase
+      .channel(`umkm-realtime-${storeId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_dashboard_kpis', filter: `store_id=eq.${storeId}` }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_ai_employees', filter: `store_id=eq.${storeId}` }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_timeline_events', filter: `store_id=eq.${storeId}` }, onUpdate)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // 8. Fetch Realtime Enterprise Dashboard Data from indexed Supabase tables
+  async getEnterpriseRealtimeData(orgId: string = '99999999-9999-9999-9999-999999999999') {
+    try {
+      const [orgRes, memberRes, clusterRes, mcpRes, orchRes, auditRes, costRes] = await Promise.all([
+        supabase.from('enterprise_organizations').select('*').eq('id', orgId).maybeSingle(),
+        supabase.from('enterprise_members').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
+        supabase.from('enterprise_ai_clusters').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
+        supabase.from('enterprise_mcp_connectors').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
+        supabase.from('enterprise_orchestrators').select('*').eq('org_id', orgId).order('created_at', { ascending: true }),
+        supabase.from('enterprise_audit_logs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(20),
+        supabase.from('enterprise_cost_intelligence').select('*').eq('org_id', orgId).maybeSingle(),
+      ]);
+
+      return {
+        organization: orgRes.data || null,
+        members: memberRes.data || [],
+        clusters: clusterRes.data || [],
+        mcpConnectors: mcpRes.data || [],
+        orchestrators: orchRes.data || [],
+        auditLogs: auditRes.data || [],
+        costIntelligence: costRes.data || null,
+        error: null
+      };
+    } catch (err: any) {
+      console.warn('Enterprise Realtime fetch note:', err?.message);
+      return { organization: null, members: [], clusters: [], mcpConnectors: [], orchestrators: [], auditLogs: [], costIntelligence: null, error: err };
+    }
+  },
+
+  // 9. Subscribe to Realtime WebSocket updates on Enterprise tables
+  subscribeToEnterpriseRealtime(orgId: string, onUpdate: (payload: any) => void) {
+    const channel = supabase
+      .channel(`enterprise-realtime-${orgId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_ai_clusters', filter: `org_id=eq.${orgId}` }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_mcp_connectors', filter: `org_id=eq.${orgId}` }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_orchestrators', filter: `org_id=eq.${orgId}` }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_audit_logs', filter: `org_id=eq.${orgId}` }, onUpdate)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // 10. Fetch Realtime SuperAdmin Platform Data from indexed Supabase tables
+  async getSuperAdminRealtimeData() {
+    try {
+      const [kpiRes, rootRes, tenantRes, threatRes, nodeRes] = await Promise.all([
+        supabase.from('superadmin_platform_kpis').select('*').limit(1).single(),
+        supabase.from('superadmin_root_accounts').select('*').order('created_at', { ascending: true }),
+        supabase.from('superadmin_tenant_registry').select('*').order('created_at', { ascending: false }),
+        supabase.from('superadmin_security_threat_logs').select('*').order('created_at', { ascending: false }).limit(20),
+        supabase.from('superadmin_infra_nodes').select('*').order('created_at', { ascending: true }),
+      ]);
+
+      return {
+        kpis: kpiRes.data || null,
+        rootAccounts: rootRes.data || [],
+        tenants: tenantRes.data || [],
+        threatLogs: threatRes.data || [],
+        infraNodes: nodeRes.data || [],
+        error: null
+      };
+    } catch (err: any) {
+      console.warn('SuperAdmin Realtime fetch note:', err?.message);
+      return { kpis: null, rootAccounts: [], tenants: [], threatLogs: [], infraNodes: [], error: err };
+    }
+  },
+
+  // 11. Subscribe to Realtime WebSocket updates on SuperAdmin tables
+  subscribeToSuperAdminRealtime(onUpdate: (payload: any) => void) {
+    const channel = supabase
+      .channel('superadmin-realtime-global')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_platform_kpis' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_security_threat_logs' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_infra_nodes' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'superadmin_tenant_registry' }, onUpdate)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 };

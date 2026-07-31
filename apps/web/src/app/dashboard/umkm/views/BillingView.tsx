@@ -3,6 +3,7 @@ import {
   Check, CreditCard, Plus, ArrowUpRight, Download, ShieldCheck, 
   ExternalLink, Sparkles, AlertCircle 
 } from 'lucide-react';
+import { getR2CdnUrl } from '../../../utils/cdn';
 
 interface BillingViewProps {
   triggerToast: (msg: string) => void;
@@ -142,11 +143,11 @@ export function BillingView({ triggerToast }: BillingViewProps) {
             </div>
 
             <div className="space-y-2.5">
-              {/* Method 1 */}
+              {/* Method 1: Stripe */}
               <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
-                    S
+                  <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0">
+                    <img src={getR2CdnUrl('/assets/visualization/stripe.webp')} className="h-4 w-auto object-contain" alt="Stripe" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Stripe •••• 4242</h4>
@@ -158,11 +159,11 @@ export function BillingView({ triggerToast }: BillingViewProps) {
                 </span>
               </div>
 
-              {/* Method 2 */}
+              {/* Method 2: QRIS */}
               <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-xl bg-slate-950 text-white font-black text-[9px] flex items-center justify-center flex-shrink-0">
-                    QRIS
+                  <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0">
+                    <img src={getR2CdnUrl('/assets/logo/qris.webp')} className="h-3.5 w-auto object-contain" alt="QRIS" />
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">QRIS (VA)</h4>
@@ -174,24 +175,24 @@ export function BillingView({ triggerToast }: BillingViewProps) {
                 </span>
               </div>
 
-              {/* Method 3 */}
+              {/* Method 3: GoPay */}
               <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
-                    G
+                  <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0">
+                    <img src={getR2CdnUrl('/assets/logo/gopay.webp')} className="h-4 w-auto object-contain" alt="GoPay" />
                   </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">gopay</h4>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">GoPay</h4>
                 </div>
                 <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[9px] font-bold">
                   Aktif
                 </span>
               </div>
 
-              {/* Method 4 */}
+              {/* Method 4: DANA */}
               <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-xl bg-sky-500 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
-                    D
+                  <div className="size-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0">
+                    <img src={getR2CdnUrl('/assets/logo/dana.webp')} className="h-4 w-auto object-contain" alt="DANA" />
                   </div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">DANA</h4>
                 </div>
@@ -299,14 +300,14 @@ export function BillingView({ triggerToast }: BillingViewProps) {
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             Semua pembayaran diproses secara aman melalui Stripe, Midtrans, atau x402 Network.
           </p>
-          <div className="flex items-center gap-2 opacity-75">
-            <span className="font-bold text-[10px] text-slate-400">stripe</span>
+          <div className="flex items-center gap-2 opacity-80">
+            <img src={getR2CdnUrl('/assets/visualization/stripe.webp')} className="h-3.5 w-auto object-contain" alt="Stripe" />
             <span className="text-slate-300">|</span>
-            <span className="font-bold text-[10px] text-cyan-600">midtrans</span>
+            <img src={getR2CdnUrl('/assets/logo/Midtrans.png')} className="h-3.5 w-auto object-contain" alt="Midtrans" />
             <span className="text-slate-300">|</span>
-            <span className="font-black text-[9px] text-slate-900 dark:text-white">QRIS</span>
+            <img src={getR2CdnUrl('/assets/logo/qris.webp')} className="h-3 w-auto object-contain" alt="QRIS" />
             <span className="text-slate-300">|</span>
-            <span className="font-mono font-bold text-[9px] text-slate-600 dark:text-slate-300">x402</span>
+            <img src={getR2CdnUrl('/assets/visualization/x402.jpg')} className="size-4 object-contain rounded-xs" alt="x402" />
           </div>
         </div>
 

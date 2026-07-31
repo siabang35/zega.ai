@@ -3,52 +3,39 @@ import {
   Copy, Check, ChevronRight, ShieldCheck, Key, Globe, Clock, 
   DollarSign, Calendar, Sliders, ExternalLink, Plus 
 } from 'lucide-react';
+import { getR2CdnUrl } from '../../../utils/cdn';
 
 interface SettingsViewProps {
   triggerToast: (msg: string) => void;
 }
 
-// Brand SVG Icons for Settings Integrations
+// Brand SVG & CDN Image Logos for Settings Integrations
 const IntegrationLogos = {
   whatsapp: (
-    <svg className="size-6 text-emerald-500 fill-current" viewBox="0 0 24 24">
-      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-1.157 4.228 4.23-1.107z"/>
-    </svg>
+    <img src={getR2CdnUrl('/assets/logo/whatsapp-for-business.webp')} className="size-6 object-contain" alt="WhatsApp Business" />
   ),
   instagram: (
-    <svg className="size-6 text-pink-500 fill-current" viewBox="0 0 24 24">
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-    </svg>
+    <img src={getR2CdnUrl('/assets/logo/instagram.png')} className="size-6 object-contain" alt="Instagram" />
   ),
   shopee: (
-    <svg className="size-6 text-orange-500 fill-current" viewBox="0 0 24 24">
-      <path d="M19.8 8.2h-3.3C16.1 5 13.8 2.5 12 2.5S7.9 5 7.5 8.2H4.2c-.7 0-1.2.6-1.2 1.3l1.2 11.5c.1.9.8 1.5 1.7 1.5h12.2c.9 0 1.6-.6 1.7-1.5l1.2-11.5c0-.7-.5-1.3-1.2-1.3zm-7.8-3.7c1.1 0 2.6 1.9 3 3.7H9c.4-1.8 1.9-3.7 3-3.7zm0 13c-2.3 0-4-1.2-4.1-2.6h1.9c.1.6 1 1.1 2.2 1.1 1.3 0 2.2-.6 2.2-1.3 0-.7-.7-1.1-2.2-1.5-2.2-.6-3.8-1.2-3.8-2.9 0-1.6 1.6-2.8 3.8-2.8s3.8 1.2 3.9 2.6h-1.9c-.1-.6-.9-1.1-2-1.1-1.2 0-2 .5-2 1.2 0 .6.7 1 2.2 1.4 2.3.6 3.8 1.3 3.8 3 0 1.6-1.6 2.9-4 2.9z"/>
-    </svg>
+    <img src={getR2CdnUrl('/assets/logo/shopee.png')} className="size-6 object-contain" alt="Shopee" />
   ),
   tiktok: (
-    <div className="size-7 rounded-lg bg-slate-950 text-white font-bold text-xs flex items-center justify-center border border-slate-800">
-      🎵
-    </div>
+    <svg className="size-5.5 text-slate-900 dark:text-slate-100 fill-current" viewBox="0 0 24 24">
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 11-5.2-1.74 2.89 2.89 0 012.31-1.39V9.06a6.34 6.34 0 00-6.13 6.33A6.33 6.33 0 009.68 21.7a6.33 6.33 0 006.33-6.33V9.3a8.16 8.16 0 004.83 1.57V7.42a4.85 4.85 0 01-1.25-.73z"/>
+    </svg>
   ),
   stripe: (
-    <div className="size-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-      S
-    </div>
+    <img src={getR2CdnUrl('/assets/visualization/stripe.webp')} className="h-4.5 w-auto object-contain" alt="Stripe" />
   ),
   midtrans: (
-    <div className="size-7 rounded-lg bg-cyan-600 text-white font-bold text-xs flex items-center justify-center">
-      M
-    </div>
+    <img src={getR2CdnUrl('/assets/logo/Midtrans.png')} className="h-4 w-auto object-contain" alt="Midtrans" />
   ),
   qris: (
-    <div className="size-7 rounded-lg bg-slate-950 text-white font-black text-[9px] flex items-center justify-center border border-slate-800">
-      QRIS
-    </div>
+    <img src={getR2CdnUrl('/assets/logo/qris.webp')} className="h-4.5 w-auto object-contain" alt="QRIS" />
   ),
   x402: (
-    <div className="size-7 rounded-lg bg-slate-900 text-slate-100 font-mono font-bold text-[9px] flex items-center justify-center border border-slate-700">
-      x402
-    </div>
+    <img src={getR2CdnUrl('/assets/visualization/x402.jpg')} className="size-6 object-contain rounded-md" alt="x402 Protocol" />
   )
 };
 

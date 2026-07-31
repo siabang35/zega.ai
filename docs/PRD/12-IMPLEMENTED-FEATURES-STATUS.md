@@ -152,4 +152,9 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Settings Governance View | `apps/web/src/app/dashboard/enterprise/views/SettingsView.tsx` | Verified & Security Status Card |
 | Developer Suite Views | `apps/web/src/app/dashboard/enterprise/views/DevPortalView.tsx`, `ApiSdkView.tsx`, `WebhooksView.tsx`, `DeveloperLogsView.tsx` | Verified & zegaai.site Domain |
 | Mobile Navigation Drawer & Bottom Bar | `apps/web/src/app/dashboard/enterprise/EnterpriseDashboard.tsx`, `UmkmDashboardContainer.tsx` | Verified & Backdrop Blur Overlay |
+| UMKM Realtime SQL Migration Suite | `supabase/migrations/sql_umkm/` & `20260731000000_master_umkm_realtime_schema.sql` | Executed & RLS/Rate-Limited |
+| Enterprise Realtime SQL Migration Suite | `supabase/migrations/sql_enterprise/` & `20260731000100_master_enterprise_realtime_schema.sql` | Executed & OWASP Anti-Chunking |
+| SuperAdmin Realtime SQL Migration Suite | `supabase/migrations/sql_superadmin/` & `20260731000200_master_superadmin_realtime_schema.sql` | Executed & Root Security Guard |
+| Cloudflare R2 CDN Asset Resolver | `apps/web/src/app/utils/cdn.ts` & `https://cdn.zegaai.site` | Verified & 100% Brand Mapped |
+| Multi-Tenant Realtime & CDN PRD Spec | `docs/PRD/21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md` | Documented & Verified |
 

@@ -211,6 +211,28 @@ export function EnterpriseDashboardView({
     'GOVERNANCE': false,
   });
 
+  const [enterpriseData, setEnterpriseData] = useState<any>(null);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    const loadRealtimeData = async () => {
+      const data = await SupabaseDashboardService.getEnterpriseRealtimeData();
+      setEnterpriseData(data);
+
+      unsubscribe = SupabaseDashboardService.subscribeToEnterpriseRealtime('99999999-9999-9999-9999-999999999999', async () => {
+        const fresh = await SupabaseDashboardService.getEnterpriseRealtimeData();
+        setEnterpriseData(fresh);
+      });
+    };
+
+    loadRealtimeData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     const activeCat = enterpriseMenuCategories.find(cat => 
       cat.items.some(item => item.id === activeTab)
@@ -358,12 +380,12 @@ export function EnterpriseDashboardView({
       <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
         {/* Guest Demo Mode Banner */}
         {isGuest && (
-          <div className="bg-indigo-500/10 dark:bg-indigo-950/40 border-b border-indigo-200/50 dark:border-indigo-800/50 px-4 md:px-6 py-2 flex items-center gap-2 text-[11px] md:text-xs text-indigo-700 dark:text-indigo-300 font-medium">
-            <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-bold uppercase border border-indigo-500/30 flex-shrink-0">
-              Enterprise Guest Mode
+          <div className="bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-200/80 dark:border-indigo-900/50 px-4 md:px-6 py-2 flex items-center gap-2.5 text-[11px] md:text-xs text-indigo-950 dark:text-indigo-200 font-medium select-none">
+            <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-sans text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-none border-none">
+              Enterprise Mode
             </span>
             <span className="truncate">
-              Exploring ZEGA AI Enterprise Platform as <strong>Enterprise Guest Admin</strong>.
+              Exploring ZEGA AI Platform in <strong>Enterprise Mode (Guest Demo)</strong>.
             </span>
           </div>
         )}

@@ -69,8 +69,18 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.90%',
       latency: '105ms',
-      logo: getR2CdnUrl('/assets/visualization/whatsapp.jpeg'),
-      fallbackLogo: '/assets/visualization/whatsapp.jpeg'
+      logo: getR2CdnUrl('/assets/logo/whatsapp-for-business.webp'),
+      fallbackLogo: getR2CdnUrl('/assets/logo/whatsapp-for-business.webp')
+    },
+    {
+      id: 'telegram',
+      name: 'Telegram Bot',
+      category: 'Communication',
+      status: 'connected',
+      uptime: '99.98%',
+      latency: '65ms',
+      logo: getR2CdnUrl('/assets/logo/telegram.webp'),
+      fallbackLogo: getR2CdnUrl('/assets/logo/telegram.webp')
     },
     {
       id: 'google_workspace',
@@ -89,8 +99,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.92%',
       latency: '140ms',
-      logo: getR2CdnUrl('/assets/logo/zapier.png'),
-      fallbackLogo: '/assets/logo/zapier.png'
+      logo: getR2CdnUrl('/assets/logo/hubspot.png'),
+      fallbackLogo: '/assets/logo/hubspot.png'
     },
     {
       id: 'salesforce',
@@ -99,8 +109,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.92%',
       latency: '155ms',
-      logo: getR2CdnUrl('/assets/logo/zendesk.webp'),
-      fallbackLogo: '/assets/logo/zendesk.webp'
+      logo: getR2CdnUrl('/assets/logo/salesforce.jpeg'),
+      fallbackLogo: '/assets/logo/salesforce.jpeg'
     },
     {
       id: 'github',
@@ -109,8 +119,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.94%',
       latency: '90ms',
-      logo: getR2CdnUrl('/assets/logo/zeroclaw.jpeg'),
-      fallbackLogo: '/assets/logo/zeroclaw.jpeg'
+      logo: getR2CdnUrl('/assets/logo/github.svg'),
+      fallbackLogo: '/assets/logo/github.svg'
     },
     {
       id: 'cloudflare',
@@ -119,8 +129,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '100%',
       latency: '36ms',
-      logo: getR2CdnUrl('/assets/logo/zegalogo.png'),
-      fallbackLogo: '/assets/logo/zegalogo.png'
+      logo: getR2CdnUrl('/assets/logo/Cloudflare_Logo.png'),
+      fallbackLogo: '/assets/logo/Cloudflare_Logo.png'
     },
     {
       id: 'aws_s3',
@@ -129,8 +139,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.99%',
       latency: '78ms',
-      logo: getR2CdnUrl('/assets/logo/dropbox.png'),
-      fallbackLogo: '/assets/logo/dropbox.png'
+      logo: getR2CdnUrl('/assets/logo/aws_s3.webp'),
+      fallbackLogo: '/assets/logo/aws_s3.webp'
     },
     {
       id: 'sendgrid',
@@ -139,8 +149,8 @@ export function IntegrationsView({ onTriggerToast }: IntegrationsViewProps) {
       status: 'connected',
       uptime: '99.90%',
       latency: '110ms',
-      logo: getR2CdnUrl('/assets/logo/webhook.webp'),
-      fallbackLogo: '/assets/logo/webhook.webp'
+      logo: getR2CdnUrl('/assets/logo/sendgrid.webp'),
+      fallbackLogo: '/assets/logo/sendgrid.webp'
     },
     {
       id: 'notion',

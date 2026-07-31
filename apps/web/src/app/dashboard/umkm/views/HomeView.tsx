@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag, 
   UserPlus, MessageSquare, Sparkles, Bot, Megaphone, FileText, Store, 
-  Users, ExternalLink, Heart, CreditCard, X, ArrowRight 
+  Users, ExternalLink, Heart, CreditCard, X, ArrowRight, Send 
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -70,7 +70,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   {/* High-Tech AI Screen Display Box (Enlarged size-28 / sm:size-32) */}
                   <div 
                     onClick={() => setIsGreetingVisible(!isGreetingVisible)}
-                    className="relative size-28 sm:size-32 rounded-3xl bg-slate-950 border-2 border-orange-400/50 p-1 shadow-2xl overflow-hidden group-hover/robot:scale-105 group-hover/robot:border-orange-500 transition-all duration-300 flex items-center justify-center"
+                    className="relative size-28 sm:size-32 rounded-3xl bg-slate-950 border-2 border-orange-400/50 p-1 shadow-sm overflow-hidden group-hover/robot:scale-105 group-hover/robot:border-orange-500 transition-all duration-300 flex items-center justify-center"
                   >
                     {/* Subtle Screen Scanline Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-orange-500/20 via-transparent to-black/50 pointer-events-none z-20" />
@@ -139,7 +139,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </ul>
           </div>
           <div className="absolute right-3 top-3 opacity-80 pointer-events-none"><Rocket size={52} className="text-orange-400 transform rotate-12" /></div>
-          <button onClick={() => triggerToast('Upgrade initiated!')} className="mt-4 w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md cursor-pointer flex items-center justify-center gap-2">
+          <button onClick={() => triggerToast('Upgrade initiated!')} className="mt-4 w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-sm cursor-pointer flex items-center justify-center gap-2">
             <Rocket size={16} /> Upgrade Now
           </button>
         </div>
@@ -219,16 +219,18 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           </div>
           <div className="space-y-2.5 text-xs font-mono">
             {[
-              { time: '08.00', icon: '🟢', text: 'Customer asked price' },
-              { time: '08.01', icon: '🤖', text: 'AI replied' },
-              { time: '08.02', icon: '🛒', text: 'Customer purchased' },
-              { time: '08.03', icon: '📄', text: 'Invoice generated' },
-              { time: '08.04', icon: '✅', text: 'Payment confirmed' },
-              { time: '08.05', icon: '💖', text: 'WhatsApp thank you sent' },
+              { time: '08.00', icon: <MessageSquare size={12} className="text-emerald-600 dark:text-emerald-400" />, bg: 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-900/60', text: 'Customer asked price' },
+              { time: '08.01', icon: <Bot size={12} className="text-indigo-600 dark:text-indigo-400" />, bg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200/60 dark:border-indigo-900/60', text: 'AI replied' },
+              { time: '08.02', icon: <ShoppingBag size={12} className="text-amber-600 dark:text-amber-400" />, bg: 'bg-amber-50 dark:bg-amber-950/60 border-amber-200/60 dark:border-amber-900/60', text: 'Customer purchased' },
+              { time: '08.03', icon: <FileText size={12} className="text-blue-600 dark:text-blue-400" />, bg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200/60 dark:border-blue-900/60', text: 'Invoice generated' },
+              { time: '08.04', icon: <CheckCircle size={12} className="text-emerald-500" />, bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'Payment confirmed' },
+              { time: '08.05', icon: <Send size={12} className="text-sky-500" />, bg: 'bg-sky-500/10 border-sky-500/30', text: 'WhatsApp thank you sent' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3">
                 <span className="text-slate-400 text-[10px] font-bold w-9">{item.time}</span>
-                <span className="text-xs">{item.icon}</span>
+                <div className={`size-5 rounded-lg border flex items-center justify-center ${item.bg}`}>
+                  {item.icon}
+                </div>
                 <span className="text-slate-700 dark:text-slate-300 font-sans font-medium text-[11px] truncate">{item.text}</span>
               </div>
             ))}

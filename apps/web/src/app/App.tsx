@@ -496,17 +496,13 @@ const BrandIcon = ({ name }: { name: string }) => {
     case "WhatsApp Business":
       return <img src="/assets/visualization/whatsapp.jpeg" className="size-5.5 rounded-md object-contain" alt="WhatsApp Business" />;
     case "Stripe Connect":
-      return <img src="/assets/visualization/stripe.webp" className="size-5.5 rounded-md object-contain" alt="Stripe Connect" />;
+      return <img src={getR2CdnUrl('/assets/visualization/stripe.webp')} className="size-5.5 rounded-md object-contain" alt="Stripe Connect" />;
     case "x402 Protocol":
-      return <img src="/assets/visualization/x402.jpg" className="size-5.5 rounded-md object-contain" alt="x402 Protocol" />;
+      return <img src={getR2CdnUrl('/assets/visualization/x402.jpg')} className="size-5.5 rounded-md object-contain" alt="x402 Protocol" />;
     case "Meta API":
       return <img src="/assets/visualization/metaapi.png" className="size-5.5 rounded-md object-contain" alt="Meta API" />;
     case "Supabase":
-      return (
-        <svg className="size-4" viewBox="0 0 24 24" fill="none">
-          <path d="M13.35 2.05a1.2 1.2 0 00-1.7.25L3.3 14.5A1.2 1.2 0 004.3 16.3h7.8l-1.45 5.65a1.2 1.2 0 001.7-.25l8.35-12.2a1.2 1.2 0 00-1-1.8h-7.8l1.45-5.65z" fill="#3ECF8E" />
-        </svg>
-      );
+      return <img src={getR2CdnUrl('/assets/logo/supabase.png')} className="size-5.5 rounded-md object-contain" alt="Supabase" />;
     case "BigQuery":
       return <img src="/assets/visualization/bigquery.webp" className="size-5.5 rounded-md object-contain" alt="Google BigQuery" />;
     case "Spreadsheet":
@@ -523,11 +519,7 @@ const BrandIcon = ({ name }: { name: string }) => {
         </svg>
       );
     case "GitHub":
-      return (
-        <svg className="size-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
-        </svg>
-      );
+      return <img src={getR2CdnUrl('/assets/logo/github.svg')} className="size-5.5 rounded-md object-contain dark:invert" alt="GitHub" />;
     case "Slack":
       return <img src="/assets/visualization/slack.webp" className="size-5.5 rounded-md object-contain" alt="Slack" />;
     case "Claude 3.7":
@@ -596,7 +588,7 @@ const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
       <div className="relative z-10 flex items-center justify-center px-4">
         <div className="relative overflow-hidden">
           <img
-            src="/assets/logo/zegalogo.png"
+            src={getR2CdnUrl('/assets/logo/zegalogo.png')}
             alt="ZEGA AI"
             className="h-12 sm:h-16 w-auto object-contain brightness-0 invert filter drop-shadow-[0_4px_20px_rgba(255,255,255,0.35)] animate-[zegaTypewriter_0.8s_cubic-bezier(0.25,1,0.5,1)_forwards]"
           />
@@ -612,7 +604,7 @@ const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
 const VIZ_TAB_DATA = {
   Agent: {
     title: "",
-    sub: "Enterprise Autonomous Agent Orchestrator",
+    sub: "Jatevo AI Enterprise Orchestration Engine",
     badge: "LIVE",
     badgeColor: "dark:text-emerald-400 text-emerald-600 dark:bg-emerald-500/10 bg-emerald-50 border-emerald-500/20",
     badgePulse: "bg-emerald-500",
@@ -994,7 +986,7 @@ function AuthModal({
             </span>
             <div className="-rotate-90 group cursor-default">
               <img
-                src="/assets/logo/zegalogo.png"
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                 alt="ZEGA"
                 className="h-10 sm:h-11 w-auto max-w-none object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] opacity-95 transition-all duration-300 ease-out group-hover:scale-105 group-hover:opacity-100"
               />
@@ -2118,14 +2110,22 @@ function AppContent() {
           {/* Seamless Enterprise Announcement Pill */}
           <div 
             onClick={() => handleOpenAuth('enterprise')}
-            className="hero-text-reveal mx-auto mb-6 inline-flex items-center gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3.5 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group"
+            className="hero-text-reveal mx-auto mb-6 max-w-[96vw] sm:max-w-none inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3 sm:px-4 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group select-none"
           >
-            <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-3.5 rounded object-cover" alt="ZeroClaw" />
-            <span className="text-[11px] font-semibold dark:text-slate-200 text-slate-700">ZeroClaw AI Engine</span>
-            <span className="text-slate-400 dark:text-slate-600 font-bold text-[9px]">•</span>
-            <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-3.5 rounded object-contain" alt="Solana" />
-            <span className="text-[11px] font-semibold dark:text-slate-300 text-slate-600">Solana Pay Settlement</span>
-            <ArrowRight size={12} className="text-orange-500 ml-0.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all" alt="Jatevo" />
+              <span className="text-[10.5px] sm:text-[11px] font-semibold dark:text-slate-200 text-slate-700">Orchestrator</span>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 font-bold text-[8px] sm:text-[9px] shrink-0">•</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-3.5 rounded object-cover" alt="ZeroClaw" />
+              <span className="text-[10.5px] sm:text-[11px] font-semibold dark:text-slate-200 text-slate-700">ZeroClaw <span className="hidden sm:inline">AI Engine</span></span>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600 font-bold text-[8px] sm:text-[9px] shrink-0">•</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-3.5 rounded object-contain" alt="Solana" />
+              <span className="text-[10.5px] sm:text-[11px] font-semibold dark:text-slate-300 text-slate-600">Solana Pay <span className="hidden sm:inline">Settlement</span></span>
+            </div>
           </div>
 
           <h1
@@ -2134,7 +2134,10 @@ function AppContent() {
           >
             {t.hero.title}
           </h1>
-          <p className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-xl text-[14px] sm:text-[15px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal">
+          <p 
+            className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-[640px] text-[14px] sm:text-[15px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal [text-wrap:balance]"
+            style={{ textWrap: 'balance' }}
+          >
             {t.hero.subtitle}
           </p>
 
@@ -2434,7 +2437,7 @@ function AppContent() {
                     {/* Logo + Title — Fixed Height 70px Header across all tabs */}
                     <div className="flex flex-col items-center h-[70px] justify-center px-4 pt-2.5 pb-1.5">
                       <img
-                        src="/assets/logo/zegalogo.png"
+                        src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                         alt="ZEGA AI"
                         className="h-6 sm:h-7 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
                       />
@@ -2443,8 +2446,9 @@ function AppContent() {
                           {VIZ_TAB_DATA[vizTab].title}
                         </h3>
                       )}
-                      <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center">
-                        {VIZ_TAB_DATA[vizTab].sub}
+                      <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center flex items-center justify-center gap-1.5">
+                        <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all inline-block" alt="Jatevo" />
+                        <span>Enterprise Orchestration Engine</span>
                       </p>
                     </div>
 
@@ -3472,7 +3476,7 @@ function AppContent() {
               aria-label="ZEGA AI — Back to home"
             >
               <img
-                src="/assets/logo/zegalogo.png"
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                 alt="ZEGA AI"
                 width={200}
                 height={55}
@@ -3510,7 +3514,7 @@ function AppContent() {
                 <span className="sr-only">LinkedIn</span>
                 <svg className="size-3.5 fill-current" viewBox="0 0 24 24"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zm-.5-10.268a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm11.5 10.268h-3v-4.5c0-1.077-.812-1.5-1.5-1.5s-1.5.423-1.5 1.5V19h-3v-9h3v1.078c.451-.622 1.341-1.078 2.5-1.078 1.968 0 3.5 1.488 3.5 4.5v4.5z" /></svg>
               </a>
-              <a href="#" className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-all duration-300">
+              <a href="https://github.com/siabang35/zega.ai" target="_blank" rel="noopener noreferrer" className="pill-hover-glow grid size-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-all duration-300">
                 <span className="sr-only">GitHub</span>
                 <svg className="size-3.5 fill-current" viewBox="0 0 24 24"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" /></svg>
               </a>

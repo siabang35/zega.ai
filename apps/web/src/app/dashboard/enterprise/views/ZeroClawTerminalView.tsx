@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getR2CdnUrl } from '../../../utils/cdn';
 import {
   Terminal,
   ShieldCheck,
@@ -316,17 +317,24 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
       {/* TOP HEADER SECTION */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              ZeroClaw Terminal
-            </h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60 uppercase tracking-wider">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> ONLINE
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center p-0.5 shadow-sm overflow-hidden flex-shrink-0">
+              <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} alt="ZeroClaw Logo" className="size-full object-cover rounded-lg" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                  ZeroClaw Terminal
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60 uppercase tracking-wider">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> ONLINE
+                </span>
+              </div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                Rust AI Agent Runtime for Solana Pay Orchestration
+              </p>
+            </div>
           </div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-            Rust AI Agent Runtime for Solana Pay Orchestration
-          </p>
         </div>
 
         {/* Top Right Controls Bar */}
@@ -806,8 +814,8 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                 <div className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
-                        WA
+                      <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900/60 flex items-center justify-center p-1.5 flex-shrink-0">
+                        <img src={getR2CdnUrl('/assets/logo/whatsapp-for-business.webp')} alt="WhatsApp" className="size-full object-contain" />
                       </div>
                       <div>
                         <p className="font-bold text-slate-900 dark:text-slate-100">WhatsApp Business</p>
@@ -827,8 +835,8 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
                 <div className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold">
-                        TG
+                      <div className="size-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-900/60 flex items-center justify-center p-1.5 flex-shrink-0">
+                        <img src={getR2CdnUrl('/assets/logo/telegram.webp')} alt="Telegram" className="size-full object-contain" />
                       </div>
                       <div>
                         <p className="font-bold text-slate-900 dark:text-slate-100">Telegram Bot</p>

@@ -505,16 +505,16 @@ export function ZegaOrchestratorView({
 
             <div className="mt-3 grid grid-cols-4 gap-2">
               {[
-                { name: 'Supabase', logo: getR2CdnUrl('/assets/visualization/slack.png') },
+                { name: 'Supabase', logo: getR2CdnUrl('/assets/logo/supabase.png') },
                 { name: 'Stripe', logo: getR2CdnUrl('/assets/visualization/stripe.webp') },
-                { name: 'Slack', logo: getR2CdnUrl('/assets/visualization/slack.png') },
-                { name: 'Cloudflare', logo: getR2CdnUrl('/assets/logo/zapier.png') },
+                { name: 'Slack', logo: getR2CdnUrl('/assets/visualization/slack.webp') },
+                { name: 'Cloudflare', logo: getR2CdnUrl('/assets/logo/Cloudflare_Logo.png') },
                 { name: 'BigQuery', logo: getR2CdnUrl('/assets/visualization/bigquery.webp') },
-                { name: 'GitHub', logo: getR2CdnUrl('/assets/logo/notion.png') },
-                { name: 'WhatsApp', logo: getR2CdnUrl('/assets/visualization/whatsapp.jpeg') },
-                { name: 'HubSpot', logo: getR2CdnUrl('/assets/logo/dropbox.png') },
-                { name: 'Salesforce', logo: getR2CdnUrl('/assets/visualization/x402.jpg') },
-                { name: 'Snowflake', logo: getR2CdnUrl('/assets/visualization/deepseek.webp') },
+                { name: 'GitHub', logo: getR2CdnUrl('/assets/logo/github.svg') },
+                { name: 'WhatsApp', logo: getR2CdnUrl('/assets/logo/whatsapp-for-business.webp') },
+                { name: 'HubSpot', logo: getR2CdnUrl('/assets/logo/hubspot.png') },
+                { name: 'Salesforce', logo: getR2CdnUrl('/assets/logo/salesforce.jpeg') },
+                { name: 'Snowflake', logo: getR2CdnUrl('/assets/logo/snowflake.png') },
                 { name: 'Google Workspace', logo: getR2CdnUrl('/assets/logo/google_drive.png') },
               ].map((item, idx) => (
                 <div key={idx} className="p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col items-center justify-center text-center hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer">

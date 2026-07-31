@@ -28,7 +28,7 @@ export const TRANSLATIONS = {
     hero: {
       badge: 'Enterprise Agentic AI Platform',
       title: 'Autonomous AI Workforce for Modern Enterprises',
-      subtitle: 'Deploy autonomous agent swarms that reason, execute, and collaborate with your enterprise systems natively.',
+      subtitle: 'Deploy, orchestrate, and manage autonomous AI workforces across AI models, agent frameworks, enterprise tools & business systems.',
       enterEmail: 'Enter Your Work Email...',
       invalidEmail: 'Invalid email format. Please enter a valid work email (e.g. name@company.com).',
       tryFree: 'Try Free',
@@ -181,7 +181,7 @@ export const TRANSLATIONS = {
     hero: {
       badge: 'Platform AI Agen Enterprise Otonom',
       title: 'Tenaga Kerja AI Otonom untuk Enterprise Modern',
-      subtitle: 'Terapkan kawanan agen otonom yang mampu bernalar, mengeksekusi, dan berkolaborasi secara langsung dengan sistem perusahaan Anda.',
+      subtitle: 'Deploy, orchestrasikan, dan kelola tenaga kerja AI otonom di seluruh model AI, kerangka kerja agen, alat enterprise & sistem bisnis.',
       enterEmail: 'Masukkan Email Kerja Anda...',
       invalidEmail: 'Format email tidak valid. Harap gunakan email kerja yang benar (contoh: nama@perusahaan.com).',
       tryFree: 'Coba Gratis',
@@ -334,7 +334,7 @@ export const TRANSLATIONS = {
     hero: {
       badge: '企业级自主 AI 代理平台',
       title: '面向现代企业的下一代 AI 劳动力',
-      subtitle: '部署能够自主推理、执行并与企业系统原生协作的自主 AI 代理集群。',
+      subtitle: '在 AI 模型、代理框架、企业工具与业务系统之间部署、编排并管理自主 AI 劳动力。',
       enterEmail: '输入您的工作邮箱...',
       invalidEmail: '电子邮件格式不正确。请输入有效的工作邮箱（例：name@company.com）。',
       tryFree: '免费体验',

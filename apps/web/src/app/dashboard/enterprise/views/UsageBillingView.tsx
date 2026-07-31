@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getR2CdnUrl } from '../../../utils/cdn';
 import { 
   CreditCard, Sparkles, Download, ArrowUpRight, ArrowDownRight, 
   ChevronDown, CheckCircle2, AlertCircle, Plus, Edit3, Building, Mail, MapPin, Eye, FileText
@@ -381,8 +382,10 @@ export function UsageBillingView({ onTriggerToast }: UsageBillingViewProps) {
 
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/30">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px]">VISA</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1">
+                    <img src={getR2CdnUrl('/assets/logo/visa.png')} alt="Visa" className="h-4 w-auto object-contain" />
+                  </div>
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">Visa **** 4242</p>
                     <p className="text-[9.5px] text-slate-400">Expires 08/28</p>
@@ -392,8 +395,10 @@ export function UsageBillingView({ onTriggerToast }: UsageBillingViewProps) {
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-orange-600 text-white text-[9px]">MC</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1">
+                    <img src={getR2CdnUrl('/assets/logo/Mastercard-logo.webp')} alt="Mastercard" className="h-4 w-auto object-contain" />
+                  </div>
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">Mastercard **** 8888</p>
                     <p className="text-[9.5px] text-slate-400">Expires 11/27</p>

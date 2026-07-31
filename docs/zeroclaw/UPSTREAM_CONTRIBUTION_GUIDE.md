@@ -63,18 +63,18 @@ Lalu tambahkan tautan **ZEGA AI** pada `README.md` di bawah daftar **Ecosystem I
 
 ```bash
 git add docs/integrations/zega-ai.md README.md
-git commit -m "docs: add ZEGA AI ecosystem integration specs and architecture guide"
+git commit -m "docs(integrations): add ZEGA AI ecosystem integration specs and architecture guide"
 git push origin feat/add-zega-ai-integration-docs
 ```
 
 ### Langkah E: Open Pull Request (PR) ke Upstream
 1. Buka halaman GitHub hasil fork Anda (`https://github.com/siabang35/zeroclaw`).
 2. Klik tombol **Compare & pull request**.
-3. Berikan judul PR:
-   `docs: add ZEGA AI enterprise ecosystem integration guide`
+3. Berikan judul PR (HARUS menggunakan scope `(integrations)`):
+   `docs(integrations): add ZEGA AI enterprise ecosystem integration guide`
 4. Deskripsi PR:
    `This PR adds documentation for ZEGA AI's integration of the ZeroClaw Rust agent runtime, featuring Solana Pay QR settlements and SOP approval checkpoints for the Solana Bounty submission.`
-5. Klik **Create pull request**.
+5. Klik **Create pull request** (atau **Edit** title pada PR #9564 yang sudah dibuka).
 
 ---
 

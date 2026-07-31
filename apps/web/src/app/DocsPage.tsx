@@ -215,7 +215,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
           {/* Right: Theme Toggle & API Key CTA */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
             <a
-              href="https://github.com"
+              href="https://github.com/siabang35/zega.ai"
               target="_blank"
               rel="noreferrer"
               className="hidden lg:flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted/60"
@@ -683,13 +683,15 @@ supabase
             </nav>
 
             <div className="pt-6 border-t border-border/40 space-y-3">
-              <button
-                onClick={onBack}
+              <a
+                href="https://github.com/siabang35/zega.ai"
+                target="_blank"
+                rel="noreferrer"
                 className="flex items-center gap-2 text-[10.5px] font-bold text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Github size={12} />
                 <span>Edit page on GitHub</span>
-              </button>
+              </a>
               <button
                 onClick={onBack}
                 className="flex items-center gap-2 text-[10.5px] font-bold text-muted-foreground hover:text-foreground transition-colors"

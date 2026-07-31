@@ -73,10 +73,13 @@ ZEGA/
 - **Dual Currency Switcher**: Fixed conversion rate **1 USD = Rp 18.000 IDR** applied across all metrics, Chart.js micro-sparklines, and live stream rows.
 - **Role-Separated Reconciliation Streams**: Dedicated history streams for UMKM retail sales (`FinanceView.tsx`) vs Enterprise corporate treasury settlements (`ZeroClawTerminalView.tsx`).
 
-### 5. 🛡️ OWASP ASVS 4.0 Supabase Schema (`20260729000001` & `20260730233500`)
-- **14 Core Tables**: Includes `zeroclaw_solana_settlements` and `zeroclaw_sop_checkpoints` with idempotent SQL guards (`DROP POLICY IF EXISTS`).
-- **Anti-Chunking Guard**: Input payload size cap (`octet_length <= 10485760` / 10MB).
-- **Row-Level Security (RLS)**: Enforced isolation policies preventing cross-tenant data leaks.
+### 6. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Integration
+- **Modular Database Migration Suites**:
+  - `supabase/migrations/sql_umkm/` (`20260731000000_master_umkm_realtime_schema.sql`): Store-level RLS, Token Bucket rate limiter (300 cap), real-time order streams.
+  - `supabase/migrations/sql_enterprise/` (`20260731000100_master_enterprise_realtime_schema.sql`): Multi-tenant RBAC (`owner`, `admin`, `secops`, `finops`), Token Bucket rate limiter (300 cap), OWASP 1MB anti-chunking payload size validator, audit trail triggers.
+  - `supabase/migrations/sql_superadmin/` (`20260731000200_master_superadmin_realtime_schema.sql`): Privileged root security guard `fn_is_superadmin_root()`, Token Bucket rate limiter (500 cap), OWASP Sentinel 2MB anti-chunking payload validator, platform telemetry KPIs ($485k MRR), root account audit triggers.
+- **Cloudflare R2 CDN Asset Resolver (`https://cdn.zegaai.site`)**: Standardized asset path resolution (`getR2CdnUrl`) across landing page, marketplace, MCP hub, store views, and payment gateways.
+- **Supabase Realtime Channel Subscriptions**: `SupabaseDashboardService` (`supabaseService.ts`) streaming WebSocket update events across UMKM, Enterprise, and SuperAdmin dashboard containers.
 
 ---
 
@@ -129,6 +132,7 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [18. Modular Enterprise Dashboard & Role Routing](docs/PRD/18-MODULAR-ENTERPRISE-DASHBOARD-ROLE-ROUTING-SPEC.md)
 - [19. ZeroClaw Solana Agent Integration](docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md)
 - [20. High-Fidelity Dashboard Redesign & Governance](docs/PRD/20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md)
+- [21. SQL Migrations, CDN R2 & Realtime Specification](docs/PRD/21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md)
 
 ---
 

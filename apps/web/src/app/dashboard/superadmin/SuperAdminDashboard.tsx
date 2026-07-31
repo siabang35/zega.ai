@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Workflow, Target, Layers, Settings, 
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight,
@@ -6,6 +6,7 @@ import {
   Server, ShieldAlert, Cpu, Database, Network, Globe
 } from 'lucide-react';
 import { DashboardTab } from '../types';
+import { getR2CdnUrl } from '../../utils/cdn';
 import { OverviewView } from '../views/OverviewView';
 import { AgentRosterView } from '../views/AgentRosterView';
 import { SandboxWorkflowView } from '../views/SandboxWorkflowView';
@@ -30,7 +31,28 @@ export function SuperAdminDashboard({
 }: SuperAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [superadminData, setSuperadminData] = useState<any>(null);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    const loadRealtimeData = async () => {
+      const data = await SupabaseDashboardService.getSuperAdminRealtimeData();
+      setSuperadminData(data);
+
+      unsubscribe = SupabaseDashboardService.subscribeToSuperAdminRealtime(async () => {
+        const fresh = await SupabaseDashboardService.getSuperAdminRealtimeData();
+        setSuperadminData(fresh);
+      });
+    };
+
+    loadRealtimeData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await SupabaseDashboardService.signOut();
@@ -58,7 +80,7 @@ export function SuperAdminDashboard({
           <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <img
-                src="/assets/logo/zegalogo.png"
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                 alt="ZEGA"
                 className="h-7 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
               />
@@ -87,7 +109,7 @@ export function SuperAdminDashboard({
                 ROOT
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 truncate mt-0.5">admin@zega.ai</p>
+            <p className="text-[10px] text-slate-400 truncate mt-0.5">admin@zegaai.site</p>
           </div>
 
           {/* Navigation Links */}

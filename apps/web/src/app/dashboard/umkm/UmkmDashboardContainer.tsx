@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getR2CdnUrl } from '../../utils/cdn';
 import { 
   LayoutDashboard, Users, Workflow, Target, Layers, Settings, 
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronDown, Menu,
@@ -111,6 +112,28 @@ export function UmkmDashboardContainer({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const [umkmData, setUmkmData] = useState<any>(null);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    const loadRealtimeData = async () => {
+      const data = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+      setUmkmData(data);
+
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime('11111111-1111-1111-1111-111111111111', async () => {
+        const fresh = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+        setUmkmData(fresh);
+      });
+    };
+
+    loadRealtimeData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -136,7 +159,7 @@ export function UmkmDashboardContainer({
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <img
-                src="/assets/logo/zegalogo.png"
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                 alt="ZEGA AI Platform"
                 className="h-7 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter] duration-300"
               />
@@ -274,12 +297,12 @@ export function UmkmDashboardContainer({
       <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
         {/* Guest Demo Mode Banner */}
         {isGuest && (
-          <div className="bg-orange-500/10 dark:bg-orange-950/40 border-b border-orange-200/50 dark:border-orange-800/50 px-4 md:px-6 py-2 flex items-center gap-2 text-[11px] md:text-xs text-orange-700 dark:text-orange-300 font-medium">
-            <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-700 dark:text-orange-300 font-mono text-[10px] font-bold uppercase border border-orange-500/30 flex-shrink-0">
-              UMKM Guest Mode
+          <div className="bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-900/50 px-4 md:px-6 py-2 flex items-center gap-2.5 text-[11px] md:text-xs text-amber-950 dark:text-amber-200 font-medium select-none">
+            <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-sans text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-none border-none">
+              UMKM Mode
             </span>
             <span className="truncate">
-              Exploring ZEGA AI Platform as <strong>Individual/UMKM Guest</strong>.
+              Exploring ZEGA AI Platform in <strong>UMKM Mode (Guest Demo)</strong>.
             </span>
           </div>
         )}
@@ -413,7 +436,7 @@ export function UmkmDashboardContainer({
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <img
-                    src="/assets/logo/zegalogo.png"
+                    src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                     alt="ZEGA AI Platform"
                     className="h-6 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
                   />
