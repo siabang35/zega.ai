@@ -70,6 +70,42 @@ async function runSuperteamTest() {
   console.log(`  OWASP Injection Status: injectionDetected=${injectionBody.injectionDetected} | executionStatus=${injectionBody.executionStatus}`);
   console.log(`  Logged SOP Checkpoint: ${injectionBody.checkpointLogged?.checkpointId}`);
 
+  // Test 5: Payment Settlement Recording & RLS Partition Querying
+  console.log('\n💳 TEST 5: Payment Settlement Recording & RLS Partition Fetching');
+  const recordRes = await app.inject({
+    method: 'POST',
+    url: '/v1/zeroclaw/settlement/record',
+    payload: {
+      userId: 'danz-enterprise-user-id',
+      merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+      amountUsdc: 1.20,
+      referenceKey: 'TestRefSolanaPay9988',
+      txSignature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
+      network: 'solana-devnet',
+      memo: 'Pembayaran Kasir Solana Pay (Invoice Meja 3)',
+      isDemo: false
+    }
+  });
+  const recordBody = JSON.parse(recordRes.body);
+  console.log(`  Settlement Record Status: ${recordRes.statusCode} | Mode: ${recordBody.mode} | Persisted In DB: ${recordBody.persisted}`);
+  console.log(`  Recorded Signature: ${recordBody.data?.signature}`);
+
+  // Fetch Public Demo List
+  const demoListRes = await app.inject({
+    method: 'GET',
+    url: '/v1/zeroclaw/settlement/list?isDemo=true'
+  });
+  const demoListBody = JSON.parse(demoListRes.body);
+  console.log(`  Demo Public Settlements Count: ${demoListBody.count} | Partition: ${demoListBody.partition}`);
+
+  // Fetch Authenticated Private List
+  const authListRes = await app.inject({
+    method: 'GET',
+    url: '/v1/zeroclaw/settlement/list?isDemo=false&userId=danz-enterprise-user-id'
+  });
+  const authListBody = JSON.parse(authListRes.body);
+  console.log(`  Authenticated Private Settlements Count: ${authListBody.count} | Partition: ${authListBody.partition}`);
+
   await app.close();
   console.log('\n===============================================================');
   console.log('✅ ALL SUPERTEAM BR SOLANA WORKFLOW TESTS PASSED PERFECTLY!');
