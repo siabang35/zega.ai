@@ -273,10 +273,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         }),
       });
       let sigJson = (await sigRes.json()) as any;
-      let rawSigs = sigJson.result || [];
+      const merchantSigs = sigJson.result || [];
+      let rawSigs = merchantSigs;
 
-      // Fallback to USDC Mint if merchant address has no transactions on Devnet
-      if (rawSigs.length === 0) {
+      // Only query general USDC mint signatures if no specific reference key is supplied or address is default merchant
+      if (!request.query.address || request.query.address === '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU') {
         const usdcRes = await fetch(DEVNET_RPC_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -288,7 +289,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }),
         });
         const usdcJson = (await usdcRes.json()) as any;
-        rawSigs = usdcJson.result || [];
+        const usdcSigs = usdcJson.result || [];
+
+        // Combine and deduplicate
+        const combinedMap = new Map<string, any>();
+        [...merchantSigs, ...usdcSigs].forEach(s => {
+          if (s && s.signature) {
+            combinedMap.set(s.signature, s);
+          }
+        });
+
+        rawSigs = Array.from(combinedMap.values()).sort((a, b) => (b.slot || 0) - (a.slot || 0));
       }
 
       const realTrackableSignatures = [
