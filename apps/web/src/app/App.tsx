@@ -892,7 +892,7 @@ function AuthModal({
     setAuthError(null);
     setInfoMessage(null);
 
-    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
+    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zegaai.site' : 'user@zegaai.site');
     const tokenToSend = turnstileToken || "DEVELOPMENT_BYPASS_TOKEN";
 
     try {
@@ -931,7 +931,7 @@ function AuthModal({
     setLoading(true);
     setAuthError(null);
 
-    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zega.ai' : 'user@zega.ai');
+    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zegaai.site' : 'user@zegaai.site');
 
     try {
       const res = await SupabaseDashboardService.verifyOtp(
@@ -962,7 +962,7 @@ function AuthModal({
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setLoading(true);
     const role = audienceSegment === 'enterprise' ? 'enterprise' : 'individual';
-    const demoEmail = provider === 'google' ? 'user@zega.ai' : 'enterprise@zega.ai';
+    const demoEmail = provider === 'google' ? 'user@zegaai.site' : 'enterprise@zegaai.site';
     const mockSession = await SupabaseDashboardService.setDemoSession(role);
     setLoading(false);
     onSubmitSuccess(`Authenticated via ${provider.toUpperCase()} as ${demoEmail}!`, role);
@@ -1110,7 +1110,7 @@ function AuthModal({
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="user@zega.ai or name@company.com"
+                        placeholder="user@zegaai.site or name@company.com"
                         className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
                       />
                     </div>
@@ -1162,7 +1162,7 @@ function AuthModal({
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="enterprise@zega.ai or alex@enterprise.com"
+                        placeholder="enterprise@zegaai.site or alex@enterprise.com"
                         className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
                       />
                     </div>
@@ -1850,7 +1850,7 @@ function AppContent() {
               const userSession = {
                 ...session,
                 role: 'enterprise',
-                email: 'enterprise@zega.ai',
+                email: 'enterprise@zegaai.site',
                 fullName: 'Acme Enterprise Admin',
               };
               localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
@@ -1879,7 +1879,7 @@ function AppContent() {
             const adminSession = {
               ...session,
               role: 'superadmin',
-              email: 'admin@zega.ai',
+              email: 'admin@zegaai.site',
               fullName: 'ZEGA SuperAdmin',
             };
             localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
@@ -3400,7 +3400,7 @@ function AppContent() {
                 const userSession = {
                   ...session,
                   role: 'enterprise',
-                  email: 'enterprise@zega.ai',
+                  email: 'enterprise@zegaai.site',
                   fullName: 'Acme Enterprise Admin',
                 };
                 localStorage.setItem('zega_mock_session', JSON.stringify(userSession));

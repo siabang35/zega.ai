@@ -206,10 +206,10 @@ export async function authRoutes(app: FastifyInstance) {
     let fullName = body.fullName || verification.metadata?.fullName || 'Alex Morgan';
 
     const normalizedEmail = body.email.toLowerCase();
-    if (normalizedEmail.includes('admin@zega.ai') || normalizedEmail.includes('superadmin')) {
+    if (normalizedEmail.includes('admin@zegaai.site') || normalizedEmail.includes('superadmin')) {
       role = 'superadmin';
       fullName = 'SuperAdmin ZEGA Root';
-    } else if (normalizedEmail.includes('enterprise@zega.ai') || normalizedEmail.includes('enterprise')) {
+    } else if (normalizedEmail.includes('enterprise@zegaai.site') || normalizedEmail.includes('enterprise')) {
       role = 'enterprise';
       fullName = 'Enterprise Workspace Admin';
     }
@@ -276,9 +276,9 @@ export async function authRoutes(app: FastifyInstance) {
     const body = quickDemoSchema.parse(request.body);
 
     const demoMap = {
-      superadmin: { email: 'admin@zega.ai', name: 'SuperAdmin ZEGA Root' },
-      enterprise: { email: 'enterprise@zega.ai', name: 'Acme Enterprise Admin' },
-      individual: { email: 'user@zega.ai', name: 'Alex Morgan' },
+      superadmin: { email: 'admin@zegaai.site', name: 'SuperAdmin ZEGA Root' },
+      enterprise: { email: 'enterprise@zegaai.site', name: 'Acme Enterprise Admin' },
+      individual: { email: 'user@zegaai.site', name: 'Alex Morgan' },
     };
 
     const target = demoMap[body.role];

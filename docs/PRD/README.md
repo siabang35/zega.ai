@@ -40,7 +40,7 @@
 - **Transactional Brevo OTP Email Gateway**: 6-digit cryptographic verification passcodes via Brevo API v3 with SHA-256 OTP hashing, 5-minute TTL, and 5-attempt brute-force protection.
 - **Cloudflare Turnstile Bot Defense**: Turnstile CAPTCHA token verification protecting `/request-otp` endpoints against automated bots and scrapers.
 - **Cloudflare R2 Object Storage CDN**: Production CDN media delivery via `cdn.zegaai.site`.
-- **1-Click Sandbox & Enterprise Demo**: Instant interactive demo access targeting `UserDashboard` (Individual or Enterprise workspace) with `admin@zega.ai` SuperAdmin direct route.
+- **1-Click Sandbox & Enterprise Demo**: Instant interactive demo access targeting `UserDashboard` (Individual or Enterprise workspace) with `admin@zegaai.site` SuperAdmin direct route.
 - **Modal Lifecycle Safety**: Strict `if (!isOpen) return null` render guards, isolated z-index layer (`z-[99999]`), and explicit close button event handling.
 
 ### 2. Dual Role-Based Dashboard Architecture (`App.tsx`)

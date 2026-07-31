@@ -150,7 +150,7 @@ export function DashboardLayout({ onClose, dark, setDark }: DashboardLayoutProps
             </div>
             <div className="truncate min-w-0">
               <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">Alex Morgan</div>
-              <div className="text-[10px] text-slate-400 truncate">alex@zega.ai</div>
+              <div className="text-[10px] text-slate-400 truncate">alex@zegaai.site</div>
             </div>
           </div>
 

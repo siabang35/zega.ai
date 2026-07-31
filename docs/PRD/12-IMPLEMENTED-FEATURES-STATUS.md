@@ -14,13 +14,13 @@ The platform implements a enterprise-grade, dual-segment authentication flow des
 #### A. Segment 1: Individual & UMKM
 - **OAuth Providers**: Integrated 1-click **Google** and **GitHub** social sign-in shortcuts.
 - **Email Authentication**:
-  - Fields: `Email Address` (Placeholder: `user@zega.ai or name@company.com`), `Full Name` (Placeholder: `Alex Morgan`).
+  - Fields: `Email Address` (Placeholder: `user@zegaai.site or name@company.com`), `Full Name` (Placeholder: `Alex Morgan`).
   - Action Button: `Continue to ZEGA Portal →`.
 - **Target Role Routing**: Directly provisions an `individual` workspace session and opens the User Dashboard Sandbox.
 
 #### B. Segment 2: Enterprise Scale
 - **Corporate Registration Fields**:
-  - `Work Email` (Placeholder: `enterprise@zega.ai or alex@enterprise.com`).
+  - `Work Email` (Placeholder: `enterprise@zegaai.site or alex@enterprise.com`).
   - `Company Name` (Placeholder: `Acme Corp`).
   - `Team Size` Dropdown (`1-10`, `10-50`, `50-250`, `250+ employees`).
   - `Primary Objective` Dropdown (`Enterprise Workflow Automation`, `Custom Agent Integration`, `Private VPC / On-Premise Deployment`, `Security & Compliance Audit`).
@@ -31,7 +31,7 @@ The platform implements a enterprise-grade, dual-segment authentication flow des
 - **Tab-Aware 1-Click Demo Link**:
   - On Individual tab: `1-Click User Sandbox Mode` → Grants instant demo access to `UserDashboard`.
   - On Enterprise tab: `1-Click Enterprise Demo Mode` → Grants instant demo access to `Enterprise Workspace`.
-  - Direct SuperAdmin login via root credentials (`admin@zega.ai`) routes directly to `SuperAdminDashboard`.
+  - Direct SuperAdmin login via root credentials (`admin@zegaai.site`) routes directly to `SuperAdminDashboard`.
 - **Modal Lifecycle**: Enforced strict `if (!isOpen) return null` render guards, isolated z-index layer (`z-[99999]`), and explicit `e.stopPropagation()` event handling for the top-right close button (`X`).
 
 ---

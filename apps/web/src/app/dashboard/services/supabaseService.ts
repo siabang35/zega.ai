@@ -173,9 +173,9 @@ export const SupabaseDashboardService = {
     try {
       let role: 'superadmin' | 'enterprise' | 'individual' = 'individual';
       
-      if (email.includes('admin@zega.ai') || email.includes('superadmin')) {
+      if (email.includes('admin@zegaai.site') || email.includes('superadmin')) {
         role = 'superadmin';
-      } else if (email.includes('enterprise@zega.ai') || email.includes('enterprise')) {
+      } else if (email.includes('enterprise@zegaai.site') || email.includes('enterprise')) {
         role = 'enterprise';
       }
 
@@ -214,7 +214,7 @@ export const SupabaseDashboardService = {
 
   async setDemoSession(role: 'superadmin' | 'enterprise' | 'individual' | 'guest') {
     const emailMap: Record<string, string> = {
-      superadmin: 'admin@zega.ai',
+      superadmin: 'admin@zegaai.site',
       enterprise: 'enterprise.guest@zegaai.site',
       individual: 'guest@zegaai.site',
       guest: 'guest@zegaai.site',
