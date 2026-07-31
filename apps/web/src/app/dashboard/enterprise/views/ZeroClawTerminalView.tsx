@@ -710,6 +710,89 @@ export function ZeroClawTerminalView({ onTriggerToast }: ZeroClawTerminalViewPro
       </div>
 
 
+      {/* EMBEDDED KEYLESS SOLANA CUSTODY WALLET CARD (FOR AUTHENTICATED USERS) */}
+      <div className="p-4 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 text-white shadow-lg space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-xl bg-emerald-950 border border-emerald-700/60 p-2 flex items-center justify-center shadow-inner">
+              <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="Solana" className="size-full object-contain" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-100">Authenticated Embedded Solana Wallet</h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[9.5px] uppercase font-mono font-bold">
+                  Tier 1 Keyless Custody Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                <span>Address:</span>
+                <span className="text-emerald-300 font-bold">7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Action Tools */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                onTriggerToast('⚡ 1.0 SOL Devnet Airdrop Requested via RPC!');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
+            >
+              <Zap size={12} />
+              <span>Airdrop SOL</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU');
+                onTriggerToast('Alamat Wallet Solana Disalin ke Clipboard!');
+              }}
+              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-bold text-xs cursor-pointer transition-colors flex items-center gap-1.5"
+            >
+              <Copy size={12} />
+              <span>Copy Address</span>
+            </button>
+            <a
+              href="https://explorer.solana.com/address/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?cluster=devnet"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-bold text-xs cursor-pointer transition-colors flex items-center gap-1.5"
+            >
+              <span>Explorer</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        </div>
+
+        {/* Live Balances & Network Status */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-0.5">
+            <span className="text-[10px] text-slate-400 font-sans font-medium uppercase">SOL BALANCE</span>
+            <p className="text-sm font-bold text-emerald-400">4.8500 SOL</p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-0.5">
+            <span className="text-[10px] text-slate-400 font-sans font-medium uppercase">USDC BALANCE</span>
+            <p className="text-sm font-bold text-emerald-400">1,875.00 USDC</p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-0.5">
+            <span className="text-[10px] text-slate-400 font-sans font-medium uppercase">DATABASE STATUS</span>
+            <p className="text-xs font-bold text-sky-400 flex items-center gap-1">
+              <span className="size-2 rounded-full bg-sky-400 animate-pulse" />
+              Supabase Realtime
+            </p>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-0.5">
+            <span className="text-[10px] text-slate-400 font-sans font-medium uppercase">CDN ASSETS</span>
+            <p className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+              <span className="size-2 rounded-full bg-emerald-400" />
+              Cloudflare R2
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* TOP 5 KPI SUMMARY METRICS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Card 1: Custody Tier */}
