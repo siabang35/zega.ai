@@ -111,7 +111,7 @@ export class PrivyWalletService {
     }
 
     return {
-      address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+      address: 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh',
       isPrivy: false,
       providerLabel: 'Solana Devnet Sandbox (Public Receiver)',
     };

@@ -684,7 +684,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/solana-rpc ── Query REAL Solana Devnet RPC Live!
   fastify.get<{ Querystring: { address?: string } }>('/solana-rpc', async (request, reply) => {
-    const address = request.query.address || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+    const address = request.query.address || 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
     const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
     try {

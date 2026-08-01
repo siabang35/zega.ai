@@ -136,14 +136,14 @@ export function ZeroClawTerminalView({
 
   const deriveEmbeddedWallet = (email?: string): string => {
     if (!email || isGuestSession) {
-      return '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+      return 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
     }
     return PrivyWalletService.getEmbeddedSolanaWallet(email).address;
   };
 
   const activeMerchantWallet = accountMode === 'authenticated'
     ? deriveEmbeddedWallet(userEmail)
-    : '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+    : 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);

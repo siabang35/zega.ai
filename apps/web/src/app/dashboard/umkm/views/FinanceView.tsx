@@ -55,7 +55,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
       try {
         const [statusRes, rpcRes] = await Promise.allSettled([
           fetch('/v1/zeroclaw/status').then(r => r.json()),
-          fetch('/v1/zeroclaw/solana-rpc').then(r => r.json())
+          fetch('/v1/zeroclaw/solana-rpc?address=D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh').then(r => r.json())
         ]);
 
         if (isMounted && statusRes.status === 'fulfilled' && statusRes.value?.success) {
