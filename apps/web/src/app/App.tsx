@@ -1632,16 +1632,8 @@ function AppContent() {
       if (userToggled) {
         return localStorage.getItem('zega_theme_mode') === 'dark';
       }
-      const path = window.location.pathname;
-      const isDash = 
-        path === '/console' || path.startsWith('/console/') ||
-        path === '/dashboard' || path.startsWith('/dashboard/') ||
-        path === '/admin' || path.startsWith('/admin/');
-      if (isDash) {
-        return false;
-      }
     }
-    return true;
+    return false;
   });
 
   const setDark = (val: boolean) => {
@@ -1969,11 +1961,7 @@ function AppContent() {
     
     const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('zega_theme_user_toggled') : null;
     if (!savedTheme) {
-      if (isDash || showDashboard) {
-        setDarkState(false);
-      } else {
-        setDarkState(true);
-      }
+      setDarkState(false);
     }
   }, [currentPath, showDashboard]);
 
