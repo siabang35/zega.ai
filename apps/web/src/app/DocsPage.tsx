@@ -568,9 +568,44 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Devnet RPC Signature Pool</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">4-Tier Client RPC Resolution & 5-Layer Backend Security Pipeline</h3>
                 <p>
-                  All generated transactions link directly to active, verifiable Solana Devnet RPC signatures (<code className="font-mono">Slot 480013691+</code>). Users can click <strong>Solana Explorer</strong> on any row to verify transaction status live on-chain without encounter 'Not Found' errors.
+                  ZeroClaw production architecture combines client-side RPC fallback with a 5-layer backend security pipeline enforcing strict <strong>OWASP API Security Top 10</strong> compliance:
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3 font-sans">
+                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                      <Zap size={14} />
+                      <span>4-Tier RPC Signature Resolution</span>
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                      <li><strong>Tier 1:</strong> Render API Proxy for merchant wallet.</li>
+                      <li><strong>Tier 2:</strong> Render API Proxy for default merchant wallet.</li>
+                      <li><strong>Tier 3:</strong> Direct client-side JSON-RPC call to <code className="font-mono text-emerald-400">api.devnet.solana.com</code>.</li>
+                      <li><strong>Tier 4:</strong> Verified Devnet hardcoded fallback signature.</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
+                    <h4 className="font-bold text-blue-600 dark:text-blue-400 text-xs flex items-center gap-1.5">
+                      <ShieldCheck size={14} />
+                      <span>5-Layer OWASP Backend Pipeline</span>
+                    </h4>
+                    <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                      <li><strong>Layer 1 (Amount):</strong> Positive number validation.</li>
+                      <li><strong>Layer 2 (Base58):</strong> Base58 regex <code className="font-mono text-blue-400">/^[1-9A-HJ-NP-Za-km-z]+$/</code>.</li>
+                      <li><strong>Layer 3 (Anti-Replay):</strong> Idempotency set guard.</li>
+                      <li><strong>Layer 4 (RPC Status):</strong> On-chain <code className="font-mono text-blue-400">getSignatureStatuses</code>.</li>
+                      <li><strong>Layer 5 (Tx Detail):</strong> Recipient wallet delta verification.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Devnet RPC Signature Pool & OWASP Protection</h3>
+                <p>
+                  All generated transactions link directly to active, verifiable Solana Devnet RPC signatures (<code className="font-mono">Slot 480013691+</code>). Backed by <strong>Rate Limiting (100 req/min Anti-Throttling)</strong> and <strong>1MB Payload Size Limit (Anti-Chunking / Anti-DoS)</strong>.
                 </p>
               </section>
             </div>
