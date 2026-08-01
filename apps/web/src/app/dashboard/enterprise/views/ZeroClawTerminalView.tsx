@@ -829,14 +829,7 @@ export function ZeroClawTerminalView({
     };
   }, [accountMode, generatedUrl]);
 
-  const REAL_DEVNET_SIGNATURES = [
-    '3ZbjPvgeYjxmcChZPXUDr5NyJ9YqZw2ydu8kVFGPD1hEunKGdV8h8S1nMLsjc1AL5sRoy8pnzAmqHrj4eRCXdkEq',
-    '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
-    '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
-    'xaCDsf4hnS6V19xuub2YGQX2mpSMsXQt1kkwRYmjg6kupB6qa3H1m6B3jSc5mnMRtefUm5UsmQVS74KjPvKdkjQ',
-    '4cvA5FSLFDXjRPx4LHqN32Kc5aSxmb1zKcarxirFBZ3fhv5ohrjkHZcgwKZSV89HCUSXd9WX28TMccfpE159p1rM',
-    '4LW5vqnoEq835LtkjSqnwCQwNw6KHAZyAszRegBhnMnnsGnLpqCuUPtEQvQc83kHyJVmAfjEQusHbZcvDxMfprhS',
-  ];
+
 
   const formatCurrencyAmount = (amountUsdc: number) => {
     if (currencyMode === 'IDR') {
@@ -886,7 +879,6 @@ export function ZeroClawTerminalView({
     const cleanAmountStr = invoiceAmount.replace(',', '.');
     const parsedAmount = parseFloat(cleanAmountStr) || 15.00;
     const formattedAmount = parsedAmount.toFixed(2);
-    const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
 
     // Standard scannable Solana Pay URI
     const url = `solana:${activeMerchantWallet}?amount=${formattedAmount}`;
@@ -913,7 +905,7 @@ export function ZeroClawTerminalView({
 
     const newEvent: ReconciledEvent = {
       id: `gen_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      signature: activeSig,
+      signature: refKey,
       amount: parsedAmount,
       currency: 'USDC',
       timestamp: 'Slot 231,881,234',
@@ -1883,7 +1875,12 @@ export function ZeroClawTerminalView({
                                         } catch (e) { }
 
                                         if (!activeSig) {
-                                          activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
+                                          const userTxHash = window.prompt('⚠️ Wallet merchant belum memiliki transaksi otomatis di RPC. Silakan masukkan Tx Signature Hash Solana Devnet (cth: 4tCQDMjdPA2j...):');
+                                          if (!userTxHash || userTxHash.trim().length < 20) {
+                                            onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Rekonsiliasi membutuhkan Tx Signature Hash valid.');
+                                            return;
+                                          }
+                                          activeSig = userTxHash.trim();
                                         }
 
                                         // Record Real On-Chain Settlement to Supabase DB & Cloudflare R2 CDN
@@ -2021,7 +2018,12 @@ export function ZeroClawTerminalView({
                                         const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                                         const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
                                         const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
-                                        const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
+                                        const userTxHash = window.prompt('Masukkan Tx Signature Hash Solana Devnet untuk pembayaran partial (cth: 4tCQDMjdPA2j...):');
+                                        if (!userTxHash || userTxHash.trim().length < 20) {
+                                          onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Tx Hash valid dibutuhkan.');
+                                          return;
+                                        }
+                                        const activeSig = userTxHash.trim();
 
                                         // Record Real On-Chain Partial Settlement to Supabase DB & Cloudflare R2 CDN
                                         await fetch('/v1/zeroclaw/settlement/record', {
@@ -2068,7 +2070,12 @@ export function ZeroClawTerminalView({
                                         const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                                         const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
                                         const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
-                                        const activeSig = REAL_DEVNET_SIGNATURES[Math.floor(Math.random() * REAL_DEVNET_SIGNATURES.length)];
+                                        const userOverpayHash = window.prompt('Masukkan Tx Signature Hash Solana Devnet untuk overpaid (cth: 4tCQDMjdPA2j...):');
+                                        if (!userOverpayHash || userOverpayHash.trim().length < 20) {
+                                          onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Tx Hash valid dibutuhkan.');
+                                          return;
+                                        }
+                                        const activeSig = userOverpayHash.trim();
 
                                         // Record Real On-Chain Settlement Refund to Supabase DB & Cloudflare R2 CDN
                                         await fetch('/v1/zeroclaw/settlement/record', {
