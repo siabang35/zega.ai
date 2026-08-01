@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "description": "Production bridge client for ZeroClaw v0.8.x gateway daemon. Implements pairing, health checks, webhook forwarding, and version compatibility detection.",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
