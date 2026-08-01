@@ -99,7 +99,7 @@ async function runRealtimeVaultTests() {
       merchantPubkey: 'PrivySolanaWallet32BytesDerivedAddress11',
       amountUsdc: 25.50,
       referenceKey: `RefKeyAuth${Date.now().toString(36)}`,
-      txSignature: '5TLya5WZPUG4SLuEW6V7y8tCY1mzpm2jX8ZBFmPxKHhD2hFEsRiJvmQRtpdZQhDbRY85ccZRBgaUDYYotParPD23',
+      txSignature: '4Qrphi1YAus7hG12qvSZM51nh2j37V1WNj6cv65bxCZ1e6rgGdS1JW48simChBnGMWzHJ2GJoEivV7pJ8cqerAVy',
       network: 'solana-devnet',
       memo: 'Invoice Meja 4 Settlement (EXACT)',
       isDemo: false

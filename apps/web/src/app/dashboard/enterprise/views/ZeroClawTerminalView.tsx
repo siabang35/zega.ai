@@ -2541,7 +2541,7 @@ export function ZeroClawTerminalView({
                                       if (isPaidOrExact) {
                                         const refKey = inv.referenceKey || (inv.solanaPayUrl && inv.solanaPayUrl.includes('&reference=')) ? inv.solanaPayUrl.split('&reference=')[1]?.split('&')[0] : `RefKeyFinished_${inv.id}`;
                                         const matchedEvent = events.find(e => (e as any).referenceKey === refKey || e.memo?.includes(inv.memo));
-                                        const exactTxSig = matchedEvent?.signature || (inv as any).txSignature || '3ZbjPvgeYjxmcChZPXUDr5NyJ9YqZw2ydu8kVFGPD1hEunKGdV8h8S1nMLsjc1AL5sRoy8pnzAmqHrj4eRCXdkEq';
+                                        const exactTxSig = matchedEvent?.signature || (inv as any).txSignature || refKey;
                                         const amtNum = parseFloat(inv.amount) || 15.00;
 
                                         setPaymentSuccessModal({

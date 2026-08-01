@@ -80,7 +80,7 @@ async function runSuperteamTest() {
       merchantPubkey: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
       amountUsdc: 1.20,
       referenceKey: 'TestRefSolanaPay9988',
-      txSignature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
+      txSignature: '4Qrphi1YAus7hG12qvSZM51nh2j37V1WNj6cv65bxCZ1e6rgGdS1JW48simChBnGMWzHJ2GJoEivV7pJ8cqerAVy',
       network: 'solana-devnet',
       memo: 'Pembayaran Kasir Solana Pay (Invoice Meja 3)',
       isDemo: false
