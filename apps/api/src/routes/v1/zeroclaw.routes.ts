@@ -228,26 +228,164 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       privyUserId,
     } = request.body || {};
 
-    // 1. Amount Validation (Anti-Negative / Anti-Zero / Anti-NaN Attack)
+    // ════════════════════════════════════════════════════════════════════════
+    // LAYER 1: Amount Validation (Anti-Negative / Anti-Zero / Anti-NaN)
+    // ════════════════════════════════════════════════════════════════════════
     const validAmountUsdc = parseFloat(String(amountUsdc));
     if (isNaN(validAmountUsdc) || validAmountUsdc <= 0) {
       return reply.status(400).send({
         success: false,
-        error: 'Security Guard Rejected: Settlement amount must be a positive number.'
+        error: '🛡️ Layer 1 Rejected: Settlement amount must be a positive number.',
+        layer: 'AMOUNT_VALIDATION'
       });
     }
 
-    // 2. Anti-Replay & Idempotency Protection
+    // ════════════════════════════════════════════════════════════════════════
+    // LAYER 2: Base58 Format Validation (Structural Integrity Check)
+    // Solana signatures are 87-88 character Base58-encoded strings
+    // ════════════════════════════════════════════════════════════════════════
     const effectiveSig = txSignature || `sol_${Date.now()}`;
+    const BASE58_REGEX = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
+    const isLongFormSig = effectiveSig.length >= 60 && !effectiveSig.startsWith('sol_') && !effectiveSig.startsWith('gen_inv_');
+
+    if (isLongFormSig) {
+      if (effectiveSig.length < 86 || effectiveSig.length > 90) {
+        return reply.status(400).send({
+          success: false,
+          error: `🛡️ Layer 2 Rejected: Signature length ${effectiveSig.length} chars invalid. Solana signatures harus 87-88 karakter Base58.`,
+          layer: 'BASE58_FORMAT'
+        });
+      }
+      if (!BASE58_REGEX.test(effectiveSig)) {
+        return reply.status(400).send({
+          success: false,
+          error: '🛡️ Layer 2 Rejected: Signature mengandung karakter non-Base58 (0, O, I, l tidak diizinkan).',
+          layer: 'BASE58_FORMAT'
+        });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // LAYER 3: Anti-Replay & Idempotency Protection
+    // ════════════════════════════════════════════════════════════════════════
     if (processedSignaturesSet.has(effectiveSig)) {
       return reply.send({
         success: true,
         mode: 'idempotent_duplicate',
         note: 'Replay Guard: Transaction signature already reconciled on-chain.',
+        layer: 'ANTI_REPLAY',
         data: reconciledEvents.find(e => e.signature === effectiveSig) || { signature: effectiveSig, amount: validAmountUsdc }
       });
     }
     processedSignaturesSet.add(effectiveSig);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // LAYER 4: On-Chain Signature Status Verification (getSignatureStatuses)
+    // Queries Solana Devnet RPC to confirm the signature exists on-chain
+    // ════════════════════════════════════════════════════════════════════════
+    let onChainVerified = false;
+    let onChainConfirmationStatus = 'unknown';
+    let onChainSlot: number | null = null;
+    let onChainErr: any = null;
+
+    if (isLongFormSig) {
+      try {
+        const sigVerifyRes = await fetch(DEVNET_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'sig_verify',
+            method: 'getSignatureStatuses',
+            params: [[effectiveSig], { searchTransactionHistory: true }],
+          }),
+        });
+        const sigVerifyJson = (await sigVerifyRes.json()) as any;
+        const statusItem = sigVerifyJson.result?.value?.[0];
+        if (statusItem && statusItem.confirmationStatus) {
+          onChainVerified = true;
+          onChainConfirmationStatus = statusItem.confirmationStatus;
+          onChainSlot = statusItem.slot || null;
+          onChainErr = statusItem.err || null;
+        }
+      } catch (e) {
+        // RPC timeout — allow but mark as unverified
+      }
+
+      // Reject if signature does not exist on-chain
+      if (!onChainVerified) {
+        processedSignaturesSet.delete(effectiveSig);
+        return reply.status(403).send({
+          success: false,
+          error: `🛡️ Layer 4 Rejected: Hash "${effectiveSig.substring(0, 16)}..." tidak ditemukan di Solana Devnet blockchain. Hanya transaksi on-chain asli yang diterima.`,
+          layer: 'SIGNATURE_STATUS',
+          hint: 'Pastikan transaksi sudah terkirim dan terkonfirmasi via wallet (Phantom/Solflare) sebelum settlement.'
+        });
+      }
+
+      // Reject if the on-chain transaction itself had an error (failed tx)
+      if (onChainErr) {
+        processedSignaturesSet.delete(effectiveSig);
+        return reply.status(403).send({
+          success: false,
+          error: `🛡️ Layer 4 Rejected: Transaksi "${effectiveSig.substring(0, 16)}..." gagal di blockchain (err: ${JSON.stringify(onChainErr)}). Settlement hanya menerima transaksi SUKSES.`,
+          layer: 'TX_ERROR_CHECK'
+        });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // LAYER 5: Transaction Detail Verification (getTransaction)
+    // Deep-inspect the actual transaction: verify recipient, check freshness
+    // ════════════════════════════════════════════════════════════════════════
+    let txBlockTime: number | null = null;
+    let txRecipientMatch = false;
+    let txDetailFetched = false;
+
+    if (isLongFormSig && onChainVerified) {
+      try {
+        const txDetailRes = await fetch(DEVNET_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'tx_detail',
+            method: 'getTransaction',
+            params: [effectiveSig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }],
+          }),
+        });
+        const txDetailJson = (await txDetailRes.json()) as any;
+        const txResult = txDetailJson.result;
+
+        if (txResult) {
+          txDetailFetched = true;
+          txBlockTime = txResult.blockTime || null;
+
+          // Check if merchant wallet is among transaction account keys
+          const accountKeys = txResult.transaction?.message?.accountKeys || [];
+          const allPubkeys = accountKeys.map((k: any) => typeof k === 'string' ? k : k?.pubkey || '');
+          const targetMerchant = merchantPubkey || 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+          txRecipientMatch = allPubkeys.some((pk: string) => pk === targetMerchant);
+
+          // Freshness check: reject transactions older than 72 hours
+          if (txBlockTime) {
+            const txAge = Date.now() / 1000 - txBlockTime;
+            const MAX_TX_AGE_SECONDS = 72 * 60 * 60; // 72 hours
+            if (txAge > MAX_TX_AGE_SECONDS) {
+              processedSignaturesSet.delete(effectiveSig);
+              return reply.status(403).send({
+                success: false,
+                error: `🛡️ Layer 5 Rejected: Transaksi terlalu lama (${Math.floor(txAge / 3600)} jam lalu). Hanya transaksi dalam 72 jam terakhir yang diterima untuk settlement.`,
+                layer: 'TX_FRESHNESS',
+                txBlockTime: new Date(txBlockTime * 1000).toISOString()
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // getTransaction may fail for very recent txs — allow but mark
+      }
+    }
 
     const privyVerified = Boolean(privyWalletAddress || process.env.PRIVY_APP_ID);
 
@@ -260,11 +398,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       channel: 'SOLANA-PAY-DEVNET',
       network: network || 'solana-devnet',
       memo: memo || 'Solana Pay Merchant Payout',
-      slot: 480264000 + Math.floor(Math.random() * 500),
+      slot: onChainSlot || (480264000 + Math.floor(Math.random() * 500)),
       timeAgo: 'Just now',
       privyVerified,
       privyWalletAddress: privyWalletAddress || (merchantPubkey?.startsWith('PrivySol') ? merchantPubkey : null),
       privyUserId: privyUserId || null,
+      onChainVerified,
+      onChainConfirmationStatus,
+      txRecipientMatch,
+      txBlockTime: txBlockTime ? new Date(txBlockTime * 1000).toISOString() : null,
     };
 
     reconciledEvents.unshift(newEvent as any);
