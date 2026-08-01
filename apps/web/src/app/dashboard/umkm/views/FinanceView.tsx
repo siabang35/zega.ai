@@ -293,7 +293,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
               {
                 tx: '5TLya5WZPUG4SLuEW6V7y8tCY1mzpm2jX8ZBFmPxKHhD2hFEsRiJvmQRtpdZQhDbRY85ccZRBgaUDYYotParPD23',
                 amountUsdc: 15.00,
-                channel: 'WhatsApp (+628123456789)',
+                channel: 'WhatsApp (zeroclaw_channel)',
                 memo: 'Pay for Product (Cafe Latte x2)',
                 status: 'Finalized',
                 slot: 'Slot 480013691',

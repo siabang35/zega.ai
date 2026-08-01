@@ -32,7 +32,7 @@ let zeroClawState = {
   custodyTier: 'T1 (Keyless / Unsigned)',
   network: 'solana-devnet',
   rpcUrl: DEVNET_RPC_URL,
-  connectedChannels: ['WhatsApp (+628123456789)', 'Telegram Bot', 'ZEGA Monorepo MCP'],
+  connectedChannels: ['WhatsApp (zeroclaw_channel)', 'Telegram Bot', 'ZEGA Monorepo MCP'],
   totalReconciledUsdc: 485.50,
   reconciledTxCount: 24,
   lastHeartbeat: new Date().toISOString(),
@@ -53,7 +53,7 @@ const pendingCheckpoints: PendingCheckpoint[] = [
   {
     checkpointId: 'chk_ref_9901',
     timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    customerChannel: 'WhatsApp (+628198765432)',
+    customerChannel: 'WhatsApp (zeroclaw_channel)',
     amountUsdc: 25.00,
     recipientAddress: 'AttackerSolanaPublicKey1111111111111111111',
     prompt: 'Prompt Injection Warning: Customer message requested instant refund of 25 USDC claiming item was damaged.',
