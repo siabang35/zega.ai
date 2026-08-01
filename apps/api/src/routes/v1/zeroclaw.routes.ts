@@ -25,9 +25,21 @@ interface AgentExecuteBody {
   };
 }
 
+import { ZeroClawGatewayClient } from '@zega/zeroclaw-bridge';
+
 const DEVNET_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const ZEROCLAW_GATEWAY_URL = process.env.ZEROCLAW_GATEWAY_URL || 'http://127.0.0.1:4242';
 const ZEROCLAW_BEARER_TOKEN = process.env.ZEROCLAW_BEARER_TOKEN || '';
+
+/** Real ZeroClaw Gateway Bridge Client */
+const zeroclawBridge = new ZeroClawGatewayClient({
+  gatewayUrl: ZEROCLAW_GATEWAY_URL,
+  bearerToken: ZEROCLAW_BEARER_TOKEN,
+  timeoutMs: 1500,
+  maxRetries: 1,
+  deviceName: 'ZEGA Enterprise Gateway',
+  deviceType: 'fastify-api-bridge',
+});
 
 let zeroClawState = {
   agentStatus: 'active',
@@ -37,7 +49,7 @@ let zeroClawState = {
   gatewayUrl: ZEROCLAW_GATEWAY_URL,
   bridgeConnected: false,
   bridgeStatus: 'Standby / Autonomous Prototype Mode',
-  daemonVersion: '0.1.0-zeroclaw',
+  daemonVersion: 'v0.8.3',
   connectedChannels: ['WhatsApp (zeroclaw_channel)', 'Telegram Bot', 'ZEGA Monorepo MCP'],
   totalReconciledUsdc: 485.50,
   reconciledTxCount: 24,
@@ -609,38 +621,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // ── GET /v1/zeroclaw/status ── Query Real ZeroClaw v0.8.3 Gateway Status (/health)
+  // ── GET /v1/zeroclaw/status ── Query Real ZeroClaw v0.8.3 Gateway Status via Bridge Client
   fastify.get('/status', async () => {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
-
-      // Check ZeroClaw Gateway v0.8.3 native /health endpoint
-      const healthRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      }).catch(() => null);
-      clearTimeout(timeoutId);
-
-      if (healthRes && healthRes.ok) {
+      const bridgeState = await zeroclawBridge.getState();
+      if (bridgeState.status === 'paired' || bridgeState.status === 'connecting') {
         zeroClawState.bridgeConnected = true;
-        zeroClawState.bridgeStatus = `Connected to ZeroClaw Gateway v0.8.3 (${ZEROCLAW_GATEWAY_URL})`;
-        zeroClawState.daemonVersion = 'v0.8.3';
+        zeroClawState.bridgeStatus = `Connected to ZeroClaw Gateway (${bridgeState.daemonVersion || 'v0.8.3'}) at ${ZEROCLAW_GATEWAY_URL}`;
+        zeroClawState.daemonVersion = bridgeState.daemonVersion || 'v0.8.3';
       } else {
-        // Fallback check /api/status
-        const statusRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/api/status`, {
-          method: 'GET',
-        }).catch(() => null);
-
-        if (statusRes && statusRes.ok) {
-          const statusJson = (await statusRes.json()) as any;
-          zeroClawState.bridgeConnected = true;
-          zeroClawState.bridgeStatus = `Connected to ZeroClaw Daemon (${statusJson.version || 'v0.8.3'})`;
-          zeroClawState.daemonVersion = statusJson.version || 'v0.8.3';
-        } else {
-          zeroClawState.bridgeConnected = false;
-          zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline)`;
-        }
+        zeroClawState.bridgeConnected = false;
+        zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline: ${bridgeState.lastError || 'Unreachable'})`;
       }
     } catch {
       zeroClawState.bridgeConnected = false;
@@ -657,7 +648,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
-  // ── POST /v1/zeroclaw/pair ── Pair Client with ZeroClaw v0.8.3 Gateway via X-Pairing-Code
+  // ── POST /v1/zeroclaw/pair ── Pair Client with ZeroClaw Gateway via Bridge Auth Manager
   fastify.post<{ Body: { pairingCode: string } }>('/pair', async (request, reply) => {
     const { pairingCode } = request.body || {};
     if (!pairingCode) {
@@ -665,36 +656,28 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const pairRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/pair`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Pairing-Code': pairingCode.trim(),
-        },
-      });
+      const pairResult = await zeroclawBridge.pair(pairingCode);
 
-      if (pairRes.ok) {
-        const pairData = (await pairRes.json()) as any;
-        const token = pairData.token || pairData.bearerToken || pairingCode;
+      if (pairResult.paired) {
         zeroClawState.bridgeConnected = true;
         zeroClawState.bridgeStatus = 'Paired & Connected to ZeroClaw Gateway v0.8.3';
 
         return reply.send({
           success: true,
-          message: 'ZeroClaw v0.8.3 Gateway Paired Successfully!',
-          token,
+          message: 'ZeroClaw Gateway Paired Successfully!',
+          token: pairResult.token,
           gatewayUrl: ZEROCLAW_GATEWAY_URL,
         });
       } else {
         return reply.status(400).send({
           success: false,
-          error: `Pairing failed (HTTP ${pairRes.status}). Verify pairing code.`,
+          error: pairResult.error || 'Pairing failed. Verify pairing code.',
         });
       }
     } catch (err: any) {
-      return reply.status(500).send({
+      return reply.status(err.statusCode || 500).send({
         success: false,
-        error: `Gateway unreachable at ${ZEROCLAW_GATEWAY_URL}: ${err.message}`,
+        error: `Gateway pairing error at ${ZEROCLAW_GATEWAY_URL}: ${err.message}`,
       });
     }
   });
@@ -860,34 +843,39 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let solanaPayUrl = '';
     let referenceKey = '';
     if (isPayRequest) {
-      // Smart amount extraction: Prioritize numbers attached to currency tags (USDC, SOL, $), then parenthetical numbers, then total price calculation
       const normalizedPrompt = prompt.replace(/(\d+),(\d+)/g, '$1.$2');
-      
-      // Match explicit currency patterns first: e.g. "15 USDC", "$15", "15.50 USDC"
-      const explicitCurrencyMatch = normalizedPrompt.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) || 
-                                    normalizedPrompt.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
+      // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
+      const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
 
-      // Match parenthetical amount e.g. "(15 USDC)" or "(15)"
-      const parenMatch = normalizedPrompt.match(/\(\s*(\d+(?:\.\d+)?)/);
+      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol"
+      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) || 
+                                    promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
 
-      // Match item count and unit price e.g. "2 kopi 7.5"
-      const qtyPriceMatch = normalizedPrompt.match(/(\d+)\s+[a-zA-Z\s]+\s+(?:harga\s+)?(\d+(?:\.\d+)?)/i);
+      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
+      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
+                                promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+
+      // 3. Parenthetical match e.g. "(0.543)"
+      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
+
+      // 4. Quantity x price match ONLY when explicit quantity word or "x/@" is present e.g. "2 x 7.5" or "2 kopi @ 7.5"
+      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
 
       let amount = 15.00;
       if (explicitCurrencyMatch) {
         amount = parseFloat(explicitCurrencyMatch[1]);
+      } else if (directAmountMatch) {
+        amount = parseFloat(directAmountMatch[1]);
       } else if (parenMatch) {
         amount = parseFloat(parenMatch[1]);
-      } else if (qtyPriceMatch) {
-        const qty = parseInt(qtyPriceMatch[1], 10);
-        const unitPrice = parseFloat(qtyPriceMatch[2]);
+      } else if (explicitQtyMatch) {
+        const qty = parseInt(explicitQtyMatch[1], 10);
+        const unitPrice = parseFloat(explicitQtyMatch[2]);
         amount = qty * unitPrice;
       } else {
-        const anyNumberMatch = normalizedPrompt.match(/\b\d+(?:\.\d+)?\b/g);
+        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:\.\d+)?\b/g);
         if (anyNumberMatch && anyNumberMatch.length > 0) {
-          // Pick the largest number if multiple numbers exist (e.g. 2 items for 15 USDC)
-          const nums = anyNumberMatch.map(n => parseFloat(n)).filter(n => !isNaN(n));
-          amount = Math.max(...nums);
+          amount = parseFloat(anyNumberMatch[0]);
         }
       }
 
@@ -897,23 +885,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     }
 
-    // Attempt REAL ZeroClaw Gateway v0.8.3 /webhook forwarder & Multi-LLM API calls
+    // Attempt REAL ZeroClaw Gateway v0.8.3 /webhook forwarder via Bridge Client
     if (zeroClawState.bridgeConnected) {
       try {
-        const webhookRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/webhook`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: prompt }),
-        });
-        if (webhookRes.ok) {
-          const webhookData = (await webhookRes.json()) as any;
-          rawLlmOutput = webhookData.response || webhookData.message || JSON.stringify(webhookData);
+        const webhookRes = await zeroclawBridge.webhook(prompt);
+        if (webhookRes && webhookRes.response) {
+          rawLlmOutput = webhookRes.response;
           selectedModel = 'zeroclaw-v0.8.3-gateway';
         }
       } catch (e) {
-        // Fallback to LLM model chain
+        // Fallback to LLM model chain on webhook failure
       }
     }
 

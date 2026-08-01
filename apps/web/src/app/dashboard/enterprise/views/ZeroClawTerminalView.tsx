@@ -437,27 +437,39 @@ export function ZeroClawTerminalView({
     );
 
     if (isInvoiceIntent) {
-      // Smart amount extraction: Prioritize numbers attached to currency tags (USDC, SOL, $), then parenthetical numbers, then total price calculation
+      // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
       const normalizedPrompt = promptToRun.replace(/(\d+),(\d+)/g, '$1.$2');
-      const explicitCurrencyMatch = normalizedPrompt.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
-        normalizedPrompt.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
-      const parenMatch = normalizedPrompt.match(/\(\s*(\d+(?:\.\d+)?)/);
-      const qtyPriceMatch = normalizedPrompt.match(/(\d+)\s+[a-zA-Z\s]+\s+(?:harga\s+)?(\d+(?:\.\d+)?)/i);
+      const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
+
+      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol"
+      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
+        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
+
+      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
+      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
+        promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+
+      // 3. Parenthetical match e.g. "(0.543)"
+      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
+
+      // 4. Quantity x price match ONLY when explicit quantity word or "x/@" is present e.g. "2 x 7.5" or "2 kopi @ 7.5"
+      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
 
       let parsedNum = 15.00;
       if (explicitCurrencyMatch) {
         parsedNum = parseFloat(explicitCurrencyMatch[1]);
+      } else if (directAmountMatch) {
+        parsedNum = parseFloat(directAmountMatch[1]);
       } else if (parenMatch) {
         parsedNum = parseFloat(parenMatch[1]);
-      } else if (qtyPriceMatch) {
-        const qty = parseInt(qtyPriceMatch[1], 10);
-        const unitPrice = parseFloat(qtyPriceMatch[2]);
+      } else if (explicitQtyMatch) {
+        const qty = parseInt(explicitQtyMatch[1], 10);
+        const unitPrice = parseFloat(explicitQtyMatch[2]);
         parsedNum = qty * unitPrice;
       } else {
-        const anyNumberMatch = normalizedPrompt.match(/\b\d+(?:\.\d+)?\b/g);
+        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:\.\d+)?\b/g);
         if (anyNumberMatch && anyNumberMatch.length > 0) {
-          const nums = anyNumberMatch.map(n => parseFloat(n)).filter(n => !isNaN(n));
-          parsedNum = Math.max(...nums);
+          parsedNum = parseFloat(anyNumberMatch[0]);
         }
       }
 
@@ -465,7 +477,8 @@ export function ZeroClawTerminalView({
       const tableMatch = promptToRun.match(/(table|meja)\s*(\d+|[a-z0-9]+)/i);
       const tableStr = tableMatch ? ` (Meja ${tableMatch[2]})` : '';
 
-      payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}`;
+      const uniqueRef = 'Ref' + Math.floor(Math.random() * 8999999 + 1000000);
+      payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}&reference=${uniqueRef}`;
       const memoText = `Invoice Table ${tableMatch ? tableMatch[2] : '3'} (${extractedAmount} USDC)`;
 
       if (!jsonResult?.response) {
@@ -650,6 +663,39 @@ export function ZeroClawTerminalView({
           }
         }
       }
+
+      // ── 2. MERCHANT WALLET REAL DEVNET RPC SIGNATURE SYNC ──
+      if (activeMerchantWallet) {
+        const merchantRes = await fetch(`/v1/zeroclaw/solana-rpc?address=${activeMerchantWallet}`);
+        if (merchantRes.ok) {
+          const merchantJson = await merchantRes.json();
+          if (merchantJson.signatures && merchantJson.signatures.length > 0) {
+            const latestRpcSig = merchantJson.signatures[0].signature;
+            const targetAmt = parseFloat(invoiceAmount.replace(',', '.')) || 0.50;
+            setEvents(prev => {
+              const alreadyRecorded = prev.some(e => e.signature === latestRpcSig);
+              if (!alreadyRecorded) {
+                const newRealEvent: ReconciledEvent = {
+                  id: `solanapay_rpc_${Date.now()}`,
+                  signature: latestRpcSig,
+                  amount: targetAmt,
+                  currency: 'USDC',
+                  timestamp: `Slot ${merchantJson.signatures[0].slot || 480271993}`,
+                  channel: 'SOLANA-PAY-DEVNET-RPC',
+                  network: 'solana-devnet',
+                  memo: invoiceMessage || 'Solana Pay Real On-Chain RPC Settlement',
+                  slot: merchantJson.signatures[0].slot || 480271993,
+                  timeAgo: 'Just now'
+                };
+                onTriggerToast(`🟢 REAL DEVNET SIGNATURE DETECTED: ${latestRpcSig.slice(0, 8)}...`);
+                return [newRealEvent, ...prev];
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
       await fetchOnChainBalances();
     } catch (e) {
       if (showToast) {

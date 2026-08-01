@@ -143,53 +143,57 @@ const activeMerchantWallet = accountMode === 'authenticated'
 
 ---
 
-## 4. Layer 2: ZeroClaw v0.8.3 Agent Runtime
+## 4. Layer 2: ZeroClaw Agent Runtime & Bridge Package (`@zega/zeroclaw-bridge`)
 
 ### Technology
+- **Bridge Package**: Standalone Monorepo Package `@zega/zeroclaw-bridge` (`packages/zeroclaw-bridge/`)
 - **Daemon**: Self-hosted Rust binary (`zeroclaw gateway --port 4242`)
 - **Bridge API**: Fastify REST routes (`/v1/zeroclaw/*`)
 - **Location**: Server-side (Render cloud + optional local daemon)
 
-### Gateway Bridge Protocol
+### Gateway Bridge Architecture & Client Protocol
 
-The ZEGA Fastify API acts as a **bridge** between the frontend UI and the native ZeroClaw daemon:
+The ZEGA Fastify API delegates daemon communications to the production-ready `ZeroClawGatewayClient` provided by `@zega/zeroclaw-bridge`:
 
 ```
-Browser UI  →  Fastify API (Render)  →  ZeroClaw Daemon (127.0.0.1:4242)
-                    │
-                    ├── /health     (GET)  — Daemon health check
-                    ├── /pair       (POST) — One-time pairing code auth
-                    └── /webhook    (POST) — Prompt forwarding
+Browser UI  →  Fastify API (zeroclaw.routes.ts)  →  ZeroClawGatewayClient (@zega/zeroclaw-bridge)  →  ZeroClaw Daemon (127.0.0.1:4242)
+                                                                 │
+                                                                 ├── /health     (GET)  — Daemon health & version compatibility check
+                                                                 ├── /api/pair   (POST) — Enhanced pairing flow (Primary)
+                                                                 ├── /pair       (POST) — Legacy X-Pairing-Code flow (Fallback)
+                                                                 └── /webhook    (POST) — Prompt forwarding
 ```
+
+### Standalone Bridge Modules (`packages/zeroclaw-bridge/`)
+1. **`ZeroClawGatewayClient` (`src/client.ts`)**: HTTP client featuring configurable timeouts (default 1500ms via `AbortController`), zero-crash resilience, and automatic retries.
+2. **`ZeroClawAuthManager` (`src/auth.ts`)**: Manages pairing code exchange and generates Bearer token headers (`Authorization: Bearer <token>`).
+3. **`version.ts`**: SemVer parser and version compatibility matrix enforcer (`>=0.8.0 <0.9.0-alpha`).
+4. **`errors.ts`**: Structured error hierarchy (`GatewayUnreachableError`, `GatewayTimeoutError`, `PairingError`, `AuthenticationError`, `RateLimitError`).
+5. **`src/__tests__/smoke.test.ts`**: Automated smoke test suite (18/18 PASS).
 
 ### Native ZeroClaw Daemon Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `http://127.0.0.1:4242/health` | GET | Returns daemon runtime status (PID, uptime, component health) |
-| `http://127.0.0.1:4242/pair` | POST | Accepts `X-Pairing-Code` header, returns session Bearer token |
+| `http://127.0.0.1:4242/pair` / `/api/pair` | POST | Accepts pairing code, returns session Bearer token |
 | `http://127.0.0.1:4242/webhook` | POST | Accepts `{"message": "prompt"}` for agent execution |
 
 ### Zero-Crash Resilience
 
-All calls to the daemon use `AbortController` with a **1.2 second timeout**:
+All calls to the daemon via `zeroclawBridge` use `AbortController` timeouts and graceful error handling:
 
 ```typescript
 // File: apps/api/src/routes/v1/zeroclaw.routes.ts
 
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 1200);
+import { ZeroClawGatewayClient } from '@zega/zeroclaw-bridge';
 
-try {
-  const res = await fetch('http://127.0.0.1:4242/health', {
-    signal: controller.signal
-  });
-  // Process response...
-} catch (err) {
-  // Graceful fallback to Standby / Autonomous Mode
-} finally {
-  clearTimeout(timeout);
-}
+const zeroclawBridge = new ZeroClawGatewayClient({
+  gatewayUrl: process.env.ZEROCLAW_GATEWAY_URL || 'http://127.0.0.1:4242',
+  bearerToken: process.env.ZEROCLAW_BEARER_TOKEN || '',
+  timeoutMs: 1500,
+  maxRetries: 1,
+});
 ```
 
 When the daemon is offline (e.g., on Render cloud where no local daemon runs), the API returns:

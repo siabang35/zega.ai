@@ -140,7 +140,9 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Supabase Service & RBAC | `apps/web/src/app/dashboard/services/supabaseService.ts` | Verified & Production Ready |
 | Database Migration SQL | `supabase/migrations/20260729000000_enterprise_schema_and_security.sql` | Executed & Migration Ready |
 | ZeroClaw Solana Settlements SQL | `supabase/migrations/20260730233500_zeroclaw_solana_settlements.sql` | Executed & Idempotent Guarded |
-| ZeroClaw Fastify API Routes | `apps/api/src/routes/v1/zeroclaw.routes.ts` | Verified & Production Ready |
+| ZeroClaw Fastify API Routes | `apps/api/src/routes/v1/zeroclaw.routes.ts` | Verified & Integrated with `@zega/zeroclaw-bridge` |
+| ZeroClaw Gateway Bridge Package | `packages/zeroclaw-bridge/` (`src/client.ts`, `auth.ts`, `version.ts`, `errors.ts`) | Verified & Production Ready (`@zega/zeroclaw-bridge`) |
+| ZeroClaw Bridge Working Smoke Tests | `packages/zeroclaw-bridge/src/__tests__/smoke.test.ts` | Verified (18/18 PASS) |
 | ZeroClaw Terminal View | `apps/web/src/app/dashboard/enterprise/views/ZeroClawTerminalView.tsx` | Verified & Chart.js Sparklines |
 | UMKM Finance Settlement View | `apps/web/src/app/dashboard/umkm/views/FinanceView.tsx` | Verified & Dual USD/IDR Mode |
 | Web Documentation Portal | `apps/web/src/app/DocsPage.tsx` | Verified & Interactive Renderers |

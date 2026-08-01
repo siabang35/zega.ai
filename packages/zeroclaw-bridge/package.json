@@ -1,0 +1,39 @@
+{
+  "name": "@zega/zeroclaw-bridge",
+  "version": "0.1.0",
+  "description": "Production bridge client for ZeroClaw v0.8.x gateway daemon. Implements pairing, health checks, webhook forwarding, and version compatibility detection.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "test:smoke": "tsx src/__tests__/smoke.test.ts"
+  },
+  "dependencies": {
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@zega/shared": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@zega/shared": {
+      "optional": true
+    }
+  },
+  "keywords": ["zeroclaw", "bridge", "gateway", "solana", "agent"],
+  "license": "MIT"
+}

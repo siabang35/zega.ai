@@ -27,11 +27,29 @@ graph TD
 - **Client Signatures:** Wallet users maintain full control over keypairs.
 - **Standardized Scheme:** `solana:<recipient>?amount=<val>&reference=<refKey>&label=<label>&message=<msg>&spl-token=4zMMC9...`.
 
-#### B. Fastify Microservice Backend Endpoints (`apps/api/src/routes/v1/zeroclaw.routes.ts`)
-- `GET /v1/zeroclaw/status`: Returns Rust node health, Keyless Tier 1 custody state, and active messaging channels.
-- `GET /v1/zeroclaw/solana-rpc`: Streams live slot numbers and confirmed transaction signatures directly from Solana Devnet RPC.
-- `POST /v1/zeroclaw/events`: Generates cryptographic reference keys and records reconciled Solana Pay transactions into Supabase.
-- `POST /v1/zeroclaw/approve-checkpoint`: Processes human admin decisions (`approve` / `reject`) for flagged SOP refund checkpoints.
+#### C. Fastify Bridge Client Integration (`ZeroClawGatewayClient`)
+- `GET /v1/zeroclaw/status`: Delegated to `zeroclawBridge.getState()` for live daemon telemetry.
+- `POST /v1/zeroclaw/pair`: Delegated to `zeroclawBridge.pair(code)` for single-flight pairing code exchange.
+- `POST /v1/zeroclaw/agent/execute`: Forwards user prompts to `zeroclawBridge.webhook(prompt)` with failover to Multi-LLM API models.
+
+---
+
+### 19.5 Standalone Bridge Package Specification (`@zega/zeroclaw-bridge`)
+
+The runtime integration is built upon `@zega/zeroclaw-bridge` (`packages/zeroclaw-bridge/`), a zero-dependency TypeScript package adhering to upstream `zeroclaw-gateway` specifications:
+
+1. **Architecture Modules**:
+   - `client.ts`: `ZeroClawGatewayClient` featuring `AbortController` timeout management (default 1500ms), zero-crash offline resilience (graceful fallback to Autonomous Mode), and configurable retries.
+   - `auth.ts`: `ZeroClawAuthManager` implementing primary `/api/pair` and fallback `/pair` pairing workflows with Bearer token storage.
+   - `version.ts`: SemVer version parser and compatibility matrix enforcement (`>=0.8.0 <0.9.0-alpha`).
+   - `errors.ts`: Structured error hierarchy (`GatewayUnreachableError`, `GatewayTimeoutError`, `PairingError`, `AuthenticationError`, `RateLimitError`).
+2. **Version Compatibility Matrix**:
+   - Minimum: `0.8.0`
+   - Target: `0.8.3`
+   - Maximum Exclusive: `0.9.0-alpha`
+3. **Smoke Test Verification Suite (`src/__tests__/smoke.test.ts`)**:
+   - 18/18 assertion tests passing (SemVer parsing, version matrix checks, auth header format, zero-crash resilience, error codes).
+
 
 #### C. Database Schema & RLS Hardening (`supabase/migrations/20260730233500_zeroclaw_solana_settlements.sql`)
 - **Tables Provisioned**:

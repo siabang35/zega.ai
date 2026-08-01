@@ -27,7 +27,8 @@ ZEGA/
 ├── packages/
 │   ├── config/            # Shared ESLint, TypeScript & Tooling Configurations
 │   ├── shared/            # Shared Types, DTO Interfaces & Utility Libraries
-│   └── supabase/          # Supabase Client Factory & Master Database Types
+│   ├── supabase/          # Supabase Client Factory & Master Database Types
+│   └── zeroclaw-bridge/   # Standalone Production ZeroClaw v0.8.3 Runtime Bridge Client (@zega/zeroclaw-bridge)
 ├── supabase/              # SQL Migrations (20260729000001), RLS Policies & Triggers
 ├── docs/                  # Enterprise Product & Architecture Specs (PRD 01-16)
 │   └── PRD/               # Comprehensive System Architecture Documents
@@ -77,17 +78,19 @@ ZEGA/
   - **CSRF & PKCE Defense**: 64-hex CSRF state token generation and PKCE S256 code challenge verification for Google and GitHub OAuth.
   - **Prompt Injection Defense**: Automated ZeroClaw SOP approval checkpoints (`zeroclaw_sop_checkpoints`) blocking malicious payment override prompts.
 
-### 6. 🦀 ZeroClaw v0.8.3 Real Gateway Protocol & Agent Runtime (SuperteamBR Bounty)
-- **Real ZeroClaw v0.8.3 Gateway Bridge (`http://127.0.0.1:4242`)**: Direct HTTP & Webhook bridge connecting Fastify API (`/v1/zeroclaw/*`) to the local ZeroClaw v0.8.3 daemon.
-- **One-Time Pairing Code Flow (`POST /v1/zeroclaw/pair`)**: Supports `X-Pairing-Code` header pairing (e.g. `137170`) directly via ZeroClaw Terminal UI, storing active bearer tokens (`zc_a6f6...`) in browser `localStorage`.
+### 6. 🦀 ZeroClaw v0.8.3 Real Gateway Protocol & Standalone Bridge Client (@zega/zeroclaw-bridge)
+- **Standalone Production Bridge Package (`@zega/zeroclaw-bridge`)**: Standalone TypeScript package (`packages/zeroclaw-bridge/`) implementing `ZeroClawGatewayClient` with `AbortController` (1500ms timeout), exponential backoff, and zero-crash fallback to Autonomous Mode.
+- **Strict SemVer Version Compatibility Matrix (`src/version.ts`)**: Automatic runtime compatibility validation enforcing version range `>=0.8.0 <0.9.0-alpha` (target version `v0.8.3`).
+- **One-Time Pairing Code Flow (`POST /v1/zeroclaw/pair`)**: Supports `X-Pairing-Code` header pairing (e.g. `137170`) directly via ZeroClaw Terminal UI, storing active Bearer tokens (`zc_a6f6...`) in browser `localStorage`.
 - **Daemon Health Check (`GET /health`)**: Automatic 1.2s timeout ping checking daemon PID and component health without blocking backend startup or causing crashes.
 - **Webhook Prompt Forwarding (`POST /webhook`)**: Prompts executed in ZeroClaw Terminal are forwarded to `http://127.0.0.1:4242/webhook` (`{"message": prompt}`).
 - **Multi-LLM Tiered Provider Engine**: Supports **ZeroClaw Gateway v0.8.3**, **Groq (`llama-3.3-70b-versatile`)**, **Google Gemini (`gemini-1.5-flash`)**, **OpenRouter**, **HuggingFace**, **Jatevo AI**, and **9Router Swarm** with automatic failover chain.
 - **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile & browser wallets (Phantom, Solflare, Privy) sign transactions client-side.
-- **Authenticated Dashboard Isolation**: Authenticated UMKM, Enterprise, and SuperAdmin sessions purge all guest banners and fallbacks (`Guest Store`, `Guest Enterprise (Demo)`). Close `X` header buttons are hidden to enforce formal **Sign Out** flow.
-- **Valid Solana Pay Spec & High-Res QR Code**: Generates fully compliant Base58 Solana Pay URIs (`solana:<activeMerchantWallet>?amount=15.00&spl-token=4zMMC9...`) and scannable high-resolution QR codes (`api.qrserver.com`).
-- **Real-Time Solana Devnet RPC & ATA Dual-Query Engine**: Automatic Solana Devnet RPC signature listener (`/v1/zeroclaw/solana-rpc`) querying both main SOL addresses and **USDC Associated Token Accounts (ATA)** (`getTokenAccountsByOwner`) with instant cashier success pop-up modal (`paymentSuccessModal`) and OWASP anti-replay protection.
-- **Detailed Specification**: Complete architecture documented in [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md), [`docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md`](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md), and User Guides [`docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md`](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md) / [`docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md`](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md).
+- **Cryptographic Solana Pay Reference Key Tracking**: Every generated Solana Pay URI automatically attaches a unique reference key (`&reference=RefXXXXXXX`) to ensure 1-to-1 on-chain transaction tracking.
+- **Real-Time Solana Devnet RPC Signature Polling**: Continuous Solana Devnet RPC listener (`/v1/zeroclaw/solana-rpc`) querying `getSignaturesForAddress` for both reference keys and merchant wallet addresses, automatically syncing real confirmed on-chain transaction signatures directly into the UI.
+- **Robust Precision Amount Extraction Engine**: Advanced prompt parser stripping table/meja identifiers before amount matching to prevent quantity multiplication bugs (e.g. `0.543` USDC parsed accurately without multiplying by table numbers).
+- **Automated Smoke Test Suite**: Standalone smoke test path (`pnpm --filter @zega/zeroclaw-bridge test:smoke`) passing 18/18 assertions.
+- **Detailed Specification**: Complete architecture documented in [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md), [`docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md`](docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md), [`docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md`](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md), and User Guides [`docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md`](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md) / [`docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md`](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md).
 
 ### 7. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Audit Certificates
 - **Cloudflare R2 CDN Cryptographic Audit Certificates (`R2StorageService`)**:
