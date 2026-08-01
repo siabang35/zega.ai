@@ -159,4 +159,6 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | SuperAdmin Realtime SQL Migration Suite | `supabase/migrations/sql_superadmin/` & `20260731000200_master_superadmin_realtime_schema.sql` | Executed & Root Security Guard |
 | Cloudflare R2 CDN Asset Resolver | `apps/web/src/app/utils/cdn.ts` & `https://cdn.zegaai.site` | Verified & 100% Brand Mapped |
 | Multi-Tenant Realtime & CDN PRD Spec | `docs/PRD/21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md` | Documented & Verified |
+| ZeroClaw Multi-LLM Agent Spec | `docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md` | Documented & Verified |
+| ZeroClaw Terminal Redesign & Real Finance Spec | `docs/PRD/25-ZEROCLAW-TERMINAL-REDESIGN-AND-REAL-FINANCE-RECONCILIATION-SPEC.md` | Documented & Verified |
 
