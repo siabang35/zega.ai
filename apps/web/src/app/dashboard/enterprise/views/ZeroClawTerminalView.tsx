@@ -1875,12 +1875,8 @@ export function ZeroClawTerminalView({
                                         } catch (e) { }
 
                                         if (!activeSig) {
-                                          const userTxHash = window.prompt('⚠️ Wallet merchant belum memiliki transaksi otomatis di RPC. Silakan masukkan Tx Signature Hash Solana Devnet (cth: 4tCQDMjdPA2j...):');
-                                          if (!userTxHash || userTxHash.trim().length < 20) {
-                                            onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Rekonsiliasi membutuhkan Tx Signature Hash valid.');
-                                            return;
-                                          }
-                                          activeSig = userTxHash.trim();
+                                          onTriggerToast('⏳ Belum ada transaksi baru terkonfirmasi di Devnet RPC. Silakan transfer SOL/USDC ke wallet merchant.');
+                                          return;
                                         }
 
                                         // Record Real On-Chain Settlement to Supabase DB & Cloudflare R2 CDN
@@ -2018,12 +2014,22 @@ export function ZeroClawTerminalView({
                                         const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                                         const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
                                         const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
-                                        const userTxHash = window.prompt('Masukkan Tx Signature Hash Solana Devnet untuk pembayaran partial (cth: 4tCQDMjdPA2j...):');
-                                        if (!userTxHash || userTxHash.trim().length < 20) {
-                                          onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Tx Hash valid dibutuhkan.');
+
+                                        let activeSig = '';
+                                        try {
+                                          const rpcRes = await fetch(`/v1/zeroclaw/solana-rpc?address=${activeMerchantWallet}`);
+                                          if (rpcRes.ok) {
+                                            const rpcJson = await rpcRes.json();
+                                            if (rpcJson.signatures && Array.isArray(rpcJson.signatures) && rpcJson.signatures.length > 0) {
+                                              activeSig = rpcJson.signatures[0].signature;
+                                            }
+                                          }
+                                        } catch (e) { }
+
+                                        if (!activeSig) {
+                                          onTriggerToast('⏳ Belum ada transaksi partial terdeteksi di Devnet RPC.');
                                           return;
                                         }
-                                        const activeSig = userTxHash.trim();
 
                                         // Record Real On-Chain Partial Settlement to Supabase DB & Cloudflare R2 CDN
                                         await fetch('/v1/zeroclaw/settlement/record', {
@@ -2070,12 +2076,22 @@ export function ZeroClawTerminalView({
                                         const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                                         const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
                                         const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
-                                        const userOverpayHash = window.prompt('Masukkan Tx Signature Hash Solana Devnet untuk overpaid (cth: 4tCQDMjdPA2j...):');
-                                        if (!userOverpayHash || userOverpayHash.trim().length < 20) {
-                                          onTriggerToast('⚠️ Rekonsiliasi dibatalkan. Tx Hash valid dibutuhkan.');
+
+                                        let activeSig = '';
+                                        try {
+                                          const rpcRes = await fetch(`/v1/zeroclaw/solana-rpc?address=${activeMerchantWallet}`);
+                                          if (rpcRes.ok) {
+                                            const rpcJson = await rpcRes.json();
+                                            if (rpcJson.signatures && Array.isArray(rpcJson.signatures) && rpcJson.signatures.length > 0) {
+                                              activeSig = rpcJson.signatures[0].signature;
+                                            }
+                                          }
+                                        } catch (e) { }
+
+                                        if (!activeSig) {
+                                          onTriggerToast('⏳ Belum ada transaksi overpaid terdeteksi di Devnet RPC.');
                                           return;
                                         }
-                                        const activeSig = userOverpayHash.trim();
 
                                         // Record Real On-Chain Settlement Refund to Supabase DB & Cloudflare R2 CDN
                                         await fetch('/v1/zeroclaw/settlement/record', {
@@ -2088,7 +2104,7 @@ export function ZeroClawTerminalView({
                                             referenceKey: refKey,
                                             txSignature: activeSig,
                                             network: 'solana-devnet',
-                                            memo: (invoiceMessage || 'Solana Pay Overpay Refund') + ' (Overpay)',
+                                            memo: (invoiceMessage || 'Solana Pay Overpaid Settlement') + ' (OVERPAID)',
                                             isDemo: isGuestSession
                                           })
                                         }).catch(() => { });
