@@ -1102,14 +1102,14 @@ function AuthModal({
             <form onSubmit={handleSendOtp} className="space-y-3.5">
               {audienceSegment === "individual" ? (
                 <>
-                  {/* Social OAuth Buttons */}
+                  {/* Social OAuth Buttons — Modern Corporate Design System */}
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin('google')}
-                      className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs cursor-pointer"
+                      className="flex h-10.5 items-center justify-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 py-2 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 transition-all hover:bg-slate-50/90 dark:hover:bg-slate-700/70 hover:border-slate-300 dark:hover:border-slate-600 shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer"
                     >
-                      <svg className="size-4" viewBox="0 0 24 24">
+                      <svg className="size-4 flex-shrink-0" viewBox="0 0 24 24">
                         <path
                           fill="#4285F4"
                           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -1127,17 +1127,17 @@ function AuthModal({
                           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                         />
                       </svg>
-                      <span>Google</span>
+                      <span>Continue with Google</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleOAuthLogin('github')}
-                      className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs cursor-pointer"
+                      className="flex h-10.5 items-center justify-center gap-2.5 rounded-xl border border-slate-800 dark:border-slate-700 bg-slate-900 dark:bg-slate-800 py-2 px-3 text-xs font-semibold text-white dark:text-slate-100 transition-all hover:bg-slate-800 dark:hover:bg-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer"
                     >
-                      <svg className="size-4 fill-current" viewBox="0 0 24 24">
+                      <svg className="size-4 fill-current flex-shrink-0" viewBox="0 0 24 24">
                         <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
                       </svg>
-                      <span>GitHub</span>
+                      <span>Continue with GitHub</span>
                     </button>
                   </div>
 
@@ -2014,65 +2014,86 @@ function AppContent() {
     const profile = oauthCallbackState.profile;
     return (
       <div className={dark ? 'dark' : ''}>
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-lg p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 text-center space-y-3">
-              <div className="size-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt="" className="size-16 rounded-full object-cover" />
-                ) : (
-                  <UserRoundPlus size={28} className="text-white" />
-                )}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xl overflow-hidden transition-all">
+            
+            {/* Top Brand Banner */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">ZEGA AI Security SSO</span>
               </div>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="uppercase">{profile.provider} Connected</span>
+              </div>
+            </div>
+
+            {/* Profile Avatar Card */}
+            <div className="px-6 pt-5 pb-3 text-center space-y-2">
+              <div className="relative inline-block">
+                <div className="size-16 rounded-full ring-2 ring-emerald-500/30 dark:ring-emerald-400/30 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 mx-auto overflow-hidden shadow-sm">
+                  {profile.avatarUrl ? (
+                    <img src={profile.avatarUrl} alt={profile.fullName || 'User'} className="size-full object-cover" />
+                  ) : (
+                    <div className="size-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xl">
+                      {(profile.email || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="absolute bottom-0 right-0 bg-emerald-500 text-white rounded-full p-1 shadow-xs border-2 border-white dark:border-slate-900">
+                  <Check size={10} strokeWidth={3} />
+                </div>
+              </div>
+
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Lengkapi Profil Anda</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Berhasil masuk via <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase">{profile.provider}</span> sebagai <span className="font-semibold">{profile.email}</span>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Setup Account Profile</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                  {profile.email}
                 </p>
               </div>
             </div>
 
-            {/* Form */}
-            <div className="p-6 space-y-4">
+            {/* Form Fields */}
+            <div className="px-6 pb-6 space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nama Lengkap <span className="text-rose-500">*</span></label>
-                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2.5 text-sm focus-within:border-emerald-500 dark:focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-                  <UserRoundPlus size={16} className="text-slate-400 mr-2.5 flex-shrink-0" />
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Full Name <span className="text-rose-500">*</span></label>
+                <div className="mt-1 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 px-3.5 py-2.5 text-xs focus-within:border-slate-900 dark:focus-within:border-slate-100 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-slate-900/10 dark:focus-within:ring-slate-100/10 transition-all">
+                  <UserRoundPlus size={15} className="text-slate-400 mr-2.5 flex-shrink-0" />
                   <input
                     type="text"
                     required
                     value={oauthDisplayName}
                     onChange={(e) => setOauthDisplayName(e.target.value)}
-                    placeholder="Contoh: Danz Assyidq"
-                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                    placeholder="e.g. Danz Assyidq"
+                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-medium focus:outline-none"
                     autoFocus
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nama Toko / Bisnis</label>
-                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2.5 text-sm focus-within:border-emerald-500 dark:focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-                  <Building2 size={16} className="text-slate-400 mr-2.5 flex-shrink-0" />
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Store / Business Name <span className="text-slate-400 font-normal text-[10px] lowercase">(optional)</span></label>
+                <div className="mt-1 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 px-3.5 py-2.5 text-xs focus-within:border-slate-900 dark:focus-within:border-slate-100 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-slate-900/10 dark:focus-within:ring-slate-100/10 transition-all">
+                  <Building2 size={15} className="text-slate-400 mr-2.5 flex-shrink-0" />
                   <input
                     type="text"
                     value={oauthStoreName}
                     onChange={(e) => setOauthStoreName(e.target.value)}
-                    placeholder="Contoh: Warung Kopi Nusantara"
-                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                    placeholder="e.g. Warung Kopi Nusantara"
+                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-medium focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tipe Akun</label>
-                <div className="mt-1.5 flex rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 p-1">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Account Segment</label>
+                <div className="mt-1 flex rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 p-1">
                   <button
                     type="button"
                     onClick={() => setOauthRole('individual')}
-                    className={`flex-1 rounded-lg py-2.5 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'individual'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 font-bold'
+                    className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'individual'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700 font-bold'
                       : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
@@ -2081,12 +2102,12 @@ function AppContent() {
                   <button
                     type="button"
                     onClick={() => setOauthRole('enterprise')}
-                    className={`flex-1 rounded-lg py-2.5 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'enterprise'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 font-bold'
+                    className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'enterprise'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700 font-bold'
                       : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
-                    Enterprise
+                    Enterprise Scale
                   </button>
                 </div>
               </div>
@@ -2095,19 +2116,19 @@ function AppContent() {
                 type="button"
                 onClick={handleOAuthProfileSubmit}
                 disabled={!oauthDisplayName.trim()}
-                className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-bold transition-all shadow-lg shadow-emerald-500/25 active:scale-[0.99] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-2"
+                className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white text-xs font-bold transition-all shadow-sm active:scale-[0.99] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-2"
               >
-                <Check size={16} />
-                <span>Mulai Gunakan ZEGA AI</span>
+                <span>Launch ZEGA AI Dashboard</span>
+                <ArrowRight size={15} />
               </button>
+
+              <div className="pt-2 text-center">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                  🔒 Zero-Trust Keyless Wallet Partitioning active on Privy Solana Network
+                </p>
+              </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 pb-5 text-center">
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Data Anda dilindungi dengan enkripsi end-to-end dan tidak akan dibagikan ke pihak ketiga.
-              </p>
-            </div>
           </div>
         </div>
       </div>
