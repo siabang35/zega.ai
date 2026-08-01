@@ -452,9 +452,36 @@ PRIVY_APP_SECRET=sec_privy_app_secret_placeholder`}
                 </div>
               </section>
 
+              {/* Public ZeroClaw Gateway v0.8.3 Quick Integration Developer Guide */}
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>🚀 Public Developer Setup: How to Run ZeroClaw Daemon</span>
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Follow these step-by-step instructions to install, pair, and connect your own ZeroClaw v0.8.3 daemon to the ZEGA AI ecosystem or any custom Web3 application:
+                </p>
+
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto space-y-2">
+                  <div className="text-slate-400 font-bold"># Step 1: Install ZeroClaw CLI Toolchain</div>
+                  <pre>{`curl -fsSL https://zeroclawlabs.ai/install.sh | bash`}</pre>
+
+                  <div className="text-slate-400 font-bold pt-2"># Step 2: Start ZeroClaw Gateway Daemon on Port 4242</div>
+                  <pre>{`zeroclaw gateway --port 4242 --network solana-devnet`}</pre>
+
+                  <div className="text-slate-400 font-bold pt-2"># Step 3: Verify Native Health Ping Response</div>
+                  <pre>{`curl -s http://127.0.0.1:4242/health`}</pre>
+
+                  <div className="text-slate-400 font-bold pt-2"># Step 4: Execute Authenticated Webhook Prompt</div>
+                  <pre>{`curl -s -X POST http://127.0.0.1:4242/webhook \\
+  -H "Authorization: Bearer <YOUR_SESSION_TOKEN>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message": "Generate 15 USDC Solana Pay QR for Cafe Latte"}'`}</pre>
+                </div>
+              </section>
+
               {/* cURL Interactive Testing Example Box */}
               <section className="space-y-3">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Live Gateway Verification cURL Snippet</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Live ZEGA Gateway Bridge Verification cURL Snippet</h3>
                 <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
                   <pre>
 {`# 1. Test ZeroClaw Daemon v0.8.3 Health Check
@@ -473,8 +500,8 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
 
               <section className="space-y-3">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">ZeroClaw REST API Endpoint Reference</h3>
-                <div className="rounded-xl border border-border/80 overflow-hidden font-mono text-[11px]">
-                  <table className="w-full text-left">
+                <div className="rounded-xl border border-border/80 overflow-x-auto font-mono text-[11px]">
+                  <table className="w-full min-w-[550px] text-left">
                     <thead className="bg-muted/50 border-b border-border/60 text-muted-foreground font-bold">
                       <tr>
                         <th className="p-3">Endpoint</th>

@@ -1004,8 +1004,8 @@ export function ZeroClawTerminalView({
         </div>
       </div>
 
-      {/* SUB-NAVIGATION TABS BAR */}
-      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800/80 pb-2.5 overflow-x-auto text-xs font-semibold scrollbar-none">
+      {/* SUB-NAVIGATION TABS BAR - Mobile TouchPan & Smooth Scroll Optimized */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800/80 pb-2.5 overflow-x-auto text-xs font-semibold [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden touch-pan-x">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
           { id: 'invoices', label: 'Invoice Generator', icon: QrCode },
@@ -2926,7 +2926,7 @@ checkpoint = "human_approval_on_refund"`}
       {/* ZERO CLAW GATEWAY PAIRING CODE MODAL */}
       {showPairModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md p-6 bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl text-slate-100 space-y-4">
+          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl text-slate-100 space-y-4">
             <button
               onClick={() => setShowPairModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
