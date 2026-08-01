@@ -597,7 +597,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             amount: parseFloat(r.amount_usdc).toFixed(2),
             memo: r.memo || 'Solana Pay Invoice',
             solanaPayUrl: r.solana_pay_url || `solana:${r.merchant_pubkey}?amount=${r.amount_usdc}&reference=${r.reference_key}`,
-            createdAt: new Date(r.created_at).toLocaleTimeString(),
+            createdAt: new Date(r.created_at || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             merchantWallet: r.merchant_pubkey,
             referenceKey: r.reference_key,
             status: r.status || 'active',
