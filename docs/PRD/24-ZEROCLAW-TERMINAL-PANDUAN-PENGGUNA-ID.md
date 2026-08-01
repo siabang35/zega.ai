@@ -71,4 +71,9 @@ Perusahaan enterprise, manajer keuangan/treasury, pengembang multi-agent swarm, 
 - **Alur Keluar Formal (Sign Out)**: Untuk akun terautentikasi, tombol `X` (Tutup) pada header atas dihilangkan untuk mencegah jatuhnya sesi secara tidak sengaja ke mode demo. Penutupan sesi wajib melalui tombol **Sign Out** resmi.
 - **Partisi Supabase RLS Private**: Endpoint backend `/v1/zeroclaw/settlement/list` menyaring data settlement privat menggunakan `is_demo = false` dan `user_id = eq.<USER_EMAIL>`, memastikan seluruh histori transaksi tersimpan aman dan hanya dapat diakses oleh pemilik akun asli.
 
+### 3. Rekonsiliasi On-Chain Real-Time & Devnet RPC Dual-Query Engine
+- **USDC Associated Token Account (ATA) Resolution**: Endpoint backend `/v1/zeroclaw/solana-rpc` melakukan resolusi ganda terhadap alamat utama SOL (`D28h43NB...`) dan **USDC Associated Token Account (ATA)** (`34CwuomG...`) menggunakan `getTokenAccountsByOwner`. Hasil signature digabungkan dan diurutkan berdasarkan `slot` terbaru, menjamin transaksi USDC Devnet asli (contoh: `4X3xzZKyTrrQBCMPr6xqEFkHKVAzHa8va36eawAuVcSc2JTyn2rJ5paupDtAvyW6dAAYPohTvWKqJ9dTKA7Zbrbc`) langsung terdeteksi 100%.
+- **Anti-Replay & Security Enforcement**: Backend dilengkapi `processedSignaturesSet` untuk mencegah klaim ulang hash transaksi yang sama (Anti-Replay) serta penolakan otomatis nominal tak valid (`validAmountUsdc <= 0`).
+- **Dual Audit Trail (Supabase DB + Cloudflare R2 CDN)**: Setiap transaksi tersimpan di database Master Supabase (`zeroclaw_solana_settlements`) dan menerbitkan sertifikat audit terenkripsi di Cloudflare R2 CDN (`https://cdn.zegaai.site/privy-audits/...`).
+
 

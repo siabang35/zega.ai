@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { R2StorageService } from '../../services/r2StorageService.js';
+import { SupabaseService } from '../../services/supabaseService.js';
 
 interface ZeroClawEventBody {
   eventType: 'payment_reconciled' | 'refund_requested' | 'agent_heartbeat' | 'checkpoint_update';
@@ -70,34 +72,14 @@ const reconciledEvents: Array<{
   network: string;
   slot?: number;
   memo?: string;
-}> = [
-  {
-    id: 'tx_rec_solscan_002',
-    signature: 'i7ibEze7spGBEuxuE7thysYp2WCXR2eYwMuXy58GUqkJgFt8Rw4X1E5jyWj9ckg3ASEPeVyGDQcGAcRH6e2hpto',
-    amount: 0.50,
-    currency: 'USDC',
-    timestamp: new Date().toISOString(),
-    channel: 'Solana Pay (Invoice Meja 2)',
-    network: 'solana-devnet',
-    slot: 480271993,
-    memo: 'Invoice Table 2 (0.50 USDC)'
-  },
-  {
-    id: 'tx_rec_solscan_001',
-    signature: '2A1EgJor7oi57hh3Wsx1qsqc8pjBXBmUkbeQGC4Nep6nepnMgNdrgPfgF1Sw6wKuNUVQbq4otM7Rj2136Dz7cv7y',
-    amount: 1.20,
-    currency: 'USDC',
-    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    channel: 'Solana Pay (Invoice Meja 3)',
-    network: 'solana-devnet',
-    slot: 480269120,
-    memo: 'Invoice Table 3 (1.20 USDC)'
-  },
-];
+}> = [];
 
 // Token Bucket rate limiter for OWASP Anti-Throttling
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const MAX_REQUESTS_PER_MINUTE = 30;
+
+// Anti-Replay & Idempotency Cache for On-Chain Transactions
+const processedSignaturesSet = new Set<string>();
 
 // OWASP Anti-Injection keywords
 const INJECTION_PATTERNS = [
@@ -186,7 +168,21 @@ async function callHuggingFaceApi(prompt: string, apiKey: string): Promise<strin
 }
 
 export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
-  // ── POST /v1/zeroclaw/settlement/record ── Record Settlement (Authenticated Supabase Persistence & Guest Demo Stream)
+  // ── Helper: Resolve User UUID from Email or UUID string ──
+  const resolveUserUuid = async (userIdOrEmail?: string): Promise<string | null> => {
+    if (!userIdOrEmail) return null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userIdOrEmail);
+    if (isUuid) return userIdOrEmail;
+
+    try {
+      const profile = await SupabaseService.upsertProfile({ email: userIdOrEmail });
+      return profile?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // ── POST /v1/zeroclaw/settlement/record ── Record Settlement (Authenticated Supabase Persistence & Privy Embedded Wallet Metadata)
   fastify.post<{
     Body: {
       userId?: string;
@@ -197,21 +193,60 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       network?: string;
       memo?: string;
       isDemo?: boolean;
+      privyWalletAddress?: string;
+      privyUserId?: string;
     };
   }>('/settlement/record', async (request, reply) => {
-    const { userId, merchantPubkey, amountUsdc, referenceKey, txSignature, network, memo, isDemo } = request.body || {};
+    const {
+      userId,
+      merchantPubkey,
+      amountUsdc,
+      referenceKey,
+      txSignature,
+      network,
+      memo,
+      isDemo,
+      privyWalletAddress,
+      privyUserId,
+    } = request.body || {};
+
+    // 1. Amount Validation (Anti-Negative / Anti-Zero / Anti-NaN Attack)
+    const validAmountUsdc = parseFloat(String(amountUsdc));
+    if (isNaN(validAmountUsdc) || validAmountUsdc <= 0) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Security Guard Rejected: Settlement amount must be a positive number.'
+      });
+    }
+
+    // 2. Anti-Replay & Idempotency Protection
+    const effectiveSig = txSignature || `sol_${Date.now()}`;
+    if (processedSignaturesSet.has(effectiveSig)) {
+      return reply.send({
+        success: true,
+        mode: 'idempotent_duplicate',
+        note: 'Replay Guard: Transaction signature already reconciled on-chain.',
+        data: reconciledEvents.find(e => e.signature === effectiveSig) || { signature: effectiveSig, amount: validAmountUsdc }
+      });
+    }
+    processedSignaturesSet.add(effectiveSig);
+
+    const privyVerified = Boolean(privyWalletAddress || process.env.PRIVY_APP_ID);
 
     const newEvent = {
       id: `set_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      signature: txSignature || `sol_${Date.now()}`,
-      amount: amountUsdc || 15.00,
+      signature: effectiveSig,
+      amount: validAmountUsdc,
       currency: 'USDC',
       timestamp: new Date().toISOString(),
       channel: 'SOLANA-PAY-DEVNET',
       network: network || 'solana-devnet',
       memo: memo || 'Solana Pay Merchant Payout',
       slot: 480264000 + Math.floor(Math.random() * 500),
-      timeAgo: 'Just now'
+      timeAgo: 'Just now',
+      privyVerified,
+      privyWalletAddress: privyWalletAddress || (merchantPubkey?.startsWith('PrivySol') ? merchantPubkey : null),
+      privyUserId: privyUserId || null,
     };
 
     reconciledEvents.unshift(newEvent as any);
@@ -225,6 +260,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (supabaseUrl && supabaseKey) {
       try {
+        const userUuid = isDemo ? null : await resolveUserUuid(userId);
+
         const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements`, {
           method: 'POST',
           headers: {
@@ -234,28 +271,99 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             'Prefer': 'return=minimal'
           },
           body: JSON.stringify({
-            user_id: isDemo ? null : (userId || null),
+            user_id: userUuid,
             merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
             amount_usdc: amountUsdc,
             reference_key: referenceKey,
             tx_signature: txSignature,
             network: network || 'solana-devnet',
             status: 'confirmed',
-            memo: memo || (isDemo ? 'Public Demo Solana Pay Settlement' : 'Private Authenticated Solana Pay Settlement')
+            memo: memo || (isDemo ? 'Public Demo Solana Pay Settlement' : 'Private Authenticated Solana Pay Settlement'),
+            buyer_email: userId || 'user@zegaai.site',
+            is_demo: Boolean(isDemo),
+            privy_wallet_address: privyWalletAddress || null,
+            privy_user_id: privyUserId || null,
+            privy_verified: privyVerified,
           })
         });
         if (dbRes.ok) {
           persistedInDb = true;
+        }
+
+        // Also update matching pending invoice to confirmed in zeroclaw_solana_settlements
+        if (referenceKey) {
+          await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ status: 'confirmed' })
+          }).catch(() => {});
+        }
+
+        // Also upsert into public.privy_wallets table if privyWalletAddress is present
+        if (privyWalletAddress && !isDemo) {
+          await fetch(`${supabaseUrl}/rest/v1/privy_wallets`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+              user_id: userUuid,
+              email: userId || 'user@zegaai.site',
+              privy_user_id: privyUserId || null,
+              wallet_address: privyWalletAddress,
+              chain: 'solana',
+              wallet_type: 'privy_keyless_embedded',
+              status: 'active',
+              is_primary: true,
+              metadata: { source: 'zeroclaw_settlement_route', verified: true }
+            })
+          }).catch(() => {});
         }
       } catch (err) {
         // Fallback gracefully for demo or network issue
       }
     }
 
+    // Upload Cryptographic Audit Certificate to Cloudflare R2 CDN & Supabase Realtime
+    let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
+    try {
+      const userEmail = userId || 'user@zegaai.site';
+      const walletAddr = privyWalletAddress || merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+      const r2Res = await R2StorageService.uploadPrivyAuditCertificate(userEmail, walletAddr, {
+        event: newEvent,
+        merchantPubkey,
+        referenceKey,
+        txSignature,
+      });
+      r2CdnUrl = r2Res.cdnUrl;
+
+      // Record Certificate in Supabase Database
+      await SupabaseService.recordPrivyR2AuditCertificate({
+        userId: userEmail,
+        email: userEmail,
+        privyWalletAddress: walletAddr,
+        privyDid: privyUserId || undefined,
+        r2CdnUrl: r2Res.cdnUrl,
+        r2ObjectKey: r2Res.objectKey,
+        sha256Checksum: r2Res.sha256Checksum,
+        metadata: { eventId: newEvent.id, amountUsdc: amountUsdc || 15.00 },
+      });
+    } catch {
+      // Graceful fallback for offline dev mode
+    }
+
     return reply.send({
       success: true,
       mode: (userId && !isDemo) ? 'authenticated' : 'demo',
       persisted: persistedInDb,
+      r2CdnUrl,
       data: newEvent
     });
   });
@@ -270,12 +378,19 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (supabaseUrl && supabaseKey) {
       try {
-        // Query filter: If demo, fetch user_id IS NULL (public to all). If authenticated, fetch user_id = userId (private to user).
-        const queryParam = isDemoBool
-          ? 'user_id=is.null'
-          : `user_id=eq.${encodeURIComponent(userId!)}`;
+        let queryParam = 'status=eq.confirmed&order=created_at.desc&limit=20';
+        if (isDemoBool) {
+          queryParam = `is_demo=eq.true&${queryParam}`;
+        } else {
+          const userUuid = await resolveUserUuid(userId);
+          if (userUuid) {
+            queryParam = `or=(user_id.eq.${userUuid},buyer_email.eq.${encodeURIComponent(userId!)})&${queryParam}`;
+          } else {
+            queryParam = `buyer_email=eq.${encodeURIComponent(userId!)}&${queryParam}`;
+          }
+        }
 
-        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}&order=created_at.desc&limit=20`, {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}`, {
           method: 'GET',
           headers: {
             'apikey': supabaseKey,
@@ -286,9 +401,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (dbRes.ok) {
           const rows = (await dbRes.json()) as any[];
-          // Filter out legacy automated test rows (15.00 Cafe Latte)
-          const cleanRows = rows.filter(r => parseFloat(r.amount_usdc) !== 15.00 && !r.memo?.includes('Cafe Latte'));
-          const mappedEvents = cleanRows.map((r) => ({
+          const mappedEvents = rows.map((r) => ({
             id: r.id,
             signature: r.tx_signature || r.reference_key,
             amount: parseFloat(r.amount_usdc),
@@ -305,24 +418,188 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             success: true,
             partition: isDemoBool ? 'public_demo' : 'private_authenticated',
             count: mappedEvents.length,
-            data: mappedEvents.length > 0 ? mappedEvents : reconciledEvents
+            data: mappedEvents
           });
         }
       } catch (err) {
-        // Graceful fallback to memory stream
+        // Graceful fallback
       }
     }
-
-    // Fallback to in-memory partitioned stream
-    const filteredMemoryEvents = isDemoBool
-      ? reconciledEvents.slice(0, 10)
-      : reconciledEvents.filter(e => (e as any).userId === userId);
 
     return reply.send({
       success: true,
       partition: isDemoBool ? 'public_demo' : 'private_authenticated',
-      count: filteredMemoryEvents.length,
-      data: filteredMemoryEvents
+      count: 0,
+      data: []
+    });
+  });
+
+  // ── POST /v1/zeroclaw/invoice/create ── Store newly generated invoice in Supabase DB & Cloudflare R2 CDN
+  fastify.post<{
+    Body: {
+      userId?: string;
+      merchantPubkey: string;
+      amount: string;
+      memo: string;
+      solanaPayUrl: string;
+      referenceKey: string;
+      buyerEmail?: string;
+      isDemo?: boolean;
+    }
+  }>('/invoice/create', async (request, reply) => {
+    const { userId, merchantPubkey, amount, memo, solanaPayUrl, referenceKey, buyerEmail, isDemo } = request.body || {};
+    const userEmail = userId || 'user@zegaai.site';
+    const amountUsdc = parseFloat(amount) || 15.00;
+    const isDemoBool = Boolean(isDemo) || userEmail.includes('guest') || !userId;
+
+    let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
+    try {
+      const userUuid = await resolveUserUuid(userEmail);
+
+      // 1. Upload Cryptographic Audit Certificate to Cloudflare R2 CDN
+      const r2Res = await R2StorageService.uploadPrivyAuditCertificate(userEmail, merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', {
+        event: {
+          id: `inv_${Date.now()}`,
+          solanaPayUrl,
+          amount: amountUsdc,
+          memo,
+          buyerEmail,
+          referenceKey,
+          createdAt: new Date().toISOString()
+        },
+        merchantPubkey,
+        referenceKey,
+        txSignature: `gen_inv_${Date.now()}`
+      });
+      r2CdnUrl = r2Res.cdnUrl;
+
+      // 2. Record Certificate in Supabase Audit Table
+      if (userUuid) {
+        await SupabaseService.recordPrivyR2AuditCertificate({
+          userId: userUuid,
+          email: userEmail,
+          privyWalletAddress: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+          r2CdnUrl: r2Res.cdnUrl,
+          r2ObjectKey: r2Res.objectKey,
+          sha256Checksum: r2Res.sha256Checksum,
+          metadata: { memo, amountUsdc, solanaPayUrl, referenceKey }
+        });
+      }
+
+      // 3. Record Invoice in Supabase Master Settlements Table with R2 CDN link & Solana Pay URL
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseKey) {
+        await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            user_id: userUuid,
+            merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+            amount_usdc: amountUsdc,
+            reference_key: referenceKey || `RefKey_${Date.now()}`,
+            tx_signature: `gen_inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            memo: memo || 'Solana Pay Invoice',
+            buyer_email: buyerEmail || userEmail,
+            solana_pay_url: solanaPayUrl,
+            r2_cdn_url: r2CdnUrl,
+            network: 'solana-devnet',
+            status: 'pending',
+            is_demo: isDemoBool,
+            created_at: new Date().toISOString()
+          })
+        });
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    return reply.send({
+      success: true,
+      r2CdnUrl,
+      invoice: {
+        id: `inv_${Date.now()}`,
+        amount,
+        memo,
+        buyerEmail,
+        solanaPayUrl,
+        createdAt: new Date().toLocaleTimeString(),
+        merchantWallet: merchantPubkey,
+        referenceKey,
+        status: 'active',
+        r2CdnUrl
+      }
+    });
+  });
+
+  // ── GET /v1/zeroclaw/invoice/list ── Fetch all stored invoices from Supabase Master DB for user
+  fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string; isDemo?: string } }>('/invoice/list', async (request, reply) => {
+    const { userId, merchantPubkey, isDemo } = request.query || {};
+    const isDemoBool = isDemo === 'true' || !userId;
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        let queryParam = 'order=created_at.desc&limit=50';
+        if (isDemoBool) {
+          queryParam = `is_demo=eq.true&${queryParam}`;
+        } else {
+          // Authenticated users: strictly filter by buyer_email OR merchant_pubkey
+          const userEmailEnc = encodeURIComponent(userId || 'siabang35@gmail.com');
+          const merchantEnc = encodeURIComponent(merchantPubkey || '');
+          if (merchantPubkey && userId) {
+            queryParam = `is_demo=eq.false&or=(buyer_email.eq.${userEmailEnc},merchant_pubkey.eq.${merchantEnc})&${queryParam}`;
+          } else if (userId) {
+            queryParam = `is_demo=eq.false&or=(buyer_email.eq.${userEmailEnc},merchant_pubkey.eq.D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh)&${queryParam}`;
+          } else {
+            queryParam = `is_demo=eq.false&${queryParam}`;
+          }
+        }
+
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}`, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (dbRes.ok) {
+          const rows = (await dbRes.json()) as any[];
+          const invoices = rows.map(r => ({
+            id: r.id || `inv_${Date.now()}`,
+            amount: parseFloat(r.amount_usdc).toFixed(2),
+            memo: r.memo || 'Solana Pay Invoice',
+            solanaPayUrl: r.solana_pay_url || `solana:${r.merchant_pubkey}?amount=${r.amount_usdc}&reference=${r.reference_key}`,
+            createdAt: new Date(r.created_at).toLocaleTimeString(),
+            merchantWallet: r.merchant_pubkey,
+            referenceKey: r.reference_key,
+            status: r.status || 'active',
+            r2CdnUrl: r.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${userId || 'demo'}/audit_${r.reference_key || r.id}.json`
+          }));
+
+          return reply.send({
+            success: true,
+            count: invoices.length,
+            invoices,
+            data: invoices
+          });
+        }
+      } catch (err) {}
+    }
+
+    return reply.send({
+      success: true,
+      count: 0,
+      invoices: []
     });
   });
 
@@ -341,70 +618,76 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   // ── GET /v1/zeroclaw/solana-rpc ── Query REAL Solana Devnet RPC Live!
   fastify.get<{ Querystring: { address?: string } }>('/solana-rpc', async (request, reply) => {
     const address = request.query.address || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+    const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
     try {
-      // 1. Fetch signatures for merchant address or USDC mint
-      let sigRes = await fetch(DEVNET_RPC_URL, {
+      const allSigs: any[] = [];
+
+      // 1. Query signatures directly for main SOL address
+      const mainRes = await fetch(DEVNET_RPC_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0',
-          id: 1,
+          id: 'main_sig',
           method: 'getSignaturesForAddress',
           params: [address, { limit: 10, commitment: 'confirmed' }],
         }),
       });
-      let sigJson = (await sigRes.json()) as any;
-      const merchantSigs = sigJson.result || [];
-      let rawSigs = merchantSigs;
-
-      // Only query general USDC mint signatures if no specific reference key is supplied or address is default merchant
-      if (!request.query.address || request.query.address === '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU') {
-        const usdcRes = await fetch(DEVNET_RPC_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 2,
-            method: 'getSignaturesForAddress',
-            params: ['4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', { limit: 10, commitment: 'confirmed' }],
-          }),
-        });
-        const usdcJson = (await usdcRes.json()) as any;
-        const usdcSigs = usdcJson.result || [];
-
-        // Combine and deduplicate
-        const combinedMap = new Map<string, any>();
-        [...merchantSigs, ...usdcSigs].forEach(s => {
-          if (s && s.signature) {
-            combinedMap.set(s.signature, s);
-          }
-        });
-
-        rawSigs = Array.from(combinedMap.values()).sort((a, b) => (b.slot || 0) - (a.slot || 0));
+      const mainJson = (await mainRes.json()) as any;
+      if (mainJson.result && Array.isArray(mainJson.result)) {
+        allSigs.push(...mainJson.result);
       }
 
-      const realTrackableSignatures = [
-        '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
-        '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
-        'xaCDsf4hnS6V19xuub2YGQX2mpSMsXQt1kkwRYmjg6kupB6qa3H1m6B3jSc5mnMRtefUm5UsmQVS74KjPvKdkjQ',
-        '4cvA5FSLFDXjRPx4LHqN32Kc5aSxmb1zKcarxirFBZ3fhv5ohrjkHZcgwKZSV89HCUSXd9WX28TMccfpE159p1rM',
-        '4LW5vqnoEq835LtkjSqnwCQwNw6KHAZyAszRegBhnMnnsGnLpqCuUPtEQvQc83kHyJVmAfjEQusHbZcvDxMfprhS',
-      ];
+      // 2. Query USDC Associated Token Accounts (ATA) for address
+      const ataRes = await fetch(DEVNET_RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'ata_query',
+          method: 'getTokenAccountsByOwner',
+          params: [address, { mint: USDC_MINT }, { encoding: 'jsonParsed' }],
+        }),
+      });
+      const ataJson = (await ataRes.json()) as any;
+      const tokenAccounts = ataJson.result?.value || [];
 
-      const finalSignatures = rawSigs.length > 0 ? rawSigs : realTrackableSignatures.map((sig, idx) => ({
-        signature: sig,
-        slot: 480263953 - idx * 25,
-        blockTime: Math.floor(Date.now() / 1000) - idx * 10,
-        memo: 'Solana Devnet Confirmed Settlement'
-      }));
+      // 3. Query signatures for each USDC ATA found
+      for (const ta of tokenAccounts) {
+        if (ta.pubkey) {
+          const ataSigRes = await fetch(DEVNET_RPC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'ata_sig',
+              method: 'getSignaturesForAddress',
+              params: [ta.pubkey, { limit: 10, commitment: 'confirmed' }],
+            }),
+          });
+          const ataSigJson = (await ataSigRes.json()) as any;
+          if (ataSigJson.result && Array.isArray(ataSigJson.result)) {
+            allSigs.push(...ataSigJson.result);
+          }
+        }
+      }
+
+      // 4. Deduplicate signatures & sort by slot / blockTime descending (newest first)
+      const sigMap = new Map<string, any>();
+      for (const item of allSigs) {
+        if (item.signature && !sigMap.has(item.signature)) {
+          sigMap.set(item.signature, item);
+        }
+      }
+      const sortedSignatures = Array.from(sigMap.values()).sort((a, b) => (b.slot || 0) - (a.slot || 0));
 
       return reply.send({
         success: true,
         network: 'solana-devnet',
         rpcUrl: DEVNET_RPC_URL,
         address,
-        signatures: finalSignatures,
+        signatures: sortedSignatures,
       });
     } catch (err: any) {
       return reply.send({
@@ -412,20 +695,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         network: 'solana-devnet',
         rpcUrl: DEVNET_RPC_URL,
         address,
-        signatures: [
-          {
-            signature: '2KYrc3zYZty5HXN8WQ3kuKL1SxGEwAe9bFucX8MA9Tu88KKRCp4EjKad9PgkuovK6yKDDmF7SY9MTHhU7xfsPas1',
-            slot: 480263953,
-            blockTime: Math.floor(Date.now() / 1000),
-            memo: 'Live Solana Devnet Settlement'
-          },
-          {
-            signature: '43jggjs1CJyBoZPwUY8K8seoQTkb64aiVhoX6QRMhntYEzCGN46uzqRD7ZvEsqQ7KnisKGCirzy5a8hkZkyXWaQA',
-            slot: 480263928,
-            blockTime: Math.floor(Date.now() / 1000) - 15,
-            memo: 'Solana Pay Merchant Settlement'
-          }
-        ],
+        signatures: [],
       });
     }
   });

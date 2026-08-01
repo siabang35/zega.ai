@@ -283,6 +283,70 @@ class SupabaseBackendService {
       return true;
     }
   }
+
+  /**
+   * Record Privy R2 CDN Audit Certificate in Supabase
+   */
+  async recordPrivyR2AuditCertificate({
+    userId,
+    email,
+    privyWalletAddress,
+    privyDid,
+    r2CdnUrl,
+    r2ObjectKey,
+    sha256Checksum,
+    metadata = {},
+  }: {
+    userId: string;
+    email: string;
+    privyWalletAddress: string;
+    privyDid?: string;
+    r2CdnUrl: string;
+    r2ObjectKey: string;
+    sha256Checksum: string;
+    metadata?: any;
+  }) {
+    const supabase = this.getClient();
+    if (!supabase) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('record_privy_r2_audit_certificate', {
+        p_user_id: userId,
+        p_email: email,
+        p_privy_wallet_address: privyWalletAddress,
+        p_privy_did: privyDid || null,
+        p_r2_cdn_url: r2CdnUrl,
+        p_r2_object_key: r2ObjectKey,
+        p_sha256_checksum: sha256Checksum,
+        p_metadata: metadata,
+      });
+
+      if (error) {
+        logger.warn(`[SupabaseService] recordPrivyR2AuditCertificate RPC fallback: ${error.message}`);
+        const { data: directData } = await supabase
+          .from('privy_r2_audit_certificates')
+          .insert([
+            {
+              user_id: userId,
+              email,
+              privy_wallet_address: privyWalletAddress,
+              privy_did: privyDid || null,
+              r2_cdn_url: r2CdnUrl,
+              r2_object_key: r2ObjectKey,
+              sha256_checksum: sha256Checksum,
+              metadata,
+            },
+          ])
+          .select()
+          .single();
+        return directData;
+      }
+      return data;
+    } catch (err) {
+      logger.warn({ err }, '[SupabaseService] recordPrivyR2AuditCertificate exception.');
+      return null;
+    }
+  }
 }
 
 export const SupabaseService = new SupabaseBackendService();

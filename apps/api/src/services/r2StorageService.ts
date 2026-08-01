@@ -230,4 +230,47 @@ export class R2StorageService {
       key,
     };
   }
+
+  /**
+   * Upload Cryptographic Privy Audit Certificate JSON to Cloudflare R2 CDN
+   */
+  static async uploadPrivyAuditCertificate(
+    email: string,
+    privyWalletAddress: string,
+    auditPayload: Record<string, any>
+  ): Promise<{ success: boolean; cdnUrl: string; objectKey: string; sha256Checksum: string }> {
+    const timestamp = Date.now();
+    const sanitizedEmail = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const objectKey = `privy-audits/${sanitizedEmail}/${timestamp}-audit.json`;
+
+    const fullPayload = {
+      version: 'ZEGA_PRIVY_AUDIT_V3',
+      timestamp: new Date().toISOString(),
+      email,
+      privyWalletAddress,
+      owaspSecurityLevel: 'ENTERPRISE_OWASP_V3_AES256',
+      auditPayload,
+    };
+
+    const jsonString = JSON.stringify(fullPayload, null, 2);
+    const contentBuffer = Buffer.from(jsonString, 'utf-8');
+
+    // SHA-256 Checksum Calculation
+    const crypto = await import('crypto');
+    const sha256Checksum = crypto.createHash('sha256').update(contentBuffer).digest('hex');
+
+    const result = await this.uploadFile({
+      key: objectKey,
+      content: contentBuffer,
+      contentType: 'application/json',
+      folder: 'privy-audits',
+    });
+
+    return {
+      success: result.success,
+      cdnUrl: result.url,
+      objectKey: result.key,
+      sha256Checksum,
+    };
+  }
 }

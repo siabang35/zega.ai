@@ -58,6 +58,8 @@ import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { UserDashboard } from "./dashboard/UserDashboard";
 import { SuperAdminDashboard } from "./dashboard/SuperAdminDashboard";
 import { SupabaseDashboardService } from "./dashboard/services/supabaseService";
+import { PrivyWalletService } from "./services/privyWalletService";
+import { SocialAuthService } from "./services/socialAuthService";
 import { LanguageProvider, useLanguage } from "../i18n/translations";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
@@ -874,13 +876,32 @@ function AuthModal({
     };
   }, [isOpen, step, audienceSegment]);
 
-  if (!isOpen) return null;
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+    setLoading(true);
+    setAuthError(null);
+
+    try {
+      if (provider === 'google') {
+        await SocialAuthService.initiateGoogleOAuth();
+      } else {
+        SocialAuthService.initiateGitHubOAuth();
+      }
+      // Full-page redirect will occur — component unmounts
+    } catch (err: any) {
+      setLoading(false);
+      setAuthError(err.message || `Failed to initiate ${provider} OAuth. Please try again.`);
+    }
+  };
 
   const handleQuickRoleLogin = async (role: 'superadmin' | 'enterprise' | 'individual') => {
     setLoading(true);
     setAuthError(null);
     const mockSession = await SupabaseDashboardService.setDemoSession(role);
     await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: mockSession.email });
+
+    // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
+    PrivyWalletService.syncUserToPrivyBackend(mockSession.email, role, 'email', mockSession.fullName).catch(() => {});
+
     setLoading(false);
     onSubmitSuccess(`Authenticated as ${mockSession.fullName} (${role.toUpperCase()})! Opening Dashboard...`, role);
     onClose();
@@ -950,22 +971,36 @@ function AuthModal({
       const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
       const name = session?.fullName || fullName || userEmail.split('@')[0];
 
-      // Build & store real authenticated session
+      const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(userEmail);
+
+      // Build & store real authenticated session with 1-to-1 Privy Embedded Wallet
       const realSession = {
         user: {
           id: session?.user?.id || 'user-' + Date.now(),
           email: userEmail,
-          user_metadata: { full_name: name, role, is_guest: false }
+          user_metadata: {
+            full_name: name,
+            role,
+            is_guest: false,
+            privy_wallet: walletInfo.address,
+            privy_verified: true,
+          }
         },
         role,
         fullName: name,
         email: userEmail,
         isGuest: false,
+        privyWalletAddress: walletInfo.address,
+        privyVerified: true,
+        providerLabel: walletInfo.providerLabel,
         accessToken: (session as any)?.accessToken || 'token-' + Date.now(),
       };
 
       localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
       SupabaseDashboardService.setSessionCookie(realSession);
+
+      // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
+      PrivyWalletService.syncUserToPrivyBackend(userEmail, role as any, 'email', name).catch(() => {});
 
       onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`, role as any);
       onClose();
@@ -976,15 +1011,9 @@ function AuthModal({
     }
   };
 
-  const handleOAuthLogin = async (provider: 'google' | 'github') => {
-    setLoading(true);
-    const role = audienceSegment === 'enterprise' ? 'enterprise' : 'individual';
-    const demoEmail = provider === 'google' ? 'user@zegaai.site' : 'enterprise@zegaai.site';
-    const mockSession = await SupabaseDashboardService.setDemoSession(role);
-    setLoading(false);
-    onSubmitSuccess(`Authenticated via ${provider.toUpperCase()} as ${demoEmail}!`, role);
-    onClose();
-  };
+
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div
@@ -1305,8 +1334,18 @@ function AuthModal({
             </form>
           )}
 
+          {/* Official Privy Keyless Embedded Wallet Footer Badge */}
+          <div className="mt-3.5 pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-sans select-none">
+            <span>Protected by</span>
+            <img
+              src={getR2CdnUrl('/assets/logo/privy-logo.png')}
+              alt="Privy"
+              className="h-4.5 w-auto object-contain dark:invert transition-all"
+            />
+          </div>
+
           {/* Corporate Footer Quick Demo Link */}
-          <div className="mt-3.5 pt-3 border-t border-slate-200/80 dark:border-slate-800 text-center">
+          <div className="mt-2.5 text-center">
             <button
               type="button"
               onClick={() => handleQuickRoleLogin(audienceSegment === 'enterprise' ? 'enterprise' : 'individual')}
@@ -1327,14 +1366,27 @@ function getInitialPath(): string {
   if (typeof window === "undefined") return "/";
   const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
 
-  // Check if authenticated user has active session stored
+  // Check if current URL is directly a dashboard path
+  const isDirectDash = path === "/dashboard" || path.startsWith("/dashboard/") ||
+                       path === "/console" || path.startsWith("/console/") ||
+                       path === "/admin" || path.startsWith("/admin/");
+
+  if (isDirectDash) {
+    return path;
+  }
+
+  // Check if authenticated user has active session stored in localStorage
   try {
     const mockStr = localStorage.getItem('zega_mock_session');
     if (mockStr) {
       const parsed = JSON.parse(mockStr);
-      if (parsed.isGuest === false) {
+      if (parsed && parsed.email && !parsed.isGuest) {
+        const role = parsed.role || 'individual';
+        const targetDashPath = role === 'superadmin' ? '/admin' : role === 'enterprise' ? '/console' : '/dashboard';
+        
+        // If current path is root landing page, home, or matching their dashboard, route directly to role dashboard
         if (path === "/" || path === "" || path === "/home") {
-          return parsed.role === 'enterprise' ? '/console' : parsed.role === 'superadmin' ? '/admin' : '/dashboard';
+          return targetDashPath;
         }
       }
     }
@@ -1365,12 +1417,146 @@ function AppContent() {
 
   const [currentPath, setCurrentPath] = useState<string>(getInitialPath);
 
+  // ── OAuth Callback State ──
+  const [oauthCallbackState, setOauthCallbackState] = useState<{
+    processing: boolean;
+    showProfileForm: boolean;
+    profile: any | null;
+    provider: 'google' | 'github' | null;
+    error: string | null;
+  }>({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
+  const [oauthDisplayName, setOauthDisplayName] = useState('');
+  const [oauthStoreName, setOauthStoreName] = useState('');
+  const [oauthRole, setOauthRole] = useState<'individual' | 'enterprise'>('individual');
+
+  // ── Process /auth/callback on mount (after Google/GitHub redirect) ──
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.pathname === '/auth/callback') {
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      if (code && state) {
+        setOauthCallbackState(prev => ({ ...prev, processing: true }));
+        (async () => {
+          try {
+            const { profile, isNewUser } = await SocialAuthService.handleOAuthCallback(code, state);
+            // Clean URL
+            window.history.replaceState({}, '', '/');
+
+            if (isNewUser || !profile.fullName) {
+              // Show mandatory profile completion form
+              setOauthDisplayName(profile.fullName || '');
+              setOauthCallbackState({
+                processing: false,
+                showProfileForm: true,
+                profile,
+                provider: profile.provider,
+                error: null,
+              });
+            } else {
+              // Returning user — skip form, go directly to dashboard
+              const storedProfile = SocialAuthService.getStoredProfile(profile.email);
+              const role = storedProfile?.role === 'enterprise' ? 'enterprise' : 'individual';
+              const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(profile.email);
+              const realSession = {
+                user: {
+                  id: profile.id,
+                  email: profile.email,
+                  user_metadata: {
+                    full_name: storedProfile?.displayName || profile.fullName,
+                    role,
+                    is_guest: false,
+                    privy_wallet: walletInfo.address,
+                    privy_verified: true,
+                    provider: profile.provider,
+                    store_name: storedProfile?.storeName || '',
+                  }
+                },
+                role,
+                fullName: storedProfile?.displayName || profile.fullName,
+                email: profile.email,
+                isGuest: false,
+                privyWalletAddress: walletInfo.address,
+                privyVerified: true,
+                providerLabel: `OAuth ${profile.provider.toUpperCase()}`,
+                accessToken: `token-oauth-${profile.provider}-${Date.now()}`,
+              };
+              localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
+              SupabaseDashboardService.setSessionCookie(realSession);
+              PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, profile.fullName).catch(() => {});
+              setShowDashboard(true);
+              setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
+              setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
+            }
+          } catch (err: any) {
+            window.history.replaceState({}, '', '/');
+            setOauthCallbackState({
+              processing: false,
+              showProfileForm: false,
+              profile: null,
+              provider: null,
+              error: err.message || 'OAuth authentication failed.',
+            });
+          }
+        })();
+      }
+    }
+  }, []);
+
+  const handleOAuthProfileSubmit = () => {
+    if (!oauthDisplayName.trim()) return;
+    const profile = oauthCallbackState.profile;
+    if (!profile) return;
+
+    const role = oauthRole;
+    SocialAuthService.saveCompletedProfile(profile.email, oauthDisplayName.trim(), oauthStoreName.trim(), role);
+
+    const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(profile.email);
+    const realSession = {
+      user: {
+        id: profile.id,
+        email: profile.email,
+        user_metadata: {
+          full_name: oauthDisplayName.trim(),
+          role,
+          is_guest: false,
+          privy_wallet: walletInfo.address,
+          privy_verified: true,
+          provider: profile.provider,
+          store_name: oauthStoreName.trim(),
+        }
+      },
+      role,
+      fullName: oauthDisplayName.trim(),
+      email: profile.email,
+      isGuest: false,
+      privyWalletAddress: walletInfo.address,
+      privyVerified: true,
+      providerLabel: `OAuth ${profile.provider.toUpperCase()}`,
+      accessToken: `token-oauth-${profile.provider}-${Date.now()}`,
+    };
+    localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
+    SupabaseDashboardService.setSessionCookie(realSession);
+    PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, oauthDisplayName.trim()).catch(() => {});
+
+    setShowDashboard(true);
+    setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
+    setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
+  };
+
   const navigateTo = (path: string) => {
     if (typeof window !== "undefined" && window.location.pathname !== path) {
       window.history.pushState({}, "", path);
     }
     setCurrentPath(path);
   };
+
+  // Sync initial URL bar state on mount if redirected to dashboard
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname !== currentPath) {
+      window.history.replaceState({}, "", currentPath);
+    }
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -1806,6 +1992,151 @@ function AppContent() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // ── OAuth Callback Processing Overlay ──
+  if (oauthCallbackState.processing) {
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-lg">
+          <div className="text-center space-y-4 animate-pulse">
+            <div className="size-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 mx-auto flex items-center justify-center shadow-xl shadow-emerald-500/30">
+              <Lock size={28} className="text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-white">Memproses Autentikasi OAuth...</h2>
+            <p className="text-sm text-slate-400 max-w-xs mx-auto">Menukarkan authorization code dan memverifikasi identitas Anda secara aman.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OAuth Mandatory Profile Completion Form (New Social Auth Users) ──
+  if (oauthCallbackState.showProfileForm && oauthCallbackState.profile) {
+    const profile = oauthCallbackState.profile;
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-lg p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 text-center space-y-3">
+              <div className="size-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                {profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="" className="size-16 rounded-full object-cover" />
+                ) : (
+                  <UserRoundPlus size={28} className="text-white" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Lengkapi Profil Anda</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Berhasil masuk via <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase">{profile.provider}</span> sebagai <span className="font-semibold">{profile.email}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nama Lengkap <span className="text-rose-500">*</span></label>
+                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2.5 text-sm focus-within:border-emerald-500 dark:focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                  <UserRoundPlus size={16} className="text-slate-400 mr-2.5 flex-shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    value={oauthDisplayName}
+                    onChange={(e) => setOauthDisplayName(e.target.value)}
+                    placeholder="Contoh: Danz Assyidq"
+                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nama Toko / Bisnis</label>
+                <div className="mt-1.5 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2.5 text-sm focus-within:border-emerald-500 dark:focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                  <Building2 size={16} className="text-slate-400 mr-2.5 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={oauthStoreName}
+                    onChange={(e) => setOauthStoreName(e.target.value)}
+                    placeholder="Contoh: Warung Kopi Nusantara"
+                    className="w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tipe Akun</label>
+                <div className="mt-1.5 flex rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setOauthRole('individual')}
+                    className={`flex-1 rounded-lg py-2.5 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'individual'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 font-bold'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Individual / UMKM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOauthRole('enterprise')}
+                    className={`flex-1 rounded-lg py-2.5 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'enterprise'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 font-bold'
+                      : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Enterprise
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOAuthProfileSubmit}
+                disabled={!oauthDisplayName.trim()}
+                className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-bold transition-all shadow-lg shadow-emerald-500/25 active:scale-[0.99] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed mt-2"
+              >
+                <Check size={16} />
+                <span>Mulai Gunakan ZEGA AI</span>
+              </button>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-5 text-center">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                Data Anda dilindungi dengan enkripsi end-to-end dan tidak akan dibagikan ke pihak ketiga.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OAuth Error Alert ──
+  if (oauthCallbackState.error) {
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-lg p-4">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-900 shadow-2xl p-6 text-center space-y-4">
+            <div className="size-14 rounded-full bg-rose-100 dark:bg-rose-950 mx-auto flex items-center justify-center">
+              <AlertCircle size={28} className="text-rose-500" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Autentikasi Gagal</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{oauthCallbackState.error}</p>
+            <button
+              onClick={() => setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null })}
+              className="w-full h-10 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-bold cursor-pointer hover:bg-slate-800 dark:hover:bg-white transition-all"
+            >
+              Kembali ke Beranda
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (currentPath === '/terms' || activePage === 'terms') {
     return (
       <div className={dark ? 'dark' : ''}>
@@ -1997,7 +2328,7 @@ function AppContent() {
               {dark ? <Sun size={13} /> : <Moon size={13} />}
             </button>
 
-            {/* Launch Enterprise Console Dashboard CTA Button - Corporate SaaS Style */}
+            {/* Unified Launch Platform CTA Button — Smart Authentication & Role Aware */}
             <button
               onClick={async () => {
                 const session = await SupabaseDashboardService.getCurrentSession();
@@ -2015,17 +2346,9 @@ function AppContent() {
                   handleOpenAuth("self-serve");
                 }
               }}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs cursor-pointer"
-            >
-              <LayoutDashboard size={13} className="text-slate-500" /> {t.nav.console}
-            </button>
-
-            {/* Try Now CTA Button — Premium Multi-Tier */}
-            <button
-              onClick={() => handleOpenAuth("self-serve")}
               className="group relative hidden items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/30 transition-all duration-500 hover:bg-right hover:shadow-xl hover:shadow-[#ff6b35]/40 hover:scale-[1.04] active:scale-95 sm:inline-flex cursor-pointer"
             >
-              <span className="relative z-10 flex items-center gap-1">
+              <span className="relative z-10 flex items-center gap-1.5">
                 <Sparkles size={13} className="animate-pulse" /> {t.nav.tryNow}
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />

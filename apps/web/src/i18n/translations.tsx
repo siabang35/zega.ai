@@ -22,8 +22,8 @@ export const TRANSLATIONS = {
       products: 'Products',
       docs: 'Docs',
       pricing: 'Pricing',
-      console: 'Console',
-      tryNow: 'Try Now',
+      console: 'Portal',
+      tryNow: 'Launch Platform',
     },
     hero: {
       badge: 'Enterprise Agentic AI Platform',
@@ -175,8 +175,8 @@ export const TRANSLATIONS = {
       products: 'Produk',
       docs: 'Dokumentasi',
       pricing: 'Harga',
-      console: 'Konsol',
-      tryNow: 'Coba Sekarang',
+      console: 'Portal',
+      tryNow: 'Buka Platform',
     },
     hero: {
       badge: 'Platform AI Agen Enterprise Otonom',
@@ -328,8 +328,8 @@ export const TRANSLATIONS = {
       products: '产品',
       docs: '文档',
       pricing: '定价',
-      console: '控制台',
-      tryNow: '立即体验',
+      console: '门户',
+      tryNow: '启动平台',
     },
     hero: {
       badge: '企业级自主 AI 代理平台',

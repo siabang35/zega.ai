@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS public.zeroclaw_solana_settlements (
     network TEXT NOT NULL DEFAULT 'solana-devnet' CHECK (network IN ('solana-devnet', 'solana-mainnet')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'finalized', 'failed')),
     memo TEXT,
+    privy_wallet_address TEXT,
+    privy_user_id TEXT,
+    privy_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

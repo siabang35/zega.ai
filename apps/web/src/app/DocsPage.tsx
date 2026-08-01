@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getR2CdnUrl } from './utils/cdn';
 import {
   ArrowLeft,
   BookOpen,
@@ -56,6 +57,7 @@ const DOCS_NAV = [
   {
     category: 'SOLANA & ZEROCLAW AGENTS',
     items: [
+      { id: 'privy-wallet', title: 'Privy Keyless Embedded Wallet' },
       { id: 'zeroclaw', title: 'ZeroClaw Rust Agent Node' },
       { id: 'solana-pay', title: 'Solana Pay QR & Devnet RPC' },
       { id: 'sop-checkpoints', title: 'SOP Human Approval Checkpoints' },
@@ -304,6 +306,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               {DOCS_NAV.flatMap((g) => g.items).find((i) => i.id === activeTab)?.title || 'Documentation'}
             </h1>
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
+              {activeTab === 'privy-wallet' && 'Non-custodial, keyless Solana wallet management powered by Privy SDK and 1-to-1 deterministic email binding for authenticated users.'}
               {activeTab === 'zeroclaw' && 'Self-hosted Rust AI agent runtime operating under Keyless Tier 1 custody for secure Solana Pay QR settlements and SOP approval checkpoints.'}
               {activeTab === 'solana-pay' && 'Real-time Solana Devnet RPC transaction verification, preset merchant invoices, and global USD/IDR currency conversion.'}
               {activeTab === 'sop-checkpoints' && 'Human-in-the-loop audit checkpoints protecting AI agent financial execution against prompt injection and unauthorized refund requests.'}
@@ -325,7 +328,9 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-blue-500 block mb-0.5">Enterprise Recommendation</strong>
-              {activeTab === 'zeroclaw' || activeTab === 'solana-pay' || activeTab === 'sop-checkpoints' ? (
+              {activeTab === 'privy-wallet' ? (
+                <span>Privy provides <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">Non-Custodial Keyless Embedded Wallets</code>. Every email address deterministically derives exactly 1 private Solana wallet address.</span>
+              ) : activeTab === 'zeroclaw' || activeTab === 'solana-pay' || activeTab === 'sop-checkpoints' ? (
                 <span>ZeroClaw operates on <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">Keyless Tier 1 Custody</code>. All Devnet signatures are 100% verifiable via Solana Explorer.</span>
               ) : activeTab === 'deployment' ? (
                 <span>For Vercel deployment, configure <code className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-[11px] text-blue-400">VITE_API_URL</code> pointing to your Render backend API service.</span>
@@ -336,6 +341,55 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               )}
             </div>
           </div>
+
+          {/* Privy Keyless Solana Embedded Wallet Interactive Article Renderer */}
+          {activeTab === 'privy-wallet' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <img
+                    src={getR2CdnUrl('/assets/logo/privy-logo.png')}
+                    alt="Privy"
+                    className="h-5 w-auto object-contain dark:invert"
+                  />
+                  <span>Privy Keyless Solana Embedded Wallet Architecture</span>
+                </h2>
+                <p>
+                  ZEGA AI pairs ZeroClaw autonomous agent execution with <strong>Privy Embedded Wallet SDK</strong> to provide non-custodial, keyless Solana wallet management for authenticated users (Individual/UMKM & Enterprise).
+                </p>
+
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm flex items-center gap-1.5">
+                    <ShieldCheck size={16} />
+                    <span>Security & Operational Highlights</span>
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-[11.5px]">
+                    <li><strong>1-to-1 Deterministic Binding (1 Email = 1 Wallet):</strong> Each authenticated email address maps to exactly one private Solana keyless wallet address (`PrivySol...`).</li>
+                    <li><strong>Zero Server-Side Custody:</strong> Private keys are never hosted on ZEGA backend servers or database records. All signing operations occur client-side via Privy non-custodial key management.</li>
+                    <li><strong>Brevo SMTP OTP Passcode Guard:</strong> 6-digit security passcodes are delivered securely via Brevo Email Gateway with Cloudflare Turnstile bot defense.</li>
+                    <li><strong>ZeroClaw Solana Pay Settlement Reconciliation:</strong> Backend API route <code className="font-mono text-emerald-500">/v1/zeroclaw/settlement/record</code> automatically stores Privy verification metadata (<code className="font-mono text-emerald-500">privyVerified: true</code>, <code className="font-mono text-emerald-500">privyWalletAddress</code>, <code className="font-mono text-emerald-500">privyUserId</code>).</li>
+                  </ul>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Environment Configuration Setup</h3>
+                <p>
+                  To activate Privy Keyless Embedded Wallets across frontend and backend services:
+                </p>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                  <pre>
+{`# 1. Frontend Environment Setup (apps/web/.env)
+VITE_PRIVY_APP_ID=cm6privy_app_id_placeholder
+
+# 2. Backend Environment Setup (apps/api/.env)
+PRIVY_APP_ID=cm6privy_app_id_placeholder
+PRIVY_APP_SECRET=sec_privy_app_secret_placeholder`}
+                  </pre>
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* ZeroClaw Specific Interactive Article Renderers */}
           {activeTab === 'zeroclaw' && (

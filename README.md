@@ -66,30 +66,37 @@ ZEGA/
 - **Official ZEGA AI Logo Display**: High-resolution `zegalogo.png` header branding with dark mode filter inversion.
 - **Theme-Safe Emerald WhatsApp CS Bot**: High-contrast, theme-safe Emerald status badges (`text-emerald-700 dark:text-emerald-300`, `bg-emerald-50 dark:bg-emerald-950/60`, `border-emerald-200 dark:border-emerald-800`).
 
-### 5. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Runtime (SuperteamBR Bounty)
+### 5. 🛡️ Privy Keyless Solana Embedded Wallet & Enterprise OWASP Security Engine
+- **Privy Official Cloud REST API Synchronization (`/v1/auth/privy-sync`)**: Automated backend registration route directly syncing user accounts to the official Privy Cloud Infrastructure (`dashboard.privy.io`) with server-side authentication (`PRIVY_APP_ID` & `PRIVY_APP_SECRET`). Generates unique Privy DIDs (`did:privy:...`) for UMKM, Enterprise, and SuperAdmin users.
+- **Authentic 1-to-1 Base58 Solana Public Key Derivation (`PrivyWalletService`)**: Cryptographically sound 32-byte SHA-256 expansion and Base58 encoder generating valid 44-character Solana Public Keys (e.g. `9ohi99xP3rtzk3kBe7Cbm1W65mBF5DMyVuXxat8ytYes`). 100% compatible with Solana Pay URIs (`solana:<address>?amount=15.00`), Phantom, Solflare, and Web3 SDKs.
+- **Official Privy Branding (`AuthModal`)**: Official `Protected by` Privy logo badge rendered via Cloudflare R2 CDN (`https://cdn.zegaai.site/assets/logo/privy-logo.png`) adhering to official Privy UI/UX standards.
+- **OWASP Enterprise Anti-Hacking Suite**:
+  - **Anti-Throttling**: 60-second cooldown timer enforcing rate limiting per IP address on authentication and Privy sync endpoints.
+  - **Anti-Chunking & Payload Validation**: Max 256-byte payload length cap and Fastify 1MB payload size validator blocking buffer overflow & DoS attacks.
+  - **Bot Defense**: Integrated Cloudflare Turnstile CAPTCHA protection on all authentication flows.
+  - **CSRF & PKCE Defense**: 64-hex CSRF state token generation and PKCE S256 code challenge verification for Google and GitHub OAuth.
+  - **Prompt Injection Defense**: Automated ZeroClaw SOP approval checkpoints (`zeroclaw_sop_checkpoints`) blocking malicious payment override prompts.
+
+### 6. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Runtime (SuperteamBR Bounty)
 - **Multi-LLM Tiered Provider Engine**: Supports **Groq (`llama-3.3-70b-versatile`)**, **Google Gemini (`gemini-1.5-flash`)**, **OpenRouter**, **HuggingFace**, **Jatevo AI**, and **9Router Swarm** with automatic failover chain.
-- **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile & browser wallets (Phantom, Solflare) sign transactions client-side.
-- **Dedicated Keyless Embedded Wallet per Account**: Deterministic keyless wallet derivation (`deriveEmbeddedWallet`) assigns private Solana receiver addresses (e.g. `4zMMC7x...`) to authenticated users, separating them from public demo receivers (`7xKX...`).
-- **Authenticated Dashboard Isolation**: Authenticated UMKM and Enterprise sessions purge all guest banners and fallbacks (`Guest Store`, `Guest Enterprise (Demo)`, `GUEST-1283`). Close `X` header buttons are hidden to enforce formal **Sign Out** flow.
+- **Keyless Tier 1 Custody**: Zero private keys stored server-side. Mobile & browser wallets (Phantom, Solflare, Privy) sign transactions client-side.
+- **Authenticated Dashboard Isolation**: Authenticated UMKM, Enterprise, and SuperAdmin sessions purge all guest banners and fallbacks (`Guest Store`, `Guest Enterprise (Demo)`). Close `X` header buttons are hidden to enforce formal **Sign Out** flow.
 - **Valid Solana Pay Spec & High-Res QR Code**: Generates fully compliant Base58 Solana Pay URIs (`solana:<activeMerchantWallet>?amount=15.00&spl-token=4zMMC9...`) and scannable high-resolution QR codes (`api.qrserver.com`).
-- **Real-Time QRIS Auto-Reconciliation**: Automatic Solana Devnet RPC listener stream (<2s confirmation) with instant cashier success pop-up modal (`paymentSuccessModal`) without requiring manual cashier approval.
-- **OWASP Prompt Injection Defense**: Real-time regex scanner blocks malicious payout override prompts (`injectionDetected = true`) and routes them to SOP Human Approval Checkpoints (`chk_auto_*`).
-- **Cloudflare R2 CDN Logo Delivery**: All AI model logos served via `getR2CdnUrl(...)` from `https://cdn.zegaai.site/assets/logo/` with fallback resilience.
+- **Real-Time Solana Devnet RPC & ATA Dual-Query Engine**: Automatic Solana Devnet RPC signature listener (`/v1/zeroclaw/solana-rpc`) querying both main SOL addresses and **USDC Associated Token Accounts (ATA)** (`getTokenAccountsByOwner`) with instant cashier success pop-up modal (`paymentSuccessModal`) and OWASP anti-replay protection.
 - **Detailed Specification**: Complete architecture documented in [`docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md`](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md) and User Guides [`docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md`](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md) / [`docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md`](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md).
 
-
-### 5. 🦀 ZeroClaw Solana-Native Multi-LLM Agent Engine & Keyless Embedded Wallet
-- **Multi-LLM Tiered Failover**: Automatic failover across 6 LLM providers (Groq Llama-3.3-70B, Gemini 1.5 Flash, OpenRouter, Jatevo, 9Router Swarm, HuggingFace) with sub-300ms execution times.
-- **Deterministic Keyless Embedded Wallet**: Automatically derives unique, private Solana merchant addresses (`4zMMC7x9...`) for authenticated users under Tier 1 Keyless Custody.
-- **Privy SDK Integration Compatibility**: Ready for optional Privy (`@privy-io/react-auth` / `@privy-io/solana-provider`) non-custodial user signer integration.
-- **Dashboard Refresh Route Persistence**: Automatically restores active dashboard routes (`/console`, `/dashboard`, `/admin`) for authenticated accounts on page refresh.
-
-### 6. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Integration
-- **Modular Database Migration Suites**:
+### 7. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Audit Certificates
+- **Cloudflare R2 CDN Cryptographic Audit Certificates (`R2StorageService`)**:
+  - Automatically generates and uploads SHA-256 hashed JSON audit certificates (`https://cdn.zegaai.site/privy-audits/{email}/{timestamp}-audit.json`) to Cloudflare R2 bucket `zega-ai` upon every user sync or ZeroClaw settlement.
+  - Serves public CDN audit proofs with 1-year edge cache control (`public, max-age=31536000, immutable`).
+- **Master Enterprise Supabase SQL Migration Suite**:
+  - `20260801000000_zeroclaw_privy_embedded_wallet.sql`: Settlement table Privy columns (`privy_wallet_address`, `privy_user_id`, `privy_verified`).
+  - `20260801000100_zeroclaw_privy_wallets_table.sql`: Primary table `public.privy_wallets` with atomic RPC `upsert_privy_wallet` and RLS.
+  - `20260801000200_zeroclaw_social_oauth_accounts.sql`: Table `public.social_oauth_accounts` for Google/GitHub OAuth profile persistence with atomic RPC `upsert_social_oauth_account`.
+  - `20260801000300_zeroclaw_privy_enterprise_r2_sync.sql`: Table `public.privy_r2_audit_certificates`, atomic RPC `record_privy_r2_audit_certificate`, RLS policies, and Realtime WebSocket publication (`supabase_realtime`).
   - `supabase/migrations/sql_umkm/` (`20260731000000_master_umkm_realtime_schema.sql`): Store-level RLS, Token Bucket rate limiter (300 cap), real-time order streams.
   - `supabase/migrations/sql_enterprise/` (`20260731000100_master_enterprise_realtime_schema.sql`): Multi-tenant RBAC (`owner`, `admin`, `secops`, `finops`), Token Bucket rate limiter (300 cap), OWASP 1MB anti-chunking payload size validator, audit trail triggers.
   - `supabase/migrations/sql_superadmin/` (`20260731000200_master_superadmin_realtime_schema.sql`): Privileged root security guard `fn_is_superadmin_root()`, Token Bucket rate limiter (500 cap), OWASP Sentinel 2MB anti-chunking payload validator, platform telemetry KPIs ($485k MRR), root account audit triggers.
-- **Cloudflare R2 CDN Asset Resolver (`https://cdn.zegaai.site`)**: Standardized asset path resolution (`getR2CdnUrl`) across landing page, marketplace, MCP hub, store views, and payment gateways.
 - **Supabase Realtime Channel Subscriptions**: `SupabaseDashboardService` (`supabaseService.ts`) streaming WebSocket update events across UMKM, Enterprise, and SuperAdmin dashboard containers.
 
 ---
@@ -144,6 +151,9 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [19. ZeroClaw Solana Agent Integration](docs/PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md)
 - [20. High-Fidelity Dashboard Redesign & Governance](docs/PRD/20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md)
 - [21. SQL Migrations, CDN R2 & Realtime Specification](docs/PRD/21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md)
+- [22. ZeroClaw Solana Multi-LLM Agent Specification](docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md)
+- [23. ZeroClaw Terminal User Guide (English)](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md)
+- [24. ZeroClaw Terminal Panduan Pengguna (Bahasa Indonesia)](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md)
 
 ---
 
