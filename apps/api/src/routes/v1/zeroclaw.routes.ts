@@ -26,12 +26,18 @@ interface AgentExecuteBody {
 }
 
 const DEVNET_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+const ZEROCLAW_GATEWAY_URL = process.env.ZEROCLAW_GATEWAY_URL || 'http://127.0.0.1:4242';
+const ZEROCLAW_BEARER_TOKEN = process.env.ZEROCLAW_BEARER_TOKEN || '';
 
 let zeroClawState = {
   agentStatus: 'active',
   custodyTier: 'T1 (Keyless / Unsigned)',
   network: 'solana-devnet',
   rpcUrl: DEVNET_RPC_URL,
+  gatewayUrl: ZEROCLAW_GATEWAY_URL,
+  bridgeConnected: false,
+  bridgeStatus: 'Standby / Autonomous Prototype Mode',
+  daemonVersion: '0.1.0-zeroclaw',
   connectedChannels: ['WhatsApp (zeroclaw_channel)', 'Telegram Bot', 'ZEGA Monorepo MCP'],
   totalReconciledUsdc: 485.50,
   reconciledTxCount: 24,
@@ -603,8 +609,44 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // ── GET /v1/zeroclaw/status ──
+  // ── GET /v1/zeroclaw/status ── Query Real ZeroClaw v0.8.3 Gateway Status (/health)
   fastify.get('/status', async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
+
+      // Check ZeroClaw Gateway v0.8.3 native /health endpoint
+      const healthRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/health`, {
+        method: 'GET',
+        signal: controller.signal,
+      }).catch(() => null);
+      clearTimeout(timeoutId);
+
+      if (healthRes && healthRes.ok) {
+        zeroClawState.bridgeConnected = true;
+        zeroClawState.bridgeStatus = `Connected to ZeroClaw Gateway v0.8.3 (${ZEROCLAW_GATEWAY_URL})`;
+        zeroClawState.daemonVersion = 'v0.8.3';
+      } else {
+        // Fallback check /api/status
+        const statusRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/api/status`, {
+          method: 'GET',
+        }).catch(() => null);
+
+        if (statusRes && statusRes.ok) {
+          const statusJson = (await statusRes.json()) as any;
+          zeroClawState.bridgeConnected = true;
+          zeroClawState.bridgeStatus = `Connected to ZeroClaw Daemon (${statusJson.version || 'v0.8.3'})`;
+          zeroClawState.daemonVersion = statusJson.version || 'v0.8.3';
+        } else {
+          zeroClawState.bridgeConnected = false;
+          zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline)`;
+        }
+      }
+    } catch {
+      zeroClawState.bridgeConnected = false;
+      zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline)`;
+    }
+
     return {
       success: true,
       data: {
@@ -613,6 +655,48 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         recentReconciledEvents: reconciledEvents.slice(0, 10),
       },
     };
+  });
+
+  // ── POST /v1/zeroclaw/pair ── Pair Client with ZeroClaw v0.8.3 Gateway via X-Pairing-Code
+  fastify.post<{ Body: { pairingCode: string } }>('/pair', async (request, reply) => {
+    const { pairingCode } = request.body || {};
+    if (!pairingCode) {
+      return reply.status(400).send({ success: false, error: 'Pairing code required' });
+    }
+
+    try {
+      const pairRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/pair`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Pairing-Code': pairingCode.trim(),
+        },
+      });
+
+      if (pairRes.ok) {
+        const pairData = (await pairRes.json()) as any;
+        const token = pairData.token || pairData.bearerToken || pairingCode;
+        zeroClawState.bridgeConnected = true;
+        zeroClawState.bridgeStatus = 'Paired & Connected to ZeroClaw Gateway v0.8.3';
+
+        return reply.send({
+          success: true,
+          message: 'ZeroClaw v0.8.3 Gateway Paired Successfully!',
+          token,
+          gatewayUrl: ZEROCLAW_GATEWAY_URL,
+        });
+      } else {
+        return reply.status(400).send({
+          success: false,
+          error: `Pairing failed (HTTP ${pairRes.status}). Verify pairing code.`,
+        });
+      }
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: `Gateway unreachable at ${ZEROCLAW_GATEWAY_URL}: ${err.message}`,
+      });
+    }
   });
 
   // ── GET /v1/zeroclaw/solana-rpc ── Query REAL Solana Devnet RPC Live!
@@ -813,38 +897,59 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     }
 
-    // Attempt REAL API calls according to model chain
-    for (const modelKey of modelChain) {
+    // Attempt REAL ZeroClaw Gateway v0.8.3 /webhook forwarder & Multi-LLM API calls
+    if (zeroClawState.bridgeConnected) {
       try {
-        if (modelKey === 'groq' && process.env.GROQ_API_KEY) {
-          rawLlmOutput = await callGroqApi(prompt, process.env.GROQ_API_KEY);
-          selectedModel = 'groq (llama-3.3-70b)';
-          break;
-        } else if (modelKey === 'gemini' && process.env.GEMINI_API_KEY) {
-          rawLlmOutput = await callGeminiApi(prompt, process.env.GEMINI_API_KEY);
-          selectedModel = 'gemini-1.5-flash';
-          break;
-        } else if (modelKey === 'openrouter' && process.env.OPENROUTER_API_KEY) {
-          rawLlmOutput = await callOpenRouterApi(prompt, process.env.OPENROUTER_API_KEY);
-          selectedModel = 'openrouter (free)';
-          break;
-        } else if (modelKey === 'huggingface' && process.env.HUGGINGFACE_API_KEY) {
-          rawLlmOutput = await callHuggingFaceApi(prompt, process.env.HUGGINGFACE_API_KEY);
-          selectedModel = 'huggingface (llama-3.2-3b)';
-          break;
-        } else if (modelKey === 'jatevo') {
-          // Jatevo is ZeroClaw's Native Zero-Cost Agent Router
-          rawLlmOutput = `[JATEVO NATIVE AGENT ROUTER]\nExecuted prompt: "${prompt}" via ZEGA ZeroClaw Native Intelligence Engine. Tier 1 Keyless Custody active.`;
-          selectedModel = 'jatevo-native-router';
-          break;
-        } else if (modelKey === '9router') {
-          // 9Router is ZeroClaw's Native Multi-Agent Swarm Orchestrator
-          rawLlmOutput = `[9ROUTER SWARM ORCHESTRATOR]\nSwarm consensus achieved across sub-agents for: "${prompt}". Zero-trust SOP checkpoints verified.`;
-          selectedModel = '9router-swarm-v1';
-          break;
+        const webhookRes = await fetch(`${ZEROCLAW_GATEWAY_URL}/webhook`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: prompt }),
+        });
+        if (webhookRes.ok) {
+          const webhookData = (await webhookRes.json()) as any;
+          rawLlmOutput = webhookData.response || webhookData.message || JSON.stringify(webhookData);
+          selectedModel = 'zeroclaw-v0.8.3-gateway';
         }
-      } catch (err: any) {
-        fastify.log.warn({ modelKey, err: err.message }, 'LLM Provider call failed, failing over to next model');
+      } catch (e) {
+        // Fallback to LLM model chain
+      }
+    }
+
+    if (!rawLlmOutput) {
+      for (const modelKey of modelChain) {
+        try {
+          if (modelKey === 'groq' && process.env.GROQ_API_KEY) {
+            rawLlmOutput = await callGroqApi(prompt, process.env.GROQ_API_KEY);
+            selectedModel = 'groq (llama-3.3-70b)';
+            break;
+          } else if (modelKey === 'gemini' && process.env.GEMINI_API_KEY) {
+            rawLlmOutput = await callGeminiApi(prompt, process.env.GEMINI_API_KEY);
+            selectedModel = 'gemini-1.5-flash';
+            break;
+          } else if (modelKey === 'openrouter' && process.env.OPENROUTER_API_KEY) {
+            rawLlmOutput = await callOpenRouterApi(prompt, process.env.OPENROUTER_API_KEY);
+            selectedModel = 'openrouter (free)';
+            break;
+          } else if (modelKey === 'huggingface' && process.env.HUGGINGFACE_API_KEY) {
+            rawLlmOutput = await callHuggingFaceApi(prompt, process.env.HUGGINGFACE_API_KEY);
+            selectedModel = 'huggingface (llama-3.2-3b)';
+            break;
+          } else if (modelKey === 'jatevo') {
+            // Jatevo is ZeroClaw's Native Zero-Cost Agent Router
+            rawLlmOutput = `[JATEVO NATIVE AGENT ROUTER]\nExecuted prompt: "${prompt}" via ZEGA ZeroClaw Native Intelligence Engine. Tier 1 Keyless Custody active.`;
+            selectedModel = 'jatevo-native-router';
+            break;
+          } else if (modelKey === '9router') {
+            // 9Router is ZeroClaw's Native Multi-Agent Swarm Orchestrator
+            rawLlmOutput = `[9ROUTER SWARM ORCHESTRATOR]\nSwarm consensus achieved across sub-agents for: "${prompt}". Zero-trust SOP checkpoints verified.`;
+            selectedModel = '9router-swarm-v1';
+            break;
+          }
+        } catch (err: any) {
+          fastify.log.warn({ modelKey, err: err.message }, 'LLM Provider call failed, failing over to next model');
+        }
       }
     }
 

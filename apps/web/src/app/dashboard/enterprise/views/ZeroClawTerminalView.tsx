@@ -145,6 +145,9 @@ export function ZeroClawTerminalView({
     : '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
 
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showPairModal, setShowPairModal] = useState(false);
+  const [pairingCodeInput, setPairingCodeInput] = useState('');
+  const [pairingLoading, setPairingLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'auto' | 'groq' | 'gemini' | 'openrouter' | 'jatevo' | '9router' | 'huggingface'>('auto');
 
   // Invoices & Payment Generator State
@@ -952,9 +955,18 @@ export function ZeroClawTerminalView({
             <span>Demo Video</span>
           </button>
 
+          {/* Pair Gateway Button */}
+          <button
+            onClick={() => setShowPairModal(true)}
+            className="px-3 py-1.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors text-xs"
+          >
+            <Lock size={12} className="text-amber-500" />
+            <span>Pair Gateway</span>
+          </button>
+
           {/* Terminal Docs Button */}
           <button
-            onClick={() => onTriggerToast('Dokumentasi ZeroClaw Terminal')}
+            onClick={() => onTriggerToast('Dokumentasi ZeroClaw Terminal v0.8.3')}
             className="px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-100 cursor-pointer transition-colors"
           >
             Terminal Docs
@@ -2906,6 +2918,93 @@ checkpoint = "human_approval_on_refund"`}
                   Selesai (Kasir Ready)
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ZERO CLAW GATEWAY PAIRING CODE MODAL */}
+      {showPairModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md p-6 bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl text-slate-100 space-y-4">
+            <button
+              onClick={() => setShowPairModal(false)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                <Lock size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-100">Pair ZeroClaw v0.8.3 Gateway</h3>
+                <p className="text-xs text-slate-400">Hubungkan ZEGA Terminal ke daemon lokal http://127.0.0.1:4242</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-slate-300">
+                Masukkan Kode Pairing Sekali Pakai (One-Time Code)
+              </label>
+              <input
+                type="text"
+                value={pairingCodeInput}
+                onChange={(e) => setPairingCodeInput(e.target.value)}
+                placeholder="Contoh: 137170"
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-amber-300 font-mono text-center text-lg tracking-widest font-extrabold focus:outline-none focus:border-amber-500"
+              />
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Kode pairing ditampilkan di log terminal saat menjalankan <code className="text-amber-400">zeroclaw daemon</code>. 
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={() => setShowPairModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 font-bold text-xs text-slate-300"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  if (!pairingCodeInput.trim()) {
+                    onTriggerToast('⚠️ Harap masukkan kode pairing!');
+                    return;
+                  }
+                  setPairingLoading(true);
+                  try {
+                    const res = await fetch('/v1/zeroclaw/pair', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ pairingCode: pairingCodeInput.trim() }),
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                      try {
+                        localStorage.setItem('zeroclaw_gateway_token', json.token || pairingCodeInput.trim());
+                        localStorage.setItem('zeroclaw_gateway_paired', 'true');
+                      } catch (e) {}
+                      onTriggerToast('🟢 ZeroClaw v0.8.3 Gateway Berhasil Dipasangkan (Paired)!');
+                      setShowPairModal(false);
+                      setPairingCodeInput('');
+                      fetchZeroClawStatus();
+                    } else {
+                      onTriggerToast(`⚠️ Pairing Gagal: ${json.error}`);
+                    }
+                  } catch (err: any) {
+                    onTriggerToast('⚠️ Gagal terhubung ke backend API ZEGA');
+                  } finally {
+                    setPairingLoading(false);
+                  }
+                }}
+                disabled={pairingLoading}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-xs text-white shadow-lg flex items-center justify-center gap-2"
+              >
+                {pairingLoading ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                <span>{pairingLoading ? 'Pairing...' : 'Verifikasi Pairing'}</span>
+              </button>
             </div>
           </div>
         </div>

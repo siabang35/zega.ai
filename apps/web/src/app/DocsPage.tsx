@@ -395,19 +395,79 @@ PRIVY_APP_SECRET=sec_privy_app_secret_placeholder`}
           {activeTab === 'zeroclaw' && (
             <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
               <section className="space-y-3">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  🦀 ZeroClaw Agent Node Overview
-                </h2>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    🦀 ZeroClaw v0.8.3 Agent Node & Gateway Bridge
+                  </h2>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-[10.5px] font-bold flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Gateway v0.8.3 Active (http://127.0.0.1:4242)
+                  </span>
+                </div>
+
                 <p>
-                  <strong>ZeroClaw</strong> is a self-hosted, ultra-lightweight Rust AI agent runtime built to handle Solana Pay QR invoicing, real-time RPC signature verification, and human-in-the-loop SOP approval checkpoints.
+                  <strong>ZeroClaw</strong> is a self-hosted, ultra-lightweight Rust AI agent runtime built to handle Solana Pay QR invoicing, real-time RPC signature verification, and human-in-the-loop SOP approval checkpoints. In ZEGA AI, it connects directly to the local daemon gateway via <strong>Fastify REST API & Webhook Forwarders</strong>.
                 </p>
-                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
-                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Key Principles Implemented</h3>
+
+                {/* Gateway Protocol Architecture Cards */}
+                <div className="grid sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
+                      <Zap size={14} className="text-amber-500" />
+                      <span>1. Health Ping (/health)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Periodic 1.2s timeout ping to <code className="font-mono text-amber-500">http://127.0.0.1:4242/health</code> ensuring zero-crash fallback if offline.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
+                      <Lock size={14} className="text-emerald-500" />
+                      <span>2. One-Time Pairing (/pair)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Send <code className="font-mono text-emerald-500">X-Pairing-Code</code> (e.g. <code className="font-mono text-emerald-400">137170</code>) to generate active Bearer tokens persisted in per-browser <code className="font-mono">localStorage</code>.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-100">
+                      <Terminal size={14} className="text-blue-500" />
+                      <span>3. Webhook Forwarding (/webhook)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Terminal prompts execute via <code className="font-mono text-blue-500">POST /webhook</code> with payload <code className="font-mono text-slate-400">{`{"message": prompt}`}</code>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2 mt-4">
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Key Architectural Principles</h3>
                   <ul className="list-disc pl-5 space-y-1">
                     <li><strong>Keyless Tier 1 Custody:</strong> Zero private keys stored server-side. Transactions are signed directly by user wallets (Phantom / Solflare).</li>
                     <li><strong>Fastify REST API Endpoints:</strong> Live endpoints for telemetry (<code className="font-mono">/v1/zeroclaw/status</code>), Devnet RPC (<code className="font-mono">/v1/zeroclaw/solana-rpc</code>), events (<code className="font-mono">/v1/zeroclaw/events</code>), and approvals (<code className="font-mono">/v1/zeroclaw/approve-checkpoint</code>).</li>
                     <li><strong>Supabase PostgreSQL RLS:</strong> Table <code className="font-mono">zeroclaw_solana_settlements</code> and <code className="font-mono">zeroclaw_sop_checkpoints</code> with automated Realtime publication.</li>
                   </ul>
+                </div>
+              </section>
+
+              {/* cURL Interactive Testing Example Box */}
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Live Gateway Verification cURL Snippet</h3>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                  <pre>
+{`# 1. Test ZeroClaw Daemon v0.8.3 Health Check
+curl -s http://127.0.0.1:4242/health
+
+# 2. Query ZEGA Fastify API Gateway Status Bridge
+curl -s http://localhost:3001/v1/zeroclaw/status
+
+# 3. Pair ZEGA Terminal with One-Time Code
+curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
+  -H "Content-Type: application/json" \\
+  -d '{"pairingCode": "137170"}'`}
+                  </pre>
                 </div>
               </section>
 
@@ -426,7 +486,12 @@ PRIVY_APP_SECRET=sec_privy_app_secret_placeholder`}
                       <tr>
                         <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/status</td>
                         <td className="p-3 text-slate-400">GET</td>
-                        <td className="p-3 font-sans">Get agent node health status, custody tier, and active messaging channels.</td>
+                        <td className="p-3 font-sans">Get ZeroClaw Gateway v0.8.3 health status (/health), custody tier, and active messaging channels.</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/pair</td>
+                        <td className="p-3 text-slate-400">POST</td>
+                        <td className="p-3 font-sans">Pair ZEGA Terminal with ZeroClaw Gateway v0.8.3 via X-Pairing-Code header (e.g. 137170).</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-bold text-emerald-500">/v1/zeroclaw/solana-rpc</td>
