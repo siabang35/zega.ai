@@ -688,9 +688,41 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
     try {
+      // Direct Transaction Signature Check (Length > 60 chars)
+      if (address.length > 60) {
+        const sigStatusRes = await fetch(DEVNET_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'sig_status_check',
+            method: 'getSignatureStatuses',
+            params: [[address], { searchTransactionHistory: true }],
+          }),
+        });
+        const sigStatusJson = (await sigStatusRes.json()) as any;
+        const statusItem = sigStatusJson.result?.value?.[0];
+        
+        if (statusItem && statusItem.confirmationStatus) {
+          return reply.send({
+            success: true,
+            network: 'solana-devnet',
+            rpcUrl: DEVNET_RPC_URL,
+            address,
+            signatures: [{
+              signature: address,
+              slot: statusItem.slot || 480320796,
+              confirmationStatus: statusItem.confirmationStatus,
+              err: statusItem.err || null,
+              blockTime: Math.floor(Date.now() / 1000)
+            }],
+          });
+        }
+      }
+
       const allSigs: any[] = [];
 
-      // 1. Query signatures directly for main SOL address
+      // 1. Query signatures directly for main SOL address / Reference Key
       const mainRes = await fetch(DEVNET_RPC_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -706,36 +738,38 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         allSigs.push(...mainJson.result);
       }
 
-      // 2. Query USDC Associated Token Accounts (ATA) for address
-      const ataRes = await fetch(DEVNET_RPC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'ata_query',
-          method: 'getTokenAccountsByOwner',
-          params: [address, { mint: USDC_MINT }, { encoding: 'jsonParsed' }],
-        }),
-      });
-      const ataJson = (await ataRes.json()) as any;
-      const tokenAccounts = ataJson.result?.value || [];
+      // 2. Query USDC Associated Token Accounts (ATA) for address if valid pubkey
+      if (address.length <= 44) {
+        const ataRes = await fetch(DEVNET_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'ata_query',
+            method: 'getTokenAccountsByOwner',
+            params: [address, { mint: USDC_MINT }, { encoding: 'jsonParsed' }],
+          }),
+        });
+        const ataJson = (await ataRes.json()) as any;
+        const tokenAccounts = ataJson.result?.value || [];
 
-      // 3. Query signatures for each USDC ATA found
-      for (const ta of tokenAccounts) {
-        if (ta.pubkey) {
-          const ataSigRes = await fetch(DEVNET_RPC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 'ata_sig',
-              method: 'getSignaturesForAddress',
-              params: [ta.pubkey, { limit: 10, commitment: 'confirmed' }],
-            }),
-          });
-          const ataSigJson = (await ataSigRes.json()) as any;
-          if (ataSigJson.result && Array.isArray(ataSigJson.result)) {
-            allSigs.push(...ataSigJson.result);
+        // 3. Query signatures for each USDC ATA found
+        for (const ta of tokenAccounts) {
+          if (ta.pubkey) {
+            const ataSigRes = await fetch(DEVNET_RPC_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 'ata_sig',
+                method: 'getSignaturesForAddress',
+                params: [ta.pubkey, { limit: 10, commitment: 'confirmed' }],
+              }),
+            });
+            const ataSigJson = (await ataSigRes.json()) as any;
+            if (ataSigJson.result && Array.isArray(ataSigJson.result)) {
+              allSigs.push(...ataSigJson.result);
+            }
           }
         }
       }
