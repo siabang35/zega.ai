@@ -343,50 +343,8 @@ export function ZeroClawTerminalView({
 
       if (json?.invoice?.deliveryType === 'live_api') {
         onTriggerToast(`🟢 Invoice (${amountStr} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
-        return;
-      }
-
-      // Fallback Manual Delivery Helper (only executed if API key is not configured or live API failed)
-      if (targetChannel === 'whatsapp') {
-        const cleanPhone = targetAddr.trim().replace(/[^0-9]/g, '');
-        const formattedPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
-        const blinkUrl = json?.invoice?.blinkUrl || `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/act_${Date.now()}`)}`;
-        const solanaPayUrl = json?.invoice?.solanaPayUrl || `solana:${activeMerchantWallet}?amount=${amountStr}&reference=${refKeyStr || 'RefWA'}`;
-
-        const waMsgText = `🧾 *ZEGA MERCHANT INVOICE (SOLANA PAY)*\n\n` +
-          `Halo! Invoice pesanan Anda sebesar *${amountStr} USDC* sudah terbit:\n` +
-          `• *Keterangan:* ${descriptionText || 'Pesanan Produk'}\n` +
-          `• *Nominal:* ${amountStr} USDC\n` +
-          `• *Referensi:* \`${refKeyStr || 'RefWA'}\`\n\n` +
-          `⚡ *Bayar 1-Click via Solana Action Blink:*\n${blinkUrl}\n\n` +
-          `📱 *Solana Pay URI:*\n\`${solanaPayUrl}\`\n\n` +
-          `_Ketik "status" untuk cek status pembayaran._`;
-
-        const waUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(waMsgText)}`;
-        
-        if (typeof window !== 'undefined') {
-          window.open(waUrl, '_blank', 'noopener,noreferrer');
-        }
-        onTriggerToast(`📱 Membuka WhatsApp Web/App ke ${targetAddr} — Invoice (${amountStr} USDC) Siap Terkirim!`);
       } else {
-        const cleanHandle = targetAddr.trim().replace('@', '');
-        const blinkUrl = json?.invoice?.blinkUrl || `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/act_${Date.now()}`)}`;
-        const solanaPayUrl = json?.invoice?.solanaPayUrl || `solana:${activeMerchantWallet}?amount=${amountStr}&reference=${refKeyStr || 'RefTG'}`;
-
-        const tgMsgText = `🧾 *ZEGA MERCHANT INVOICE (SOLANA PAY)*\n\n` +
-          `Halo @${cleanHandle}! Invoice pesanan Anda sebesar *${amountStr} USDC* sudah terbit:\n` +
-          `• *Keterangan:* ${descriptionText || 'Pesanan Produk'}\n` +
-          `• *Nominal:* ${amountStr} USDC\n` +
-          `• *Referensi:* \`${refKeyStr || 'RefTG'}\`\n\n` +
-          `⚡ *Bayar 1-Click via Solana Action Blink:*\n${blinkUrl}\n\n` +
-          `📱 *Solana Pay URI:*\n\`${solanaPayUrl}\``;
-
-        const tgDirectUrl = `https://t.me/${cleanHandle}`;
-
-        if (typeof window !== 'undefined') {
-          window.open(tgDirectUrl, '_blank', 'noopener,noreferrer');
-        }
-        onTriggerToast(`✈️ Membuka Telegram Chat (@${cleanHandle}) — Invoice (${amountStr} USDC) Siap Terkirim!`);
+        onTriggerToast(`⚡ Invoice (${amountStr} USDC) Diterbitkan untuk ${targetAddr} (${targetChannel.toUpperCase()}).`);
       }
     } catch (e) {
       onTriggerToast(`⚡ Invoice (${amountStr} USDC) dikirim ke ${targetAddr}.`);

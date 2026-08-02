@@ -2186,7 +2186,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     activeActions.set(actionId, { amount, recipient, memo: `Merchant Invoice (${description || 'Order'})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
 
     const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
-    const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
+    const zegaCheckoutUrl = `https://zegaai.site/dashboard/enterprise/zeroclaw?amount=${amount.toFixed(2)}&reference=${referenceKey}`;
+    const blinkUrl = `https://zegaai.site/dashboard/enterprise/zeroclaw?amount=${amount.toFixed(2)}&reference=${referenceKey}`;
 
     let deliveryType: 'live_api' | 'dispatched_simulated' = 'dispatched_simulated';
     let externalResponse: any = null;
