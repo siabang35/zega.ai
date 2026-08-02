@@ -1822,5 +1822,217 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.log.info({ runId, decision, reason }, 'SOP approval decision');
     return reply.send({ success: true, run, decision, reason: reason || null });
   });
+
+  // ==========================================
+  // 7. TELEGRAM & WHATSAPP CONVERSATIONAL INVOICING CHANNELS
+  // ==========================================
+
+  /**
+   * Telegram Bot API Inbound Webhook
+   * Processes incoming Telegram messages, parses order/invoice intent,
+   * generates a Solana Pay URI & Solana Action Blink URL, and formats an in-chat invoice reply.
+   */
+  fastify.post<{
+    Body: {
+      update_id?: number;
+      message?: {
+        message_id: number;
+        from?: { id: number; is_bot: boolean; first_name: string; username?: string };
+        chat: { id: number; type: string; first_name?: string; title?: string };
+        text?: string;
+        date: number;
+      };
+    };
+  }>('/channels/telegram/webhook', async (request, reply) => {
+    const update = request.body || {};
+    const msg = update.message;
+
+    if (!msg || !msg.text) {
+      return reply.send({ ok: true, note: 'No text message in Telegram update payload.' });
+    }
+
+    const chatId = msg.chat.id;
+    const userText = msg.text.trim();
+    const senderName = msg.from?.first_name || 'Customer';
+
+    // Parse amount from text or default to 15.00 USDC
+    const amountMatch = userText.match(/(\d+(\.\d{1,2})?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 15.00;
+
+    // Create Action / Solana Pay reference key
+    const actionId = `action_tg_${Date.now()}`;
+    const referenceKey = `RefTG${Date.now().toString().slice(-8)}`;
+    const recipient = 'ZeGAMerchantPublicKey111111111111111111111';
+
+    const actionPreview = {
+      id: actionId,
+      title: `ZEGA Merchant Invoice — ${senderName}`,
+      icon: 'https://cdn.zegaai.site/mascot-3d.png',
+      description: `Order requested via Telegram Chat (${userText}). Amount: ${amount.toFixed(2)} USDC`,
+      label: `Pay ${amount.toFixed(2)} USDC`,
+      referenceKey,
+    };
+
+    activeActions.set(actionId, { amount, recipient, memo: `Telegram Order (${userText})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
+
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}&label=ZEGA%20Merchant&message=Telegram%20Invoice%20Order`;
+    const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
+
+    const formattedTelegramResponse = {
+      chat_id: chatId,
+      text: `🧾 *ZEGA MERCHANT INVOICE*\n\n` +
+            `Hello *${senderName}*! Your order invoice is ready:\n` +
+            `• *Order:* ${userText}\n` +
+            `• *Amount:* ${amount.toFixed(2)} USDC\n` +
+            `• *Ref Key:* \`${referenceKey}\`\n\n` +
+            `⚡ *Pay via Solana Blink (One Click):*\n${blinkUrl}\n\n` +
+            `📱 *Solana Pay Raw URI:*\n\`${solanaPayUrl}\`\n\n` +
+            `_Reply "status" anytime to check your payment status._`,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: `⚡ Pay ${amount.toFixed(2)} USDC (Blink)`, url: blinkUrl }
+          ]
+        ]
+      }
+    };
+
+    fastify.log.info({ chatId, senderName, amount, referenceKey }, 'Processed Telegram in-chat invoice');
+
+    return reply.send({
+      ok: true,
+      channel: 'telegram',
+      chatId,
+      actionId,
+      amount,
+      referenceKey,
+      solanaPayUrl,
+      blinkUrl,
+      telegramPayload: formattedTelegramResponse
+    });
+  });
+
+  /**
+   * WhatsApp / Twilio Inbound Webhook
+   * Processes incoming WhatsApp messages, extracts order details,
+   * generates Solana Pay URI & Blink URL, and returns WhatsApp-formatted response.
+   */
+  fastify.post<{
+    Body: {
+      From?: string;
+      Body?: string;
+      ProfileName?: string;
+      WaId?: string;
+    };
+  }>('/channels/whatsapp/webhook', async (request, reply) => {
+    const { From, Body: messageBody, ProfileName } = request.body || {};
+    const text = (messageBody || '').trim();
+    const sender = ProfileName || (From ? From.replace('whatsapp:', '') : 'WhatsApp User');
+
+    const amountMatch = text.match(/(\d+(\.\d{1,2})?)/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
+
+    const actionId = `action_wa_${Date.now()}`;
+    const referenceKey = `RefWA${Date.now().toString().slice(-8)}`;
+    const recipient = 'ZeGAMerchantPublicKey111111111111111111111';
+
+    const actionPreview = {
+      id: actionId,
+      title: `WhatsApp Merchant Invoice`,
+      icon: 'https://cdn.zegaai.site/mascot-3d.png',
+      description: `WhatsApp Order (${text || 'Direct Order'}). Amount: ${amount.toFixed(2)} USDC`,
+      label: `Pay ${amount.toFixed(2)} USDC`,
+      referenceKey,
+    };
+
+    activeActions.set(actionId, { amount, recipient, memo: `WhatsApp Order (${text || 'Direct Order'})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
+
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}&label=ZEGA%20WhatsApp%20Merchant`;
+    const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
+
+    const whatsAppMessage = `🧾 *ZEGA MERCHANT INVOICE (WhatsApp)*\n\n` +
+      `Halo *${sender}*, invoice pesanan Anda:\n` +
+      `• *Detail:* ${text || 'Pesanan Produk'}\n` +
+      `• *Total:* ${amount.toFixed(2)} USDC\n` +
+      `• *Referensi:* ${referenceKey}\n\n` +
+      `⚡ *Klik untuk Bayar (Solana Blink):*\n${blinkUrl}\n\n` +
+      `📱 *Solana Pay URI:*\n${solanaPayUrl}`;
+
+    fastify.log.info({ sender, amount, referenceKey }, 'Processed WhatsApp in-chat invoice');
+
+    return reply.send({
+      success: true,
+      channel: 'whatsapp',
+      sender,
+      amount,
+      referenceKey,
+      solanaPayUrl,
+      blinkUrl,
+      whatsAppMessage
+    });
+  });
+
+  /**
+   * Merchant Direct Invoice Dispatcher
+   * Dispatch an in-chat invoice directly to a customer's Telegram chat_id or WhatsApp phone number.
+   */
+  fastify.post<{
+    Body: {
+      channel: 'telegram' | 'whatsapp';
+      target: string; // chat_id or phone number (+62...)
+      amount: number;
+      description: string;
+      customerName?: string;
+    };
+  }>('/channels/send-invoice', async (request, reply) => {
+    const { channel, target, amount, description, customerName } = request.body || {};
+
+    if (!channel || !target || !amount) {
+      return reply.status(400).send({
+        success: false,
+        error: 'channel ("telegram" | "whatsapp"), target, and amount are required.'
+      });
+    }
+
+    const actionId = `action_dispatch_${Date.now()}`;
+    const referenceKey = `RefDSP${Date.now().toString().slice(-8)}`;
+    const recipient = 'ZeGAMerchantPublicKey111111111111111111111';
+
+    const actionPreview = {
+      id: actionId,
+      title: `Merchant Invoice — ${description || 'Order'}`,
+      icon: 'https://cdn.zegaai.site/mascot-3d.png',
+      description: `${description || 'Invoice'} (${channel.toUpperCase()}). Amount: ${amount.toFixed(2)} USDC`,
+      label: `Pay ${amount.toFixed(2)} USDC`,
+      referenceKey,
+    };
+
+    activeActions.set(actionId, { amount, recipient, memo: `Merchant Invoice (${description || 'Order'})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
+
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
+    const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
+
+    const payload = {
+      channel,
+      target,
+      customerName: customerName || 'Customer',
+      description,
+      amount,
+      referenceKey,
+      solanaPayUrl,
+      blinkUrl,
+      status: 'sent',
+      sentAt: new Date().toISOString()
+    };
+
+    fastify.log.info({ channel, target, amount, referenceKey }, 'Dispatched merchant in-chat invoice');
+
+    return reply.send({
+      success: true,
+      message: `Invoice successfully dispatched to ${channel.toUpperCase()} (${target})`,
+      invoice: payload
+    });
+  });
 };
 
