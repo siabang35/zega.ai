@@ -241,29 +241,30 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // LAYER 2: Base58 Format Validation (Structural Integrity Check)
-    // Solana signatures are 87-88 character Base58-encoded strings
+    // LAYER 2: Base58 Solana Signature Validation (Zero-Trust Real On-Chain Check)
+    // Synthetic IDs (sol_..., gen_inv_...) are strictly REJECTED.
     // ════════════════════════════════════════════════════════════════════════
-    const effectiveSig = txSignature || `sol_${Date.now()}`;
-    const BASE58_REGEX = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
-    const isLongFormSig = effectiveSig.length >= 60 && !effectiveSig.startsWith('sol_') && !effectiveSig.startsWith('gen_inv_');
-
-    if (isLongFormSig) {
-      if (effectiveSig.length < 86 || effectiveSig.length > 90) {
-        return reply.status(400).send({
-          success: false,
-          error: `🛡️ Layer 2 Rejected: Signature length ${effectiveSig.length} chars invalid. Solana signatures harus 87-88 karakter Base58.`,
-          layer: 'BASE58_FORMAT'
-        });
-      }
-      if (!BASE58_REGEX.test(effectiveSig)) {
-        return reply.status(400).send({
-          success: false,
-          error: '🛡️ Layer 2 Rejected: Signature mengandung karakter non-Base58 (0, O, I, l tidak diizinkan).',
-          layer: 'BASE58_FORMAT'
-        });
-      }
+    if (!txSignature || typeof txSignature !== 'string') {
+      return reply.status(400).send({
+        success: false,
+        error: '🛡️ Layer 2 Rejected: Signature transaksi On-Chain wajib diisi. Mohon lakukan transfer via wallet (Phantom/Solflare) terlebih dahulu.',
+        layer: 'MISSING_SIGNATURE'
+      });
     }
+
+    const cleanSig = txSignature.trim();
+    const BASE58_REGEX = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
+
+    if (cleanSig.startsWith('sol_') || cleanSig.startsWith('gen_inv_') || cleanSig.length < 80 || cleanSig.length > 92 || !BASE58_REGEX.test(cleanSig)) {
+      return reply.status(400).send({
+        success: false,
+        error: `🛡️ Layer 2 Rejected: Signature "${cleanSig.substring(0, 16)}..." tidak valid. Transaction Signature Solana harus 87-88 karakter Base58 asli dari Solana Devnet.`,
+        layer: 'BASE58_FORMAT',
+        hint: 'Kirim pembayaran asli melalui Phantom atau Solflare untuk mendapatkan Transaction Signature valid.'
+      });
+    }
+
+    const effectiveSig = cleanSig;
 
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 3: Anti-Replay & Idempotency Protection
@@ -277,10 +278,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         data: reconciledEvents.find(e => e.signature === effectiveSig) || { signature: effectiveSig, amount: validAmountUsdc }
       });
     }
-    processedSignaturesSet.add(effectiveSig);
 
     // ════════════════════════════════════════════════════════════════════════
-    // LAYER 4: On-Chain Signature Status Verification (getSignatureStatuses)
+    // LAYER 4: On-Chain Signature Status Verification (Solana Devnet RPC)
     // Queries Solana Devnet RPC to confirm the signature exists on-chain
     // ════════════════════════════════════════════════════════════════════════
     let onChainVerified = false;
@@ -288,51 +288,63 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let onChainSlot: number | null = null;
     let onChainErr: any = null;
 
-    if (isLongFormSig) {
-      try {
-        const sigVerifyRes = await fetch(DEVNET_RPC_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'sig_verify',
-            method: 'getSignatureStatuses',
-            params: [[effectiveSig], { searchTransactionHistory: true }],
-          }),
-        });
-        const sigVerifyJson = (await sigVerifyRes.json()) as any;
-        const statusItem = sigVerifyJson.result?.value?.[0];
-        if (statusItem && statusItem.confirmationStatus) {
-          onChainVerified = true;
-          onChainConfirmationStatus = statusItem.confirmationStatus;
-          onChainSlot = statusItem.slot || null;
-          onChainErr = statusItem.err || null;
-        }
-      } catch (e) {
-        // RPC timeout — allow but mark as unverified
-      }
+    try {
+      const rpcEndpoints = [
+        DEVNET_RPC_URL,
+        'https://api.devnet.solana.com',
+        'https://rpc.ankr.com/solana_devnet'
+      ];
 
-      // Reject if signature does not exist on-chain
-      if (!onChainVerified) {
-        processedSignaturesSet.delete(effectiveSig);
-        return reply.status(403).send({
-          success: false,
-          error: `🛡️ Layer 4 Rejected: Hash "${effectiveSig.substring(0, 16)}..." tidak ditemukan di Solana Devnet blockchain. Hanya transaksi on-chain asli yang diterima.`,
-          layer: 'SIGNATURE_STATUS',
-          hint: 'Pastikan transaksi sudah terkirim dan terkonfirmasi via wallet (Phantom/Solflare) sebelum settlement.'
-        });
-      }
+      for (const rpcUrl of rpcEndpoints) {
+        try {
+          const sigVerifyRes = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'sig_verify',
+              method: 'getSignatureStatuses',
+              params: [[effectiveSig], { searchTransactionHistory: true }],
+            }),
+          });
 
-      // Reject if the on-chain transaction itself had an error (failed tx)
-      if (onChainErr) {
-        processedSignaturesSet.delete(effectiveSig);
-        return reply.status(403).send({
-          success: false,
-          error: `🛡️ Layer 4 Rejected: Transaksi "${effectiveSig.substring(0, 16)}..." gagal di blockchain (err: ${JSON.stringify(onChainErr)}). Settlement hanya menerima transaksi SUKSES.`,
-          layer: 'TX_ERROR_CHECK'
-        });
+          if (sigVerifyRes.ok) {
+            const sigVerifyJson = (await sigVerifyRes.json()) as any;
+            const statusItem = sigVerifyJson.result?.value?.[0];
+            if (statusItem && statusItem.confirmationStatus) {
+              onChainVerified = true;
+              onChainConfirmationStatus = statusItem.confirmationStatus;
+              onChainSlot = statusItem.slot || null;
+              onChainErr = statusItem.err || null;
+              break;
+            }
+          }
+        } catch { /* try next RPC fallback */ }
       }
+    } catch (e) {
+      // RPC unreachable
     }
+
+    // Strictly REJECT if signature does NOT exist on Solana Devnet RPC
+    if (!onChainVerified) {
+      return reply.status(403).send({
+        success: false,
+        error: `🛡️ Layer 4 Rejected: Transaction Signature "${effectiveSig.substring(0, 16)}..." tidak ditemukan di Solana Devnet blockchain. Hanya transaksi asli yang telah diproses oleh network yang diterima.`,
+        layer: 'SIGNATURE_STATUS',
+        hint: 'Selesaikan transaksi di Phantom/Solflare terlebih dahulu hingga terkonfirmasi di Devnet Explorer.'
+      });
+    }
+
+    // Strictly REJECT if the on-chain transaction had an execution error
+    if (onChainErr) {
+      return reply.status(403).send({
+        success: false,
+        error: `🛡️ Layer 4 Rejected: Transaksi "${effectiveSig.substring(0, 16)}..." gagal di blockchain (err: ${JSON.stringify(onChainErr)}).`,
+        layer: 'TX_ERROR_CHECK'
+      });
+    }
+
+    processedSignaturesSet.add(effectiveSig);
 
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 5: Transaction Detail Verification (getTransaction)
@@ -342,7 +354,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let txRecipientMatch = false;
     let txDetailFetched = false;
 
-    if (isLongFormSig && onChainVerified) {
+    if (onChainVerified) {
       try {
         const txDetailRes = await fetch(DEVNET_RPC_URL, {
           method: 'POST',
@@ -450,7 +462,49 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           persistedInDb = true;
         }
 
-        // Also update matching pending invoice to confirmed in zeroclaw_solana_settlements
+        // ════════════════════════════════════════════════════════════════════════
+        // DYNAMIC PAYMENT ACCURACY CLASSIFICATION & TELEGRAM NOTIFICATION
+        // ════════════════════════════════════════════════════════════════════════
+        let invoiceRow: any = null;
+        let expectedAmount = validAmountUsdc;
+        let customerTarget: string | null = null;
+        let channelType = 'telegram';
+
+        if (referenceKey) {
+          const invFetchRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}&limit=1`, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            }
+          }).catch(() => null);
+
+          if (invFetchRes && invFetchRes.ok) {
+            const rows = (await invFetchRes.json()) as any[];
+            if (rows && rows.length > 0) {
+              invoiceRow = rows[0];
+              expectedAmount = parseFloat(invoiceRow.amount_usdc || validAmountUsdc);
+              customerTarget = invoiceRow.customer_target || invoiceRow.customer_channel_target || null;
+              channelType = invoiceRow.channel_type || (customerTarget?.startsWith('+') ? 'whatsapp' : 'telegram');
+            }
+          }
+        }
+
+        let settlementStatus: 'settled_exact' | 'settled_underpaid' | 'settled_overpaid' = 'settled_exact';
+        let statusDbString = 'confirmed';
+        let shortageAmount = 0;
+        let excessAmount = 0;
+
+        if (validAmountUsdc < expectedAmount - 0.001) {
+          settlementStatus = 'settled_underpaid';
+          statusDbString = 'underpaid';
+          shortageAmount = expectedAmount - validAmountUsdc;
+        } else if (validAmountUsdc > expectedAmount + 0.001) {
+          settlementStatus = 'settled_overpaid';
+          statusDbString = 'overpaid';
+          excessAmount = validAmountUsdc - expectedAmount;
+        }
+
+        // Update matching pending invoice status in DB
         if (referenceKey) {
           await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
             method: 'PATCH',
@@ -459,8 +513,94 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               'apikey': supabaseKey,
               'Authorization': `Bearer ${supabaseKey}`,
             },
-            body: JSON.stringify({ status: 'confirmed' })
+            body: JSON.stringify({
+              status: statusDbString,
+              settlement_status: settlementStatus,
+              paid_amount_usdc: validAmountUsdc,
+              shortage_amount: shortageAmount,
+              excess_amount: excessAmount
+            })
           }).catch(() => { });
+        }
+
+        // Record Overpaid Refund Entry in Supabase zeroClaw refund queue / memory
+        if (settlementStatus === 'settled_overpaid' && excessAmount > 0) {
+          await fetch(`${supabaseUrl}/rest/v1/zeroclaw_refund_queue`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+              reference_key: referenceKey,
+              customer_target: customerTarget || '@slzyoung',
+              merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+              invoice_amount: expectedAmount,
+              paid_amount: validAmountUsdc,
+              refund_amount: excessAmount,
+              tx_signature: effectiveSig,
+              status: 'pending_refund',
+              created_at: new Date().toISOString()
+            })
+          }).catch(() => { });
+        }
+
+        // Send Automated Multi-Status Telegram Receipt to Customer (Prioritized Channel)
+        if (customerTarget) {
+          const rawEnvToken = process.env.TELEGRAM_BOT_TOKEN;
+          const telegramBotToken = (rawEnvToken && rawEnvToken.trim().length > 10 && rawEnvToken !== 'undefined')
+            ? rawEnvToken.trim()
+            : '';
+
+          if (telegramBotToken) {
+            let telegramCaption = '';
+            if (settlementStatus === 'settled_exact') {
+              telegramCaption = 
+                `🎉 *PEMBAYARAN BERHASIL & LUNAS 100% (EXACT)* 🎉\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
+                `• *Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
+                `• *Status:* \`LUNAS (VERIFIED ON-CHAIN)\`\n` +
+                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `✅ Terima kasih! Pesanan Anda telah terkonfirmasi secara otomatis via ZeroClaw On-Chain Settlement.`;
+            } else if (settlementStatus === 'settled_underpaid') {
+              telegramCaption = 
+                `⚠️ *PEMBAYARAN KURANG (UNDERPAID)* ⚠️\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
+                `• *Nominal Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
+                `• *Sisa Kekurangan:* \`${shortageAmount.toFixed(2)} USDC\`\n` +
+                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📌 *PETUNJUK:* Pembayaran Anda belum lunas. Harap bayar sisa kekurangannya sebesar *${shortageAmount.toFixed(2)} USDC* ke wallet merchant agar pesanan dapat diselesaikan.`;
+            } else if (settlementStatus === 'settled_overpaid') {
+              telegramCaption = 
+                `💡 *PEMBAYARAN BERLEBIH (OVERPAID)* 💡\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
+                `• *Nominal Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
+                `• *Kelebihan (Excess):* \`+${excessAmount.toFixed(2)} USDC\`\n` +
+                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📌 *INFO REFUND:* Pembayaran Anda lunas. Kelebihan sebesar *+${excessAmount.toFixed(2)} USDC* telah dicatat & otomatis masuk ke Daftar Refund (Refund Queue) merchant untuk pengembalian.`;
+            }
+
+            const cleanChatId = customerTarget.startsWith('@') ? customerTarget.trim() : `@${customerTarget.trim()}`;
+            try {
+              await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: cleanChatId,
+                  text: telegramCaption,
+                  parse_mode: 'Markdown'
+                })
+              });
+            } catch { /* graceful fallback */ }
+          }
         }
 
         // Also upsert into public.privy_wallets table if privyWalletAddress is present
