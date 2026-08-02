@@ -2504,7 +2504,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 `• <b>Reference Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
                 `• <b>Link Checkout:</b> ${zegaCheckoutUrl}\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `📌 <b>CATATAN OPERATOR:</b> Pembeli (${escHtml(target)}) belum menekan /start di Telegram Bot @aizega_bot. Tagihan 100% aktif di DB &amp; dapat dibayar via Link Checkout di atas.`;
+                `📌 <b>CATATAN OPERATOR:</b> Pembeli (${escHtml(target)}) belum menekan /start di Telegram Bot ZEGA. Tagihan 100% aktif di DB &amp; dapat dibayar via Link Checkout di atas.`;
 
               await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
                 method: 'POST',
