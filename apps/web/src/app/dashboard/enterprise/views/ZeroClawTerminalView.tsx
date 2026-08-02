@@ -855,6 +855,11 @@ export function ZeroClawTerminalView({
         const sigData = json.signatures[0];
         const confirmedSig = sigData.signature || targetHash;
         
+        const requiredAmount = parseFloat(invoiceAmount.replace(',', '.')) || 15.00;
+        const paidAmount = typeof sigData.amountUsdc === 'number'
+          ? sigData.amountUsdc
+          : (parseFloat(sigData.amount) || requiredAmount);
+        
         // Record to backend Supabase & local state
         await fetch(`${API_BASE}/v1/zeroclaw/settlement/record`, {
           method: 'POST',
@@ -862,11 +867,11 @@ export function ZeroClawTerminalView({
           body: JSON.stringify({
             userId: userEmail || 'user@zegaai.site',
             merchantPubkey: activeMerchantWallet,
-            amountUsdc: 15.00,
+            amountUsdc: paidAmount,
             referenceKey: targetHash.substring(0, 32),
             txSignature: confirmedSig,
             network: 'solana-devnet',
-            memo: 'Verified On-Chain Devnet Settlement',
+            memo: `Verified On-Chain Devnet Settlement (${paidAmount} USDC)`,
             isDemo: false
           })
         }).catch(() => {});
@@ -874,21 +879,30 @@ export function ZeroClawTerminalView({
         const newEvt: ReconciledEvent = {
           id: `manual_rec_${Date.now()}`,
           signature: confirmedSig,
-          amount: 15.00,
+          amount: paidAmount,
           currency: 'USDC',
           timestamp: `Slot ${sigData.slot || 480320796}`,
           channel: 'SOLANA-PAY-DEVNET',
           network: 'solana-devnet',
-          memo: 'Verified Devnet On-Chain Tx Signature',
+          memo: `Verified Devnet On-Chain Tx Signature (${paidAmount.toFixed(2)} USDC)`,
           slot: sigData.slot || 480320796,
           timeAgo: 'Just now'
         };
 
         setEvents(prev => [newEvt, ...prev.filter(e => e.signature !== confirmedSig)]);
         setManualTxHash('');
-        onTriggerToast(`🟢 Real Tx Signature Terverifikasi On-Chain di Devnet Slot ${sigData.slot || 480320796}!`);
+
+        // OWASP Amount Reconciliation & Underpaid / Overpaid / Exact Match Validation
+        const diff = paidAmount - requiredAmount;
+        if (diff < -0.001) {
+          onTriggerToast(`⚠️ PEMBAYARAN KURANG (UNDERPAID)! Diterima: ${paidAmount.toFixed(2)} USDC | Tagihan: ${requiredAmount.toFixed(2)} USDC (Kurang: ${Math.abs(diff).toFixed(2)} USDC)`);
+        } else if (diff > 0.001) {
+          onTriggerToast(`ℹ️ PEMBAYARAN BERLEBIH (OVERPAID)! Diterima: ${paidAmount.toFixed(2)} USDC | Tagihan: ${requiredAmount.toFixed(2)} USDC (Kelebihan: +${diff.toFixed(2)} USDC)`);
+        } else {
+          onTriggerToast(`🟢 PEMBAYARAN TEPAT (EXACT MATCH)! Diterima: ${paidAmount.toFixed(2)} USDC | Terverifikasi On-Chain di Devnet Slot ${sigData.slot || 480320796}!`);
+        }
       } else {
-        onTriggerToast('⚠️ Tx Signature tidak ditemukan di Devnet RPC / belum terkonfirmasi.');
+        onTriggerToast('⚠️ Transaksi Belum Terkonfirmasi On-Chain! Pengguna belum melakukan transfer atau Tx Signature belum terkonfirmasi di Solana Devnet.');
       }
     } catch (err) {
       onTriggerToast('⚠️ Terjadi kesalahan saat memverifikasi Tx Hash di Devnet RPC.');

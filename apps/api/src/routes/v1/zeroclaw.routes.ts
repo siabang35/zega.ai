@@ -2039,7 +2039,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const chatIdParam = trimmedTarget.startsWith('@') ? trimmedTarget : `@${trimmedTarget}`;
           const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/getChat?chat_id=${encodeURIComponent(chatIdParam)}`);
           if (tgRes.ok) {
-            const tgJson = await tgRes.json();
+            const tgJson: any = await tgRes.json();
             if (tgJson.ok && tgJson.result) {
               const chat = tgJson.result;
               const accountName = chat.first_name ? `${chat.first_name} ${chat.last_name || ''}`.trim() : (chat.title || chat.username || trimmedTarget);
@@ -2148,7 +2148,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           });
 
           if (tgRes.ok) {
-            const tgJson = await tgRes.json();
+            const tgJson: any = await tgRes.json();
             deliveryType = 'live_api';
             externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat };
             fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram message dispatched successfully');
@@ -2196,7 +2196,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           });
 
           if (twilioRes.ok) {
-            const twilioJson = await twilioRes.json();
+            const twilioJson: any = await twilioRes.json();
             deliveryType = 'live_api';
             externalResponse = { sid: twilioJson.sid, status: twilioJson.status, provider: 'twilio' };
             fastify.log.info({ target, sid: twilioJson.sid }, 'Live WhatsApp message dispatched via Twilio REST API');
