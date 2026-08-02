@@ -601,17 +601,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               });
 
               if (!tgReceiptRes.ok) {
-                // If direct recipient delivery fails (chat not found), relay receipt to operator chat ID 7303438046
-                const relayReceiptCaption = `📢 <b>BUKTI PEMBAYARAN DIRELAY UNTUK ${customerTarget.toUpperCase()}</b> 📢\n\n` + telegramCaption;
-                await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    chat_id: '7303438046',
-                    text: relayReceiptCaption,
-                    parse_mode: 'HTML'
-                  })
-                }).catch(() => {});
+                // If direct recipient delivery fails (chat not initialized), log gracefully without forwarding to unrelated third party
+                fastify.log.info({ customerTarget, status: tgReceiptRes.status }, 'Settlement receipt created; target recipient chat not initialized on Telegram');
               }
             } catch { /* graceful fallback */ }
           }
@@ -1390,34 +1381,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       zeroClawState.totalReconciledUsdc += paidAmount;
       zeroClawState.reconciledTxCount += 1;
 
-      // Real-Time Telegram Settlement Receipt Dispatcher
-      if (settlementStatus === 'settled_exact') {
-        const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (telegramBotToken) {
-          try {
-            const receiptText = `🎉 <b>PEMBAYARAN BERHASIL (PAYMENT SUCCESSFUL)!</b>\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `🟢 <b>Status:</b> <code>LUNAS &amp; TERVERIFIKASI ON-CHAIN</code>\n` +
-              `• <b>Nominal Dibayar:</b> <code>${paidAmount.toFixed(2)} USDC</code>\n` +
-              `• <b>Referensi Tagihan:</b> <code>${referenceKey || 'RefONCHAIN'}</code>\n` +
-              `• <b>Solana Signature:</b> <code>${txSignature || 'Confirmed'}</code>\n` +
-              `• <b>Solana Devnet Slot:</b> <code>${event.slot}</code>\n` +
-              `• <b>Waktu Verification:</b> <code>${new Date().toLocaleTimeString()}</code>\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `Terima kasih! Pembayaran Anda telah terkonfirmasi 100% On-Chain via ZEGA AI Terminal.`;
 
-            fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: '7303438046', // Customer / Admin Chat ID
-                text: receiptText,
-                parse_mode: 'HTML'
-              })
-            }).catch(() => { });
-          } catch { }
-        }
-      }
 
       return reply.send({
         success: true,
@@ -2495,37 +2459,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               externalResponse = { messageId: msgJson.result?.message_id, chat: msgJson.result?.chat, type: 'text_fallback' };
               fastify.log.info({ target, messageId: msgJson.result?.message_id }, 'Live Telegram text invoice fallback dispatched successfully');
             } else {
-              // If target hasn't started bot, relay to operator chat ID so invoice generation for any username always succeeds
-              const relayCaption = 
-                `📢 <b>TAGIHAN ZEGA PAY UNTUK ${escHtml(target.toUpperCase())}</b> 📢\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `• <b>Target Pembeli:</b> <code>${escHtml(target)}</code>\n` +
-                `• <b>Nominal Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
-                `• <b>Reference Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
-                `• <b>Link Checkout:</b> ${zegaCheckoutUrl}\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `📌 <b>CATATAN OPERATOR:</b> Pembeli (${escHtml(target)}) belum menekan /start di Telegram Bot ZEGA. Tagihan 100% aktif di DB &amp; dapat dibayar via Link Checkout di atas.`;
-
-              await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  chat_id: '7303438046',
-                  photo: qrImageUrl,
-                  caption: relayCaption,
-                  parse_mode: 'HTML',
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        { text: `⚡ Bayar / Web Checkout (${target})`, url: zegaCheckoutUrl }
-                      ]
-                    ]
-                  }
-                })
-              }).catch(() => {});
-
-              deliveryType = 'live_api';
-              externalResponse = { status: 'relay_active', target, note: 'Invoice active in DB and relayed to operator.' };
+              // Target buyer has not started Telegram bot yet.
+              // DO NOT forward to an unrelated account — keep invoice 100% active via Checkout Link.
+              deliveryType = 'dispatched_simulated';
+              externalResponse = {
+                status: 'pending_bot_start',
+                target: chatIdParam,
+                note: `Pembeli (${chatIdParam}) belum menekan /start di Telegram Bot. Tagihan 100% aktif di DB & dapat dibayar via Link Checkout.`
+              };
+              fastify.log.info({ target: chatIdParam }, 'Target buyer has not started Telegram bot yet; invoice active via checkout link');
             }
           }
         } catch (err) {
