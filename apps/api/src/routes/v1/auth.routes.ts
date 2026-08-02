@@ -27,9 +27,7 @@ const verifyOtpSchema = z.object({
   companyName: z.string().optional(),
 });
 
-const quickDemoSchema = z.object({
-  role: z.enum(['superadmin', 'enterprise', 'individual']),
-});
+
 
 export async function authRoutes(app: FastifyInstance) {
   /** POST /v1/auth/request-otp — Step 1: Request Brevo Email OTP with Turnstile bot defense & Rate Limiting */
@@ -271,70 +269,7 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  /** POST /v1/auth/quick-demo — 1-Click Interactive Demo Login */
-  app.post('/quick-demo', async (request, reply) => {
-    const body = quickDemoSchema.parse(request.body);
 
-    const demoMap = {
-      superadmin: { email: 'admin@zegaai.site', name: 'SuperAdmin ZEGA Root' },
-      enterprise: { email: 'enterprise@zegaai.site', name: 'Acme Enterprise Admin' },
-      individual: { email: 'user@zegaai.site', name: 'Alex Morgan' },
-    };
-
-    const target = demoMap[body.role];
-
-    // Sync Demo Profile to Supabase
-    const dbProfile = await SupabaseService.upsertProfile({
-      email: target.email,
-      fullName: target.name,
-      role: body.role,
-    });
-
-    const userId = dbProfile?.id || 'demo-' + body.role;
-
-    const token = app.jwt.sign(
-      {
-        sub: userId,
-        email: target.email,
-        roles: [body.role],
-        tenant: body.role === 'enterprise' ? 'acme-enterprise' : 'default',
-        fullName: target.name,
-      },
-      { expiresIn: '8h' }
-    );
-
-    await SupabaseService.logAuditEvent({
-      userId,
-      ipAddress: request.ip,
-      action: 'QUICK_DEMO_LOGIN',
-      resource: '/v1/auth/quick-demo',
-      statusCode: 200,
-      payloadSummary: `Role: ${body.role}`,
-    });
-
-    reply.setCookie('__zega_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 8 * 3600,
-    });
-
-    return {
-      success: true,
-      data: {
-        accessToken: token,
-        expiresIn: 28800,
-        tokenType: 'Bearer',
-        user: {
-          id: userId,
-          email: target.email,
-          role: body.role,
-          fullName: target.name,
-        },
-      },
-    };
-  });
 
   /** POST /v1/auth/privy-sync — Sync User to Official Privy Cloud & Embed Solana Wallet */
   app.post('/privy-sync', async (request, reply) => {

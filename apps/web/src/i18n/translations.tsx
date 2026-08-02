@@ -166,7 +166,7 @@ export const TRANSLATIONS = {
       orDivider: 'OR',
       continueWithGoogle: 'Continue with Google',
       continueWithGithub: 'Continue with GitHub',
-      demoModeBtn: '1-Click Enterprise Demo',
+
     }
   },
   id: {
@@ -319,7 +319,7 @@ export const TRANSLATIONS = {
       orDivider: 'ATAU',
       continueWithGoogle: 'Lanjutkan dengan Google',
       continueWithGithub: 'Lanjutkan dengan GitHub',
-      demoModeBtn: 'Demo Enterprise 1-Klik',
+
     }
   },
   zh: {
@@ -472,7 +472,7 @@ export const TRANSLATIONS = {
       orDivider: '或',
       continueWithGoogle: '使用 Google 账号登录',
       continueWithGithub: '使用 GitHub 账号登录',
-      demoModeBtn: '一键企业版演示',
+
     }
   }
 };
