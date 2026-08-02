@@ -121,9 +121,9 @@ async function callGroqApi(prompt: string, apiKey: string): Promise<string> {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        { 
-          role: 'system', 
-          content: 'You are ZeroClaw Solana POS Assistant. Your task is to respond as a concise, helpful merchant cashier assistant. RULES: 1. Answer in 1-2 short friendly sentences. 2. NEVER output programming tutorials, step-by-step developer guides, or markdown code blocks (```rust, ```js, etc). 3. Focus solely on confirming the invoice and payment request for the merchant.' 
+        {
+          role: 'system',
+          content: 'You are ZeroClaw Solana POS Assistant. Your task is to respond as a concise, helpful merchant cashier assistant. RULES: 1. Answer in 1-2 short friendly sentences. 2. NEVER output programming tutorials, step-by-step developer guides, or markdown code blocks (```rust, ```js, etc). 3. Focus solely on confirming the invoice and payment request for the merchant.'
         },
         { role: 'user', content: prompt }
       ],
@@ -460,7 +460,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               'Authorization': `Bearer ${supabaseKey}`,
             },
             body: JSON.stringify({ status: 'confirmed' })
-          }).catch(() => {});
+          }).catch(() => { });
         }
 
         // Also upsert into public.privy_wallets table if privyWalletAddress is present
@@ -484,7 +484,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               is_primary: true,
               metadata: { source: 'zeroclaw_settlement_route', verified: true }
             })
-          }).catch(() => {});
+          }).catch(() => { });
         }
       } catch (err) {
         // Fallback gracefully for demo or network issue
@@ -753,7 +753,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             data: invoices
           });
         }
-      } catch (err) {}
+      } catch (err) { }
     }
 
     return reply.send({
@@ -844,7 +844,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         });
         const sigStatusJson = (await sigStatusRes.json()) as any;
         const statusItem = sigStatusJson.result?.value?.[0];
-        
+
         if (statusItem && statusItem.confirmationStatus) {
           return reply.send({
             success: true,
@@ -1024,12 +1024,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
 
       // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol"
-      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) || 
-                                    promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
+      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
+        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
 
       // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
       const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
-                                promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+        promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
 
       // 3. Parenthetical match e.g. "(0.543)"
       const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
@@ -1258,7 +1258,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 text: receiptText,
                 parse_mode: 'Markdown'
               })
-            }).catch(() => {});
+            }).catch(() => { });
           } catch { }
         }
       }
@@ -1528,7 +1528,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Prefer': 'return=minimal' },
           body: JSON.stringify({ id: node.id, node_type: node.nodeType, title: node.title, content: node.content, tags: node.tags, created_at: node.createdAt }),
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       return reply.send({ success: true, action: 'capture', node_id: node.id, node });
@@ -1984,13 +1984,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const formattedTelegramResponse = {
       chat_id: chatId,
       text: `🧾 *ZEGA MERCHANT INVOICE*\n\n` +
-            `Hello *${senderName}*! Your order invoice is ready:\n` +
-            `• *Order:* ${userText}\n` +
-            `• *Amount:* ${amount.toFixed(2)} USDC\n` +
-            `• *Ref Key:* \`${referenceKey}\`\n\n` +
-            `⚡ *Pay via Solana Blink (One Click):*\n${blinkUrl}\n\n` +
-            `📱 *Solana Pay Raw URI:*\n\`${solanaPayUrl}\`\n\n` +
-            `_Reply "status" anytime to check your payment status._`,
+        `Hello *${senderName}*! Your order invoice is ready:\n` +
+        `• *Order:* ${userText}\n` +
+        `• *Amount:* ${amount.toFixed(2)} USDC\n` +
+        `• *Ref Key:* \`${referenceKey}\`\n\n` +
+        `⚡ *Pay via Solana Blink (One Click):*\n${blinkUrl}\n\n` +
+        `📱 *Solana Pay Raw URI:*\n\`${solanaPayUrl}\`\n\n` +
+        `_Reply "status" anytime to check your payment status._`,
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -2262,7 +2262,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     // 1. Production Telegram Bot API Dispatch (Sends QuickChart PNG QR Code Photo & Copyable Details)
     if (channel === 'telegram') {
-      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '8806659958:AAGYMn7pyShfnYdZARHh6jBSDWbI16UjP-k';
+      const rawEnvToken = process.env.TELEGRAM_BOT_TOKEN;
+      const telegramBotToken = (rawEnvToken && rawEnvToken.trim().length > 10 && rawEnvToken !== 'undefined')
+        ? rawEnvToken.trim()
+        : '';
+
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -2282,7 +2286,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         try {
           const cleanTarget = target.trim().replace(/^@/, '');
           let chatIdParam: string = target.trim();
-          if (cleanTarget.toLowerCase().includes('slzyoung')) {
+          if (cleanTarget.toLowerCase().includes('slzyoung') || cleanTarget === '7303438046') {
             chatIdParam = '7303438046';
           }
 
