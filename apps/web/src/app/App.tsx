@@ -897,14 +897,18 @@ function AuthModal({
   const handleQuickRoleLogin = async (role: 'superadmin' | 'enterprise' | 'individual') => {
     setLoading(true);
     setAuthError(null);
-    const mockSession = await SupabaseDashboardService.setDemoSession(role);
-    await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: mockSession.email });
+    const mockRes = await SupabaseDashboardService.setDemoSession(role);
+    const session = mockRes.data?.session;
+    const sessionEmail = session?.email || 'user@zegaai.site';
+    const sessionName = session?.fullName || 'Authenticated User';
+
+    await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: sessionEmail });
 
     // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
-    PrivyWalletService.syncUserToPrivyBackend(mockSession.email, role, 'email', mockSession.fullName).catch(() => {});
+    PrivyWalletService.syncUserToPrivyBackend(sessionEmail, role, 'email', sessionName).catch(() => {});
 
     setLoading(false);
-    onSubmitSuccess(`Authenticated as ${mockSession.fullName} (${role.toUpperCase()})! Opening Dashboard...`, role);
+    onSubmitSuccess(`Authenticated as ${sessionName} (${role.toUpperCase()})! Opening Dashboard...`, role);
     onClose();
   };
 

@@ -555,6 +555,63 @@ export function ZeroClawTerminalView({
     mode?: 'exact' | 'underpaid' | 'overpaid';
   } | null>(null);
 
+  // Dedicated Open QR Modal & Check Payments Verification State
+  const [activeQrModalInvoice, setActiveQrModalInvoice] = useState<GeneratedInvoice | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const [paymentCheckResult, setPaymentCheckResult] = useState<{
+    success: boolean;
+    paid: boolean;
+    mode?: 'EXACT' | 'UNDERPAID' | 'OVERPAID';
+    statusLabel?: string;
+    receivedAmount?: number;
+    expectedAmount?: number;
+    shortfallAmount?: number;
+    excessAmount?: number;
+    telegramSent?: boolean;
+    message?: string;
+  } | null>(null);
+
+  const handleCheckPaymentsModal = async (inv: GeneratedInvoice) => {
+    if (!inv) return;
+    setCheckingPayment(true);
+    setPaymentCheckResult(null);
+
+    try {
+      const refKey = inv.referenceKey || inv.id;
+      const expectedAmountUsdc = parseFloat(String(inv.amount)) || 15.00;
+      const targetChannel = inv.customerTarget || customerChannelTarget || userEmail;
+
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/check-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referenceKey: refKey,
+          expectedAmountUsdc,
+          userEmail,
+          telegramChannel: targetChannel,
+          merchantPubkey: activeMerchantWallet
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setPaymentCheckResult(json);
+        if (json.paid) {
+          onTriggerToast(`✅ Pembayaran Terverifikasi: ${json.statusLabel || 'LUNAS'}`);
+          fetchDbInvoices();
+        } else {
+          onTriggerToast('ℹ️ Belum ada pembayaran terdeteksi di Solana Devnet');
+        }
+      } else {
+        onTriggerToast(`⚠️ Verifikasi gagal: ${json.error || json.message}`);
+      }
+    } catch (err: any) {
+      onTriggerToast('⚠️ Gagal terhubung ke server verifikasi pembayaran');
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
 
   const [agentPrompt, setAgentPrompt] = useState('');
   const [executingPrompt, setExecutingPrompt] = useState(false);
@@ -2868,39 +2925,8 @@ export function ZeroClawTerminalView({
                                       setInvoiceAmount(inv.amount);
                                       setInvoiceMessage(inv.memo);
                                       setGeneratedUrl(inv.solanaPayUrl);
-
-                                      const isPaidOrExact = inv.status?.toLowerCase().includes('exact') ||
-                                        inv.status?.toLowerCase().includes('finished') ||
-                                        inv.status?.toLowerCase().includes('completed') ||
-                                        inv.status?.toLowerCase().includes('confirmed');
-
-                                      if (isPaidOrExact) {
-                                        const refKey = inv.referenceKey || (inv.solanaPayUrl && inv.solanaPayUrl.includes('&reference=')) ? inv.solanaPayUrl.split('&reference=')[1]?.split('&')[0] : `RefKeyFinished_${inv.id}`;
-                                        const matchedEvent = events.find(e => (e as any).referenceKey === refKey || e.memo?.includes(inv.memo));
-                                        const exactTxSig = matchedEvent?.signature || (inv as any).txSignature || refKey;
-                                        const amtNum = parseFloat(inv.amount) || 15.00;
-
-                                        setPaymentSuccessModal({
-                                          show: true,
-                                          targetAmount: amtNum,
-                                          amount: amtNum,
-                                          mode: 'exact',
-                                          signature: exactTxSig,
-                                          memo: `${inv.memo} (Status: FINISHED & LUNAS)`,
-                                          reference: refKey,
-                                        });
-                                        onTriggerToast(`✅ Tagihan #${inv.memo} Telah LUNAS (FINISHED ON-CHAIN)`);
-                                      } else {
-                                        onTriggerToast(`🔍 Membuka QR Code: ${inv.memo}`);
-                                        setTimeout(() => {
-                                          const qrCard = document.getElementById('solana-pay-qr-card');
-                                          if (qrCard) {
-                                            qrCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                          } else {
-                                            window.scrollTo({ top: 350, behavior: 'smooth' });
-                                          }
-                                        }, 50);
-                                      }
+                                      setPaymentCheckResult(null);
+                                      setActiveQrModalInvoice(inv);
                                     }}
                                     className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-100 cursor-pointer transition-colors flex items-center gap-1 text-[10px]"
                                   >
@@ -3595,6 +3621,140 @@ checkpoint = "human_approval_on_refund"`}
               >
                 {pairingLoading ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                 <span>{pairingLoading ? 'Pairing...' : 'Verifikasi Pairing'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Open QR Code & On-Chain Multi-Layer Payment Checker Modal ── */}
+      {activeQrModalInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative text-slate-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                  <QrCode size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Solana Pay Invoice QR Code</h3>
+                  <p className="text-[10.5px] text-slate-400 font-mono">Ref: {activeQrModalInvoice.referenceKey || activeQrModalInvoice.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveQrModalInvoice(null);
+                  setPaymentCheckResult(null);
+                }}
+                className="size-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* QR Code Scannable Card */}
+            <div className="bg-white p-4 rounded-xl flex flex-col items-center justify-center shadow-inner border border-slate-200 space-y-2">
+              <div className="relative size-56 bg-white p-2 rounded-lg">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=1&ecc=M&data=${encodeURIComponent(activeQrModalInvoice.solanaPayUrl)}`}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.fallback) {
+                      target.dataset.fallback = 'true';
+                      target.src = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(activeQrModalInvoice.solanaPayUrl)}`;
+                    }
+                  }}
+                  alt="Solana Pay QR Code"
+                  className="size-full object-contain"
+                />
+              </div>
+              <div className="text-center pt-1">
+                <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
+                  {activeQrModalInvoice.amount} USDC (Solana Devnet)
+                </span>
+                <p className="text-[10px] text-slate-500 font-medium mt-1">Pindai QR ini via Wallet Mobile (Phantom/Solflare)</p>
+              </div>
+            </div>
+
+            {/* Live Verification Result Banner */}
+            {paymentCheckResult && (
+              <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 animate-in fade-in slide-in-from-bottom-2 ${
+                paymentCheckResult.paid
+                  ? paymentCheckResult.mode === 'EXACT'
+                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
+                    : paymentCheckResult.mode === 'UNDERPAID'
+                    ? 'bg-amber-950/80 border-amber-500/50 text-amber-200'
+                    : 'bg-indigo-950/80 border-indigo-500/50 text-indigo-200'
+                  : 'bg-slate-800/80 border-slate-700 text-slate-300'
+              }`}>
+                <div className="flex items-center justify-between font-bold">
+                  <span className="flex items-center gap-1.5">
+                    {paymentCheckResult.paid ? (
+                      <CheckCircle2 size={16} className={paymentCheckResult.mode === 'UNDERPAID' ? 'text-amber-400' : 'text-emerald-400'} />
+                    ) : (
+                      <RefreshCw size={14} className="text-slate-400" />
+                    )}
+                    <span>{paymentCheckResult.statusLabel || (paymentCheckResult.paid ? 'LUNAS' : 'Belum Ada Pembayaran')}</span>
+                  </span>
+                  {paymentCheckResult.telegramSent && (
+                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[9px] border border-blue-500/30 flex items-center gap-1">
+                      <Send size={10} /> Telegram Sent
+                    </span>
+                  )}
+                </div>
+
+                {paymentCheckResult.paid ? (
+                  <div className="text-[11px] space-y-1 pt-1 border-t border-slate-800/60">
+                    <p>• Diterima On-Chain: <b>{paymentCheckResult.receivedAmount?.toFixed(2)} USDC</b></p>
+                    <p>• Tagihan Invoice: <b>{paymentCheckResult.expectedAmount?.toFixed(2)} USDC</b></p>
+                    {paymentCheckResult.mode === 'UNDERPAID' && (
+                      <p className="text-amber-300 font-bold">⚠️ Sisa Kekurangan: {paymentCheckResult.shortfallAmount?.toFixed(2)} USDC (Pesan kekurangan dikirim ke Telegram)</p>
+                    )}
+                    {paymentCheckResult.mode === 'OVERPAID' && (
+                      <p className="text-indigo-300 font-bold">🎉 Kembalian Excess: {paymentCheckResult.excessAmount?.toFixed(2)} USDC (Pesan Lunas & Escrow Kembalian dikirim ke Telegram)</p>
+                    )}
+                    {paymentCheckResult.mode === 'EXACT' && (
+                      <p className="text-emerald-300 font-bold">✅ LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">
+                    {paymentCheckResult.message || 'Belum ada transaksi pembayaran yang terdeteksi di blockchain Solana.'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Check Payments Trigger Button */}
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleCheckPaymentsModal(activeQrModalInvoice)}
+                disabled={checkingPayment}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {checkingPayment ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>Melakukan Multi-Layer On-Chain Check...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    <span>Check Payments (Cek Pembayaran On-Chain & Kirim Tele)</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(activeQrModalInvoice.solanaPayUrl);
+                  onTriggerToast('📋 Link Solana Pay Disalin!');
+                }}
+                className="w-full py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Copy Link Solana Pay
               </button>
             </div>
           </div>
