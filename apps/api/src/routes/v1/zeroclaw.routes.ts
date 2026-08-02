@@ -1234,6 +1234,35 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       zeroClawState.totalReconciledUsdc += paidAmount;
       zeroClawState.reconciledTxCount += 1;
 
+      // Real-Time Telegram Settlement Receipt Dispatcher
+      if (settlementStatus === 'settled_exact') {
+        const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (telegramBotToken) {
+          try {
+            const receiptText = `🎉 *PEMBAYARAN BERHASIL (PAYMENT SUCCESSFUL)!*\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `🟢 *Status:* \`LUNAS & TERVERIFIKASI ON-CHAIN\`\n` +
+              `• *Nominal Dibayar:* \`${paidAmount.toFixed(2)} USDC\`\n` +
+              `• *Referensi Tagihan:* \`${referenceKey || 'RefONCHAIN'}\`\n` +
+              `• *Solana Signature:* \`${txSignature || 'Confirmed'}\`\n` +
+              `• *Solana Devnet Slot:* \`${event.slot}\`\n` +
+              `• *Waktu Verification:* \`${new Date().toLocaleTimeString()}\`\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Terima kasih! Pembayaran Anda telah terkonfirmasi 100% On-Chain via ZEGA AI Terminal.`;
+
+            fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: '7303438046', // Customer / Admin Chat ID (@slzyoung)
+                text: receiptText,
+                parse_mode: 'Markdown'
+              })
+            }).catch(() => {});
+          } catch { }
+        }
+      }
+
       return reply.send({
         success: true,
         message: settlementStatus === 'settled_exact'
@@ -2192,16 +2221,23 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let deliveryType: 'live_api' | 'dispatched_simulated' = 'dispatched_simulated';
     let externalResponse: any = null;
 
-    // 1. Production Telegram Bot API Dispatch (Reads TELEGRAM_BOT_TOKEN dynamically)
+    // 1. Production Telegram Bot API Dispatch (Sends QR Code Photo & Copyable Details)
     if (channel === 'telegram') {
       const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-      const formattedMessage = `🧾 *ZEGA MERCHANT INVOICE (Telegram)*\n\n` +
-        `Halo *${customerName || 'Pelanggan'}*, invoice pesanan Anda:\n` +
-        `• *Detail:* ${description || 'Pesanan Produk'}\n` +
-        `• *Total:* ${amount.toFixed(2)} USDC\n` +
-        `• *Referensi:* \`${referenceKey}\`\n\n` +
-        `⚡ *Klik untuk Bayar (Solana Blink):*\n${blinkUrl}\n\n` +
-        `📱 *Solana Pay URI:*\n\`${solanaPayUrl}\``;
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(solanaPayUrl)}`;
+      const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `• *Merchant:* ZEGA AI Enterprise Terminal\n` +
+        `• *Detail Pesanan:* ${description || 'Pesanan Produk'}\n` +
+        `• *Nominal Tagihan:* \`${amount.toFixed(2)} USDC\`\n` +
+        `• *Referensi Key:* \`${referenceKey}\`\n` +
+        `• *Wallet Merchant:* \`${recipient}\`\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📌 *PETUNJUK PEMBAYARAN:* \n` +
+        `1. *Scan QR Code:* Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
+        `2. *Copy Wallet:* Tap alamat wallet merchant di atas untuk transfer manual.\n` +
+        `3. *Copy Solana Pay URI:*\n\`${solanaPayUrl}\` \n\n` +
+        `⚡ *Status:* \`PENGIRIMAN DANA DITUNGGU (PENDING)\``;
 
       if (telegramBotToken) {
         try {
@@ -2210,17 +2246,21 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           if (cleanTarget.toLowerCase() === '@slzyoung' || cleanTarget.toLowerCase() === 'slzyoung') {
             chatIdParam = '7303438046';
           }
-          const tgApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
+          const tgApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendPhoto`;
           const tgRes = await fetch(tgApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatIdParam,
-              text: formattedMessage,
+              photo: qrImageUrl,
+              caption: formattedCaption,
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: `⚡ Bayar ${amount.toFixed(2)} USDC via Solana Blink`, url: blinkUrl }]
+                  [
+                    { text: `📱 Solana Pay (Wallet Direct)`, url: solanaPayUrl },
+                    { text: `⚡ Web Checkout`, url: zegaCheckoutUrl }
+                  ]
                 ]
               }
             })
@@ -2230,10 +2270,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             const tgJson: any = await tgRes.json();
             deliveryType = 'live_api';
             externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat };
-            fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram message dispatched successfully');
+            fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram QR Code photo invoice dispatched successfully');
           }
         } catch (err) {
-          fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram HTTP message, using fallback');
+          fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram QR photo, using fallback');
         }
       }
     }
