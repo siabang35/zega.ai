@@ -116,6 +116,8 @@ export interface GeneratedInvoice {
   r2CdnUrl?: string;
   customerTarget?: string;
   channelType?: 'telegram' | 'whatsapp' | string;
+  isDemo?: boolean;
+  is_demo?: boolean;
 }
 
 const getApiBase = (): string => {
@@ -482,24 +484,32 @@ export function ZeroClawTerminalView({
     try {
       const isDemoParam = isGuestSession;
       const query = !isDemoParam && userEmail
-        ? `userId=${encodeURIComponent(userEmail)}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`
+        ? `isDemo=false&userId=${encodeURIComponent(userEmail)}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`
         : `isDemo=true`;
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/list?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.invoices)) {
         setGeneratedInvoicesHistory((prev) => {
           const map = new Map<string, GeneratedInvoice>();
-          // 1. Preserve existing local state entries first
-          prev.forEach((inv) => {
-            const key = inv.referenceKey || inv.id;
-            if (key) map.set(key, inv);
-          });
+          // 1. If authenticated, strictly purge demo/mock entries from local state
+          if (!isDemoParam) {
+            prev.filter(inv => !inv.isDemo && inv.merchantWallet !== 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh').forEach((inv) => {
+              const key = inv.referenceKey || inv.id;
+              if (key) map.set(key, inv);
+            });
+          } else {
+            prev.forEach((inv) => {
+              const key = inv.referenceKey || inv.id;
+              if (key) map.set(key, inv);
+            });
+          }
           // 2. Filter & union merge server-side DB invoices
           const serverInvoices = !isDemoParam
             ? json.invoices.filter((i: any) =>
-                i.merchantWallet === activeMerchantWallet ||
-                i.buyerEmail === userEmail ||
-                (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet))
+                !i.isDemo && !i.is_demo &&
+                (i.merchantWallet === activeMerchantWallet ||
+                 i.buyerEmail === userEmail ||
+                 (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet)))
               )
             : json.invoices;
 
@@ -793,7 +803,11 @@ export function ZeroClawTerminalView({
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
-          const mappedEvents: ReconciledEvent[] = json.data.map((e: any, idx: number) => ({
+          const filteredRows = !isDemoParam
+            ? json.data.filter((e: any) => !e.is_demo && !e.isDemo && e.channel !== 'SOLANA-PAY-DEMO')
+            : json.data;
+
+          const mappedEvents: ReconciledEvent[] = filteredRows.map((e: any, idx: number) => ({
             id: e.id || `evt_${idx}`,
             signature: e.signature,
             amount: e.amount,
@@ -807,10 +821,18 @@ export function ZeroClawTerminalView({
           }));
           setEvents((prev) => {
             const map = new Map<string, ReconciledEvent>();
-            prev.forEach((evt) => {
-              const key = evt.signature || evt.id;
-              if (key) map.set(key, evt);
-            });
+            // If authenticated, strictly purge demo events from state
+            if (!isDemoParam) {
+              prev.filter(evt => evt.channel !== 'SOLANA-PAY-DEMO').forEach((evt) => {
+                const key = evt.signature || evt.id;
+                if (key) map.set(key, evt);
+              });
+            } else {
+              prev.forEach((evt) => {
+                const key = evt.signature || evt.id;
+                if (key) map.set(key, evt);
+              });
+            }
             mappedEvents.forEach((evt) => {
               const key = evt.signature || evt.id;
               if (key) {

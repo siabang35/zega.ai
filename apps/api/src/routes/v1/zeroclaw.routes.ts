@@ -708,9 +708,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           const userUuid = await resolveUserUuid(userId);
           if (userUuid) {
-            queryParam = `or=(user_id.eq.${userUuid},buyer_email.eq.${encodeURIComponent(userId!)})&${queryParam}`;
+            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${encodeURIComponent(userId!)})&${queryParam}`;
           } else {
-            queryParam = `buyer_email=eq.${encodeURIComponent(userId!)}&${queryParam}`;
+            queryParam = `is_demo=eq.false&buyer_email=eq.${encodeURIComponent(userId!)}&${queryParam}`;
           }
         }
 
@@ -2410,7 +2410,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     activeActions.set(actionId, { amount: numericAmount, recipient, memo: `Merchant Invoice (${cleanDescription})`, label: `Pay ${numericAmount.toFixed(2)} USDC`, referenceKey } as any);
 
-    const solanaPayUrl = `solana:${recipient}?amount=${numericAmount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
+    const solanaPayUrl = `solana:${recipient}?amount=${numericAmount.toFixed(2)}&reference=${referenceKey}&memo=${encodeURIComponent(referenceKey)}`;
     const zegaCheckoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${numericAmount.toFixed(2)}&recipient=${recipient}&description=${encodeURIComponent(cleanDescription)}&target=${encodeURIComponent(cleanTarget)}&customer=${encodeURIComponent(customerName || cleanTarget)}&tier=${tierParam}`;
     const blinkUrl = zegaCheckoutUrl;
 

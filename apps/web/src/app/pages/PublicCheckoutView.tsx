@@ -117,7 +117,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   };
 
   const solanaPayUrl = params
-    ? `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${params.reference}`
+    ? `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(2)}&reference=${params.reference}&memo=${encodeURIComponent(params.reference)}`
     : '';
   const solflareTransferUrl = params
     ? `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(2)}`
