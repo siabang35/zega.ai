@@ -2251,7 +2251,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     // 1. Production Telegram Bot API Dispatch (Sends QuickChart PNG QR Code Photo & Copyable Details)
     if (channel === 'telegram') {
-      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '8806659958:AAGYMn7pyShfnYdZARHh6jBSDWbI16UjP-k';
+      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
