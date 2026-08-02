@@ -774,7 +774,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const { userId, merchantPubkey, amount, memo, solanaPayUrl, referenceKey, buyerEmail, isDemo } = request.body || {};
     const userEmail = userId || 'user@zegaai.site';
     const amountUsdc = parseFloat(amount) || 15.00;
-    const isDemoBool = Boolean(isDemo) || userEmail.includes('guest') || !userId;
+    const isDemoBool = false;
 
     let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
     try {

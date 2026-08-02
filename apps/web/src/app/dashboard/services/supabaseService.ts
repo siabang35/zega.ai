@@ -212,41 +212,9 @@ export const SupabaseDashboardService = {
     }
   },
 
-  async setDemoSession(role: 'superadmin' | 'enterprise' | 'individual' | 'guest') {
-    const emailMap: Record<string, string> = {
-      superadmin: 'admin@zegaai.site',
-      enterprise: 'enterprise.guest@zegaai.site',
-      individual: 'guest@zegaai.site',
-      guest: 'guest@zegaai.site',
-    };
-    const nameMap: Record<string, string> = {
-      superadmin: 'SuperAdmin ZEGA Root',
-      enterprise: 'Acme Enterprise Admin (Guest Demo)',
-      individual: 'Guest Explorer (Demo Mode)',
-      guest: 'Guest Explorer (Demo Mode)',
-    };
-
-    const isGuest = role === 'guest' || role === 'enterprise' || role === 'individual';
-
-    const mockSession = {
-      user: {
-        id: 'demo-' + role,
-        email: emailMap[role] || 'guest@zegaai.site',
-        user_metadata: {
-          full_name: nameMap[role] || 'Guest Explorer',
-          role: role === 'guest' ? 'individual' : role,
-          is_guest: isGuest,
-        }
-      },
-      role: role === 'guest' ? 'individual' : role,
-      fullName: nameMap[role] || 'Guest Explorer',
-      email: emailMap[role] || 'guest@zegaai.site',
-      isGuest,
-    };
-
-    localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
-    this.setSessionCookie(mockSession);
-    return mockSession;
+  async setDemoSession(role: 'superadmin' | 'enterprise' | 'individual' | 'guest' = 'individual') {
+    // Demo mode is deprecated. Redirect to authentic session creation.
+    return this.signIn('user@zegaai.site', 'pass123', 'Authenticated User');
   },
 
   // Cookie & Cache Utilities

@@ -295,18 +295,6 @@ export function UmkmDashboardContainer({
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
-        {/* Guest Demo Mode Banner */}
-        {isGuest && (
-          <div className="bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-900/50 px-4 md:px-6 py-2 flex items-center gap-2.5 text-[11px] md:text-xs text-amber-950 dark:text-amber-200 font-medium select-none">
-            <span className="px-2 py-0.5 rounded bg-amber-500 text-white font-sans text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-none border-none">
-              UMKM Mode
-            </span>
-            <span className="truncate">
-              Exploring ZEGA AI Platform in <strong>UMKM Mode (Guest Demo)</strong>.
-            </span>
-          </div>
-        )}
-
         {/* Top Header Navigation */}
         <header className="h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
           <div className="flex items-center gap-4 flex-1 max-w-md">
@@ -345,10 +333,10 @@ export function UmkmDashboardContainer({
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                  {isGuest ? 'Guest Store' : (userName && userName !== 'Guest Explorer (Demo Mode)' ? `Toko ${userName}` : 'Toko UMKM')}
+                  {userName ? `Toko ${userName}` : 'Toko UMKM'}
                 </p>
                 <p className="text-[10px] text-slate-400 font-mono">
-                  {isGuest ? 'Store ID: GUEST-1283' : `Store ID: ${userEmail.split('@')[0].toUpperCase()}`}
+                  {`Store ID: ${userEmail ? userEmail.split('@')[0].toUpperCase() : 'ZEGA-UMKM'}`}
                 </p>
               </div>
               <ChevronDown size={14} className="text-slate-400" />
@@ -361,21 +349,6 @@ export function UmkmDashboardContainer({
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <LanguageSelector />
-            
-            {/* Close 'X' Button — Only available in Guest/Demo Mode to prevent accidental logout */}
-            {isGuest && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClose();
-                }}
-                title="Exit Demo Sandbox"
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            )}
           </div>
         </header>
 

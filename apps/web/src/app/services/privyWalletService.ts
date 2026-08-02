@@ -91,29 +91,15 @@ export class PrivyWalletService {
     providerLabel: string;
   } {
     const isPrivyActive = this.isConfigured();
-
-    if (isPrivyActive && email && !email.includes('guest')) {
-      const derivedPrivyAddress = this.deriveSolanaPublicKey(email);
-      return {
-        address: derivedPrivyAddress,
-        isPrivy: true,
-        providerLabel: 'Privy Keyless Solana Embedded Wallet (Active)',
-      };
-    }
-
-    if (email && !email.includes('guest')) {
-      const derivedAddress = this.deriveSolanaPublicKey(email);
-      return {
-        address: derivedAddress,
-        isPrivy: false,
-        providerLabel: 'ZeroClaw Tier 1 Keyless Custody (Active)',
-      };
-    }
+    const userEmail = email || 'user@zegaai.site';
+    const derivedAddress = this.deriveSolanaPublicKey(userEmail);
 
     return {
-      address: 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh',
-      isPrivy: false,
-      providerLabel: 'Solana Devnet Sandbox (Public Receiver)',
+      address: derivedAddress,
+      isPrivy: isPrivyActive,
+      providerLabel: isPrivyActive
+        ? 'Privy Keyless Solana Embedded Wallet (Active)'
+        : 'ZeroClaw Tier 1 Keyless Custody (Active)',
     };
   }
 

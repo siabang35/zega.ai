@@ -2197,9 +2197,9 @@ function AppContent() {
       const defaultRole = currentPath.startsWith('/admin') ? 'superadmin' : currentPath.startsWith('/console') ? 'enterprise' : 'individual';
       const defaultSession = {
         role: defaultRole,
-        email: 'guest@zegaai.site',
-        fullName: 'Guest User (UMKM)',
-        isGuest: true,
+        email: 'user@zegaai.site',
+        fullName: 'Authenticated User',
+        isGuest: false,
       };
       localStorage.setItem('zega_mock_session', JSON.stringify(defaultSession));
       mock = JSON.stringify(defaultSession);

@@ -28,12 +28,8 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const displayName = useMemo(() => {
-    if (!isGuest && userName && !userName.toLowerCase().includes('guest')) {
-      return userName.split(' ')[0];
-    }
-    if (isGuest) return 'Guest';
     return userName ? userName.split(' ')[0] : 'Pemilik Toko';
-  }, [userName, isGuest]);
+  }, [userName]);
 
   const currentTab = useMemo(() => {
     if (externalTab === 'umkm' || externalTab === 'home' || externalTab === 'overview' || !externalTab) return 'overview';
