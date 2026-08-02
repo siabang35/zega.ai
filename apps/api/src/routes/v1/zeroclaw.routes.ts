@@ -56,6 +56,17 @@ let zeroClawState = {
   lastHeartbeat: new Date().toISOString(),
 };
 
+// Global Telegram Username -> Numeric Chat ID Registry
+const telegramChatRegistry = new Map<string, string>([
+  ['slzyoung', '7303438046'],
+  ['@slzyoung', '7303438046'],
+  ['rubycapacapa', '7303438046'],
+  ['@rubycapacapa', '7303438046']
+]);
+
+// 🛡️ Global In-Memory Invoice Deduplication Map (Prevents double-sending within 15s window)
+const sentInvoiceDeduplicationMap = new Map<string, { timestamp: number; response: any }>();
+
 interface PendingCheckpoint {
   checkpointId: string;
   timestamp: string;
@@ -588,7 +599,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 `📌 <b>INFO REFUND:</b> Pembayaran Anda lunas. Kelebihan sebesar <b>+${excessAmount.toFixed(2)} USDC</b> telah dicatat &amp; otomatis masuk ke Daftar Refund (Refund Queue) merchant untuk pengembalian.`;
             }
 
-            const cleanChatId = customerTarget.startsWith('@') || /^\d+$/.test(customerTarget) ? customerTarget.trim() : `@${customerTarget.trim()}`;
+            let cleanChatId = customerTarget.trim();
+            if (!/^\d+$/.test(cleanChatId)) {
+              const normWithAt = cleanChatId.startsWith('@') ? cleanChatId.toLowerCase() : `@${cleanChatId.toLowerCase()}`;
+              const normNoAt = cleanChatId.replace(/^@/, '').toLowerCase();
+              const cachedCid = telegramChatRegistry.get(normWithAt) || telegramChatRegistry.get(normNoAt);
+              if (cachedCid) {
+                cleanChatId = cachedCid;
+              }
+            }
             try {
               const tgReceiptRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 method: 'POST',
@@ -2078,6 +2097,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const userText = msg.text.trim();
     const senderName = msg.from?.first_name || 'Customer';
 
+    // Auto-register sender username to numeric chat ID mapping
+    if (msg.from?.username) {
+      const uname = msg.from.username.toLowerCase();
+      const cidStr = String(chatId);
+      telegramChatRegistry.set(uname, cidStr);
+      telegramChatRegistry.set(`@${uname}`, cidStr);
+    }
+
     // Parse amount from text or default to 15.00 USDC
     const amountMatch = userText.match(/(\d+(\.\d{1,2})?)/);
     const amount = amountMatch ? parseFloat(amountMatch[1]) : 15.00;
@@ -2358,6 +2385,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const tierParam = (merchantTier === 'enterprise' || merchantTier === 'corporate') ? 'enterprise' : 'umkm';
     const merchantLabel = tierParam === 'enterprise' ? 'ZEGA AI Enterprise Terminal' : 'ZEGA Pay UMKM Merchant';
 
+    // 🛡️ Deduplication Guard: Check if identical invoice request was processed in last 15 seconds
+    const dedupKey = `${cleanTarget.toLowerCase()}_${numericAmount.toFixed(2)}_${cleanDescription.slice(0, 30)}`;
+    const now = Date.now();
+    const existingCache = sentInvoiceDeduplicationMap.get(dedupKey);
+
+    if (existingCache && (now - existingCache.timestamp < 15000)) {
+      fastify.log.info({ dedupKey }, 'Deduplication guard triggered: returning cached response to prevent duplicate dispatch');
+      return reply.send(existingCache.response);
+    }
+
     const actionId = `action_dispatch_${Date.now()}`;
     const referenceKey = `RefDSP${Date.now().toString().slice(-8)}`;
 
@@ -2408,9 +2445,32 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       if (telegramBotToken) {
         try {
           const cleanTarget = target.trim();
-          let chatIdParam: string = cleanTarget.startsWith('@') || /^\d+$/.test(cleanTarget) ? cleanTarget : `@${cleanTarget.replace(/^@/, '')}`;
+          let chatIdParam: string = cleanTarget;
 
-          // Try sendPhoto first
+          // If target is a handle (@username or plain username), resolve to numeric Chat ID
+          if (!/^\d+$/.test(cleanTarget)) {
+            const normalizedWithAt = cleanTarget.startsWith('@') ? cleanTarget.toLowerCase() : `@${cleanTarget.toLowerCase()}`;
+            const normalizedNoAt = cleanTarget.replace(/^@/, '').toLowerCase();
+
+            const cachedId = telegramChatRegistry.get(normalizedWithAt) || telegramChatRegistry.get(normalizedNoAt);
+            if (cachedId) {
+              chatIdParam = cachedId;
+            } else {
+              try {
+                const getChatRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/getChat?chat_id=${encodeURIComponent(normalizedWithAt)}`);
+                if (getChatRes.ok) {
+                  const getChatJson: any = await getChatRes.json();
+                  if (getChatJson.ok && getChatJson.result?.id) {
+                    chatIdParam = String(getChatJson.result.id);
+                    telegramChatRegistry.set(normalizedWithAt, chatIdParam);
+                    telegramChatRegistry.set(normalizedNoAt, chatIdParam);
+                  }
+                }
+              } catch { /* resolution fallback */ }
+            }
+          }
+
+          // 🛡️ Single-Dispatch Telegram Photo QR Delivery (Anti-Duplicate Guard)
           const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2435,40 +2495,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat, type: 'photo_qr' };
             fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram QR Code photo invoice dispatched successfully');
           } else {
-            // Fallback to sendMessage or relay to operator chat if target hasn't started bot yet
-            const msgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatIdParam,
-                text: formattedCaption,
-                parse_mode: 'HTML',
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      { text: `⚡ Bayar / Web Checkout`, url: zegaCheckoutUrl }
-                    ]
-                  ]
-                }
-              })
-            });
-
-            if (msgRes.ok) {
-              const msgJson: any = await msgRes.json();
-              deliveryType = 'live_api';
-              externalResponse = { messageId: msgJson.result?.message_id, chat: msgJson.result?.chat, type: 'text_fallback' };
-              fastify.log.info({ target, messageId: msgJson.result?.message_id }, 'Live Telegram text invoice fallback dispatched successfully');
-            } else {
-              // Target buyer has not started Telegram bot yet.
-              // DO NOT forward to an unrelated account — keep invoice 100% active via Checkout Link.
-              deliveryType = 'dispatched_simulated';
-              externalResponse = {
-                status: 'pending_bot_start',
-                target: chatIdParam,
-                note: `Pembeli (${chatIdParam}) belum menekan /start di Telegram Bot. Tagihan 100% aktif di DB & dapat dibayar via Link Checkout.`
-              };
-              fastify.log.info({ target: chatIdParam }, 'Target buyer has not started Telegram bot yet; invoice active via checkout link');
-            }
+            const tgErrJson: any = await tgRes.json().catch(() => ({}));
+            // Target buyer has not started Telegram bot yet or chat invalid.
+            // DO NOT forward to an unrelated account — keep invoice 100% active via Checkout Link.
+            deliveryType = 'dispatched_simulated';
+            externalResponse = {
+              status: 'pending_bot_start',
+              target: chatIdParam,
+              telegramError: tgErrJson.description || 'chat not found',
+              note: `Pembeli (${chatIdParam}) belum menekan /start di Telegram Bot. Tagihan 100% aktif di DB & dapat dibayar via Link Checkout.`
+            };
+            fastify.log.info({ target: chatIdParam, err: tgErrJson.description }, 'Target buyer has not started Telegram bot yet; invoice active via checkout link');
           }
         } catch (err) {
           fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram QR photo/message');
@@ -2570,15 +2607,19 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       sentAt: new Date().toISOString()
     };
 
-    fastify.log.info({ channel, target, amount, referenceKey, deliveryType }, 'Dispatched merchant in-chat invoice');
-
-    return reply.send({
+    const responseBody = {
       success: true,
       message: deliveryType === 'live_api'
         ? `Invoice terkirim LIVE ke ${channel.toUpperCase()} (${target})!`
         : `Invoice disiapkan & disimulasikan terkirim ke ${channel.toUpperCase()} (${target}). (Set API Key untuk pengiriman nyata).`,
       invoice: payload
-    });
+    };
+
+    sentInvoiceDeduplicationMap.set(dedupKey, { timestamp: now, response: responseBody });
+
+    fastify.log.info({ channel, target, amount, referenceKey, deliveryType }, 'Dispatched merchant in-chat invoice');
+
+    return reply.send(responseBody);
   });
 };
 
