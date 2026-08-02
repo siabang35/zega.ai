@@ -73,6 +73,7 @@ interface ZeroClawTerminalViewProps {
   isGuest?: boolean;
   userEmail?: string;
   userName?: string;
+  userRole?: 'superadmin' | 'enterprise' | 'individual';
 }
 
 interface ReconciledEvent {
@@ -206,7 +207,8 @@ export function ZeroClawTerminalView({
   onTriggerToast,
   isGuest: propIsGuest,
   userEmail: propUserEmail,
-  userName: propUserName
+  userName: propUserName,
+  userRole = 'enterprise'
 }: ZeroClawTerminalViewProps) {
   const [network, setNetwork] = useState<'solana-devnet' | 'solana-mainnet'>('solana-devnet');
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'SOL' | 'IDR'>('USDC');
@@ -313,7 +315,7 @@ export function ZeroClawTerminalView({
   const dispatchInvoiceToChannel = async (
     targetChannel: 'whatsapp' | 'telegram',
     targetAddr: string,
-    amountStr: string,
+    amountVal: string | number,
     descriptionText: string,
     refKeyStr?: string
   ) => {
@@ -321,6 +323,9 @@ export function ZeroClawTerminalView({
       onTriggerToast('⚠️ Harap isi nomor WhatsApp (+62...) atau Telegram ID/Username terlebih dahulu!');
       return;
     }
+
+    const numericAmount = typeof amountVal === 'number' ? amountVal : (parseFloat(amountVal) || 15.00);
+    const amountDisplay = numericAmount.toFixed(2);
 
     setDispatchingChannel(targetChannel);
     try {
@@ -330,9 +335,10 @@ export function ZeroClawTerminalView({
         body: JSON.stringify({
           channel: targetChannel,
           target: targetAddr.trim(),
-          amount: parseFloat(amountStr) || 15.00,
+          amount: numericAmount,
           description: descriptionText,
-          customerName: userEmail ? userEmail.split('@')[0] : 'Pelanggan'
+          customerName: userEmail ? userEmail.split('@')[0] : 'Pelanggan',
+          merchantTier: userRole === 'individual' ? 'umkm' : 'enterprise'
         })
       });
 
@@ -342,12 +348,12 @@ export function ZeroClawTerminalView({
       }
 
       if (json?.invoice?.deliveryType === 'live_api') {
-        onTriggerToast(`🟢 Invoice (${amountStr} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
+        onTriggerToast(`🟢 Invoice (${amountDisplay} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
       } else {
-        onTriggerToast(`⚡ Invoice (${amountStr} USDC) Diterbitkan untuk ${targetAddr} (${targetChannel.toUpperCase()}).`);
+        onTriggerToast(`⚡ Invoice (${amountDisplay} USDC) Diterbitkan untuk ${targetAddr} (${targetChannel.toUpperCase()}).`);
       }
     } catch (e) {
-      onTriggerToast(`⚡ Invoice (${amountStr} USDC) dikirim ke ${targetAddr}.`);
+      onTriggerToast(`⚡ Invoice (${amountDisplay} USDC) dikirim ke ${targetAddr}.`);
     } finally {
       setDispatchingChannel(null);
     }

@@ -53,6 +53,7 @@ import {
 import { CookieConsent } from "./components/CookieConsent";
 import { TermsOfService } from "./pages/TermsOfService";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
+import { PublicCheckoutView } from "./pages/PublicCheckoutView";
 import { DocsPage } from "./DocsPage";
 import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { UserDashboard } from "./dashboard/UserDashboard";
@@ -2142,6 +2143,20 @@ function AppContent() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  const isPublicCheckout = 
+    currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
+    currentPath === '/pay' || currentPath.startsWith('/pay') ||
+    currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
+    (typeof window !== 'undefined' && window.location.search.includes('reference='));
+
+  if (isPublicCheckout) {
+    return (
+      <div className={dark ? 'dark' : ''}>
+        <PublicCheckoutView onBack={() => { navigateTo('/home'); }} />
       </div>
     );
   }

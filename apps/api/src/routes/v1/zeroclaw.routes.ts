@@ -2188,16 +2188,43 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       amount: number;
       description: string;
       customerName?: string;
+      merchantTier?: 'umkm' | 'enterprise' | 'individual' | 'corporate';
     };
   }>('/channels/send-invoice', async (request, reply) => {
-    const { channel, target, amount, description, customerName } = request.body || {};
+    const { channel, target, amount, description, customerName, merchantTier } = request.body || {};
 
-    if (!channel || !target || !amount) {
+    // 🛡️ OWASP Input Validation Rule 1: Required Parameters Check
+    if (!channel || !target || amount === undefined || amount === null) {
       return reply.status(400).send({
         success: false,
-        error: 'channel ("telegram" | "whatsapp"), target, and amount are required.'
+        error: '[OWASP-VAL-01] Required parameters missing: channel ("telegram" | "whatsapp"), target, and amount.'
       });
     }
+
+    // 🛡️ OWASP Input Validation Rule 2: Strict Channel Whitelist
+    if (!['telegram', 'whatsapp'].includes(channel)) {
+      return reply.status(400).send({
+        success: false,
+        error: '[OWASP-VAL-02] Invalid channel identifier. Must be "telegram" or "whatsapp".'
+      });
+    }
+
+    // 🛡️ OWASP Input Validation Rule 3: Amount Range & Numeric Integrity Check (Anti-Negative/NaN Overflow)
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0.001 || numericAmount > 1000000.0) {
+      return reply.status(400).send({
+        success: false,
+        error: '[OWASP-VAL-03] Invalid amount. Invoice amount must be a positive number between 0.001 and 1,000,000 USDC.'
+      });
+    }
+
+    // 🛡️ OWASP Input Validation Rule 4: String Sanitization & Length Caps (XSS & Injection Protection)
+    const cleanTarget = String(target).trim().slice(0, 100);
+    const cleanDescription = (description ? String(description).replace(/<[^>]*>?/gm, '').trim() : 'Pesanan Produk').slice(0, 250);
+
+    // Merchant Tier Resolution (UMKM / Small Business vs Enterprise Scale)
+    const tierParam = (merchantTier === 'enterprise' || merchantTier === 'corporate') ? 'enterprise' : 'umkm';
+    const merchantLabel = tierParam === 'enterprise' ? 'ZEGA AI Enterprise Terminal' : 'ZEGA Pay UMKM Merchant';
 
     const actionId = `action_dispatch_${Date.now()}`;
     const referenceKey = `RefDSP${Date.now().toString().slice(-8)}`;
@@ -2205,25 +2232,26 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     const actionPreview = {
       id: actionId,
-      title: `Merchant Invoice — ${description || 'Order'}`,
+      title: `${merchantLabel} — ${cleanDescription}`,
       icon: 'https://cdn.zegaai.site/mascot-3d.png',
-      description: `${description || 'Invoice'} (${channel.toUpperCase()}). Amount: ${amount.toFixed(2)} USDC`,
-      label: `Pay ${amount.toFixed(2)} USDC`,
+      description: `${cleanDescription} (${channel.toUpperCase()}). Amount: ${numericAmount.toFixed(2)} USDC`,
+      label: `Pay ${numericAmount.toFixed(2)} USDC`,
       referenceKey,
+      tier: tierParam
     };
 
-    activeActions.set(actionId, { amount, recipient, memo: `Merchant Invoice (${description || 'Order'})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
+    activeActions.set(actionId, { amount: numericAmount, recipient, memo: `Merchant Invoice (${cleanDescription})`, label: `Pay ${numericAmount.toFixed(2)} USDC`, referenceKey } as any);
 
-    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
-    const zegaCheckoutUrl = `https://zegaai.site/dashboard/enterprise/zeroclaw?amount=${amount.toFixed(2)}&reference=${referenceKey}`;
-    const blinkUrl = `https://zegaai.site/dashboard/enterprise/zeroclaw?amount=${amount.toFixed(2)}&reference=${referenceKey}`;
+    const solanaPayUrl = `solana:${recipient}?amount=${numericAmount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
+    const zegaCheckoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${numericAmount.toFixed(2)}&recipient=${recipient}&description=${encodeURIComponent(cleanDescription)}&tier=${tierParam}`;
+    const blinkUrl = zegaCheckoutUrl;
 
     let deliveryType: 'live_api' | 'dispatched_simulated' = 'dispatched_simulated';
     let externalResponse: any = null;
 
     // 1. Production Telegram Bot API Dispatch (Sends QuickChart PNG QR Code Photo & Copyable Details)
     if (channel === 'telegram') {
-      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '8806659958:AAGYMn7pyShfnYdZARHh6jBSDWbI16UjP-k';
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -2236,14 +2264,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         `📌 *PETUNJUK PEMBAYARAN:* \n` +
         `1. *Scan QR Code:* Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
         `2. *Copy Wallet:* Tap alamat wallet merchant di atas untuk transfer manual.\n` +
-        `3. *Copy Solana Pay URI:*\n\`${solanaPayUrl}\` \n\n` +
+        `3. *Web Checkout (Tanpa Login):*\n${zegaCheckoutUrl} \n\n` +
         `⚡ *Status:* \`PENGIRIMAN DANA DITUNGGU (PENDING)\``;
 
       if (telegramBotToken) {
         try {
-          const cleanTarget = target.trim();
-          let chatIdParam = cleanTarget;
-          if (cleanTarget.toLowerCase() === '@slzyoung' || cleanTarget.toLowerCase() === 'slzyoung') {
+          const cleanTarget = target.trim().replace(/^@/, '');
+          let chatIdParam: string = target.trim();
+          if (cleanTarget.toLowerCase().includes('slzyoung')) {
             chatIdParam = '7303438046';
           }
 
