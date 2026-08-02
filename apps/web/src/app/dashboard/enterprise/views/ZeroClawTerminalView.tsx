@@ -341,7 +341,12 @@ export function ZeroClawTerminalView({
         json = await res.json();
       }
 
-      // Instant Real Delivery Trigger for WhatsApp (wa.me / WhatsApp Web API)
+      if (json?.invoice?.deliveryType === 'live_api') {
+        onTriggerToast(`🟢 Invoice (${amountStr} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
+        return;
+      }
+
+      // Fallback Manual Delivery Helper (only executed if API key is not configured or live API failed)
       if (targetChannel === 'whatsapp') {
         const cleanPhone = targetAddr.trim().replace(/[^0-9]/g, '');
         const formattedPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
@@ -376,12 +381,9 @@ export function ZeroClawTerminalView({
           `⚡ *Bayar 1-Click via Solana Action Blink:*\n${blinkUrl}\n\n` +
           `📱 *Solana Pay URI:*\n\`${solanaPayUrl}\``;
 
-        // Use Telegram official share URL with pre-filled message text
-        const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(blinkUrl)}&text=${encodeURIComponent(tgMsgText)}`;
         const tgDirectUrl = `https://t.me/${cleanHandle}`;
 
         if (typeof window !== 'undefined') {
-          // Open direct chat or share dialog
           window.open(tgDirectUrl, '_blank', 'noopener,noreferrer');
         }
         onTriggerToast(`✈️ Membuka Telegram Chat (@${cleanHandle}) — Invoice (${amountStr} USDC) Siap Terkirim!`);

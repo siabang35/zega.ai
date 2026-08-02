@@ -2204,7 +2204,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (telegramBotToken) {
         try {
-          const chatIdParam = target.startsWith('@') ? target : target;
+          const cleanTarget = target.trim();
+          let chatIdParam = cleanTarget;
+          if (cleanTarget.toLowerCase() === '@slzyoung' || cleanTarget.toLowerCase() === 'slzyoung') {
+            chatIdParam = '7303438046';
+          }
           const tgApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
           const tgRes = await fetch(tgApiUrl, {
             method: 'POST',
