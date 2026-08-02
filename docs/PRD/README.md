@@ -29,6 +29,7 @@
 | 19 | [ZeroClaw Solana Agent Integration](./19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md) | `19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md` | Self-hosted Rust node, Keyless Tier 1 Custody, Solana Pay QR, Devnet RPC signatures, SOP Checkpoints, dual USD/IDR mode, role-separated streams |
 | 20 | [High-Fidelity Redesign & Governance](./20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md) | `20-HIGH-FIDELITY-DASHBOARD-REDESIGN-AND-GOVERNANCE-SPEC.md` | High-fidelity UI redesign across 18 Enterprise & 14 UMKM views, Governance Suite (Organizations, Team & Roles, Settings with Danz Assyidq), Developer Suite, mobile drawer overlay & bottom bar |
 | 21 | [SQL Migrations, CDN R2 & Realtime](./21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md) | `21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md` | Modular SQL migration suites for UMKM, Enterprise, and SuperAdmin, Token Bucket rate limiters, OWASP anti-chunking payload size validators, Cloudflare R2 CDN integration, and Supabase Realtime synchronization |
+| 27 | [ZeroClaw Solana Bounty Production Suite](./27-ZEROCLAW-SOLANA-BOUNTY-PRODUCTION-SUITE-SPEC.md) | `27-ZEROCLAW-SOLANA-BOUNTY-PRODUCTION-SUITE-SPEC.md` | Complete specification of ZeroClaw upstream features integrated into ZEGA AI: SOP engine, Skills, MCP client, Relationship Memory graph, HMAC Webhook verification, Blinks/Solana Actions, and DeFi Guardian |
 
 ---
 

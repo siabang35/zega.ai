@@ -1,0 +1,10 @@
+[sop]
+name = "defi-guardian"
+description = "Monitors token prices and DeFi positions via Jupiter/Switchboard. Alerts merchant only when price movement exceeds configured thresholds. T0 read-only custody."
+version = "1.0.0"
+max_concurrent = 1
+admission_policy = "coalesce"
+
+[[triggers]]
+type = "cron"
+schedule = "0 */5 * * * *"

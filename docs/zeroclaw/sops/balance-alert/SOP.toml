@@ -1,0 +1,10 @@
+[sop]
+name = "balance-alert"
+description = "Polls merchant wallet SOL and USDC balances on Solana. Alerts when balance drops below configured minimum thresholds."
+version = "1.0.0"
+max_concurrent = 1
+admission_policy = "coalesce"
+
+[[triggers]]
+type = "cron"
+schedule = "0 */15 * * * *"

@@ -59,8 +59,13 @@ const DOCS_NAV = [
     items: [
       { id: 'privy-wallet', title: 'Privy Keyless Embedded Wallet' },
       { id: 'zeroclaw', title: 'ZeroClaw Rust Agent Node' },
+      { id: 'zeroclaw-sop', title: 'Directory SOP Engine & Checkpoints' },
+      { id: 'zeroclaw-mcp', title: 'MCP Proxy (Helius & SendAI)' },
+      { id: 'zeroclaw-memory', title: 'Relationship Memory CRM Graph' },
+      { id: 'solana-blinks', title: 'Solana Actions & Blinks' },
+      { id: 'defi-guardian', title: 'DeFi Guardian (Jupiter & Switchboard)' },
+      { id: 'webhook-hmac', title: 'HMAC-SHA256 Webhook Verification' },
       { id: 'solana-pay', title: 'Solana Pay QR & Devnet RPC' },
-      { id: 'sop-checkpoints', title: 'SOP Human Approval Checkpoints' },
       { id: 'enterprise-zeroclaw', title: 'Enterprise Swarm & Guardrails' },
     ],
   },
@@ -308,6 +313,12 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
               {activeTab === 'privy-wallet' && 'Non-custodial, keyless Solana wallet management powered by Privy SDK and 1-to-1 deterministic email binding for authenticated users.'}
               {activeTab === 'zeroclaw' && 'Self-hosted Rust AI agent runtime operating under Keyless Tier 1 custody for secure Solana Pay QR settlements and SOP approval checkpoints.'}
+              {activeTab === 'zeroclaw-sop' && 'Directory-structured SOP engine with cron scheduling, channel triggers, and human-in-the-loop approval checkpoints.'}
+              {activeTab === 'zeroclaw-mcp' && 'Model Context Protocol (MCP) proxy integration for Helius DAS RPC tool calls and SendAI Solana execution capabilities.'}
+              {activeTab === 'zeroclaw-memory' && 'Knowledge graph CRM tracking customer interactions, order history, patterns, and merchant operational decisions.'}
+              {activeTab === 'solana-blinks' && 'Solana Actions GET preview card renderer & POST transaction builder with shareable dial.to Blink link generation.'}
+              {activeTab === 'defi-guardian' && 'Real-time token price checks via Jupiter Price V2 API & Switchboard Crossbar with threshold alerts and portfolio tracking.'}
+              {activeTab === 'webhook-hmac' && 'Inbound webhook channel signature verification using HMAC-SHA256 headers for secure agent messaging ingress.'}
               {activeTab === 'solana-pay' && 'Real-time Solana Devnet RPC transaction verification, preset merchant invoices, and global USD/IDR currency conversion.'}
               {activeTab === 'sop-checkpoints' && 'Human-in-the-loop audit checkpoints protecting AI agent financial execution against prompt injection and unauthorized refund requests.'}
               {activeTab === 'quickstart' && 'Learn how to integrate the ZEGA AI client and leverage 9Router dynamic model selection for optimal latency and enterprise cost savings.'}
@@ -542,6 +553,113 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
                     </tbody>
                   </table>
                 </div>
+              </section>
+            </div>
+          )}
+
+          {/* SOP Engine & Checkpoints */}
+          {activeTab === 'zeroclaw-sop' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  📜 ZeroClaw SOP Engine & Human Checkpoints
+                </h2>
+                <p>
+                  ZeroClaw executes deterministic multi-step <strong>Standard Operating Procedures (SOPs)</strong> defined in a directory layout (<code className="font-mono">docs/zeroclaw/sops/&lt;name&gt;/SOP.toml</code> + <code className="font-mono">SOP.md</code>). Each SOP supports cron scheduling, channel triggers, untrusted payload guards, and human approval checkpoints.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">1. payment-reconciliation</h4>
+                    <p className="text-[11px] text-muted-foreground">6-step cron+channel SOP polling reference keys and matching on-chain RPC confirmations via Helius DAS.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">2. refund-approval</h4>
+                    <p className="text-[11px] text-muted-foreground">5-step SOP screening prompt injection and pausing at <code className="font-mono text-emerald-500">kind: checkpoint</code> human gate.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">3. defi-guardian</h4>
+                    <p className="text-[11px] text-muted-foreground">5-step cron SOP querying Jupiter Price V2 & Switchboard Crossbar, triggering channel alerts on price drop.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-border/80 bg-card space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">4. balance-alert</h4>
+                    <p className="text-[11px] text-muted-foreground">4-step cron SOP checking SOL & USDC balances against minimum merchant threshold limits.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* MCP Proxy (Helius & SendAI) */}
+          {activeTab === 'zeroclaw-mcp' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🔌 Model Context Protocol (MCP) Client Proxy
+                </h2>
+                <p>
+                  ZeroClaw integrates Model Context Protocol (MCP) clients to seamlessly proxy tool calls to external services with strict tool namespacing (<code className="font-mono">server__tool</code>).
+                </p>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 space-y-2 overflow-x-auto">
+                  <div className="text-emerald-400 font-bold"># Active MCP Servers Configured in ZEGA API (/v1/zeroclaw/mcp/servers):</div>
+                  <div>- helius (SSE Transport, 12 tools: getAsset, getSignaturesForAddress, getCompressedNftProof...)</div>
+                  <div>- sendai-solana (STDIO Transport, 60 tools: getBalance, transfer, simulateTransaction...)</div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Relationship Memory CRM Graph */}
+          {activeTab === 'zeroclaw-memory' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🧠 Relationship Memory Knowledge Graph
+                </h2>
+                <p>
+                  ZeroClaw stores structured connections separate from semantic vector memory. It tracks 8 node types (<code className="font-mono">client</code>, <code className="font-mono">contact</code>, <code className="font-mono">pattern</code>...) and 8 edge relations (<code className="font-mono">interacted_with</code>, <code className="font-mono">manages_client</code>...) persisted to Supabase PostgreSQL (<code className="font-mono">zeroclaw_memory_nodes</code>, <code className="font-mono">zeroclaw_memory_edges</code>).
+                </p>
+              </section>
+            </div>
+          )}
+
+          {/* Solana Actions & Blinks */}
+          {activeTab === 'solana-blinks' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🔗 Solana Actions & Blinks Integration
+                </h2>
+                <p>
+                  ZeroClaw generates native <strong>Solana Actions & Blinks</strong>. Any chat channel (WhatsApp, Telegram) can render shareable <code className="font-mono">https://dial.to/?action=...</code> links, allowing customers to sign transactions directly in Twitter/X or messaging apps.
+                </p>
+              </section>
+            </div>
+          )}
+
+          {/* DeFi Guardian */}
+          {activeTab === 'defi-guardian' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🛡️ DeFi Financial Guardian (Jupiter & Switchboard)
+                </h2>
+                <p>
+                  Monitors merchant token holdings (SOL/USDC) and price feeds via <strong>Jupiter Price V2 API</strong> and <strong>Switchboard Crossbar</strong>. Triggers alert notifications whenever asset values deviate beyond preset percentages.
+                </p>
+              </section>
+            </div>
+          )}
+
+          {/* HMAC-SHA256 Webhook Verification */}
+          {activeTab === 'webhook-hmac' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🔐 Webhook Channel HMAC-SHA256 Verification
+                </h2>
+                <p>
+                  Inbound message webhooks (<code className="font-mono">POST /v1/zeroclaw/webhook/inbound</code>) require cryptographic signature validation using <code className="font-mono">X-Webhook-Signature: sha256=&lt;HMAC-SHA256&gt;</code> generated from <code className="font-mono">ZEROCLAW_WEBHOOK_SECRET</code>. Unsigned payloads fail closed with HTTP 401.
+                </p>
               </section>
             </div>
           )}

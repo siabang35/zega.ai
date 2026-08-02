@@ -1,34 +1,136 @@
-# ZeroClaw Self-Hosted Agent Configuration
-# ZEGA AI Solana Merchant & Financial Guardian
+# ═══════════════════════════════════════════════════════════════════════
+# ZeroClaw Self-Hosted Agent Configuration — ZEGA AI Solana Merchant
+# Features: SOPs, Skills, MCP, Memory, Channels, Risk Profiles
+# Custody: Tier 1 (Keyless / Unsigned) — Zero private keys
+# ═══════════════════════════════════════════════════════════════════════
 
 [agent]
 name = "ZEGA-Solana-Merchant-Agent"
-description = "Self-hosted AI agent managing Solana Pay transactions and financial reconciliation."
-custody_tier = "T1" # Build / Keyless / Unsigned (Zero private key exposure)
-network = "solana-devnet" # Change to 'solana-mainnet' for mainnet deployment
+description = "Self-hosted AI agent managing Solana Pay transactions, DeFi monitoring, and financial reconciliation for UMKM merchants."
+custody_tier = "T1"
 
+[agents.default]
+skill_bundles = ["solana-ops"]
+mcp_bundles = ["solana-infra"]
+risk_profile = "merchant"
+
+# ─── Solana Network ───
 [solana]
-rpc_url = "https://api.devnet.solana.com" # Or Helius/QuickNode RPC URL
-usdc_mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" # Devnet USDC mint
-merchant_wallet = "ZeGAMerchantPublicKey111111111111111111111"
+rpc_url = "ENV_SOLANA_RPC_URL"            # Helius / QuickNode / api.devnet.solana.com
+usdc_mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"  # Devnet USDC
+merchant_wallet = "ENV_MERCHANT_WALLET_PUBKEY"
+network = "solana-devnet"
 
+# ─── ZEGA API Integration ───
 [zega_integration]
-api_url = "http://localhost:4000/api/v1/zeroclaw"
+api_url = "ENV_ZEGA_API_URL"               # https://zega-api.onrender.com or localhost:4000
+webhook_path = "/api/v1/zeroclaw/webhook/inbound"
 sync_interval_seconds = 10
+
+# ─── Built-in Tools ───
+[tools]
+http_request = true
+web_fetch = true
+
+# ─── SOP Engine ───
+[sop]
+sops_dir = "sops"
+persist_runs = true
+run_store_backend = "sqlite"
+step_schema_enforce = true
+step_scope_enforce = false
+untrusted_payload_max_bytes = 8192
+untrusted_input_guard = "warn"
+untrusted_guard_sensitivity = 0.7
+untrusted_outbound_redact = true
+
+[sop.approval.groups.merchant-owner]
+members = ["http:ENV_PAIRED_TOKEN_SHA256"]
+
+[sop.approval.policies.merchant-refund]
+required_group = "merchant-owner"
+quorum = 1
+request_route = "webhook.zega:merchant"
+escalation_route = "webhook.zega:merchant"
+
+# ─── Relationship Memory (Knowledge Graph) ───
+[knowledge]
+enabled = true
+
+# ─── MCP Client (Helius + SendAI) ───
+[mcp]
+enabled = true
+deferred_loading = true
+
+[[mcp.servers]]
+name = "helius"
+transport = "sse"
+url = "ENV_HELIUS_MCP_URL"
+headers = { Authorization = "Bearer ENV_HELIUS_API_KEY" }
+tool_timeout_secs = 30
+
+[[mcp.servers]]
+name = "sendai-solana"
+transport = "stdio"
+command = "npx"
+args = ["-y", "@sendai/solana-mcp"]
+env = { SOLANA_RPC_URL = "ENV_SOLANA_RPC_URL" }
+tool_timeout_secs = 30
+
+[mcp_bundles.solana-infra]
+servers = ["helius", "sendai-solana"]
+
+# ─── Channels ───
+[channels.webhook.zega]
+enabled = true
+port = 4243
+listen_path = "/agent/inbound"
+secret = "ENV_WEBHOOK_HMAC_SECRET"
+send_url = "ENV_ZEGA_API_URL/api/v1/zeroclaw/events"
+send_method = "POST"
+auth_header = "Bearer ENV_ZEROCLAW_BEARER_TOKEN"
+max_retries = 3
+retry_max_delay_ms = 5000
 
 [channels.whatsapp]
 enabled = true
 phone_number = "+628123456789"
-webhook_url = "http://localhost:4000/api/v1/zeroclaw/events"
+webhook_url = "ENV_ZEGA_API_URL/api/v1/zeroclaw/events"
 
 [channels.telegram]
 enabled = true
 bot_token = "ENV_TELEGRAM_BOT_TOKEN"
 
-[tools]
-http_request = true
-web_fetch = true
+# ─── Skill Bundles ───
+[skill_bundles.solana-ops]
+directory = "shared/skills/solana-ops"
 
+# ─── Autonomous Skill Creation ───
+[skills.skill_creation]
+enabled = true
+max_skills = 500
+similarity_threshold = 0.85
+reflection_enabled = false
+
+# ─── Risk Profile ───
+[risk_profiles.merchant]
+level = "supervised"
+auto_approve = [
+  "http_request",
+  "web_fetch",
+  "knowledge",
+  "memory_search",
+  "helius__getAsset",
+  "helius__getSignaturesForAddress",
+  "helius__getTransaction",
+]
+excluded_tools = [
+  "shell",
+  "sendai-solana__transfer",
+  "sendai-solana__sign_transaction",
+]
+
+# ─── Security ───
 [security]
 prompt_injection_guard = true
 fail_closed = true

@@ -1,0 +1,16 @@
+[sop]
+name = "payment-reconciliation"
+description = "Polls Solana RPC for pending invoice reference keys, verifies on-chain confirmation, reconciles to ZEGA AI dashboard, and notifies merchant."
+version = "1.0.0"
+max_concurrent = 1
+admission_policy = "hold"
+max_pending_approvals = 0
+
+[[triggers]]
+type = "cron"
+schedule = "*/30 * * * * *"
+
+[[triggers]]
+type = "channel"
+channel = "webhook.zega"
+condition = '$.eventType == "payment_detected"'

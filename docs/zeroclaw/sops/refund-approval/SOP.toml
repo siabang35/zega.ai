@@ -1,0 +1,12 @@
+[sop]
+name = "refund-approval"
+description = "Routes refund requests through a human approval checkpoint. Fails closed on prompt injection. Approved refunds are recorded; rejected refunds are logged with reason."
+version = "1.0.0"
+max_concurrent = 1
+admission_policy = "hold"
+max_pending_approvals = 8
+
+[[triggers]]
+type = "channel"
+channel = "webhook.zega"
+condition = '$.eventType == "refund_requested"'

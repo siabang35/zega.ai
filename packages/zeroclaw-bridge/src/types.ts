@@ -222,3 +222,179 @@ export interface VersionCompatibility {
   compatible: boolean;
   message: string;
 }
+
+// ── MCP Server Types ────────────────────────────────────────────────────
+
+export interface McpServerConfig {
+  name: string;
+  transport: 'stdio' | 'http' | 'sse';
+  command?: string;
+  args?: string[];
+  url?: string;
+  status: 'connected' | 'disconnected' | 'error';
+  toolCount?: number;
+}
+
+export interface McpToolCallRequest {
+  server: string;
+  tool: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface McpToolCallResponse {
+  server: string;
+  tool: string;
+  result: unknown;
+  latencyMs: number;
+}
+
+// ── Relationship Memory Types ───────────────────────────────────────────
+
+export type MemoryNodeType =
+  | 'client'
+  | 'contact'
+  | 'interaction'
+  | 'pattern'
+  | 'decision'
+  | 'lesson'
+  | 'expert'
+  | 'technology';
+
+export type MemoryRelationType =
+  | 'uses'
+  | 'replaces'
+  | 'extends'
+  | 'authored_by'
+  | 'applies_to'
+  | 'manages_client'
+  | 'contact_of'
+  | 'interacted_with';
+
+export interface MemoryNode {
+  id: string;
+  nodeType: MemoryNodeType;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  userId?: string;
+}
+
+export interface MemoryEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  relation: MemoryRelationType;
+  createdAt: string;
+}
+
+export interface MemoryCaptureRequest {
+  action: 'capture';
+  node_type: MemoryNodeType;
+  title: string;
+  content: string;
+  tags?: string[];
+}
+
+export interface MemoryRelateRequest {
+  action: 'relate';
+  from_id: string;
+  to_id: string;
+  relation: MemoryRelationType;
+}
+
+export interface MemorySearchRequest {
+  action: 'search' | 'graph_neighbors' | 'client_network' | 'interaction_log';
+  query?: string;
+  node_id?: string;
+  client_id?: string;
+  limit?: number;
+}
+
+// ── SOP Lifecycle Types ─────────────────────────────────────────────────
+
+export type SopRunStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+
+export interface SopDefinition {
+  name: string;
+  description: string;
+  version: string;
+  triggerTypes: string[];
+  stepCount: number;
+}
+
+export interface SopRun {
+  id: string;
+  sopName: string;
+  status: SopRunStatus;
+  currentStep: number;
+  totalSteps: number;
+  startedAt: string;
+  completedAt?: string;
+  pendingApproval?: boolean;
+  checkpointId?: string;
+}
+
+export interface SopTriggerRequest {
+  sopName: string;
+  triggerType?: 'manual' | 'cron' | 'channel';
+  payload?: Record<string, unknown>;
+}
+
+export interface SopApprovalRequest {
+  runId: string;
+  decision: 'approve' | 'deny';
+  reason?: string;
+}
+
+// ── DeFi Guardian Types ─────────────────────────────────────────────────
+
+export interface TokenPrice {
+  mint: string;
+  symbol: string;
+  price: number;
+  changePct24h: number;
+  source: 'jupiter' | 'switchboard';
+  updatedAt: string;
+}
+
+export interface DeFiAlert {
+  id: string;
+  tokenMint: string;
+  thresholdPct: number;
+  direction: 'above' | 'below';
+  enabled: boolean;
+  lastTriggered?: string;
+}
+
+export interface PortfolioSummary {
+  solBalance: number;
+  usdcBalance: number;
+  totalValueUsd: number;
+  positions: TokenPrice[];
+  alerts: DeFiAlert[];
+}
+
+// ── Blinks / Solana Actions Types ───────────────────────────────────────
+
+export interface SolanaActionPreview {
+  icon: string;
+  title: string;
+  description: string;
+  label: string;
+  links?: {
+    actions: Array<{
+      label: string;
+      href: string;
+    }>;
+  };
+}
+
+export interface SolanaActionPostRequest {
+  account: string;
+}
+
+export interface SolanaActionPostResponse {
+  transaction: string; // base64-encoded unsigned transaction
+  message: string;
+}
