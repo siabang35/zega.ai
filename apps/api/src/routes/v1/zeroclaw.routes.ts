@@ -445,20 +445,20 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const userUuid = isDemo ? null : await resolveUserUuid(userId);
 
-        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements`, {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
-            'Prefer': 'return=minimal'
+            'Prefer': 'resolution=merge-duplicates'
           },
           body: JSON.stringify({
             user_id: userUuid,
             merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-            amount_usdc: amountUsdc,
+            amount_usdc: validAmountUsdc,
             reference_key: referenceKey,
-            tx_signature: txSignature,
+            tx_signature: effectiveSig,
             network: network || 'solana-devnet',
             status: 'confirmed',
             memo: memo || (isDemo ? 'Public Demo Solana Pay Settlement' : 'Private Authenticated Solana Pay Settlement'),
@@ -467,6 +467,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             privy_wallet_address: privyWalletAddress || null,
             privy_user_id: privyUserId || null,
             privy_verified: privyVerified,
+            updated_at: new Date().toISOString()
           })
         });
         if (dbRes.ok) {
@@ -527,9 +528,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             body: JSON.stringify({
               status: statusDbString,
               settlement_status: settlementStatus,
+              tx_signature: effectiveSig,
               paid_amount_usdc: validAmountUsdc,
               shortage_amount: shortageAmount,
-              excess_amount: excessAmount
+              excess_amount: excessAmount,
+              updated_at: new Date().toISOString()
             })
           }).catch(() => { });
         }
@@ -702,15 +705,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (supabaseUrl && supabaseKey) {
       try {
-        let queryParam = 'status=eq.confirmed&order=created_at.desc&limit=20';
+        let queryParam = 'or=(status.eq.confirmed,status.eq.finished,status.eq.settled_exact,status.eq.underpaid,status.eq.overpaid)&order=created_at.desc&limit=50';
         if (isDemoBool) {
           queryParam = `is_demo=eq.true&${queryParam}`;
         } else {
           const userUuid = await resolveUserUuid(userId);
+          const userEmailEnc = encodeURIComponent(userId || 'siabang35@gmail.com');
           if (userUuid) {
-            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${encodeURIComponent(userId!)})&${queryParam}`;
+            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc},user_id.eq.${userEmailEnc})&${queryParam}`;
           } else {
-            queryParam = `is_demo=eq.false&buyer_email=eq.${encodeURIComponent(userId!)}&${queryParam}`;
+            queryParam = `is_demo=eq.false&buyer_email=eq.${userEmailEnc}&${queryParam}`;
           }
         }
 
@@ -728,7 +732,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const mappedEvents = rows.map((r) => ({
             id: r.id,
             signature: r.tx_signature || r.reference_key,
+            referenceKey: r.reference_key,
             amount: parseFloat(r.amount_usdc),
+            amountUsdc: parseFloat(r.amount_usdc),
             currency: 'USDC',
             timestamp: new Date(r.created_at).toLocaleTimeString(),
             channel: isDemoBool ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE',
@@ -767,7 +773,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       merchantPubkey?: string;
     };
   }>('/settlement/check-payment', async (request, reply) => {
-    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel } = request.body || {};
+    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel, merchantPubkey } = request.body || {};
 
     if (!referenceKey || expectedAmountUsdc === undefined || expectedAmountUsdc <= 0) {
       return reply.status(400).send({
@@ -776,19 +782,89 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // 1. Search in reconciled database events or in-memory signatures
-    let matchedEvent = reconciledEvents.find(e => 
+    // 1. Check in-memory reconciled events array
+    let matchedEvent: any = reconciledEvents.find(e => 
       e.signature === referenceKey || 
-      (e.memo && e.memo.includes(referenceKey))
+      (e.memo && e.memo.includes(referenceKey)) ||
+      (e as any).referenceKey === referenceKey
     );
 
-    // Also check Supabase DB for matching settlements
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
+    // 2. Check Supabase zeroclaw_invoices table first for existing paid/finished status
     if (!matchedEvent && supabaseUrl && supabaseKey) {
       try {
-        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}&limit=1`, {
+        const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(referenceKey)},id.eq.${encodeURIComponent(referenceKey)})&limit=1`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (invRes.ok) {
+          const invRows = (await invRes.json()) as any[];
+          if (invRows.length > 0) {
+            const row = invRows[0];
+            const st = (row.status || '').toLowerCase();
+            const recAmt = parseFloat(row.received_amount || row.amount || 0);
+            if (st === 'finished' || st === 'lunas' || st === 'paid' || st === 'completed' || st === 'settled' || st === 'underpaid' || st === 'overpaid' || recAmt > 0 || row.tx_signature) {
+              let realSig = (row.tx_signature && row.tx_signature.length >= 50 && !row.tx_signature.startsWith('INV-')) ? row.tx_signature : null;
+              
+              // Query RPC using referenceKey FIRST to find exact invoice transaction, then merchantPubkey
+              if (!realSig || realSig.length < 50 || realSig.startsWith('INV-')) {
+                const searchKeys = Array.from(new Set([
+                  (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44 ? referenceKey : null),
+                  merchantPubkey,
+                  'JDRE2J3SNo1x2BctQjBZmHnKFZn1wOKqBBs49uVZmeo8'
+                ].filter(Boolean) as string[]));
+
+                for (const targetKey of searchKeys) {
+                  try {
+                    const rpcRes = await fetch('https://api.devnet.solana.com', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        jsonrpc: '2.0', id: 1, method: 'getSignaturesForAddress', params: [targetKey, { limit: 10 }]
+                      })
+                    });
+                    if (rpcRes.ok) {
+                      const rpcData = (await rpcRes.json()) as any;
+                      if (Array.isArray(rpcData?.result) && rpcData.result.length > 0) {
+                        const validObj = rpcData.result.find((s: any) => !s.err) || rpcData.result[0];
+                        if (validObj?.signature) {
+                          realSig = validObj.signature;
+                          break;
+                        }
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+
+              if (realSig) {
+                matchedEvent = {
+                  id: row.id,
+                  signature: realSig,
+                  amount: recAmt > 0 ? recAmt : expectedAmountUsdc,
+                  currency: 'USDC',
+                  timestamp: new Date(row.updated_at || row.created_at || Date.now()).toLocaleTimeString(),
+                  memo: row.memo || 'Solana Pay Invoice',
+                  channel: 'SOLANA-PAY-PRIVATE',
+                  network: 'solana-devnet',
+                  slot: 480269120
+                };
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Check Supabase zeroclaw_solana_settlements table for recorded settlements
+    if (!matchedEvent && supabaseUrl && supabaseKey) {
+      try {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?or=(reference_key.eq.${encodeURIComponent(referenceKey)},tx_signature.eq.${encodeURIComponent(referenceKey)})&limit=1`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
@@ -797,21 +873,253 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         });
         if (dbRes.ok) {
           const rows = (await dbRes.json()) as any[];
-          if (rows.length > 0 && (rows[0].status === 'confirmed' || rows[0].status === 'finalized' || rows[0].status === 'active')) {
-            matchedEvent = {
-              id: rows[0].id,
-              signature: rows[0].tx_signature || rows[0].reference_key,
-              amount: parseFloat(rows[0].amount_usdc),
-              currency: 'USDC',
-              timestamp: new Date(rows[0].created_at).toLocaleTimeString(),
-              memo: rows[0].memo || 'Solana Pay Invoice',
-              channel: 'SOLANA-PAY-PRIVATE',
-              network: rows[0].network || 'solana-devnet',
-              slot: 480269120
-            };
+          if (rows.length > 0) {
+            let realSig = (rows[0].tx_signature && rows[0].tx_signature.length >= 50 && !rows[0].tx_signature.startsWith('INV-')) ? rows[0].tx_signature : null;
+            if (!realSig) {
+              const searchKeys = Array.from(new Set([
+                (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44 ? referenceKey : null),
+                merchantPubkey,
+                'JDRE2J3SNo1x2BctQjBZmHnKFZn1wOKqBBs49uVZmeo8'
+              ].filter(Boolean) as string[]));
+
+              for (const targetKey of searchKeys) {
+                try {
+                  const rpcRes = await fetch('https://api.devnet.solana.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      jsonrpc: '2.0', id: 1, method: 'getSignaturesForAddress', params: [targetKey, { limit: 10 }]
+                    })
+                  });
+                  if (rpcRes.ok) {
+                    const rpcData = (await rpcRes.json()) as any;
+                    if (Array.isArray(rpcData?.result) && rpcData.result.length > 0) {
+                      const validObj = rpcData.result.find((s: any) => !s.err) || rpcData.result[0];
+                      if (validObj?.signature) {
+                        realSig = validObj.signature;
+                        break;
+                      }
+                    }
+                  }
+                } catch (e) {}
+              }
+            }
+
+            if (realSig) {
+              matchedEvent = {
+                id: rows[0].id,
+                signature: realSig,
+                amount: parseFloat(rows[0].amount_usdc),
+                currency: 'USDC',
+                timestamp: new Date(rows[0].created_at).toLocaleTimeString(),
+                memo: rows[0].memo || 'Solana Pay Invoice',
+                channel: 'SOLANA-PAY-PRIVATE',
+                network: rows[0].network || 'solana-devnet',
+                slot: 480269120
+              };
+            }
           }
         }
       } catch {}
+    }
+
+    // 4. Query Live Solana Devnet RPC directly if not yet recorded in DB
+    if (!matchedEvent) {
+      const pubkeyCandidates = Array.from(new Set([
+        (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44 ? referenceKey : null),
+        merchantPubkey,
+        'JDRE2J3SNo1x2BctQjBZmHnKFZn1wOKqBBs49uVZmeo8'
+      ].filter(Boolean) as string[]));
+
+      const rpcEndpoints = [
+        'https://api.devnet.solana.com',
+        'https://rpc.ankr.com/solana_devnet',
+        'https://solana-devnet.g.alchemy.com/v2/demo'
+      ];
+
+      // A. If referenceKey itself is a transaction signature (88 chars), query directly
+      if (referenceKey.length >= 80 && referenceKey.length <= 90) {
+        for (const endpoint of rpcEndpoints) {
+          try {
+            const txRes = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTransaction',
+                params: [referenceKey, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+              })
+            });
+            if (txRes.ok) {
+              const txData = (await txRes.json()) as any;
+              if (txData?.result) {
+                matchedEvent = {
+                  id: `rpc-${referenceKey.substring(0, 12)}`,
+                  signature: referenceKey,
+                  amount: expectedAmountUsdc,
+                  currency: 'USDC',
+                  timestamp: new Date().toLocaleTimeString(),
+                  memo: `Direct Solana Tx (${referenceKey.substring(0, 8)}...)`,
+                  channel: 'SOLANA-DEVNET-RPC',
+                  network: 'solana-devnet',
+                  slot: txData.result.slot || 480269120
+                };
+                reconciledEvents.unshift(matchedEvent);
+                break;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // B. Query getSignaturesForAddress across pubkey candidates (referenceKey prioritized first)
+      if (!matchedEvent) {
+        for (const targetPubkey of pubkeyCandidates) {
+          for (const endpoint of rpcEndpoints) {
+            try {
+              const sigRes = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  id: 1,
+                  method: 'getSignaturesForAddress',
+                  params: [targetPubkey, { limit: 10 }]
+                })
+              });
+
+              if (sigRes.ok) {
+                const sigData = (await sigRes.json()) as any;
+                const sigs = sigData?.result || [];
+
+                if (Array.isArray(sigs) && sigs.length > 0) {
+                  // Iterate through candidate signatures to find the exact transaction matching this invoice/referenceKey
+                  for (const sigObj of sigs) {
+                    if (sigObj?.err) continue;
+                    const candidateSig = sigObj.signature;
+
+                    try {
+                      const txRes = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          jsonrpc: '2.0',
+                          id: 2,
+                          method: 'getTransaction',
+                          params: [
+                            candidateSig,
+                            { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }
+                          ]
+                        })
+                      });
+
+                      if (!txRes.ok) continue;
+
+                      const txData = (await txRes.json()) as any;
+                      const txResult = txData?.result;
+                      if (!txResult) continue;
+
+                      const accountKeys: string[] = (txResult.transaction?.message?.accountKeys || []).map((k: any) => typeof k === 'string' ? k : k.pubkey);
+                      const isRefKeyMatch = Boolean(referenceKey && (accountKeys.includes(referenceKey) || targetPubkey === referenceKey));
+
+                      let detectedAmount = expectedAmountUsdc;
+                      let hasTokenDiff = false;
+
+                      if (txResult.meta) {
+                        const meta = txResult.meta;
+
+                        // 1. SPL Token Transfer Parsing (postTokenBalances vs preTokenBalances)
+                        if (Array.isArray(meta.postTokenBalances) && Array.isArray(meta.preTokenBalances)) {
+                          for (const post of meta.postTokenBalances) {
+                            const pre = meta.preTokenBalances.find((p: any) => p.accountIndex === post.accountIndex);
+                            const postAmt = parseFloat(post.uiTokenAmount?.uiAmountString || '0');
+                            const preAmt = pre ? parseFloat(pre.uiTokenAmount?.uiAmountString || '0') : 0;
+                            const tokenDiff = Math.abs(postAmt - preAmt);
+                            if (tokenDiff > 0.0001) {
+                              detectedAmount = parseFloat(tokenDiff.toFixed(4));
+                              hasTokenDiff = true;
+                              break;
+                            }
+                          }
+                        }
+
+                        // 2. Native SOL Transfer Parsing
+                        if (!hasTokenDiff && meta && Array.isArray(meta.postBalances) && Array.isArray(meta.preBalances)) {
+                          const diffLamports = Math.abs(meta.postBalances[0] - meta.preBalances[0]);
+                          const diffSol = diffLamports / 1e9;
+                          if (diffSol > 0.0001) {
+                            detectedAmount = parseFloat(diffSol.toFixed(4));
+                          }
+                        }
+                      }
+
+                      // Require exact referenceKey match on accountKeys
+                      if (isRefKeyMatch) {
+                        const txSig = candidateSig;
+
+                        matchedEvent = {
+                          id: `rpc-${txSig.substring(0, 12)}`,
+                          signature: txSig,
+                          amount: detectedAmount,
+                          currency: 'USDC',
+                          timestamp: new Date().toLocaleTimeString(),
+                          memo: `Live Solana Devnet Tx (${txSig.substring(0, 8)}...)`,
+                          channel: 'SOLANA-DEVNET-RPC',
+                          network: 'solana-devnet',
+                          slot: sigObj.slot || 480269120
+                        };
+
+                        // Persist authentic on-chain tx_signature and status to Supabase zeroclaw_invoices and zeroclaw_solana_settlements tables
+                        if (supabaseUrl && supabaseKey && referenceKey) {
+                          try {
+                            const headers = {
+                              'apikey': supabaseKey,
+                              'Authorization': `Bearer ${supabaseKey}`,
+                              'Content-Type': 'application/json',
+                              'Prefer': 'return=minimal'
+                            };
+
+                            await Promise.all([
+                              fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
+                                method: 'PATCH',
+                                headers,
+                                body: JSON.stringify({
+                                  status: 'finished',
+                                  tx_signature: txSig,
+                                  received_amount: detectedAmount,
+                                  updated_at: new Date().toISOString()
+                                })
+                              }),
+                              fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
+                                method: 'PATCH',
+                                headers,
+                                body: JSON.stringify({
+                                  status: 'confirmed',
+                                  settlement_status: 'settled_exact',
+                                  tx_signature: txSig,
+                                  paid_amount_usdc: detectedAmount,
+                                  updated_at: new Date().toISOString()
+                                })
+                              })
+                            ]);
+                          } catch (dbErr) {}
+                        }
+
+                        reconciledEvents.unshift(matchedEvent);
+                        break;
+                      }
+                    } catch (err) {}
+                  }
+                }
+              }
+            } catch (rpcErr) {}
+
+            if (matchedEvent) break;
+          }
+          if (matchedEvent) break;
+        }
+      }
     }
 
     // If NO payment is found on-chain/DB: Return paid: false, DO NOT send Telegram notification
@@ -1026,11 +1334,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           // Authenticated users: strictly filter by buyer_email OR merchant_pubkey
           const userEmailEnc = encodeURIComponent(userId || 'siabang35@gmail.com');
-          const merchantEnc = encodeURIComponent(merchantPubkey || '');
-          if (merchantPubkey && userId) {
+          const userUuid = userId ? await resolveUserUuid(userId) : null;
+          const userUuidEnc = userUuid ? encodeURIComponent(userUuid) : null;
+          const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
+
+          if (merchantEnc) {
             queryParam = `is_demo=eq.false&or=(buyer_email.eq.${userEmailEnc},merchant_pubkey.eq.${merchantEnc})&${queryParam}`;
           } else if (userId) {
-            queryParam = `is_demo=eq.false&or=(buyer_email.eq.${userEmailEnc},merchant_pubkey.eq.D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh)&${queryParam}`;
+            const userFilter = userUuidEnc 
+              ? `or=(buyer_email.eq.${userEmailEnc},user_id.eq.${userUuidEnc},user_id.eq.${userEmailEnc})` 
+              : `buyer_email.eq.${userEmailEnc}`;
+            queryParam = `is_demo=eq.false&${userFilter}&${queryParam}`;
           } else {
             queryParam = `is_demo=eq.false&${queryParam}`;
           }

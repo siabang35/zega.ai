@@ -354,21 +354,19 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
       {/* Top Header Navigation */}
       <div className="w-full max-w-md flex items-center justify-between mb-4 z-10">
         <div className="flex items-center gap-3">
-          <div className={`size-10 rounded-2xl flex items-center justify-center shadow-xl ${
-            params.tier === 'enterprise' 
-              ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-sky-500 shadow-indigo-500/25' 
+          <div className={`size-10 rounded-2xl flex items-center justify-center shadow-xl ${params.tier === 'enterprise'
+              ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-sky-500 shadow-indigo-500/25'
               : 'bg-gradient-to-br from-[#ff6b35] via-emerald-600 to-teal-500 shadow-emerald-500/25'
-          }`}>
+            }`}>
             <Zap className="size-5 text-white" />
           </div>
           <div>
             <h1 className="text-base font-black tracking-tight text-white flex items-center gap-2">
               {params.tier === 'enterprise' ? 'ZEGA PAY ENTERPRISE' : 'ZEGA PAY WEB3'}
-              <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
-                params.tier === 'enterprise'
+              <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${params.tier === 'enterprise'
                   ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
                   : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-              }`}>
+                }`}>
                 {params.tier === 'enterprise' ? 'Enterprise' : 'UMKM Merchant'}
               </span>
             </h1>
@@ -390,18 +388,17 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
 
       {/* Main Invoice Checkout Card */}
       <div className="w-full max-w-md bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 backdrop-blur-3xl shadow-2xl z-10 relative overflow-hidden">
-        
+
         {/* 5-Minute Session Expiration Bar */}
         <div className="mb-4 flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <Clock className={`size-4 ${isExpired ? 'text-rose-500' : 'text-amber-400 animate-pulse'}`} />
             <span>Sesi Checkout (5 Min)</span>
           </div>
-          <div className={`px-2.5 py-1 rounded-xl text-xs font-mono font-black ${
-            isExpired 
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
+          <div className={`px-2.5 py-1 rounded-xl text-xs font-mono font-black ${isExpired
+              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
               : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-          }`}>
+            }`}>
             {isExpired ? 'EXPIRED' : formatCountdown(timeLeft)}
           </div>
         </div>
@@ -451,9 +448,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
 
         {/* QR Code Center Display */}
         <div className="flex flex-col items-center text-center my-3">
-          <div className={`relative p-4 rounded-3xl bg-white shadow-2xl border-4 border-slate-800/80 group transition-all duration-300 ${
-            isExpired ? 'opacity-40 grayscale pointer-events-none' : 'hover:scale-[1.02]'
-          }`}>
+          <div className={`relative p-4 rounded-3xl bg-white shadow-2xl border-4 border-slate-800/80 group transition-all duration-300 ${isExpired ? 'opacity-40 grayscale pointer-events-none' : 'hover:scale-[1.02]'
+            }`}>
             {qrImageUrl ? (
               <img
                 src={qrImageUrl}
@@ -541,11 +537,10 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             type="button"
             disabled={isExpired}
             onClick={handleSinglePayButton}
-            className={`w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl shadow-2xl transition-all cursor-pointer border text-sm font-black ${
-              isExpired
+            className={`w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl shadow-2xl transition-all cursor-pointer border text-sm font-black ${isExpired
                 ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:opacity-95 text-white active:scale-[0.98] border-white/20'
-            }`}
+              }`}
           >
             <Wallet className="size-5" />
             <span>{isExpired ? 'Sesi Tagihan Kadaluarsa' : 'Bayar On-Chain (Phantom / Solflare)'}</span>

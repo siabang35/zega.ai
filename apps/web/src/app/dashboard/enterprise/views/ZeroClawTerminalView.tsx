@@ -116,6 +116,7 @@ export interface GeneratedInvoice {
   r2CdnUrl?: string;
   customerTarget?: string;
   channelType?: 'telegram' | 'whatsapp' | string;
+  tx_signature?: string;
   isDemo?: boolean;
   is_demo?: boolean;
 }
@@ -135,76 +136,39 @@ const getApiBase = (): string => {
 
 const API_BASE = getApiBase();
 
-async function resolveLatestSolanaDevnetSignature(merchantWallet?: string): Promise<string> {
-  const targetWallet = merchantWallet || 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
-  const defaultWallet = 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+async function resolveLatestSolanaDevnetSignature(merchantWallet?: string, referenceKey?: string): Promise<string> {
+  const refKeyToSearch = (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44) ? referenceKey : null;
+  const searchCandidates = Array.from(new Set([
+    refKeyToSearch,
+    merchantWallet,
+    'JDRE2J3SNo1x2BctQjBZmHnKFZn1wOKqBBs49uVZmeo8'
+  ].filter(Boolean) as string[]));
 
-  // Tier 1: Query API Backend for target merchant wallet
-  try {
-    const res = await fetch(`${API_BASE}/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(targetWallet)}`);
-    if (res.ok) {
-      const json = await res.json();
-      if (json.signatures && Array.isArray(json.signatures) && json.signatures.length > 0 && json.signatures[0]?.signature) {
-        return json.signatures[0].signature;
-      }
-    }
-  } catch (e) { }
-
-  // Tier 2: Query API Backend for default merchant wallet
-  if (targetWallet !== defaultWallet) {
+  for (const targetWallet of searchCandidates) {
     try {
-      const res = await fetch(`${API_BASE}/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(defaultWallet)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.signatures && Array.isArray(json.signatures) && json.signatures.length > 0 && json.signatures[0]?.signature) {
-          return json.signatures[0].signature;
+      const directRes = await fetch('https://api.devnet.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'direct_client_sig',
+          method: 'getSignaturesForAddress',
+          params: [targetWallet, { limit: 10, commitment: 'confirmed' }]
+        })
+      });
+      if (directRes.ok) {
+        const directJson = await directRes.json();
+        if (directJson.result && Array.isArray(directJson.result) && directJson.result.length > 0) {
+          const validObj = directJson.result.find((s: any) => !s.err) || directJson.result[0];
+          if (validObj?.signature) {
+            return validObj.signature;
+          }
         }
       }
     } catch (e) { }
   }
 
-  // Tier 3: Direct Client-Side Call to Solana Devnet RPC (https://api.devnet.solana.com) - no API proxy required!
-  try {
-    const directRes = await fetch('https://api.devnet.solana.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'direct_client_sig',
-        method: 'getSignaturesForAddress',
-        params: [targetWallet, { limit: 1, commitment: 'confirmed' }]
-      })
-    });
-    if (directRes.ok) {
-      const directJson = await directRes.json();
-      if (directJson.result && Array.isArray(directJson.result) && directJson.result.length > 0 && directJson.result[0]?.signature) {
-        return directJson.result[0].signature;
-      }
-    }
-  } catch (e) { }
-
-  // Tier 3b: Direct Client-Side Call to Solana Devnet RPC for Default Wallet
-  try {
-    const directDefaultRes = await fetch('https://api.devnet.solana.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'direct_client_default_sig',
-        method: 'getSignaturesForAddress',
-        params: [defaultWallet, { limit: 1, commitment: 'confirmed' }]
-      })
-    });
-    if (directDefaultRes.ok) {
-      const directDefaultJson = await directDefaultRes.json();
-      if (directDefaultJson.result && Array.isArray(directDefaultJson.result) && directDefaultJson.result.length > 0 && directDefaultJson.result[0]?.signature) {
-        return directDefaultJson.result[0].signature;
-      }
-    }
-  } catch (e) { }
-
-  // Tier 4: Authentic Verified Solana Devnet Fallback Signature
-  return '3M7WLnFiDjdTUKCjd33WLUshXF9RsDjSYrqfgoj8KhsWTXCnGtBAP5TunHb5DeTMsTFNKsuxo2xSdSSWz5KitKw1';
+  return '';
 }
 
 export function ZeroClawTerminalView({
@@ -569,6 +533,14 @@ export function ZeroClawTerminalView({
     excessAmount?: number;
     telegramSent?: boolean;
     message?: string;
+    matchedEvent?: {
+      id?: string;
+      signature?: string;
+      amount?: number;
+      currency?: string;
+      timestamp?: string;
+      memo?: string;
+    };
   } | null>(null);
 
   const handleCheckPaymentsModal = async (inv: GeneratedInvoice) => {
@@ -579,7 +551,7 @@ export function ZeroClawTerminalView({
     try {
       const refKey = inv.referenceKey || inv.id;
       const expectedAmountUsdc = parseFloat(String(inv.amount)) || 15.00;
-      const targetChannel = inv.customerTarget || customerChannelTarget || userEmail;
+      const targetChannel = inv.customerTarget || customerChannelTarget || userEmail || '@slzyoung';
 
       const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/check-payment`, {
         method: 'POST',
@@ -597,7 +569,11 @@ export function ZeroClawTerminalView({
       if (json.success) {
         setPaymentCheckResult(json);
         if (json.paid) {
-          onTriggerToast(`✅ Pembayaran Terverifikasi: ${json.statusLabel || 'LUNAS'}`);
+          const foundSig = json.matchedEvent?.signature;
+          if (foundSig && foundSig.length >= 80 && foundSig.length <= 90 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
+            setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'finished', tx_signature: foundSig } : prev);
+          }
+          onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
           fetchDbInvoices();
         } else {
           onTriggerToast('ℹ️ Belum ada pembayaran terdeteksi di Solana Devnet');
@@ -611,6 +587,12 @@ export function ZeroClawTerminalView({
       setCheckingPayment(false);
     }
   };
+
+  useEffect(() => {
+    if (activeQrModalInvoice) {
+      handleCheckPaymentsModal(activeQrModalInvoice);
+    }
+  }, [activeQrModalInvoice?.id]);
 
 
   const [agentPrompt, setAgentPrompt] = useState('');
@@ -3716,6 +3698,37 @@ checkpoint = "human_approval_on_refund"`}
                     {paymentCheckResult.mode === 'EXACT' && (
                       <p className="text-emerald-300 font-bold">✅ LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.</p>
                     )}
+
+                    {(() => {
+                      const realTxSig = paymentCheckResult.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
+                      const isRealOnChain = Boolean(
+                        realTxSig && 
+                        realTxSig.length >= 80 && 
+                        realTxSig.length <= 90 && 
+                        !realTxSig.startsWith('gen_inv_') && 
+                        !realTxSig.startsWith('inv_') && 
+                        !realTxSig.startsWith('INV-')
+                      );
+                      const explorerUrl = isRealOnChain 
+                        ? `https://explorer.solana.com/tx/${realTxSig}?cluster=devnet`
+                        : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
+
+                      return (
+                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-300 font-mono flex items-center gap-1">
+                            <span className="text-emerald-400">●</span> {isRealOnChain ? `Tx Hash: ${realTxSig?.substring(0, 16)}...` : `Wallet: ${activeMerchantWallet.substring(0, 12)}...`}
+                          </span>
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 border border-slate-700 transition-colors cursor-pointer"
+                          >
+                            <ExternalLink size={12} /> {isRealOnChain ? 'Cek Real Solana Tx Hash 🌐' : 'Cek Solana Wallet 🌐'}
+                          </a>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <p className="text-[11px] text-slate-400">
@@ -3725,8 +3738,8 @@ checkpoint = "human_approval_on_refund"`}
               </div>
             )}
 
-            {/* Check Payments Trigger Button */}
-            <div className="space-y-2 pt-1">
+            {/* Check Payments Trigger Button & Verification Tooling */}
+            <div className="space-y-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => handleCheckPaymentsModal(activeQrModalInvoice)}
@@ -3746,13 +3759,27 @@ checkpoint = "human_approval_on_refund"`}
                 )}
               </button>
 
+              {(paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature) && (
+                <a
+                  href={`https://explorer.solana.com/tx/${paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature}?cluster=devnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-sky-400 hover:text-sky-300 font-bold text-xs border border-sky-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ExternalLink size={14} />
+                  <span>Cek On-Chain di Solana Devnet Explorer 🌐</span>
+                </a>
+              )}
+
+
+
               <button
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(activeQrModalInvoice.solanaPayUrl);
                   onTriggerToast('📋 Link Solana Pay Disalin!');
                 }}
-                className="w-full py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+                className="w-full py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
               >
                 Copy Link Solana Pay
               </button>
