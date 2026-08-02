@@ -2221,10 +2221,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let deliveryType: 'live_api' | 'dispatched_simulated' = 'dispatched_simulated';
     let externalResponse: any = null;
 
-    // 1. Production Telegram Bot API Dispatch (Sends QR Code Photo & Copyable Details)
+    // 1. Production Telegram Bot API Dispatch (Sends QuickChart PNG QR Code Photo & Copyable Details)
     if (channel === 'telegram') {
       const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(solanaPayUrl)}`;
+      const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `• *Merchant:* ZEGA AI Enterprise Terminal\n` +
@@ -2246,8 +2246,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           if (cleanTarget.toLowerCase() === '@slzyoung' || cleanTarget.toLowerCase() === 'slzyoung') {
             chatIdParam = '7303438046';
           }
-          const tgApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendPhoto`;
-          const tgRes = await fetch(tgApiUrl, {
+
+          // Try sendPhoto first
+          const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2269,11 +2270,37 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           if (tgRes.ok) {
             const tgJson: any = await tgRes.json();
             deliveryType = 'live_api';
-            externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat };
+            externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat, type: 'photo_qr' };
             fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram QR Code photo invoice dispatched successfully');
+          } else {
+            // Fallback to sendMessage if sendPhoto returns non-ok
+            const msgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatIdParam,
+                text: formattedCaption,
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: `📱 Solana Pay (Wallet Direct)`, url: solanaPayUrl },
+                      { text: `⚡ Web Checkout`, url: zegaCheckoutUrl }
+                    ]
+                  ]
+                }
+              })
+            });
+
+            if (msgRes.ok) {
+              const msgJson: any = await msgRes.json();
+              deliveryType = 'live_api';
+              externalResponse = { messageId: msgJson.result?.message_id, chat: msgJson.result?.chat, type: 'text_fallback' };
+              fastify.log.info({ target, messageId: msgJson.result?.message_id }, 'Live Telegram text invoice fallback dispatched successfully');
+            }
           }
         } catch (err) {
-          fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram QR photo, using fallback');
+          fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram QR photo/message');
         }
       }
     }
