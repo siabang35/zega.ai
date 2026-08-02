@@ -623,13 +623,14 @@ export function ZeroClawTerminalView({
       const normalizedPrompt = promptToRun.replace(/(\d+),(\d+)/g, '$1.$2');
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
 
-      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol"
-      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
-        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
+      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol", "0,34 usdc"
+      const promptToParse = promptWithoutTable.replace(/,/g, '.');
+      const explicitCurrencyMatch = promptToParse.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
+        promptToParse.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
 
       // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
-      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
-        promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+      const directAmountMatch = promptToParse.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
+        promptToParse.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
 
       // 3. Parenthetical match e.g. "(0.543)"
       const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
@@ -1163,20 +1164,6 @@ export function ZeroClawTerminalView({
     // Stream generated invoice directly to Supabase Master DB and Cloudflare R2 CDN
     recordInvoiceToDatabaseAndR2(newHistItem);
     setRightPanelTab('invoices');
-
-    const newEvent: ReconciledEvent = {
-      id: `gen_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      signature: refKey,
-      amount: parsedAmount,
-      currency: 'USDC',
-      timestamp: 'Slot 231,881,234',
-      channel: 'SOLANA-DEVNET',
-      network: network,
-      memo: invoiceMessage,
-      slot: 231881234,
-      timeAgo: 'Just now'
-    };
-    setEvents((prev) => [newEvent, ...prev]);
 
     // Auto-dispatch invoice to WhatsApp / Telegram if target channel is set
     if (autoDispatchEnabled && customerChannelTarget && customerChannelTarget.trim().length > 0) {
