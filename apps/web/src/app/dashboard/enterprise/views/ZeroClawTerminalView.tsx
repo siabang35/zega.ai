@@ -1000,16 +1000,17 @@ export function ZeroClawTerminalView({
         if (merchantRes.ok) {
           const merchantJson = await merchantRes.json();
           if (Array.isArray(merchantJson.signatures) && merchantJson.signatures.length > 0) {
-            const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures.map((sigItem: any, idx: number) => {
+            const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures.map((sigItem: any) => {
               const sigHash = sigItem.signature;
               const slotNum = sigItem.slot || 480320796;
               const blockTimeMs = sigItem.blockTime ? sigItem.blockTime * 1000 : null;
               const timeStr = blockTimeMs ? new Date(blockTimeMs).toLocaleTimeString() : 'Just now';
+              const parsedAmt = typeof sigItem.amountUsdc === 'number' ? sigItem.amountUsdc : (parseFloat(sigItem.amount) || 15.00);
 
               return {
                 id: `devnet_rpc_${sigHash}`,
                 signature: sigHash,
-                amount: idx === 0 ? (parseFloat(invoiceAmount.replace(',', '.')) || 0.50) : 15.00,
+                amount: parsedAmt,
                 currency: 'USDC',
                 timestamp: `Slot ${slotNum} (${timeStr})`,
                 channel: 'SOLANA-PAY-DEVNET-RPC',
@@ -2191,9 +2192,9 @@ export function ZeroClawTerminalView({
                             ? generatedUrl.split('&reference=')[1]?.split('&')[0]
                             : '';
 
-                          const matchedInv = generatedInvoicesHistory.find(inv => inv.solanaPayUrl === generatedUrl || (activeRefKey && inv.referenceKey === activeRefKey));
-                          const matchedEv = events.find(e => (activeRefKey && (e.signature?.includes(activeRefKey) || e.memo?.includes(activeRefKey))));
-                          const isSettled = (matchedInv && (matchedInv.status?.includes('FINISHED') || matchedInv.status === 'confirmed')) || Boolean(matchedEv);
+                          const matchedInv = generatedInvoicesHistory.find(inv => activeRefKey && inv.referenceKey === activeRefKey && (inv.status === 'FINISHED (EXACT)' || inv.status === 'confirmed' || inv.status === 'settled'));
+                          const matchedEv = events.find(e => activeRefKey && (e.signature === activeRefKey || (e.memo && e.memo.includes(activeRefKey))));
+                          const isSettled = Boolean(matchedInv) || Boolean(matchedEv);
 
                           return (
                             <>
