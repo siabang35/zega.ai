@@ -1173,6 +1173,80 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ success: true, message: 'Payment reconciled successfully', event });
     }
 
+    // ── POST /v1/zeroclaw/settlement/record ──
+    // OWASP Amount Reconciliation Engine (Underpaid, Overpaid, Exact Match, Unpaid)
+    fastify.post<{
+      Body: {
+        userId?: string;
+        merchantPubkey?: string;
+        amountUsdc?: number;
+        expectedAmountUsdc?: number;
+        referenceKey?: string;
+        txSignature?: string;
+        network?: string;
+        memo?: string;
+        isDemo?: boolean;
+      };
+    }>('/settlement/record', async (request, reply) => {
+      const {
+        userId,
+        merchantPubkey,
+        amountUsdc = 0,
+        expectedAmountUsdc = amountUsdc,
+        referenceKey,
+        txSignature,
+        network = 'solana-devnet',
+        memo,
+        isDemo = false,
+      } = request.body || {};
+
+      const paidAmount = Number(amountUsdc) || 0;
+      const expectedAmount = Number(expectedAmountUsdc) || paidAmount;
+      const diff = paidAmount - expectedAmount;
+
+      let settlementStatus: 'settled_exact' | 'settled_underpaid' | 'settled_overpaid' | 'unpaid' = 'settled_exact';
+      if (paidAmount <= 0) {
+        settlementStatus = 'unpaid';
+      } else if (diff < -0.001) {
+        settlementStatus = 'settled_underpaid';
+      } else if (diff > 0.001) {
+        settlementStatus = 'settled_overpaid';
+      }
+
+      const event = {
+        id: `rec_${Date.now()}`,
+        signature: txSignature || referenceKey || `sig_${Date.now()}`,
+        amount: paidAmount,
+        expectedAmount,
+        amountDiff: diff,
+        settlementStatus,
+        currency: 'USDC',
+        timestamp: new Date().toISOString(),
+        channel: isDemo ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE',
+        network,
+        memo: memo || `Settlement (${paidAmount} USDC, Status: ${settlementStatus})`,
+        slot: 480325100,
+        userId: userId || 'demo-user',
+        merchantPubkey: merchantPubkey || 'ZeGAMerchantPublicKey111111111111111111111',
+      };
+
+      reconciledEvents.unshift(event);
+      zeroClawState.totalReconciledUsdc += paidAmount;
+      zeroClawState.reconciledTxCount += 1;
+
+      return reply.send({
+        success: true,
+        message: settlementStatus === 'settled_exact'
+          ? 'Pembayaran Tepat & Terverifikasi On-Chain!'
+          : settlementStatus === 'settled_underpaid'
+            ? `Pembayaran Kurang (Underpaid)! Harap bayar sisa ${Math.abs(diff).toFixed(2)} USDC.`
+            : settlementStatus === 'settled_overpaid'
+              ? `Pembayaran Berlebih (Overpaid)! Kelebihan +${diff.toFixed(2)} USDC dicatat.`
+              : 'Pembayaran Belum Diterima.',
+        settlement: event,
+      });
+    });
+
     if (eventType === 'refund_requested' || eventType === 'checkpoint_update') {
       const newCheckpoint: PendingCheckpoint = {
         checkpointId: checkpointId || `chk_${Date.now()}`,
