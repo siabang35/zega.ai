@@ -2163,7 +2163,7 @@ function AppContent() {
   if (isPublicCheckout) {
     return (
       <div className={dark ? 'dark' : ''}>
-        <PublicCheckoutView onBack={() => { navigateTo('/home'); }} />
+        <PublicCheckoutView />
       </div>
     );
   }

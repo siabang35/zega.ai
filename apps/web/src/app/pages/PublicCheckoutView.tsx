@@ -192,20 +192,54 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     }
   };
 
-  // Primary Action Button Handler: Opens Mobile Selection Modal
-  const handleSinglePayButton = () => {
+  // Primary Action Button Handler: Direct 1-Click Professional Web3 Wallet Trigger
+  const handleSinglePayButton = async () => {
     if (isExpired) {
       triggerToast('⏰ Sesi checkout telah kadaluarsa (5 min). Silakan minta invoice baru.');
       return;
     }
 
+    // 1. Copy Solana Pay URI to clipboard immediately
     if (solanaPayUrl) {
       try {
-        navigator.clipboard.writeText(solanaPayUrl);
+        await navigator.clipboard.writeText(solanaPayUrl);
       } catch { /* proceed */ }
     }
 
-    setIsWalletModalOpen(true);
+    // 2. Check for in-browser injected Solana Web3 Wallet (Phantom / Solflare / Backpack)
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    const solanaWallet = win?.solana || win?.phantom?.solana || win?.solflare;
+
+    if (solanaWallet && typeof solanaWallet.connect === 'function') {
+      try {
+        triggerToast('🟢 Menghubungkan ke Wallet Solana...');
+        const resp = await solanaWallet.connect();
+        const pubkeyStr = resp?.publicKey ? resp.publicKey.toString() : (solanaWallet.publicKey ? solanaWallet.publicKey.toString() : '');
+        triggerToast(`⚡ Wallet Terhubung (${pubkeyStr.slice(0, 6)}...)! Memproses Solana Pay...`);
+
+        // If deep link browse or transfer is available
+        if (solflareTransferUrl && win?.solflare?.isSolflare) {
+          window.open(solflareTransferUrl, '_blank');
+        }
+        return;
+      } catch (err: any) {
+        triggerToast(`⚠️ Batal / Gagal konek wallet: ${err.message || 'Dibatalkan'}`);
+      }
+    }
+
+    // 3. Mobile / Deep-Link Trigger Scheme (Direct Launch)
+    if (solanaPayUrl) {
+      triggerToast('⚡ Link Solana Pay Disalin! Membuka Wallet Mobile...');
+      try {
+        // Attempt native solana: scheme launch directly
+        window.location.href = solanaPayUrl;
+      } catch {
+        // Fallback to Phantom browse URL
+        window.open(phantomUniversalUrl, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      setIsWalletModalOpen(true);
+    }
   };
 
   const launchWalletApp = (url: string, name: string) => {
