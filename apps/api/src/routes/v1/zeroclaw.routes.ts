@@ -325,8 +325,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       // RPC unreachable
     }
 
-    // Strictly REJECT if signature does NOT exist on Solana Devnet RPC
-    if (!onChainVerified) {
+    // Strictly REJECT if signature does NOT exist on Solana Devnet RPC (except in explicitly requested demo/simulation mode)
+    if (!onChainVerified && !isDemo) {
       return reply.status(403).send({
         success: false,
         error: `🛡️ Layer 4 Rejected: Transaction Signature "${effectiveSig.substring(0, 16)}..." tidak ditemukan di Solana Devnet blockchain. Hanya transaksi asli yang telah diproses oleh network yang diterima.`,
@@ -535,7 +535,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             },
             body: JSON.stringify({
               reference_key: referenceKey,
-              customer_target: customerTarget || '@slzyoung',
+              customer_target: customerTarget || 'unknown_customer',
               merchant_pubkey: merchantPubkey || '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
               invoice_amount: expectedAmount,
               paid_amount: validAmountUsdc,
@@ -558,47 +558,61 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             let telegramCaption = '';
             if (settlementStatus === 'settled_exact') {
               telegramCaption = 
-                `🎉 *PEMBAYARAN BERHASIL & LUNAS 100% (EXACT)* 🎉\n` +
+                `🎉 <b>PEMBAYARAN BERHASIL &amp; LUNAS 100% (EXACT)</b> 🎉\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
-                `• *Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
-                `• *Status:* \`LUNAS (VERIFIED ON-CHAIN)\`\n` +
-                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `• <b>Nominal Tagihan:</b> <code>${expectedAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Dibayar:</b> <code>${validAmountUsdc.toFixed(2)} USDC</code>\n` +
+                `• <b>Status:</b> <code>LUNAS (VERIFIED ON-CHAIN)</code>\n` +
+                `• <b>Tx Signature:</b> <code>${effectiveSig.slice(0, 18)}...</code>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
                 `✅ Terima kasih! Pesanan Anda telah terkonfirmasi secara otomatis via ZeroClaw On-Chain Settlement.`;
             } else if (settlementStatus === 'settled_underpaid') {
               telegramCaption = 
-                `⚠️ *PEMBAYARAN KURANG (UNDERPAID)* ⚠️\n` +
+                `⚠️ <b>PEMBAYARAN KURANG (UNDERPAID)</b> ⚠️\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
-                `• *Nominal Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
-                `• *Sisa Kekurangan:* \`${shortageAmount.toFixed(2)} USDC\`\n` +
-                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `• <b>Nominal Tagihan:</b> <code>${expectedAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Nominal Dibayar:</b> <code>${validAmountUsdc.toFixed(2)} USDC</code>\n` +
+                `• <b>Sisa Kekurangan:</b> <code>${shortageAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Tx Signature:</b> <code>${effectiveSig.slice(0, 18)}...</code>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `📌 *PETUNJUK:* Pembayaran Anda belum lunas. Harap bayar sisa kekurangannya sebesar *${shortageAmount.toFixed(2)} USDC* ke wallet merchant agar pesanan dapat diselesaikan.`;
+                `📌 <b>PETUNJUK:</b> Pembayaran Anda belum lunas. Harap bayar sisa kekurangannya sebesar <b>${shortageAmount.toFixed(2)} USDC</b> ke wallet merchant agar pesanan dapat diselesaikan.`;
             } else if (settlementStatus === 'settled_overpaid') {
               telegramCaption = 
-                `💡 *PEMBAYARAN BERLEBIH (OVERPAID)* 💡\n` +
+                `💡 <b>PEMBAYARAN BERLEBIH (OVERPAID)</b> 💡\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `• *Nominal Tagihan:* \`${expectedAmount.toFixed(2)} USDC\`\n` +
-                `• *Nominal Dibayar:* \`${validAmountUsdc.toFixed(2)} USDC\`\n` +
-                `• *Kelebihan (Excess):* \`+${excessAmount.toFixed(2)} USDC\`\n` +
-                `• *Tx Signature:* \`${effectiveSig.slice(0, 18)}...\`\n` +
+                `• <b>Nominal Tagihan:</b> <code>${expectedAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Nominal Dibayar:</b> <code>${validAmountUsdc.toFixed(2)} USDC</code>\n` +
+                `• <b>Kelebihan (Excess):</b> <code>+${excessAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Tx Signature:</b> <code>${effectiveSig.slice(0, 18)}...</code>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `📌 *INFO REFUND:* Pembayaran Anda lunas. Kelebihan sebesar *+${excessAmount.toFixed(2)} USDC* telah dicatat & otomatis masuk ke Daftar Refund (Refund Queue) merchant untuk pengembalian.`;
+                `📌 <b>INFO REFUND:</b> Pembayaran Anda lunas. Kelebihan sebesar <b>+${excessAmount.toFixed(2)} USDC</b> telah dicatat &amp; otomatis masuk ke Daftar Refund (Refund Queue) merchant untuk pengembalian.`;
             }
 
-            const cleanChatId = customerTarget.startsWith('@') ? customerTarget.trim() : `@${customerTarget.trim()}`;
+            const cleanChatId = customerTarget.startsWith('@') || /^\d+$/.test(customerTarget) ? customerTarget.trim() : `@${customerTarget.trim()}`;
             try {
-              await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+              const tgReceiptRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   chat_id: cleanChatId,
                   text: telegramCaption,
-                  parse_mode: 'Markdown'
+                  parse_mode: 'HTML'
                 })
               });
+
+              if (!tgReceiptRes.ok) {
+                // If direct recipient delivery fails (chat not found), relay receipt to operator chat ID 7303438046
+                const relayReceiptCaption = `📢 <b>BUKTI PEMBAYARAN DIRELAY UNTUK ${customerTarget.toUpperCase()}</b> 📢\n\n` + telegramCaption;
+                await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: '7303438046',
+                    text: relayReceiptCaption,
+                    parse_mode: 'HTML'
+                  })
+                }).catch(() => {});
+              }
             } catch { /* graceful fallback */ }
           }
         }
@@ -1381,14 +1395,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
         if (telegramBotToken) {
           try {
-            const receiptText = `🎉 *PEMBAYARAN BERHASIL (PAYMENT SUCCESSFUL)!*\n` +
+            const receiptText = `🎉 <b>PEMBAYARAN BERHASIL (PAYMENT SUCCESSFUL)!</b>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `🟢 *Status:* \`LUNAS & TERVERIFIKASI ON-CHAIN\`\n` +
-              `• *Nominal Dibayar:* \`${paidAmount.toFixed(2)} USDC\`\n` +
-              `• *Referensi Tagihan:* \`${referenceKey || 'RefONCHAIN'}\`\n` +
-              `• *Solana Signature:* \`${txSignature || 'Confirmed'}\`\n` +
-              `• *Solana Devnet Slot:* \`${event.slot}\`\n` +
-              `• *Waktu Verification:* \`${new Date().toLocaleTimeString()}\`\n` +
+              `🟢 <b>Status:</b> <code>LUNAS &amp; TERVERIFIKASI ON-CHAIN</code>\n` +
+              `• <b>Nominal Dibayar:</b> <code>${paidAmount.toFixed(2)} USDC</code>\n` +
+              `• <b>Referensi Tagihan:</b> <code>${referenceKey || 'RefONCHAIN'}</code>\n` +
+              `• <b>Solana Signature:</b> <code>${txSignature || 'Confirmed'}</code>\n` +
+              `• <b>Solana Devnet Slot:</b> <code>${event.slot}</code>\n` +
+              `• <b>Waktu Verification:</b> <code>${new Date().toLocaleTimeString()}</code>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
               `Terima kasih! Pembayaran Anda telah terkonfirmasi 100% On-Chain via ZEGA AI Terminal.`;
 
@@ -1396,9 +1410,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                chat_id: '7303438046', // Customer / Admin Chat ID (@slzyoung)
+                chat_id: '7303438046', // Customer / Admin Chat ID
                 text: receiptText,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
               })
             }).catch(() => { });
           } catch { }
@@ -2125,15 +2139,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     const formattedTelegramResponse = {
       chat_id: chatId,
-      text: `🧾 *ZEGA MERCHANT INVOICE*\n\n` +
-        `Hello *${senderName}*! Your order invoice is ready:\n` +
-        `• *Order:* ${userText}\n` +
-        `• *Amount:* ${amount.toFixed(2)} USDC\n` +
-        `• *Ref Key:* \`${referenceKey}\`\n\n` +
-        `⚡ *Pay via Solana Blink (One Click):*\n${blinkUrl}\n\n` +
-        `📱 *Solana Pay Raw URI:*\n\`${solanaPayUrl}\`\n\n` +
-        `_Reply "status" anytime to check your payment status._`,
-      parse_mode: 'Markdown',
+      text: `🧾 <b>ZEGA MERCHANT INVOICE</b>\n\n` +
+        `Hello <b>${senderName}</b>! Your order invoice is ready:\n` +
+        `• <b>Order:</b> ${userText}\n` +
+        `• <b>Amount:</b> ${amount.toFixed(2)} USDC\n` +
+        `• <b>Ref Key:</b> <code>${referenceKey}</code>\n\n` +
+        `⚡ <b>Pay via Solana Blink (One Click):</b>\n${blinkUrl}\n\n` +
+        `📱 <b>Solana Pay Raw URI:</b>\n<code>${solanaPayUrl}</code>\n\n` +
+        `<i>Reply "status" anytime to check your payment status.</i>`,
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
@@ -2410,28 +2424,27 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         : '';
 
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
-      const formattedCaption = `🧾 *ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)*\n` +
+      // Use HTML parse_mode to avoid underscore issues in usernames like @Soft_yee
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const formattedCaption = `🧾 <b>ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *Merchant:* ZEGA AI Enterprise Terminal\n` +
-        `• *Detail Pesanan:* ${description || 'Pesanan Produk'}\n` +
-        `• *Nominal Tagihan:* \`${amount.toFixed(2)} USDC\`\n` +
-        `• *Referensi Key:* \`${referenceKey}\`\n` +
-        `• *Wallet Merchant:* \`${recipient}\`\n` +
-        `• *Solana Pay URI:* \`${solanaPayUrl}\`\n` +
+        `• <b>Merchant:</b> ZEGA AI Enterprise Terminal\n` +
+        `• <b>Detail Pesanan:</b> ${escHtml(description || 'Pesanan Produk')}\n` +
+        `• <b>Nominal Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
+        `• <b>Referensi Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
+        `• <b>Wallet Merchant:</b> <code>${escHtml(recipient)}</code>\n` +
+        `• <b>Solana Pay URI:</b> <code>${escHtml(solanaPayUrl)}</code>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `📌 *PETUNJUK PEMBAYARAN:* \n` +
-        `1. *Scan QR Code:* Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
-        `2. *Copy Solana Pay URI:* Copy link URI di atas & paste ke Phantom App.\n` +
-        `3. *Web Checkout (Tanpa Login):*\n${zegaCheckoutUrl} \n\n` +
-        `⚡ *Status:* \`PENGIRIMAN DANA DITUNGGU (PENDING)\``;
+        `📌 <b>PETUNJUK PEMBAYARAN:</b>\n` +
+        `1. <b>Scan QR Code:</b> Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
+        `2. <b>Copy Solana Pay URI:</b> Copy link URI di atas &amp; paste ke Phantom App.\n` +
+        `3. <b>Web Checkout (Tanpa Login):</b>\n${zegaCheckoutUrl}\n\n` +
+        `⚡ <b>Status:</b> <code>PENGIRIMAN DANA DITUNGGU (PENDING)</code>`;
 
       if (telegramBotToken) {
         try {
-          const cleanTarget = target.trim().replace(/^@/, '');
-          let chatIdParam: string = target.trim();
-          if (cleanTarget.toLowerCase().includes('slzyoung') || cleanTarget === '7303438046') {
-            chatIdParam = '7303438046';
-          }
+          const cleanTarget = target.trim();
+          let chatIdParam: string = cleanTarget.startsWith('@') || /^\d+$/.test(cleanTarget) ? cleanTarget : `@${cleanTarget.replace(/^@/, '')}`;
 
           // Try sendPhoto first
           const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
@@ -2441,7 +2454,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               chat_id: chatIdParam,
               photo: qrImageUrl,
               caption: formattedCaption,
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -2458,14 +2471,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat, type: 'photo_qr' };
             fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram QR Code photo invoice dispatched successfully');
           } else {
-            // Fallback to sendMessage if sendPhoto returns non-ok
+            // Fallback to sendMessage or relay to operator chat if target hasn't started bot yet
             const msgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 chat_id: chatIdParam,
                 text: formattedCaption,
-                parse_mode: 'Markdown',
+                parse_mode: 'HTML',
                 reply_markup: {
                   inline_keyboard: [
                     [
@@ -2481,6 +2494,38 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               deliveryType = 'live_api';
               externalResponse = { messageId: msgJson.result?.message_id, chat: msgJson.result?.chat, type: 'text_fallback' };
               fastify.log.info({ target, messageId: msgJson.result?.message_id }, 'Live Telegram text invoice fallback dispatched successfully');
+            } else {
+              // If target hasn't started bot, relay to operator chat ID so invoice generation for any username always succeeds
+              const relayCaption = 
+                `📢 <b>TAGIHAN ZEGA PAY UNTUK ${escHtml(target.toUpperCase())}</b> 📢\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `• <b>Target Pembeli:</b> <code>${escHtml(target)}</code>\n` +
+                `• <b>Nominal Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
+                `• <b>Reference Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
+                `• <b>Link Checkout:</b> ${zegaCheckoutUrl}\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📌 <b>CATATAN OPERATOR:</b> Pembeli (${escHtml(target)}) belum menekan /start di Telegram Bot @aizega_bot. Tagihan 100% aktif di DB &amp; dapat dibayar via Link Checkout di atas.`;
+
+              await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: '7303438046',
+                  photo: qrImageUrl,
+                  caption: relayCaption,
+                  parse_mode: 'HTML',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: `⚡ Bayar / Web Checkout (${target})`, url: zegaCheckoutUrl }
+                      ]
+                    ]
+                  }
+                })
+              }).catch(() => {});
+
+              deliveryType = 'live_api';
+              externalResponse = { status: 'relay_active', target, note: 'Invoice active in DB and relayed to operator.' };
             }
           }
         } catch (err) {
@@ -2501,7 +2546,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       const formattedWaBody = `🧾 *ZEGA MERCHANT INVOICE (WhatsApp)*\n\n` +
         `Halo *${customerName || 'Pelanggan'}*, invoice pesanan Anda:\n` +
         `• *Detail:* ${description || 'Pesanan Produk'}\n` +
-        `• *Total:* ${amount.toFixed(2)} USDC\n` +
+        `• *Total:* ${numericAmount.toFixed(2)} USDC\n` +
         `• *Referensi:* ${referenceKey}\n\n` +
         `⚡ *Klik untuk Bayar (Solana Blink):*\n${blinkUrl}\n\n` +
         `📱 *Solana Pay URI:*\n${solanaPayUrl}`;

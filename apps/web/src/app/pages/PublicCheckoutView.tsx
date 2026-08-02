@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Copy, Check, ExternalLink, QrCode, RefreshCw, Zap, ArrowLeft, Building2, CheckCircle2, Wallet, User, ShoppingBag, Send, Clock, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Copy, Check, ExternalLink, QrCode, RefreshCw, Zap, ArrowLeft, Building2, CheckCircle2, Wallet, User, ShoppingBag, Send, Clock, AlertTriangle, X } from 'lucide-react';
 
 interface PublicCheckoutViewProps {
   onBack?: () => void;
@@ -24,7 +24,7 @@ const isValidBase58SolanaAddress = (addr?: string | null): boolean => {
 };
 
 export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
-  // Purely dynamic initial state — zero hardcoded mockup data
+  // Purely dynamic initial state — zero hardcoded mockup fallbacks
   const [params, setParams] = useState<CheckoutParams | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -34,6 +34,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'settled_exact' | 'settled_underpaid' | 'settled_overpaid'>('pending');
   const [settlementDetails, setSettlementDetails] = useState<any>(null);
   const [isPolling, setIsPolling] = useState(true);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
   // 5-Minute Session Timer (300 Seconds Countdown)
   const [timeLeft, setTimeLeft] = useState(300);
@@ -70,7 +71,6 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             tier: tierParam === 'enterprise' ? 'enterprise' : 'umkm'
           });
         } else {
-          // If URL params missing, attempt to parse or fallback gracefully without hardcoding
           const validRec = isValidBase58SolanaAddress(rawRec) ? rawRec!.trim() : 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
           setParams({
             reference: ref || `RefDSP_${Date.now().toString().slice(-6)}`,
@@ -123,6 +123,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     ? `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(2)}`
     : '';
   const phantomUniversalUrl = `https://phantom.app/ul/browse/${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://zegaai.site')}`;
+  const backpackUniversalUrl = `https://backpack.app/ul/browse/${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://zegaai.site')}`;
+  const okxUniversalUrl = `https://www.okx.com/download?deeplink=${encodeURIComponent(solanaPayUrl)}`;
   const qrImageUrl = solanaPayUrl
     ? `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`
     : '';
@@ -190,7 +192,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     }
   };
 
-  // Single Dynamic Primary Action Button for Phantom & Solflare
+  // Primary Action Button Handler: Opens Mobile Selection Modal
   const handleSinglePayButton = () => {
     if (isExpired) {
       triggerToast('⏰ Sesi checkout telah kadaluarsa (5 min). Silakan minta invoice baru.');
@@ -200,20 +202,23 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     if (solanaPayUrl) {
       try {
         navigator.clipboard.writeText(solanaPayUrl);
-        triggerToast('⚡ Solana Pay URI tersalin! Membuka Wallet Phantom / Solflare...');
       } catch { /* proceed */ }
     }
 
-    if (typeof window !== 'undefined') {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
+    setIsWalletModalOpen(true);
+  };
 
-      if (isMobile) {
-        window.open(solflareTransferUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        window.open(phantomUniversalUrl, '_blank', 'noopener,noreferrer');
-      }
+  const launchWalletApp = (url: string, name: string) => {
+    if (solanaPayUrl) {
+      try {
+        navigator.clipboard.writeText(solanaPayUrl);
+        triggerToast(`⚡ Solana Pay URI Tersalin! Membuka ${name}...`);
+      } catch { /* proceed */ }
     }
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    setIsWalletModalOpen(false);
   };
 
   if (isLoading || !params) {
@@ -235,6 +240,80 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
         <div className="fixed top-5 z-50 animate-bounce px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-emerald-500/40 text-emerald-400 text-xs font-bold shadow-2xl backdrop-blur-xl flex items-center gap-2">
           <Zap className="size-4 text-emerald-400" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Mobile Web3 Wallet Selector Modal */}
+      {isWalletModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Wallet className="size-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white">Pilih Wallet Pembayaran</h3>
+              </div>
+              <button
+                onClick={() => setIsWalletModalOpen(false)}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => launchWalletApp(phantomUniversalUrl, 'Phantom Wallet')}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-purple-500/30 text-white text-xs font-bold transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 font-mono font-black">👻</div>
+                  <span>Phantom Wallet</span>
+                </div>
+                <ExternalLink className="size-4 text-purple-400" />
+              </button>
+
+              <button
+                onClick={() => launchWalletApp(solflareTransferUrl, 'Solflare Wallet')}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-amber-500/30 text-white text-xs font-bold transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 font-mono font-black">🔥</div>
+                  <span>Solflare Wallet</span>
+                </div>
+                <ExternalLink className="size-4 text-amber-400" />
+              </button>
+
+              <button
+                onClick={() => launchWalletApp(backpackUniversalUrl, 'Backpack Wallet')}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-rose-500/30 text-white text-xs font-bold transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300 font-mono font-black">🎒</div>
+                  <span>Backpack Wallet</span>
+                </div>
+                <ExternalLink className="size-4 text-rose-400" />
+              </button>
+
+              <button
+                onClick={() => launchWalletApp(okxUniversalUrl, 'OKX Web3 Wallet')}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-sky-500/30 text-white text-xs font-bold transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 font-mono font-black">🖤</div>
+                  <span>OKX Web3 Wallet</span>
+                </div>
+                <ExternalLink className="size-4 text-sky-400" />
+              </button>
+
+              <button
+                onClick={handleCopyPayUrl}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold transition-all"
+              >
+                <Zap className="size-4" />
+                <span>1-Click Copy Solana Pay URI</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

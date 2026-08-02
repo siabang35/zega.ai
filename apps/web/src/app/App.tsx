@@ -2149,9 +2149,16 @@ function AppContent() {
 
   const isPublicCheckout = 
     currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
+    currentPath === '/payment' || currentPath.startsWith('/payment') ||
     currentPath === '/pay' || currentPath.startsWith('/pay') ||
     currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
-    (typeof window !== 'undefined' && window.location.search.includes('reference='));
+    (typeof window !== 'undefined' && (
+      window.location.pathname.includes('/checkout') ||
+      window.location.pathname.includes('/payment') ||
+      window.location.pathname.includes('/pay') ||
+      window.location.search.includes('reference=') ||
+      window.location.search.includes('ref=')
+    ));
 
   if (isPublicCheckout) {
     return (
