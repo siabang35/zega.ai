@@ -66,6 +66,7 @@ const DOCS_NAV = [
       { id: 'defi-guardian', title: 'DeFi Guardian (Jupiter & Switchboard)' },
       { id: 'webhook-hmac', title: 'HMAC-SHA256 Webhook Verification' },
       { id: 'solana-pay', title: 'Solana Pay QR & Devnet RPC' },
+      { id: 'strict-privy-checkout', title: '100% Strict Privy Auth & Solana Pay Checkout' },
       { id: 'enterprise-zeroclaw', title: 'Enterprise Swarm & Guardrails' },
     ],
   },
@@ -745,6 +746,30 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
                     <li>ZeroClaw AI prompt guard flags suspicious injection patterns and creates a pending record in <code className="font-mono">zeroclaw_sop_checkpoints</code>.</li>
                     <li>Financial execution is frozen until an authorized human admin reviews the checkpoint and clicks <strong>Approve</strong> or <strong>Reject</strong> in ZeroClaw Terminal.</li>
                   </ol>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'strict-privy-checkout' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🔒 100% Strict Privy Authentication & Public Checkout Architecture
+                </h2>
+                <p>
+                  ZEGA AI strictly enforces <strong>Privy Embedded Solana Wallet Authentication</strong>. Demo mode bypass options, guest login buttons, and fake preset auto-generations have been completely purged to ensure total data isolation and security compliance.
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
+                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400">1-to-1 Privy Session Binding</h4>
+                    <p className="text-[11px] text-slate-500">Every user session is strictly authenticated via Google, GitHub, or Brevo OTP Passcode, deterministically deriving a single non-custodial Solana wallet address.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-1.5">
+                    <h4 className="font-bold text-blue-600 dark:text-blue-400">Public Standalone Checkout (/checkout/:id)</h4>
+                    <p className="text-[11px] text-slate-500">Public checkout pages run on isolated routes without modal race conditions, supporting native mobile Solflare and Phantom wallet deep-links.</p>
+                  </div>
                 </div>
               </section>
             </div>

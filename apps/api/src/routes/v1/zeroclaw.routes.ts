@@ -694,8 +694,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/settlement/list ── Fetch Partitioned Settlements (Demo Public vs Authenticated Private)
   fastify.get<{ Querystring: { userId?: string; isDemo?: string } }>('/settlement/list', async (request, reply) => {
-    const { userId, isDemo } = request.query || {};
-    const isDemoBool = isDemo === 'true' || !userId;
+    const { userId } = request.query || {};
+    const isDemoBool = false;
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -863,8 +863,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/invoice/list ── Fetch all stored invoices from Supabase Master DB for user
   fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string; isDemo?: string } }>('/invoice/list', async (request, reply) => {
-    const { userId, merchantPubkey, isDemo } = request.query || {};
-    const isDemoBool = isDemo === 'true' || !userId;
+    const { userId, merchantPubkey } = request.query || {};
+    const isDemoBool = false;
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;

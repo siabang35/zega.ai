@@ -42,12 +42,11 @@ ZEGA/
 
 ## ✨ Key Implemented Architecture Features
 
-### 1. 🔐 Multi-Tenant Authentication & Session Management
-- **Dual-Segment Onboarding (`AuthModal`)**: Dedicated workflows for Individual/UMKM developers and Enterprise organization accounts.
-- **Transactional Brevo OTP Email Gateway**: 6-digit cryptographic verification passcodes via Brevo API v3 (`SMTP_BREVO`), backed by SHA-256 OTP hashing and 5-minute expiration window.
-- **Cloudflare Turnstile Bot Defense**: Protection against automated scraping and bot requests on `/v1/auth/request-otp`.
-- **Strict Session Clearance & Route Guarding**: Sign Out clears session keys (`zega_mock_session`), cookies, and cache with safe fall-through redirects to `/`. Accessing `/console` when logged out prompts users via `AuthModal`.
-- **Guest Demo Mode**: 1-Click interactive Guest Demo mode for potential clients (`Guest Explorer` and `Acme Enterprise Guest`) with non-intrusive notification banner.
+### 1. 🔒 100% Strict Privy Authentication & Demo Mode Purge
+- **Purged Guest Demo Mode**: All Guest Demo login buttons, Guest Banners, and fallback sessions have been completely removed from `AuthModal`, `EnterpriseDashboard`, `UserDashboard`, and `ZeroClawTerminalView`.
+- **Pure Privy Session Binding**: Every user session is strictly authenticated via Google OAuth, GitHub OAuth, or Brevo Email OTP Passcode, deterministically binding 1 user email to 1 non-custodial Solana Embedded Wallet (`PrivyWalletService`).
+- **Standalone Solana Pay Public Checkout (`/checkout/:id`)**: Public checkout URLs run on isolated standalone routes to prevent modal race conditions, supporting native single-swipe deep-linking for mobile wallets like Solflare and Phantom.
+- **Presets as Strict Input Fillers**: Quick Presets act strictly as UI input fillers, populating invoice amounts and messages for manual user review without auto-generating database records.
 
 ### 2. 🎛️ Role-Based Workspaces & Dynamic Dashboards
 - **SuperAdmin Console (`SuperAdminDashboard.tsx`)**: Global tenant management, security policy enforcement, real-time audit trail logs, and instant role switching.

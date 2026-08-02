@@ -18,9 +18,9 @@ export function UserDashboard({
   dark,
   setDark,
   userRole = 'individual',
-  userEmail = 'guest@zegaai.site',
-  userName = 'Guest Explorer (Demo Mode)',
-  isGuest = true,
+  userEmail = 'siabang35@gmail.com',
+  userName = 'Authentic User',
+  isGuest = false,
 }: UserDashboardProps) {
   if (userRole === 'enterprise') {
     return (

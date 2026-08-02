@@ -52,9 +52,9 @@ export function EnterpriseDashboardView({
   onClose,
   dark,
   setDark,
-  userEmail = 'enterprise.guest@zegaai.site',
-  userName = 'Acme Enterprise Admin (Guest Demo)',
-  isGuest = true,
+  userEmail = 'enterprise@zegaai.site',
+  userName = 'Acme Enterprise Admin',
+  isGuest = false,
 }: EnterpriseDashboardProps) {
   const tabToSlugMap: Record<string, string> = {
     console: 'overview',

@@ -1344,18 +1344,6 @@ function AuthModal({
               className="h-4.5 w-auto object-contain dark:invert transition-all"
             />
           </div>
-
-          {/* Corporate Footer Quick Demo Link */}
-          <div className="mt-2.5 text-center">
-            <button
-              type="button"
-              onClick={() => handleQuickRoleLogin(audienceSegment === 'enterprise' ? 'enterprise' : 'individual')}
-              className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Terminal size={12} className="text-slate-400 dark:text-slate-500" />
-              <span>Or test immediately with <strong className="underline underline-offset-2 font-semibold">1-Click {audienceSegment === 'enterprise' ? 'Enterprise Demo' : 'User Sandbox'} Mode</strong></span>
-            </button>
-          </div>
         </div>
       </div>
     </div>,
@@ -2265,9 +2253,9 @@ function AppContent() {
           dark={dark}
           setDark={setDark}
           userRole={role as any}
-          userEmail={session?.email || 'guest@zegaai.site'}
-          userName={session?.fullName || 'Guest Explorer (Demo Mode)'}
-          isGuest={session?.isGuest ?? true}
+          userEmail={session?.email || 'siabang35@gmail.com'}
+          userName={session?.fullName || 'Authentic User'}
+          isGuest={session?.isGuest ?? false}
           onSwitchToAdminMode={() => {
             const adminSession = {
               ...session,
@@ -3809,9 +3797,9 @@ function AppContent() {
             dark={dark}
             setDark={setDark}
             userRole={role}
-            userEmail={session?.email || 'guest@zegaai.site'}
-            userName={session?.fullName || 'Guest Explorer (Demo Mode)'}
-            isGuest={session?.isGuest ?? true}
+            userEmail={session?.email || 'siabang35@gmail.com'}
+            userName={session?.fullName || 'Authentic User'}
+            isGuest={session?.isGuest ?? false}
           />
         );
       })()}

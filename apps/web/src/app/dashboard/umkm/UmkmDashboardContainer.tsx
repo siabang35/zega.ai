@@ -25,9 +25,9 @@ export function UmkmDashboardContainer({
   onClose,
   dark,
   setDark,
-  userEmail = 'guest@zegaai.site',
-  userName = 'Guest Explorer (Demo Mode)',
-  isGuest = true,
+  userEmail = 'siabang35@gmail.com',
+  userName = 'Toko UMKM',
+  isGuest = false,
 }: UmkmDashboardContainerProps) {
   const tabToSlugMap: Record<string, string> = {
     umkm: 'home',

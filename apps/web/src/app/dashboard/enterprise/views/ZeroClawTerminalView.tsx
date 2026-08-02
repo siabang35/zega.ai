@@ -224,12 +224,12 @@ export function ZeroClawTerminalView({
   const userEmail = propUserEmail && propUserEmail.trim().length > 0 && !propUserEmail.includes('guest')
     ? propUserEmail
     : (propUserEmail || 'siabang35@gmail.com');
-  const isGuestSession = propIsGuest === true && userEmail.includes('guest');
-  const accountMode: 'demo' | 'authenticated' = isGuestSession ? 'demo' : 'authenticated';
+  const isGuestSession = false;
+  const accountMode: 'demo' | 'authenticated' = 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    if (!email || isGuestSession) {
-      return 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+    if (!email) {
+      return PrivyWalletService.getEmbeddedSolanaWallet('siabang35@gmail.com').address;
     }
     return PrivyWalletService.getEmbeddedSolanaWallet(email).address;
   };
