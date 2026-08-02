@@ -743,7 +743,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             merchantWallet: r.merchant_pubkey,
             referenceKey: r.reference_key,
             status: r.status || 'active',
-            r2CdnUrl: r.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${userId || 'demo'}/audit_${r.reference_key || r.id}.json`
+            r2CdnUrl: r.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${userId || 'demo'}/audit_${r.reference_key || r.id}.json`,
+            customerTarget: r.customer_target || r.customer_channel_target || undefined,
+            channelType: r.channel_type || undefined
           }));
 
           return reply.send({
@@ -2254,7 +2256,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     activeActions.set(actionId, { amount: numericAmount, recipient, memo: `Merchant Invoice (${cleanDescription})`, label: `Pay ${numericAmount.toFixed(2)} USDC`, referenceKey } as any);
 
     const solanaPayUrl = `solana:${recipient}?amount=${numericAmount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}`;
-    const zegaCheckoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${numericAmount.toFixed(2)}&recipient=${recipient}&description=${encodeURIComponent(cleanDescription)}&tier=${tierParam}`;
+    const zegaCheckoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${numericAmount.toFixed(2)}&recipient=${recipient}&description=${encodeURIComponent(cleanDescription)}&target=${encodeURIComponent(cleanTarget)}&customer=${encodeURIComponent(customerName || cleanTarget)}&tier=${tierParam}`;
     const blinkUrl = zegaCheckoutUrl;
 
     let deliveryType: 'live_api' | 'dispatched_simulated' = 'dispatched_simulated';
@@ -2275,10 +2277,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         `• *Nominal Tagihan:* \`${amount.toFixed(2)} USDC\`\n` +
         `• *Referensi Key:* \`${referenceKey}\`\n` +
         `• *Wallet Merchant:* \`${recipient}\`\n` +
+        `• *Solana Pay URI:* \`${solanaPayUrl}\`\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `📌 *PETUNJUK PEMBAYARAN:* \n` +
         `1. *Scan QR Code:* Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
-        `2. *Copy Wallet:* Tap alamat wallet merchant di atas untuk transfer manual.\n` +
+        `2. *Copy Solana Pay URI:* Copy link URI di atas & paste ke Phantom App.\n` +
         `3. *Web Checkout (Tanpa Login):*\n${zegaCheckoutUrl} \n\n` +
         `⚡ *Status:* \`PENGIRIMAN DANA DITUNGGU (PENDING)\``;
 
@@ -2302,8 +2305,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               reply_markup: {
                 inline_keyboard: [
                   [
-                    { text: `📱 Solana Pay (Wallet Direct)`, url: solanaPayUrl },
-                    { text: `⚡ Web Checkout`, url: zegaCheckoutUrl }
+                    { text: `⚡ Bayar / Web Checkout`, url: zegaCheckoutUrl }
                   ]
                 ]
               }
@@ -2327,8 +2329,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 reply_markup: {
                   inline_keyboard: [
                     [
-                      { text: `📱 Solana Pay (Wallet Direct)`, url: solanaPayUrl },
-                      { text: `⚡ Web Checkout`, url: zegaCheckoutUrl }
+                      { text: `⚡ Bayar / Web Checkout`, url: zegaCheckoutUrl }
                     ]
                   ]
                 }

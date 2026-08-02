@@ -114,6 +114,8 @@ export interface GeneratedInvoice {
   referenceKey: string;
   status: 'active' | 'paid' | 'FINISHED (EXACT)' | 'completed' | string;
   r2CdnUrl?: string;
+  customerTarget?: string;
+  channelType?: 'telegram' | 'whatsapp' | string;
 }
 
 const getApiBase = (): string => {
@@ -126,12 +128,12 @@ const getApiBase = (): string => {
       return 'https://zega-ai.onrender.com';
     }
   }
-  return '';
+  return 'https://zega-ai.onrender.com';
 };
 
 const API_BASE = getApiBase();
 
-export async function resolveLatestSolanaDevnetSignature(merchantWallet?: string): Promise<string> {
+async function resolveLatestSolanaDevnetSignature(merchantWallet?: string): Promise<string> {
   const targetWallet = merchantWallet || 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
   const defaultWallet = 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
 
@@ -254,8 +256,8 @@ export function ZeroClawTerminalView({
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
 
   // Customer In-Chat Channel Registration & Auto-Dispatch State
-  const [customerChannelTarget, setCustomerChannelTarget] = useState<string>('+628123456789');
-  const [customerChannelType, setCustomerChannelType] = useState<'whatsapp' | 'telegram'>('whatsapp');
+  const [customerChannelTarget, setCustomerChannelTarget] = useState<string>('@slzyoung');
+  const [customerChannelType, setCustomerChannelType] = useState<'whatsapp' | 'telegram'>('telegram');
   const [autoDispatchEnabled, setAutoDispatchEnabled] = useState<boolean>(true);
   const [dispatchingChannel, setDispatchingChannel] = useState<string | null>(null);
   const [verificationState, setVerificationState] = useState<{
@@ -482,20 +484,33 @@ export function ZeroClawTerminalView({
       const query = !isDemoParam && userEmail
         ? `userId=${encodeURIComponent(userEmail)}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`
         : `isDemo=true`;
-      const res = await fetch(`/v1/zeroclaw/invoice/list?${query}`);
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/list?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.invoices)) {
         setGeneratedInvoicesHistory((prev) => {
-          if (!isDemoParam) {
-            // Authenticated users: strictly include ONLY invoices matching this user's merchant wallet or buyer email
-            const userInvoices = json.invoices.filter((i: any) =>
-              i.merchantWallet === activeMerchantWallet ||
-              i.buyerEmail === userEmail ||
-              (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet))
-            );
-            return userInvoices;
-          }
-          return json.invoices;
+          const map = new Map<string, GeneratedInvoice>();
+          // 1. Preserve existing local state entries first
+          prev.forEach((inv) => {
+            const key = inv.referenceKey || inv.id;
+            if (key) map.set(key, inv);
+          });
+          // 2. Filter & union merge server-side DB invoices
+          const serverInvoices = !isDemoParam
+            ? json.invoices.filter((i: any) =>
+                i.merchantWallet === activeMerchantWallet ||
+                i.buyerEmail === userEmail ||
+                (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet))
+              )
+            : json.invoices;
+
+          serverInvoices.forEach((i: any) => {
+            const key = i.referenceKey || i.id;
+            if (key) {
+              const existing = map.get(key);
+              map.set(key, { ...existing, ...i });
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
         });
       }
     } catch (err) { }
@@ -679,23 +694,6 @@ export function ZeroClawTerminalView({
       setInvoiceMessage(memoText);
       setGeneratedUrl(payUrl);
 
-      // Append to persistent invoice history for Vault
-      const newHistItem: GeneratedInvoice = {
-        id: `inv_ai_${Date.now()}`,
-        amount: extractedAmount,
-        memo: memoText,
-        solanaPayUrl: payUrl,
-        createdAt: new Date().toLocaleTimeString(),
-        merchantWallet: activeMerchantWallet,
-        referenceKey: validBase58Ref,
-        status: 'active'
-      };
-      setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
-
-      // Stream AI generated invoice directly to Supabase Master DB and Cloudflare R2 CDN
-      recordInvoiceToDatabaseAndR2(newHistItem);
-      setRightPanelTab('invoices');
-
       // 5. In-Prompt Customer Target Extraction (WhatsApp E.164 phone or Telegram handle)
       const phoneMatch = promptToRun.match(/\+?[1-9]\d{9,14}\b/) || promptToRun.match(/\b08\d{8,11}\b/);
       const telegramMatch = promptToRun.match(/@([a-zA-Z0-9_]{4,32})\b/);
@@ -720,6 +718,25 @@ export function ZeroClawTerminalView({
         setCustomerChannelTarget(targetToDispatch);
         setCustomerChannelType('telegram');
       }
+
+      // Append to persistent invoice history for Vault
+      const newHistItem: GeneratedInvoice = {
+        id: `inv_ai_${Date.now()}`,
+        amount: extractedAmount,
+        memo: memoText,
+        solanaPayUrl: payUrl,
+        createdAt: new Date().toLocaleTimeString(),
+        merchantWallet: activeMerchantWallet,
+        referenceKey: validBase58Ref,
+        status: 'active',
+        customerTarget: targetToDispatch,
+        channelType: channelToDispatch
+      };
+      setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
+
+      // Stream AI generated invoice directly to Supabase Master DB and Cloudflare R2 CDN
+      recordInvoiceToDatabaseAndR2(newHistItem);
+      setRightPanelTab('invoices');
 
       // Auto-dispatch invoice to WhatsApp / Telegram if target channel is available
       if (targetToDispatch && targetToDispatch.trim().length > 0) {
@@ -772,7 +789,7 @@ export function ZeroClawTerminalView({
     setLoading(true);
     try {
       const isDemoParam = isGuestSession;
-      const res = await fetch(`/v1/zeroclaw/settlement/list?isDemo=${isDemoParam}&userId=${encodeURIComponent(userEmail)}`);
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/list?isDemo=${isDemoParam}&userId=${encodeURIComponent(userEmail)}`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -788,7 +805,21 @@ export function ZeroClawTerminalView({
             slot: e.slot || 480269120,
             timeAgo: 'Just now'
           }));
-          setEvents(mappedEvents);
+          setEvents((prev) => {
+            const map = new Map<string, ReconciledEvent>();
+            prev.forEach((evt) => {
+              const key = evt.signature || evt.id;
+              if (key) map.set(key, evt);
+            });
+            mappedEvents.forEach((evt) => {
+              const key = evt.signature || evt.id;
+              if (key) {
+                const existing = map.get(key);
+                map.set(key, { ...existing, ...evt });
+              }
+            });
+            return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+          });
         }
       }
 
@@ -964,7 +995,7 @@ export function ZeroClawTerminalView({
 
       // ── 2. MERCHANT WALLET REAL DEVNET RPC SIGNATURE SYNC ──
       if (activeMerchantWallet) {
-        const merchantRes = await fetch(`/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(activeMerchantWallet)}`);
+        const merchantRes = await fetch(`${API_BASE}/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(activeMerchantWallet)}`);
         if (merchantRes.ok) {
           const merchantJson = await merchantRes.json();
           if (Array.isArray(merchantJson.signatures) && merchantJson.signatures.length > 0) {
@@ -1157,7 +1188,9 @@ export function ZeroClawTerminalView({
       createdAt: new Date().toLocaleTimeString(),
       merchantWallet: activeMerchantWallet,
       referenceKey: refKey,
-      status: 'active'
+      status: 'active',
+      customerTarget: customerChannelTarget && customerChannelTarget.trim().length > 0 ? customerChannelTarget.trim() : undefined,
+      channelType: customerChannelType
     };
     setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
 
@@ -1199,7 +1232,9 @@ export function ZeroClawTerminalView({
       createdAt: new Date().toLocaleTimeString(),
       merchantWallet: activeMerchantWallet,
       referenceKey: refKey,
-      status: 'active'
+      status: 'active',
+      customerTarget: customerChannelTarget && customerChannelTarget.trim().length > 0 ? customerChannelTarget.trim() : undefined,
+      channelType: customerChannelType
     };
     setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
 
@@ -2884,27 +2919,73 @@ export function ZeroClawTerminalView({
                                     Copy Link
                                   </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => dispatchInvoiceToChannel('whatsapp', customerChannelTarget, inv.amount, inv.memo, inv.referenceKey)}
-                                    disabled={dispatchingChannel === 'whatsapp'}
-                                    className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-500/20 text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
-                                    title="Kirim Invoice ke WhatsApp Pelanggan"
-                                  >
-                                    <MessageSquare size={10} className="text-emerald-500" />
-                                    <span>{dispatchingChannel === 'whatsapp' ? 'Sending...' : 'Send WA'}</span>
-                                  </button>
+                                  {(() => {
+                                    // Determine if this specific invoice has a valid stored customerTarget
+                                    const invTarget = (inv.customerTarget && inv.customerTarget.trim().length > 0) ? inv.customerTarget.trim() : null;
 
-                                  <button
-                                    type="button"
-                                    onClick={() => dispatchInvoiceToChannel('telegram', customerChannelTarget, inv.amount, inv.memo, inv.referenceKey)}
-                                    disabled={dispatchingChannel === 'telegram'}
-                                    className="px-2 py-0.5 rounded border border-sky-500/40 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold hover:bg-sky-500/20 text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
-                                    title="Kirim Invoice ke Telegram Pelanggan"
-                                  >
-                                    <Send size={10} className="text-sky-500" />
-                                    <span>{dispatchingChannel === 'telegram' ? 'Sending...' : 'Send Tele'}</span>
-                                  </button>
+                                    // Strict Channel Classification:
+                                    // Handles starting with '@' belong ONLY to Telegram.
+                                    // E.164 / Phone formats starting with '+' or digits belong ONLY to WhatsApp.
+                                    const isInvTelegram = invTarget ? (invTarget.startsWith('@') || inv.channelType === 'telegram') : false;
+                                    const isInvWhatsApp = invTarget ? (invTarget.startsWith('+') || invTarget.startsWith('0') || inv.channelType === 'whatsapp') : false;
+
+                                    const waButtonText = isInvWhatsApp ? `Send WA (${invTarget})` : 'Send WA';
+                                    const teleButtonText = isInvTelegram ? `Send Tele (${invTarget})` : 'Send Tele';
+
+                                    return (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (isInvWhatsApp && invTarget) {
+                                              dispatchInvoiceToChannel('whatsapp', invTarget, inv.amount, inv.memo, inv.referenceKey);
+                                              return;
+                                            }
+                                            if (customerChannelTarget && (customerChannelTarget.startsWith('+') || customerChannelTarget.startsWith('0'))) {
+                                              dispatchInvoiceToChannel('whatsapp', customerChannelTarget.trim(), inv.amount, inv.memo, inv.referenceKey);
+                                              return;
+                                            }
+                                            if (isInvTelegram) {
+                                              onTriggerToast(`⚠️ Tagihan ini ditujukan ke Telegram (${invTarget}). Harap masukkan nomor WhatsApp pelanggan (+62...) terlebih dahulu.`);
+                                              return;
+                                            }
+                                            onTriggerToast('⚠️ Harap masukkan Nomor WhatsApp pelanggan (+62...) terlebih dahulu!');
+                                          }}
+                                          disabled={dispatchingChannel === 'whatsapp'}
+                                          className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-500/20 text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
+                                          title={isInvWhatsApp ? `Kirim Invoice ke WhatsApp (${invTarget})` : 'Kirim Invoice ke WhatsApp'}
+                                        >
+                                          <MessageSquare size={10} className="text-emerald-500" />
+                                          <span>{dispatchingChannel === 'whatsapp' ? 'Sending...' : waButtonText}</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (isInvTelegram && invTarget) {
+                                              dispatchInvoiceToChannel('telegram', invTarget, inv.amount, inv.memo, inv.referenceKey);
+                                              return;
+                                            }
+                                            if (customerChannelTarget && customerChannelTarget.startsWith('@')) {
+                                              dispatchInvoiceToChannel('telegram', customerChannelTarget.trim(), inv.amount, inv.memo, inv.referenceKey);
+                                              return;
+                                            }
+                                            if (isInvWhatsApp) {
+                                              onTriggerToast(`⚠️ Tagihan ini ditujukan ke WhatsApp (${invTarget}). Harap masukkan Username Telegram (@username) pelanggan terlebih dahulu.`);
+                                              return;
+                                            }
+                                            onTriggerToast('⚠️ Harap masukkan Username Telegram (@username) pelanggan terlebih dahulu!');
+                                          }}
+                                          disabled={dispatchingChannel === 'telegram'}
+                                          className="px-2 py-0.5 rounded border border-sky-500/40 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold hover:bg-sky-500/20 text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
+                                          title={isInvTelegram ? `Kirim Invoice ke Telegram (${invTarget})` : 'Kirim Invoice ke Telegram'}
+                                        >
+                                          <Send size={10} className="text-sky-500" />
+                                          <span>{dispatchingChannel === 'telegram' ? 'Sending...' : teleButtonText}</span>
+                                        </button>
+                                      </>
+                                    );
+                                  })()}
 
                                   <a
                                     href={inv.r2CdnUrl || `https://cdn.zegaai.site/privy-audits/${userEmail ? userEmail.replace(/[^a-zA-Z0-9]/g, '_') : 'demo'}/audit_${inv.referenceKey || inv.id}.json`}
