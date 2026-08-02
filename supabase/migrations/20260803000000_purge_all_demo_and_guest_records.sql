@@ -6,7 +6,7 @@ BEGIN;
 -- 1. Delete all settlement records marked as demo or associated with guest accounts
 DELETE FROM public.zeroclaw_solana_settlements
 WHERE is_demo = true 
-   OR user_id LIKE '%guest%' 
+   OR user_id::text LIKE '%guest%' 
    OR buyer_email LIKE '%guest%'
    OR memo LIKE '%Demo%'
    OR memo LIKE '%Guest%';
@@ -14,7 +14,7 @@ WHERE is_demo = true
 -- 2. Delete all invoice records marked as demo or associated with guest accounts
 DELETE FROM public.zeroclaw_invoices
 WHERE is_demo = true 
-   OR user_id LIKE '%guest%' 
+   OR user_id::text LIKE '%guest%' 
    OR buyer_email LIKE '%guest%'
    OR memo LIKE '%Demo%'
    OR memo LIKE '%Guest%';
@@ -47,7 +47,7 @@ BEGIN
     END IF;
 
     IF (TG_TABLE_NAME = 'zeroclaw_invoices' OR TG_TABLE_NAME = 'zeroclaw_solana_settlements') THEN
-        IF NEW.user_id LIKE '%guest%' OR NEW.buyer_email LIKE '%guest%' THEN
+        IF NEW.user_id::text LIKE '%guest%' OR NEW.buyer_email LIKE '%guest%' THEN
             RAISE EXCEPTION 'INSERT REJECTED: Guest sessions are deprecated. All records must belong to an authenticated Privy user.';
         END IF;
     END IF;
