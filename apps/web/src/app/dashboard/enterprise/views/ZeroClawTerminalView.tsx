@@ -1159,6 +1159,10 @@ export function ZeroClawTerminalView({
   };
 
   const recordInvoiceToDatabaseAndR2 = async (inv: GeneratedInvoice) => {
+    // 🛡️ Strict DB Persistence Guard: ONLY store to Supabase DB & Cloudflare R2 for authenticated Privy accounts
+    if (isGuestSession || !userEmail || userEmail.includes('guest') || inv.isDemo) {
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/create`, {
         method: 'POST',
@@ -1237,34 +1241,7 @@ export function ZeroClawTerminalView({
   const createInvoiceFromPreset = (presetAmount: string, presetMemo: string) => {
     setInvoiceAmount(presetAmount);
     setInvoiceMessage(presetMemo);
-    const cleanAmountStr = presetAmount.replace(',', '.');
-    const parsedAmount = parseFloat(cleanAmountStr) || 15.00;
-    const formattedAmount = parsedAmount.toFixed(2);
-
-    const url = `solana:${activeMerchantWallet}?amount=${formattedAmount}`;
-    setGeneratedUrl(url);
-
-    const refKey = `RefKeyPreset${Date.now().toString(36)}`;
-    const newHistItem: GeneratedInvoice = {
-      id: `inv_preset_${Date.now()}`,
-      amount: formattedAmount,
-      memo: presetMemo,
-      buyerEmail: buyerEmail || undefined,
-      solanaPayUrl: url,
-      createdAt: new Date().toLocaleTimeString(),
-      merchantWallet: activeMerchantWallet,
-      referenceKey: refKey,
-      status: 'active',
-      customerTarget: customerChannelTarget && customerChannelTarget.trim().length > 0 ? customerChannelTarget.trim() : undefined,
-      channelType: customerChannelType
-    };
-    setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
-
-    // Stream preset invoice directly to Supabase Master DB and Cloudflare R2 CDN
-    recordInvoiceToDatabaseAndR2(newHistItem);
-    setRightPanelTab('invoices');
-
-    onTriggerToast(`⚡ Preset Active & Saved: ${presetMemo} (${formattedAmount} USDC)`);
+    onTriggerToast(`📌 Input terisi dari preset: ${presetMemo} (${presetAmount} USDC). Klik "Generate Invoice" untuk membuat tagihan.`);
   };
 
   const handleCheckpointDecision = async (checkpointId: string, decision: 'approve' | 'reject') => {
@@ -2234,7 +2211,7 @@ export function ZeroClawTerminalView({
                                       EXACT MATCH
                                     </span>
                                   </div>
-                                ) : (
+                                ) : isGuestSession ? (
                                   <div className="flex flex-wrap gap-1.5">
                                     <button
                                       type="button"
@@ -2472,7 +2449,7 @@ export function ZeroClawTerminalView({
                                       <span>Refund On-Chain (Devnet)</span>
                                     </button>
                                   </div>
-                                )}
+                                ) : null}
                               </div>
                             </>
                           );
