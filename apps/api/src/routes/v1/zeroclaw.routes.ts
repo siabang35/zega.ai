@@ -2189,9 +2189,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       description: string;
       customerName?: string;
       merchantTier?: 'umkm' | 'enterprise' | 'individual' | 'corporate';
+      recipient?: string;
     };
   }>('/channels/send-invoice', async (request, reply) => {
-    const { channel, target, amount, description, customerName, merchantTier } = request.body || {};
+    const { channel, target, amount, description, customerName, merchantTier, recipient: customRecipient } = request.body || {};
 
     // 🛡️ OWASP Input Validation Rule 1: Required Parameters Check
     if (!channel || !target || amount === undefined || amount === null) {
@@ -2222,13 +2223,23 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const cleanTarget = String(target).trim().slice(0, 100);
     const cleanDescription = (description ? String(description).replace(/<[^>]*>?/gm, '').trim() : 'Pesanan Produk').slice(0, 250);
 
+    // 🛡️ OWASP Input Validation Rule 5: Strict Base58 Solana Recipient Wallet Address Check
+    const DEFAULT_MERCHANT_WALLET = 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+    let recipient = DEFAULT_MERCHANT_WALLET;
+    if (customRecipient && typeof customRecipient === 'string') {
+      const trimmedRec = customRecipient.trim();
+      const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+      if (base58Regex.test(trimmedRec) && !trimmedRec.includes('ZeGAMerchant')) {
+        recipient = trimmedRec;
+      }
+    }
+
     // Merchant Tier Resolution (UMKM / Small Business vs Enterprise Scale)
     const tierParam = (merchantTier === 'enterprise' || merchantTier === 'corporate') ? 'enterprise' : 'umkm';
     const merchantLabel = tierParam === 'enterprise' ? 'ZEGA AI Enterprise Terminal' : 'ZEGA Pay UMKM Merchant';
 
     const actionId = `action_dispatch_${Date.now()}`;
     const referenceKey = `RefDSP${Date.now().toString().slice(-8)}`;
-    const recipient = 'ZeGAMerchantPublicKey111111111111111111111';
 
     const actionPreview = {
       id: actionId,

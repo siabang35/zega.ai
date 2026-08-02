@@ -5,11 +5,20 @@ interface PublicCheckoutViewProps {
   onBack?: () => void;
 }
 
+const DEFAULT_RECIPIENT_WALLET = 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+
+const isValidBase58SolanaAddress = (addr?: string | null): boolean => {
+  if (!addr || typeof addr !== 'string') return false;
+  const trimmed = addr.trim();
+  if (trimmed.includes('ZeGAMerchant') || trimmed.length < 32 || trimmed.length > 44) return false;
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed);
+};
+
 export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   const [params, setParams] = useState({
     reference: 'RefDSP_DEVNET',
     amount: '15.00',
-    recipient: 'ZeGAMerchantPublicKey111111111111111111111',
+    recipient: DEFAULT_RECIPIENT_WALLET,
     description: 'Pesanan Produk (ZEGA Enterprise Merchant)',
     channel: 'telegram',
     tier: 'umkm'
@@ -21,21 +30,23 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   const [settlementDetails, setSettlementDetails] = useState<any>(null);
   const [isPolling, setIsPolling] = useState(true);
 
-  // Parse URL query parameters
+  // Parse URL query parameters with strict Base58 validation
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       const ref = searchParams.get('reference') || searchParams.get('ref') || 'RefDSP_DEVNET';
       const amt = searchParams.get('amount') || '15.00';
-      const rec = searchParams.get('recipient') || 'ZeGAMerchantPublicKey111111111111111111111';
+      const rawRec = searchParams.get('recipient');
       const desc = searchParams.get('description') || searchParams.get('memo') || 'Pesanan Produk (ZEGA AI)';
       const ch = searchParams.get('channel') || 'telegram';
       const tierParam = searchParams.get('tier') || 'umkm';
 
+      const validRecipient = isValidBase58SolanaAddress(rawRec) ? rawRec!.trim() : DEFAULT_RECIPIENT_WALLET;
+
       setParams({
         reference: ref,
         amount: amt,
-        recipient: rec,
+        recipient: validRecipient,
         description: desc,
         channel: ch,
         tier: tierParam === 'enterprise' ? 'enterprise' : 'umkm'
@@ -44,9 +55,10 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   }, []);
 
   const solanaPayUrl = `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${params.reference}`;
+  const solflareTransferUrl = `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(2)}`;
   const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
 
-  // Real-time Solana On-Chain Settlement Poller
+  // Real-time Solana On-Chain Settlement Poller (No auto-close, keeps page persistent)
   useEffect(() => {
     let intervalId: any = null;
 
@@ -145,8 +157,19 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
               <CheckCircle2 className="size-5 flex-shrink-0 animate-bounce" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider">PEMBAYARAN BERHASIL (SETTLED)</p>
-                <p className="text-[11px] text-emerald-300/80">Lunas & Terverifikasi 100% On-Chain di Solana Devnet</p>
+                <p className="text-xs font-bold uppercase tracking-wider">PEMBAYARAN BERHASIL (SETTLED 100%)</p>
+                <p className="text-[11px] text-emerald-300/80">Lunas & Terverifikasi On-Chain di Solana Devnet</p>
+                {settlementDetails?.signature && (
+                  <a
+                    href={`https://explorer.solana.com/tx/${settlementDetails.signature}?cluster=devnet`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono underline text-emerald-400 hover:text-emerald-300"
+                  >
+                    <span>Tx: {settlementDetails.signature.slice(0, 16)}...</span>
+                    <ExternalLink className="size-3" />
+                  </a>
+                )}
               </div>
             </div>
           ) : (
@@ -243,7 +266,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
           >
             <div className="flex items-center gap-2 truncate pr-2">
               <Zap className="size-4 text-amber-400 flex-shrink-0" />
-              <span className="truncate font-mono text-[11px]">solana:{params.recipient.substring(0, 12)}...</span>
+              <span className="truncate font-mono text-[11px]">solana:{params.recipient.substring(0, 10)}...</span>
             </div>
             <div className="flex items-center gap-1.5 text-amber-400 flex-shrink-0 font-sans text-xs font-bold">
               {copiedPayUrl ? (
@@ -260,21 +283,35 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             </div>
           </button>
 
-          <a
-            href={solanaPayUrl}
-            className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-gradient-to-r from-[#ff6b35] via-[#c2185b] to-[#0ea5e9] text-xs font-extrabold text-white shadow-xl hover:opacity-95 transition-all cursor-pointer active:scale-[0.98]"
-          >
-            <span>📱 Buka Langsung di Wallet (Phantom / Solflare)</span>
-            <ExternalLink className="size-4" />
-          </a>
+          {/* Dual Wallet Action Launchers (Phantom & Solflare) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <a
+              href={solanaPayUrl}
+              className="flex items-center justify-center gap-1.5 p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-500 text-xs font-extrabold text-white shadow-xl hover:opacity-95 transition-all cursor-pointer active:scale-[0.98]"
+            >
+              <span>👻 Buka di Phantom</span>
+              <ExternalLink className="size-3.5" />
+            </a>
+
+            <a
+              href={solflareTransferUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-1.5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-600 to-red-500 text-xs font-extrabold text-white shadow-xl hover:opacity-95 transition-all cursor-pointer active:scale-[0.98]"
+            >
+              <span>🟣 Buka di Solflare</span>
+              <ExternalLink className="size-3.5" />
+            </a>
+          </div>
         </div>
 
         {/* Security Trust Seal */}
         <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-500 font-medium">
           <ShieldCheck className="size-4 text-emerald-400" />
-          <span>Secured by ZEGA ZeroClaw OWASP On-Chain Validation</span>
+          <span>Secured by ZEGA ZeroClaw OWASP Multi-Layer Validation</span>
         </div>
       </div>
     </div>
   );
 }
+
