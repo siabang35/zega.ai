@@ -338,7 +338,8 @@ export function ZeroClawTerminalView({
           amount: numericAmount,
           description: descriptionText,
           customerName: userEmail ? userEmail.split('@')[0] : 'Pelanggan',
-          merchantTier: userRole === 'individual' ? 'umkm' : 'enterprise'
+          merchantTier: userRole === 'individual' ? 'umkm' : 'enterprise',
+          recipient: activeMerchantWallet
         })
       });
 
