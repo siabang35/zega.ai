@@ -214,18 +214,15 @@ export function ZeroClawTerminalView({
   const [activeTab, setActiveTab] = useState<'overview' | 'checkpoints' | 'settlements' | 'channels' | 'audit' | 'config'>('overview');
   const [generatorMode, setGeneratorMode] = useState<'presets' | 'builder'>('presets');
 
-  // Auto-detect authentication state from props / session
   const userEmail = propUserEmail && propUserEmail.trim().length > 0 && !propUserEmail.includes('guest')
     ? propUserEmail
-    : (propUserEmail || 'siabang35@gmail.com');
+    : (propUserEmail || 'user@zegaai.site');
   const isGuestSession = false;
   const accountMode: 'demo' | 'authenticated' = 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    if (!email) {
-      return PrivyWalletService.getEmbeddedSolanaWallet('siabang35@gmail.com').address;
-    }
-    return PrivyWalletService.getEmbeddedSolanaWallet(email).address;
+    const targetEmail = email || userEmail || 'user@zegaai.site';
+    return PrivyWalletService.getEmbeddedSolanaWallet(targetEmail).address;
   };
 
   const activeMerchantWallet = deriveEmbeddedWallet(userEmail);

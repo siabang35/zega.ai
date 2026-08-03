@@ -107,6 +107,24 @@ function derivePrivyEmbeddedSolanaWallet(email?: string): string {
   return result;
 }
 
+export function deriveUsdcAta(ownerAddress: string): string | null {
+  if (!ownerAddress || ownerAddress.length < 32 || ownerAddress.length > 44) return null;
+  try {
+    const owner = new PublicKey(ownerAddress);
+    const mint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+    const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const associatedTokenProgramId = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+    const [ata] = PublicKey.findProgramAddressSync(
+      [owner.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+      associatedTokenProgramId
+    );
+    return ata.toBase58();
+  } catch {
+    return null;
+  }
+}
+
 // Global Telegram Username -> Numeric Chat ID Dynamic In-Memory Cache (0% Hardcoded)
 const telegramChatRegistry = new Map<string, string>();
 
@@ -138,6 +156,85 @@ function isDuplicateTelegramDispatch(target: string, amount: number, refOrDesc: 
   }
 
   return false;
+}
+
+/**
+ * Enterprise Upsert Helper for Verified Solana Payments:
+ * Updates zeroclaw_invoices if existing, or auto-creates invoice row if DB is empty!
+ */
+async function upsertVerifiedInvoice(params: {
+  supabaseUrl: string;
+  supabaseKey: string;
+  referenceKey: string;
+  candSig: string;
+  recAmt: number;
+  validExpectedAmountUsdc: number;
+  settlementStatus: string;
+  userEmail?: string;
+  merchantPubkey?: string;
+}) {
+  const { supabaseUrl, supabaseKey, referenceKey, candSig, recAmt, validExpectedAmountUsdc, settlementStatus, userEmail, merchantPubkey } = params;
+  const dbHeaders = {
+    'apikey': supabaseKey,
+    'Authorization': `Bearer ${supabaseKey}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+
+  try {
+    const patchRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
+      method: 'PATCH',
+      headers: dbHeaders,
+      body: JSON.stringify({
+        status: 'paid',
+        settlement_status: settlementStatus,
+        tx_signature: candSig,
+        paid_amount_usdc: recAmt,
+        updated_at: new Date().toISOString()
+      })
+    });
+
+    const patchedRows = patchRes.ok ? await patchRes.json() : [];
+    if (!Array.isArray(patchedRows) || patchedRows.length === 0) {
+      logger.info({ referenceKey, candSig }, '⚡ Invoice missing in DB. Auto-populating verified invoice row in zeroclaw_invoices.');
+      await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          user_id: userEmail || 'user@zegaai.site',
+          merchant_pubkey: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail),
+          amount_usdc: validExpectedAmountUsdc || recAmt,
+          paid_amount_usdc: recAmt,
+          reference_key: referenceKey,
+          memo: `On-Chain Verified Settlement (${recAmt} USDC)`,
+          status: 'paid',
+          settlement_status: settlementStatus,
+          tx_signature: candSig,
+          network: 'solana-devnet',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      });
+    }
+
+    await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
+      method: 'POST',
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({
+        user_id: userEmail || null,
+        merchant_pubkey: merchantPubkey || null,
+        amount_usdc: recAmt,
+        reference_key: referenceKey,
+        tx_signature: candSig,
+        network: 'solana-devnet',
+        status: 'confirmed',
+        memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    logger.error({ err: e, referenceKey, candSig }, 'Failed to upsert verified invoice to DB');
+  }
 }
 
 /**
@@ -929,7 +1026,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
           const userUuid = await resolveUserUuid(userId);
-          const userEmailEnc = encodeURIComponent(userId || 'siabang35@gmail.com');
+          const userEmailEnc = encodeURIComponent(userId || 'user@zegaai.site');
 
           if (merchantEnc) {
             queryParam = `is_demo=eq.false&merchant_pubkey=eq.${merchantEnc}&${queryParam}`;
@@ -1046,11 +1143,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
+    let dbMerchantPubkey: string | null = null;
+    let dbUserId: string | null = null;
+
     // STAGE 0: INVOICE DB LOOKUP — Query dedicated zeroclaw_invoices table
     // tx_signature is NULL until a REAL on-chain signature is verified and claimed
     if (supabaseUrl && supabaseKey && effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL')) {
       try {
-        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status`, {
+        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status,merchant_pubkey,user_id`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
@@ -1060,6 +1160,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const invoiceRows = (await checkRes.json()) as any[];
           if (Array.isArray(invoiceRows) && invoiceRows.length > 0) {
             const invoice = invoiceRows[0];
+            dbMerchantPubkey = invoice.merchant_pubkey || null;
+            dbUserId = invoice.user_id || null;
 
             // If invoice already has a REAL tx_signature (not gen_inv_ and passes Base58 validation)
             if (invoice.status === 'paid' && invoice.tx_signature && BASE58_SIG_REGEX.test(invoice.tx_signature)) {
@@ -1145,21 +1247,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
           Promise.resolve().then(async () => {
             if (supabaseUrl && supabaseKey) {
-              try {
-                const dbHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
-                await Promise.all([
-                  fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},reference_key.eq.${encodeURIComponent(providedTxSig)})`, {
-                    method: 'PATCH',
-                    headers: dbHeaders,
-                    body: JSON.stringify({ status: 'paid', settlement_status: settlementStatus, tx_signature: providedTxSig, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
-                  }),
-                  fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
-                    method: 'POST',
-                    headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
-                    body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: providedTxSig, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: directParsed.slot, updated_at: new Date().toISOString() })
-                  })
-                ]);
-              } catch {}
+              await upsertVerifiedInvoice({
+                supabaseUrl,
+                supabaseKey,
+                referenceKey: effectiveRefKey,
+                candSig: providedTxSig,
+                recAmt,
+                validExpectedAmountUsdc,
+                settlementStatus,
+                userEmail,
+                merchantPubkey
+              });
             }
 
             if (tgToken && tgToken.trim().length > 10 && tgTarget) {
@@ -1245,21 +1343,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
               Promise.resolve().then(async () => {
                 if (supabaseUrl && supabaseKey) {
-                  try {
-                    const dbHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
-                    await Promise.all([
-                      fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},reference_key.eq.${encodeURIComponent(candSig)})`, {
-                        method: 'PATCH',
-                        headers: dbHeaders,
-                        body: JSON.stringify({ status: 'paid', settlement_status: settlementStatus, tx_signature: candSig, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
-                      }),
-                      fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
-                        method: 'POST',
-                        headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
-                        body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: candSig, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: parsed.slot, updated_at: new Date().toISOString() })
-                      })
-                    ]);
-                  } catch {}
+                  await upsertVerifiedInvoice({
+                    supabaseUrl,
+                    supabaseKey,
+                    referenceKey: effectiveRefKey,
+                    candSig,
+                    recAmt,
+                    validExpectedAmountUsdc,
+                    settlementStatus,
+                    userEmail,
+                    merchantPubkey
+                  });
                 }
 
                 if (tgToken && tgToken.trim().length > 10 && tgTarget) {
@@ -1291,19 +1385,25 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     // ── STAGE 3: FALLBACK MERCHANT WALLET & USDC ATA PARALLEL SCAN ──
     if (!matchedEvent) {
       const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-      const primaryWallets = Array.from(new Set([
+      const rawWallets = Array.from(new Set([
         merchantPubkey,
+        dbMerchantPubkey,
         userEmail ? derivePrivyEmbeddedSolanaWallet(userEmail) : null,
+        dbUserId ? derivePrivyEmbeddedSolanaWallet(dbUserId) : null,
         'EAJiHTbx5P2qdaCv31DJePF1kB3YZzk2fhs2yXfkEuxr',
         '5mrbuyr6n4QBVq2HfBDwinbMuybgm4yrbpW3bpCf6y71',
         'J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9',
         'HW5ehmVyB31eXoEHiyuJGV6EWucisNmfzC111pZ8dpMn',
       ].filter(Boolean) as string[]));
 
+      // Derive deterministic USDC Associated Token Accounts (ATAs) for all merchant wallets in pool
+      const ataList = rawWallets.map(w => deriveUsdcAta(w)).filter(Boolean) as string[];
+      const primaryWallets = Array.from(new Set([...rawWallets, ...ataList]));
+
       const baseKeys: string[] = [...primaryWallets];
 
-      // Auto-discover USDC Associated Token Accounts (ATAs) for all merchant wallets
-      await Promise.all(primaryWallets.map(async (pw) => {
+      // Auto-discover any additional custom token accounts via RPC if available
+      await Promise.all(rawWallets.map(async (pw) => {
         try {
           const ataRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
             pw,
@@ -1346,9 +1446,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   effectiveRefKey.length >= 32 &&
                   (parsed.referenceKeys.includes(effectiveRefKey) || (parsed.memo && parsed.memo.includes(effectiveRefKey)))
                 );
-                const amountMatches = validExpectedAmountUsdc > 0 && Math.abs(recAmt - validExpectedAmountUsdc) <= 0.02;
+                // Allow exact match, slight underpayment tolerance, or any OVERPAYMENT (recAmt >= expected - 0.02)
+                const amountMatches = validExpectedAmountUsdc > 0 && (
+                  Math.abs(recAmt - validExpectedAmountUsdc) <= 0.05 || recAmt >= validExpectedAmountUsdc - 0.02
+                );
                 const matchesRecipient = Boolean(parsed.recipient && (primaryWallets.includes(parsed.recipient) || baseKeys.includes(parsed.recipient)));
-                const isFreshShort = txAge <= 1800; // 30 minutes for fallback
+                const isFreshShort = txAge <= 3600; // 60 minutes for fallback
 
                 // Check if this signature has already been claimed by another invoice in zeroclaw_invoices DB
                 let isAlreadyClaimed = false;
@@ -1363,7 +1466,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                         const claimedRef = claimRows[0].reference_key;
                         if (claimedRef !== effectiveRefKey) {
                           isAlreadyClaimed = true;
-                          logger.info({ candSig: candSig.substring(0, 16), claimedBy: claimedRef?.substring(0, 12) }, '🛡️ Signature already claimed by another invoice. Skipping.');
+                          logger.debug({ candSig: candSig.substring(0, 16), claimedBy: claimedRef?.substring(0, 12) }, 'Signature already claimed by another invoice. Skipping.');
                         }
                       }
                     }
@@ -1409,40 +1512,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
                   Promise.resolve().then(async () => {
                     if (supabaseUrl2 && supabaseKey2) {
-                      try {
-                        const dbHeaders = { 'apikey': supabaseKey2, 'Authorization': `Bearer ${supabaseKey2}`, 'Content-Type': 'application/json' };
-                        await Promise.all([
-                          // 1. Update zeroclaw_invoices table to status='paid' with verified tx_signature
-                          fetch(`${supabaseUrl2}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}`, {
-                            method: 'PATCH',
-                            headers: dbHeaders,
-                            body: JSON.stringify({
-                              status: 'paid',
-                              settlement_status: settlementStatus,
-                              tx_signature: candSig,
-                              paid_amount_usdc: recAmt,
-                              updated_at: new Date().toISOString()
-                            })
-                          }),
-                          // 2. Record in zeroclaw_solana_settlements for audit log
-                          fetch(`${supabaseUrl2}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
-                            method: 'POST',
-                            headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
-                            body: JSON.stringify({
-                              user_id: userEmail || null,
-                              merchant_pubkey: merchantPubkey || null,
-                              amount_usdc: recAmt,
-                              reference_key: effectiveRefKey,
-                              tx_signature: candSig,
-                              network: 'solana-devnet',
-                              status: 'confirmed',
-                              memo: refMatches ? `Solana Pay Verified (${recAmt} USDC)` : `Fallback Match (${recAmt} USDC)`,
-                              slot: parsed.slot,
-                              updated_at: new Date().toISOString()
-                            })
-                          })
-                        ]);
-                      } catch {}
+                      await upsertVerifiedInvoice({
+                        supabaseUrl: supabaseUrl2,
+                        supabaseKey: supabaseKey2,
+                        referenceKey: effectiveRefKey,
+                        candSig,
+                        recAmt,
+                        validExpectedAmountUsdc,
+                        settlementStatus,
+                        userEmail,
+                        merchantPubkey
+                      });
                     }
 
                     if (tgToken && tgToken.trim().length > 10 && tgTarget) {
