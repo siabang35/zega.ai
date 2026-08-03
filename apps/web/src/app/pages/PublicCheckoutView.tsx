@@ -171,10 +171,21 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
 
   const handleCopyWallet = () => {
     if (!params?.recipient) return;
+    // 🛡️ OWASP Anti-Clipboard Poisoning: Strip zero-width unicode spaces & non-printable characters
+    const cleanWallet = params.recipient
+      .trim()
+      .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u00A0]/g, '');
+
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(cleanWallet)) {
+      triggerToast('⚠️ Gagal: Format alamat wallet tidak terverifikasi Base58!');
+      return;
+    }
+
     try {
-      navigator.clipboard.writeText(params.recipient);
+      navigator.clipboard.writeText(cleanWallet);
       setCopiedWallet(true);
-      triggerToast('🟢 Alamat Wallet Merchant Berhasil Disalin!');
+      const checksumBadge = `${cleanWallet.slice(0, 4)}...${cleanWallet.slice(-4)}`;
+      triggerToast(`🟢 Wallet Disalin (${checksumBadge} - Terverifikasi OWASP Base58)`);
       setTimeout(() => setCopiedWallet(false), 2500);
     } catch {
       triggerToast('⚠️ Gagal menyalin alamat wallet.');
@@ -504,15 +515,26 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             </span>
           </div>
 
-          {/* Merchant */}
+          {/* Merchant Wallet */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/60">
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
               <Building2 className={`size-3.5 ${params.tier === 'enterprise' ? 'text-indigo-400' : 'text-emerald-400'}`} />
               <span>Merchant Wallet</span>
             </span>
-            <span className="text-[11px] font-mono font-bold text-slate-300 max-w-[180px] truncate">
-              {params.recipient}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-mono font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                {params.recipient.slice(0, 4)}...{params.recipient.slice(-4)}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyWallet}
+                className="text-[11px] font-mono font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded-md transition-all flex items-center gap-1 border border-slate-700 cursor-pointer"
+                title="Copy Merchant Wallet (OWASP Base58 Verified)"
+              >
+                {copiedWallet ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-indigo-400" />}
+                <span className="max-w-[110px] truncate">{params.recipient.slice(0, 6)}...{params.recipient.slice(-4)}</span>
+              </button>
+            </div>
           </div>
 
           {/* Total Amount */}

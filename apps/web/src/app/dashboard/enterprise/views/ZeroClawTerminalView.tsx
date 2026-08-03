@@ -136,6 +136,43 @@ const getApiBase = (): string => {
 
 const API_BASE = getApiBase();
 
+/**
+ * Generate a valid Solana-compatible reference key (32-byte Ed25519 PublicKey encoded as Base58).
+ * CRITICAL: Solana RPC `getSignaturesForAddress` REQUIRES a valid 32-byte public key.
+ * Random Base58 strings of arbitrary length WILL FAIL with "Invalid param: WrongSize".
+ */
+function generateSolanaReferenceKey(): string {
+  const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+
+  // Base58 encode 32 bytes → produces 32-44 char string (valid Solana address)
+  const digits: number[] = [0];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+
+  // Leading zeros
+  let result = '';
+  for (const byte of bytes) {
+    if (byte !== 0) break;
+    result += '1';
+  }
+  for (let i = digits.length - 1; i >= 0; i--) {
+    result += BASE58_ALPHABET[digits[i]];
+  }
+  return result;
+}
+
 async function resolveLatestSolanaDevnetSignature(merchantWallet?: string, referenceKey?: string): Promise<string> {
   const refKeyToSearch = (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44) ? referenceKey : null;
   const searchCandidates = Array.from(new Set([
@@ -515,7 +552,7 @@ export function ZeroClawTerminalView({
   // Auto-initialize default QR Code & Solana Pay URL if generatedUrl is null
   useEffect(() => {
     if (activeMerchantWallet && !generatedUrl) {
-      const defaultRef = `RefKeyInit${Date.now().toString(36)}`;
+      const defaultRef = generateSolanaReferenceKey();
       setGeneratedUrl(`solana:${activeMerchantWallet}?amount=0.50&reference=${defaultRef}`);
     }
   }, [activeMerchantWallet, generatedUrl]);
@@ -740,12 +777,8 @@ export function ZeroClawTerminalView({
       const tableMatch = promptToRun.match(/(table|meja)\s*(\d+|[a-z0-9]+)/i);
       const tableStr = tableMatch ? ` (Meja ${tableMatch[2]})` : '';
 
-      // Generate valid 44-character Base58 Solana Reference Key for Solana Pay Standard
-      const BASE58_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-      let validBase58Ref = '';
-      for (let i = 0; i < 44; i++) {
-        validBase58Ref += BASE58_CHARS.charAt(Math.floor(Math.random() * BASE58_CHARS.length));
-      }
+      // Generate valid 32-byte Ed25519 Solana Reference Key for Solana Pay Standard
+      const validBase58Ref = generateSolanaReferenceKey();
 
       payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}&reference=${validBase58Ref}`;
       const memoText = `Invoice Table ${tableMatch ? tableMatch[2] : '3'} (${extractedAmount} USDC)`;
@@ -1097,26 +1130,28 @@ export function ZeroClawTerminalView({
         if (merchantRes.ok) {
           const merchantJson = await merchantRes.json();
           if (Array.isArray(merchantJson.signatures) && merchantJson.signatures.length > 0) {
-            const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures.map((sigItem: any) => {
-              const sigHash = sigItem.signature;
-              const slotNum = sigItem.slot || 480320796;
-              const blockTimeMs = sigItem.blockTime ? sigItem.blockTime * 1000 : null;
-              const timeStr = blockTimeMs ? new Date(blockTimeMs).toLocaleTimeString() : 'Just now';
-              const parsedAmt = typeof sigItem.amountUsdc === 'number' ? sigItem.amountUsdc : (parseFloat(sigItem.amount) || 15.00);
+            const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures
+              .filter((sigItem: any) => typeof sigItem.amountUsdc === 'number' && sigItem.amountUsdc > 0)
+              .map((sigItem: any) => {
+                const sigHash = sigItem.signature;
+                const slotNum = sigItem.slot || 480320796;
+                const blockTimeMs = sigItem.blockTime ? sigItem.blockTime * 1000 : null;
+                const timeStr = blockTimeMs ? new Date(blockTimeMs).toLocaleTimeString() : 'Just now';
+                const parsedAmt = sigItem.amountUsdc;
 
-              return {
-                id: `devnet_rpc_${sigHash}`,
-                signature: sigHash,
-                amount: parsedAmt,
-                currency: 'USDC',
-                timestamp: `Slot ${slotNum} (${timeStr})`,
-                channel: 'SOLANA-PAY-DEVNET-RPC',
-                network: 'solana-devnet',
-                memo: `Verified Devnet On-Chain Tx (Slot ${slotNum})`,
-                slot: slotNum,
-                timeAgo: timeStr
-              };
-            });
+                return {
+                  id: `devnet_rpc_${sigHash}`,
+                  signature: sigHash,
+                  amount: parsedAmt,
+                  currency: 'USDC',
+                  timestamp: `Slot ${slotNum} (${timeStr})`,
+                  channel: 'SOLANA-PAY-DEVNET-RPC',
+                  network: 'solana-devnet',
+                  memo: sigItem.memo || `Verified Devnet On-Chain Tx (Slot ${slotNum})`,
+                  slot: slotNum,
+                  timeAgo: timeStr
+                };
+              });
 
             setEvents(prev => {
               const existingSigs = new Set(prev.map(e => e.signature));
@@ -2309,9 +2344,7 @@ export function ZeroClawTerminalView({
                                       onClick={async () => {
                                         const cleanAmountStr = invoiceAmount.replace(',', '.');
                                         const targetAmt = parseFloat(cleanAmountStr) || 15.00;
-                                        const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                                        const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
+                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : generateSolanaReferenceKey();
 
                                         // Fetch live transaction signature via 4-tier robust RPC resolution
                                         const activeSig = await resolveLatestSolanaDevnetSignature(activeMerchantWallet);
@@ -2383,7 +2416,7 @@ export function ZeroClawTerminalView({
 
                                         const cleanAmountStr = invoiceAmount.replace(',', '.');
                                         const targetAmt = parseFloat(cleanAmountStr) || 15.00;
-                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : `RefKey_${Date.now()}`;
+                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : generateSolanaReferenceKey();
 
                                         // Record Custom Real On-Chain Settlement to Supabase DB & Cloudflare R2 CDN
                                         await fetch(`${API_BASE}/v1/zeroclaw/settlement/record`, {
@@ -2448,9 +2481,7 @@ export function ZeroClawTerminalView({
                                         const cleanAmountStr = invoiceAmount.replace(',', '.');
                                         const targetAmt = parseFloat(cleanAmountStr) || 15.00;
                                         const underpaidAmt = Math.max(1, targetAmt - 5);
-                                        const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                                        const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
+                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : generateSolanaReferenceKey();
 
                                         // Fetch live transaction signature via 4-tier robust RPC resolution
                                         const activeSig = await resolveLatestSolanaDevnetSignature(activeMerchantWallet);
@@ -2497,9 +2528,7 @@ export function ZeroClawTerminalView({
                                         const cleanAmountStr = invoiceAmount.replace(',', '.');
                                         const targetAmt = parseFloat(cleanAmountStr) || 15.00;
                                         const overpaidAmt = targetAmt + 5;
-                                        const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                                        const defaultBase58Ref = Array.from({ length: 44 }, () => BASE58_ALPHABET[Math.floor(Math.random() * BASE58_ALPHABET.length)]).join('');
-                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : defaultBase58Ref;
+                                        const refKey = (generatedUrl && generatedUrl.includes('&reference=')) ? generatedUrl.split('&reference=')[1]?.split('&')[0] : generateSolanaReferenceKey();
 
                                         // Fetch live transaction signature via 4-tier robust RPC resolution
                                         const activeSig = await resolveLatestSolanaDevnetSignature(activeMerchantWallet);
