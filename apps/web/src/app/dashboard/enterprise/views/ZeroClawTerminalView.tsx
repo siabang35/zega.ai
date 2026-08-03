@@ -621,7 +621,7 @@ export function ZeroClawTerminalView({
           expectedAmountUsdc,
           userEmail,
           telegramChannel: targetChannel,
-          merchantPubkey: activeMerchantWallet,
+          merchantPubkey: inv.merchantWallet || activeMerchantWallet,
           txSignature: sigToVerify.length >= 70 ? sigToVerify : (inv.tx_signature && inv.tx_signature.length >= 70 ? inv.tx_signature : undefined)
         })
       });
@@ -632,7 +632,7 @@ export function ZeroClawTerminalView({
         if (json.paid) {
           const foundSig = json.matchedEvent?.signature;
           if (foundSig && foundSig.length >= 70 && foundSig.length <= 96 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
-            setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'finished', tx_signature: foundSig } : prev);
+            setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'paid', tx_signature: foundSig } : prev);
           }
           onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
           fetchDbInvoices();

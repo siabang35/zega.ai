@@ -58,7 +58,7 @@ export class SolanaRpcManager {
   private rpcCacheMap: Map<string, { data: any; expiresAt: number }> = new Map();
 
   private config: RpcManagerConfig = {
-    timeoutMs: parseInt(process.env.RPC_TIMEOUT_MS || '4000', 10),
+    timeoutMs: parseInt(process.env.RPC_TIMEOUT_MS || '8000', 10),
     maxRetries: parseInt(process.env.RPC_MAX_RETRIES || '3', 10),
     backoffBaseMs: parseInt(process.env.RPC_BACKOFF_BASE_MS || '1000', 10),
     cooldownBaseMs: parseInt(process.env.RPC_COOLDOWN_BASE_MS || '30000', 10),
