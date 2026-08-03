@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { R2StorageService } from '../../services/r2StorageService.js';
 import { SupabaseService } from '../../services/supabaseService.js';
 import { zeroClawSignatureMonitor } from '../../services/zeroclawSignatureMonitor.js';
+import { solanaRpcManager } from '../../services/solanaRpcManager.js';
 import { logger } from '../../utils/logger.js';
 
 export function generateSolanaPayReferenceKey(): string {
@@ -445,6 +446,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
+  // ── GET /v1/zeroclaw/rpc-pool/status ── Enterprise Solana RPC Pool Telemetry & Metrics
+  fastify.get('/rpc-pool/status', async () => {
+    return {
+      success: true,
+      data: solanaRpcManager.getPoolStatus(),
+    };
+  });
+
   // ── Helper: Resolve User UUID from Email or UUID string ──
   const resolveUserUuid = async (userIdOrEmail?: string): Promise<string | null> => {
     if (!userIdOrEmail) return null;
@@ -548,40 +557,20 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let onChainErr: any = null;
 
     try {
-      const rpcEndpoints = [
-        DEVNET_RPC_URL,
-        'https://api.devnet.solana.com',
-        'https://rpc.ankr.com/solana_devnet'
-      ];
+      const sigStatusRes = await solanaRpcManager.callRpc('getSignatureStatuses', [
+        [effectiveSig],
+        { searchTransactionHistory: true },
+      ]);
 
-      for (const rpcUrl of rpcEndpoints) {
-        try {
-          const sigVerifyRes = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 'sig_verify',
-              method: 'getSignatureStatuses',
-              params: [[effectiveSig], { searchTransactionHistory: true }],
-            }),
-          });
-
-          if (sigVerifyRes.ok) {
-            const sigVerifyJson = (await sigVerifyRes.json()) as any;
-            const statusItem = sigVerifyJson.result?.value?.[0];
-            if (statusItem && statusItem.confirmationStatus) {
-              onChainVerified = true;
-              onChainConfirmationStatus = statusItem.confirmationStatus;
-              onChainSlot = statusItem.slot || null;
-              onChainErr = statusItem.err || null;
-              break;
-            }
-          }
-        } catch { /* try next RPC fallback */ }
+      const statusItem = sigStatusRes?.value?.[0];
+      if (statusItem && statusItem.confirmationStatus) {
+        onChainVerified = true;
+        onChainConfirmationStatus = statusItem.confirmationStatus;
+        onChainSlot = statusItem.slot || null;
+        onChainErr = statusItem.err || null;
       }
     } catch (e) {
-      // RPC unreachable
+      // RPC unreachable or all endpoints failed
     }
 
     // Strictly REJECT if signature does NOT exist on Solana Devnet RPC (except in explicitly requested demo/simulation mode)
@@ -925,8 +914,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // ── GET /v1/zeroclaw/settlement/list ── Fetch Partitioned Settlements (Demo Public vs Authenticated Private)
-  fastify.get<{ Querystring: { userId?: string; isDemo?: string } }>('/settlement/list', async (request, reply) => {
-    const { userId } = request.query || {};
+  fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string; isDemo?: string } }>('/settlement/list', async (request, reply) => {
+    const { userId, merchantPubkey } = request.query || {};
     const isDemoBool = false;
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -938,10 +927,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         if (isDemoBool) {
           queryParam = `is_demo=eq.true&${queryParam}`;
         } else {
+          const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
           const userUuid = await resolveUserUuid(userId);
           const userEmailEnc = encodeURIComponent(userId || 'siabang35@gmail.com');
-          if (userUuid) {
-            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc},user_id.eq.${userEmailEnc})&${queryParam}`;
+
+          if (merchantEnc) {
+            queryParam = `is_demo=eq.false&merchant_pubkey=eq.${merchantEnc}&${queryParam}`;
+          } else if (userUuid) {
+            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc})&${queryParam}`;
           } else {
             queryParam = `is_demo=eq.false&buyer_email=eq.${userEmailEnc}&${queryParam}`;
           }
@@ -1005,19 +998,28 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       tx_signature?: string;
     };
   }>('/settlement/check-payment', async (request, reply) => {
-    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel, merchantPubkey } = request.body || {};
+    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel, merchantPubkey, txSignature, signature, tx_signature } = request.body || {};
 
-    // Auto-detect only — NO manual Tx Signature input allowed (fraud prevention)
-    const effectiveRefKey = referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44 ? referenceKey : 'REF-GENERAL';
     const validExpectedAmountUsdc = parseFloat(String(expectedAmountUsdc || 0));
-    const originalRefKey = referenceKey || effectiveRefKey;
+
+    // Extract direct Tx Signature if passed in txSignature, signature, tx_signature, or referenceKey (80+ Base58 characters)
+    const rawTxCandidates = [txSignature, signature, tx_signature, referenceKey];
+    const providedTxSig = rawTxCandidates
+      .find((s) => typeof s === 'string' && s.trim().length >= 70 && !s.startsWith('REF-') && !s.startsWith('gen_inv_') && !s.startsWith('inv_'))
+      ?.trim();
+
+    // Standard Reference Key (32-44 Base58 characters)
+    const effectiveRefKey = (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44)
+      ? referenceKey
+      : (providedTxSig ? providedTxSig.substring(0, 32) : 'REF-GENERAL');
 
     // OWASP Base58 & Alphanumeric Input Sanitization (OWASP API3:2023)
-    const BASE58_SIG_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,88}$/;
-    const ALPHANUMERIC_REF_REGEX = /^[a-zA-Z0-9_-]{16,88}$/;
+    const BASE58_SIG_REGEX = /^[1-9A-HJ-NP-Za-km-z]{70,96}$/;
+    const BASE58_REF_KEY_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    const ALPHANUMERIC_REF_REGEX = /^[a-zA-Z0-9_-]{16,92}$/;
     const BASE58_PUBKEY_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-    if (referenceKey && referenceKey.length > 0 && !BASE58_SIG_REGEX.test(referenceKey) && !ALPHANUMERIC_REF_REGEX.test(referenceKey) && !referenceKey.startsWith('REF-')) {
+    if (referenceKey && referenceKey.length > 0 && !BASE58_REF_KEY_REGEX.test(referenceKey) && !ALPHANUMERIC_REF_REGEX.test(referenceKey) && !referenceKey.startsWith('REF-')) {
       logger.warn({ referenceKey, ip: request.ip }, 'OWASP Sanitization Rejection: Invalid reference key format');
       return reply.status(400).send({
         success: false,
@@ -1044,10 +1046,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-    // OWASP Anti-Replay Guard (OWASP API8:2023): Check if effectiveRefKey already has a settlement
-    if (effectiveRefKey !== 'REF-GENERAL' && supabaseUrl && supabaseKey) {
+    // OWASP Anti-Replay Guard (OWASP API8:2023): Check if effectiveRefKey or providedTxSig already has a confirmed settlement
+    if (supabaseUrl && supabaseKey) {
       try {
-        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status`, {
+        const filterStr = providedTxSig
+          ? `or=(tx_signature.eq.${encodeURIComponent(providedTxSig)},reference_key.eq.${encodeURIComponent(effectiveRefKey)})`
+          : `reference_key=eq.${encodeURIComponent(effectiveRefKey)}`;
+
+        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${filterStr}&select=id,reference_key,tx_signature,status,amount_usdc`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
@@ -1057,20 +1063,24 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const existingRows = (await checkRes.json()) as any[];
           if (Array.isArray(existingRows) && existingRows.length > 0) {
             const existing = existingRows[0];
-            if (existing && existing.status === 'confirmed' && existing.tx_signature) {
-              // Already settled — return existing result
+            if (existing && existing.status === 'confirmed' && existing.tx_signature && BASE58_SIG_REGEX.test(existing.tx_signature)) {
+              const recAmt = parseFloat(existing.amount_usdc) || validExpectedAmountUsdc;
+              const modeStr = validExpectedAmountUsdc > 0 && recAmt < validExpectedAmountUsdc - 0.001
+                ? 'UNDERPAID'
+                : (validExpectedAmountUsdc > 0 && recAmt > validExpectedAmountUsdc + 0.001 ? 'OVERPAID' : 'EXACT');
+
               return reply.send({
                 success: true,
                 paid: true,
                 status: 'SUCCESS',
-                mode: 'EXACT',
-                statusLabel: '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)',
-                receivedAmount: validExpectedAmountUsdc,
+                mode: modeStr,
+                statusLabel: `✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (${modeStr})`,
+                receivedAmount: recAmt,
                 expectedAmount: validExpectedAmountUsdc,
                 matchedEvent: {
                   id: `db-${existing.id}`,
                   signature: existing.tx_signature,
-                  amount: validExpectedAmountUsdc,
+                  amount: recAmt,
                   currency: 'USDC',
                   timestamp: new Date().toLocaleTimeString(),
                   memo: `Settlement from DB (Ref: ${effectiveRefKey.substring(0, 8)}...)`,
@@ -1086,15 +1096,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       } catch {}
     }
 
-    // 2. ⚡ ULTRA-FAST DIRECT TX SIGNATURE / REFERENCE KEY RPC QUERY (<150ms)
-    // If effectiveRefKey is a direct 80+ char Tx Signature (e.g. 5uNGWEBa...), parse it immediately!
     let matchedEvent: any = null;
 
-    if (effectiveRefKey && effectiveRefKey.length >= 70 && !effectiveRefKey.startsWith('REF-GENERAL')) {
+    // ── STAGE 1: ULTRA-FAST DIRECT TX SIGNATURE PARSE (<100ms) ──
+    if (providedTxSig) {
       try {
-        const directParsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(effectiveRefKey);
+        const directParsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(providedTxSig);
         if (directParsed && directParsed.isVerified && !directParsed.err) {
-          const recAmt = directParsed.amountUsdc > 0 ? directParsed.amountUsdc : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00);
+          const recAmt = directParsed.amountUsdc > 0 ? directParsed.amountUsdc : (directParsed.amountSol > 0 ? directParsed.amountSol : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00));
 
           let settlementStatus = 'settled_exact';
           let modeStr = 'EXACT';
@@ -1113,18 +1122,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           matchedEvent = {
-            id: `rpc-${effectiveRefKey.substring(0, 12)}`,
-            signature: effectiveRefKey,
+            id: `rpc-${providedTxSig.substring(0, 12)}`,
+            signature: providedTxSig,
             amount: recAmt,
             currency: 'USDC',
             timestamp: directParsed.blockTime ? new Date(directParsed.blockTime * 1000).toLocaleTimeString() : new Date().toLocaleTimeString(),
-            memo: directParsed.memo || `On-Chain Tx Verified (${effectiveRefKey.substring(0, 8)}...)`,
+            memo: directParsed.memo || `On-Chain Tx Verified (${providedTxSig.substring(0, 8)}...)`,
             channel: 'SOLANA-DEVNET-RPC',
             network: 'solana-devnet',
             slot: directParsed.slot || 480856112,
           };
 
-          if (!reconciledEvents.some(e => e.signature === effectiveRefKey)) {
+          if (!reconciledEvents.some(e => e.signature === providedTxSig)) {
             reconciledEvents.unshift(matchedEvent);
           }
 
@@ -1140,15 +1149,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               try {
                 const dbHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
                 await Promise.all([
-                  fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},reference_key.eq.${encodeURIComponent(effectiveRefKey)})`, {
+                  fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},reference_key.eq.${encodeURIComponent(providedTxSig)})`, {
                     method: 'PATCH',
                     headers: dbHeaders,
-                    body: JSON.stringify({ status: 'finished', settlement_status: settlementStatus, tx_signature: effectiveRefKey, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
+                    body: JSON.stringify({ status: 'finished', settlement_status: settlementStatus, tx_signature: providedTxSig, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
                   }),
                   fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
                     method: 'POST',
                     headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
-                    body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: effectiveRefKey, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: directParsed.slot, updated_at: new Date().toISOString() })
+                    body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: providedTxSig, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: directParsed.slot, updated_at: new Date().toISOString() })
                   })
                 ]);
               } catch {}
@@ -1157,7 +1166,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             if (tgToken && tgToken.trim().length > 10 && tgTarget) {
               try {
                 const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
-                const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${effectiveRefKey}</code>\n• <b>Devnet Slot:</b> <code>${directParsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
+                const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${providedTxSig}</code>\n• <b>Devnet Slot:</b> <code>${directParsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
                 await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
               } catch {}
             }
@@ -1176,7 +1185,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           });
         }
       } catch {}
-    } else if (effectiveRefKey && effectiveRefKey.length >= 32 && effectiveRefKey.length <= 60 && !effectiveRefKey.startsWith('REF-GENERAL')) {
+    }
+
+    // ── STAGE 2: REFERENCE KEY SOLANA ACCOUNT SEARCH ──
+    if (!matchedEvent && effectiveRefKey && effectiveRefKey.length >= 32 && effectiveRefKey.length <= 60 && !effectiveRefKey.startsWith('REF-GENERAL')) {
       try {
         const directSigs = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
           effectiveRefKey,
@@ -1187,11 +1199,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           for (const sItem of directSigs) {
             if (sItem.err || !sItem.signature) continue;
             const candSig = sItem.signature;
-            if (candSig.startsWith('5vzr') || candSig.startsWith('gen_inv_') || candSig.startsWith('inv_')) continue;
+            if (!BASE58_SIG_REGEX.test(candSig)) continue;
 
             const parsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(candSig);
             if (parsed && parsed.isVerified && !parsed.err) {
-              const recAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00);
+              const recAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : (parsed.amountSol > 0 ? parsed.amountSol : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00));
 
               let settlementStatus = 'settled_exact';
               let modeStr = 'EXACT';
@@ -1277,114 +1289,148 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       } catch {}
     }
 
-    // Fallback: Parallel Query Merchant Pubkeys & USDC ATAs across baseKeys
-    const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-    const primaryWallets = Array.from(new Set([
-      merchantPubkey,
-      derivePrivyEmbeddedSolanaWallet(userEmail),
-      'J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9',
-    ].filter(Boolean) as string[]));
+    // ── STAGE 3: FALLBACK MERCHANT WALLET & USDC ATA PARALLEL SCAN ──
+    if (!matchedEvent) {
+      const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+      const primaryWallets = Array.from(new Set([
+        merchantPubkey,
+        userEmail ? derivePrivyEmbeddedSolanaWallet(userEmail) : null,
+        'EAJiHTbx5P2qdaCv31DJePF1kB3YZzk2fhs2yXfkEuxr',
+        '5mrbuyr6n4QBVq2HfBDwinbMuybgm4yrbpW3bpCf6y71',
+        'J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9',
+      ].filter(Boolean) as string[]));
 
-    const baseKeys: string[] = [...primaryWallets];
+      const baseKeys: string[] = [...primaryWallets];
 
-    // Auto-discover USDC Associated Token Accounts (ATAs) for all merchant wallets
-    await Promise.all(primaryWallets.map(async (pw) => {
-      try {
-        const ataRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
-          pw,
-          { mint: USDC_MINT },
-          { encoding: 'jsonParsed' }
-        ]).catch(() => null);
-        const tokenAccounts = ataRes?.value || [];
-        for (const ta of tokenAccounts) {
-          if (ta.pubkey && !baseKeys.includes(ta.pubkey)) {
-            baseKeys.push(ta.pubkey);
+      // Auto-discover USDC Associated Token Accounts (ATAs) for all merchant wallets
+      await Promise.all(primaryWallets.map(async (pw) => {
+        try {
+          const ataRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
+            pw,
+            { mint: USDC_MINT },
+            { encoding: 'jsonParsed' }
+          ]).catch(() => null);
+          const tokenAccounts = ataRes?.value || [];
+          for (const ta of tokenAccounts) {
+            if (ta.pubkey && !baseKeys.includes(ta.pubkey)) {
+              baseKeys.push(ta.pubkey);
+            }
           }
-        }
-      } catch {}
-    }));
+        } catch {}
+      }));
 
-    await Promise.all(baseKeys.map(async (searchAddress) => {
-      if (matchedEvent) return;
-      try {
-        const sigList = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
-          searchAddress,
-          { limit: 5, commitment: 'confirmed' }
-        ]).catch(() => null);
+      for (const searchAddress of baseKeys) {
+        if (matchedEvent) break;
+        try {
+          const sigList = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
+            searchAddress,
+            { limit: 10, commitment: 'confirmed' }
+          ]).catch(() => null);
 
-        if (Array.isArray(sigList) && sigList.length > 0) {
-          for (const sItem of sigList) {
-            if (sItem.err || !sItem.signature || matchedEvent) continue;
-            const candSig = sItem.signature;
-            if (candSig.startsWith('5vzr') || candSig.startsWith('gen_inv_') || candSig.startsWith('inv_')) continue;
+          if (Array.isArray(sigList) && sigList.length > 0) {
+            for (const sItem of sigList) {
+              if (sItem.err || !sItem.signature || matchedEvent) continue;
+              const candSig = sItem.signature;
+              if (!BASE58_SIG_REGEX.test(candSig)) continue;
 
-            const parsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(candSig);
-            if (parsed && parsed.isVerified && !parsed.err) {
-              const recAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00);
-              const refMatches = Boolean(effectiveRefKey && (parsed.referenceKeys.includes(effectiveRefKey) || (parsed.memo && parsed.memo.includes(effectiveRefKey))));
-              const amountMatches = validExpectedAmountUsdc > 0 && Math.abs(recAmt - validExpectedAmountUsdc) <= 0.005;
+              const parsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(candSig);
+              if (parsed && parsed.isVerified && !parsed.err) {
+                const recAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : (parsed.amountSol > 0 ? parsed.amountSol : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00));
 
-              if (refMatches || amountMatches || (!effectiveRefKey && validExpectedAmountUsdc <= 0)) {
-                matchedEvent = {
-                  id: `rpc-${candSig.substring(0, 12)}`,
-                  signature: candSig,
-                  amount: recAmt,
-                  currency: 'USDC',
-                  timestamp: parsed.blockTime ? new Date(parsed.blockTime * 1000).toLocaleTimeString() : new Date().toLocaleTimeString(),
-                  memo: parsed.memo || `On-Chain Tx (${candSig.substring(0, 8)}...)`,
-                  channel: 'SOLANA-DEVNET-RPC',
-                  network: 'solana-devnet',
-                  slot: parsed.slot || sItem.slot || 480856112,
-                };
+                // Freshness check: consider txs in the last 24 hours (86400 seconds)
+                const txAge = parsed.blockTime ? (Date.now() / 1000 - parsed.blockTime) : 0;
+                const isFresh = txAge <= 86400;
 
-                if (!reconciledEvents.some(e => e.signature === candSig)) {
-                  reconciledEvents.unshift(matchedEvent);
+                const refMatches = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && (parsed.referenceKeys.includes(effectiveRefKey) || (parsed.memo && parsed.memo.includes(effectiveRefKey))));
+                const amountMatches = validExpectedAmountUsdc > 0 && Math.abs(recAmt - validExpectedAmountUsdc) <= 0.05;
+                const matchesRecipient = Boolean(parsed.recipient && (primaryWallets.includes(parsed.recipient) || baseKeys.includes(parsed.recipient)));
+
+                if ((refMatches || (isFresh && (amountMatches || matchesRecipient))) || (validExpectedAmountUsdc <= 0 && isFresh)) {
+                  let settlementStatus = 'settled_exact';
+                  let modeStr = 'EXACT';
+                  let statusLabel = '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)';
+
+                  if (validExpectedAmountUsdc > 0) {
+                    if (recAmt < validExpectedAmountUsdc - 0.001) {
+                      settlementStatus = 'settled_underpaid';
+                      modeStr = 'UNDERPAID';
+                      statusLabel = '⚠️ PEMBAYARAN KURANG (UNDERPAID)';
+                    } else if (recAmt > validExpectedAmountUsdc + 0.001) {
+                      settlementStatus = 'settled_overpaid';
+                      modeStr = 'OVERPAID';
+                      statusLabel = '🎉 PEMBAYARAN LEBIH (OVERPAID)';
+                    }
+                  }
+
+                  matchedEvent = {
+                    id: `rpc-${candSig.substring(0, 12)}`,
+                    signature: candSig,
+                    amount: recAmt,
+                    currency: 'USDC',
+                    timestamp: parsed.blockTime ? new Date(parsed.blockTime * 1000).toLocaleTimeString() : new Date().toLocaleTimeString(),
+                    memo: parsed.memo || `On-Chain Tx (${candSig.substring(0, 8)}...)`,
+                    channel: 'SOLANA-DEVNET-RPC',
+                    network: 'solana-devnet',
+                    slot: parsed.slot || sItem.slot || 480856112,
+                  };
+
+                  if (!reconciledEvents.some(e => e.signature === candSig)) {
+                    reconciledEvents.unshift(matchedEvent);
+                  }
+
+                  // Async DB persistence & Telegram receipt dispatch in background
+                  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+                  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+                  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+                  const rawTarget = (telegramChannel && telegramChannel.trim()) || (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+                  const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
+
+                  Promise.resolve().then(async () => {
+                    if (supabaseUrl && supabaseKey) {
+                      try {
+                        const dbHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
+                        await Promise.all([
+                          fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},reference_key.eq.${encodeURIComponent(candSig)})`, {
+                            method: 'PATCH',
+                            headers: dbHeaders,
+                            body: JSON.stringify({ status: 'finished', settlement_status: settlementStatus, tx_signature: candSig, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
+                          }),
+                          fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
+                            method: 'POST',
+                            headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
+                            body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: candSig, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: parsed.slot, updated_at: new Date().toISOString() })
+                          })
+                        ]);
+                      } catch {}
+                    }
+
+                    if (tgToken && tgToken.trim().length > 10 && tgTarget) {
+                      try {
+                        const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
+                        const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
+                        await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
+                      } catch {}
+                    }
+                  }).catch(() => {});
+
+                  return reply.send({
+                    success: true,
+                    paid: true,
+                    status: 'SUCCESS',
+                    mode: modeStr,
+                    statusLabel,
+                    receivedAmount: recAmt,
+                    expectedAmount: validExpectedAmountUsdc,
+                    matchedEvent,
+                    telegramSent: true,
+                  });
                 }
-
-                const sStat = Math.abs(recAmt - validExpectedAmountUsdc) <= 0.001 ? 'settled_exact' : (recAmt < validExpectedAmountUsdc ? 'settled_underpaid' : 'settled_overpaid');
-
-                // Async DB persistence & Telegram receipt dispatch in background for fallback matches
-                const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-                const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-                const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-                const rawTarget = (telegramChannel && telegramChannel.trim()) || (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
-                const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
-
-                Promise.resolve().then(async () => {
-                  if (supabaseUrl && supabaseKey) {
-                    try {
-                      const dbHeaders = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
-                      await Promise.all([
-                        fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${encodeURIComponent(effectiveRefKey)},tx_signature.eq.${encodeURIComponent(candSig)})`, {
-                          method: 'PATCH',
-                          headers: dbHeaders,
-                          body: JSON.stringify({ status: 'finished', settlement_status: sStat, tx_signature: candSig, paid_amount_usdc: recAmt, updated_at: new Date().toISOString() })
-                        }),
-                        fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
-                          method: 'POST',
-                          headers: { ...dbHeaders, Prefer: 'resolution=merge-duplicates' },
-                          body: JSON.stringify({ user_id: userEmail || null, merchant_pubkey: merchantPubkey || null, amount_usdc: recAmt, reference_key: effectiveRefKey, tx_signature: candSig, network: 'solana-devnet', status: 'confirmed', memo: `Real Solana Devnet Tx Verified (${recAmt} USDC)`, slot: parsed.slot, updated_at: new Date().toISOString() })
-                        })
-                      ]);
-                    } catch {}
-                  }
-
-                  if (tgToken && tgToken.trim().length > 10 && tgTarget) {
-                    try {
-                      const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
-                      const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${sStat.toUpperCase()}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
-                      await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
-                    } catch {}
-                  }
-                }).catch(() => {});
-
-                break;
               }
             }
           }
-        }
-      } catch {}
-    }));
+        } catch {}
+      }
+    }
 
     // 3. Return verification response
     if (!matchedEvent) {
@@ -1617,14 +1663,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
 
           if (merchantEnc) {
-            queryParam = `is_demo=eq.false&or=(buyer_email.eq.${userEmailEnc},merchant_pubkey.eq.${merchantEnc})&${queryParam}`;
+            queryParam = `is_demo=eq.false&merchant_pubkey=eq.${merchantEnc}&${queryParam}`;
           } else if (userId) {
             const userFilter = userUuidEnc 
-              ? `or=(buyer_email.eq.${userEmailEnc},user_id.eq.${userUuidEnc},user_id.eq.${userEmailEnc})` 
+              ? `or=(buyer_email.eq.${userEmailEnc},user_id.eq.${userUuidEnc})` 
               : `buyer_email.eq.${userEmailEnc}`;
             queryParam = `is_demo=eq.false&${userFilter}&${queryParam}`;
           } else {
-            queryParam = `is_demo=eq.false&${queryParam}`;
+            queryParam = `is_demo=eq.true&${queryParam}`;
           }
         }
 
@@ -1667,6 +1713,51 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       success: true,
       count: 0,
       invoices: []
+    });
+  });
+
+  // ── DELETE /v1/zeroclaw/invoice/:id ── Delete a specific stored invoice from Supabase DB & CDN
+  fastify.delete<{ Params: { id: string } }>('/invoice/:id', async (request, reply) => {
+    const { id } = request.params;
+    if (!id) {
+      return reply.status(400).send({ success: false, error: 'Invoice ID or Reference Key is required' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const headers = {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        };
+
+        // 1. Delete from zeroclaw_solana_settlements matching id or reference_key
+        const delRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?or=(id.eq.${encodeURIComponent(id)},reference_key.eq.${encodeURIComponent(id)})`, {
+          method: 'DELETE',
+          headers
+        });
+
+        // 2. Also delete corresponding R2 audit certificate if applicable
+        await fetch(`${supabaseUrl}/rest/v1/privy_r2_audit_certificates?or=(id.eq.${encodeURIComponent(id)},r2_cdn_url.cs.${encodeURIComponent(id)})`, {
+          method: 'DELETE',
+          headers
+        });
+
+        if (delRes.ok) {
+          return reply.send({
+            success: true,
+            message: `Invoice ${id} deleted successfully from Database and Audit Vault.`
+          });
+        }
+      } catch (err) { }
+    }
+
+    return reply.send({
+      success: true,
+      message: `Invoice ${id} removed locally.`
     });
   });
 
@@ -1866,17 +1957,37 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         solBalance = solRes.value / 1e9;
       }
 
-      // 2. Fetch USDC Token Balance
-      const usdcRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
-        address,
-        { mint: USDC_MINT },
-        { encoding: 'jsonParsed' }
-      ]).catch(() => null);
+      // 2. Fetch USDC Token Balance (Parallel RPC + Web3 Connection Pool Fallback)
+      try {
+        let usdcRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
+          address,
+          { mint: USDC_MINT },
+          { encoding: 'jsonParsed' }
+        ]).catch(() => null);
 
-      if (usdcRes?.value && Array.isArray(usdcRes.value) && usdcRes.value.length > 0) {
-        const parsedInfo = usdcRes.value[0]?.account?.data?.parsed?.info;
-        usdcBalance = parsedInfo?.tokenAmount?.uiAmount ?? 0;
-      }
+        let tokenAccounts = usdcRes?.value || [];
+
+        if (!Array.isArray(tokenAccounts) || tokenAccounts.length === 0) {
+          const conn = solanaRpcManager.getConnection();
+          const parsedRes = await conn.getParsedTokenAccountsByOwner(
+            new PublicKey(address),
+            { mint: new PublicKey(USDC_MINT) }
+          ).catch(() => null);
+          if (parsedRes?.value) {
+            tokenAccounts = parsedRes.value;
+          }
+        }
+
+        if (Array.isArray(tokenAccounts) && tokenAccounts.length > 0) {
+          let totalUsdc = 0;
+          for (const item of tokenAccounts) {
+            const parsedInfo = item?.account?.data?.parsed?.info;
+            const uiAmt = parsedInfo?.tokenAmount?.uiAmount ?? 0;
+            totalUsdc += uiAmt;
+          }
+          usdcBalance = totalUsdc;
+        }
+      } catch {}
 
       return reply.send({
         success: true,

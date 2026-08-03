@@ -187,7 +187,7 @@ BEGIN
     )
     VALUES (
         p_user_id,
-        COALESCE(p_merchant_pubkey, '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'),
+        COALESCE(p_merchant_pubkey, 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK'),
         p_amount_usdc,
         COALESCE(p_reference_key, 'RefKey_' || gen_random_uuid()::text),
         'gen_inv_' || extract(epoch from now())::bigint::text,
@@ -218,7 +218,7 @@ BEGIN
         VALUES (
             COALESCE(p_user_id::text, p_user_email),
             COALESCE(p_user_email, 'user@zegaai.site'),
-            COALESCE(p_merchant_pubkey, '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'),
+            COALESCE(p_merchant_pubkey, 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK'),
             p_r2_cdn_url,
             COALESCE(p_r2_object_key, 'privy-audits/' || p_user_email || '/audit_' || p_reference_key || '.json'),
             p_sha256_checksum,

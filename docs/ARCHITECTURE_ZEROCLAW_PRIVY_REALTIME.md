@@ -1,7 +1,7 @@
 # ZEGA AI — ZeroClaw v0.8.3 + Privy Keyless Wallet Real-Time Architecture
 
-> **Version**: 3.0.0  
-> **Last Updated**: 2026-08-03  
+> **Version**: 3.1.0  
+> **Last Updated**: 2026-08-04  
 > **Author**: ZEGA AI Engineering Team  
 > **Status**: Production (Live on Render `https://zega-ai.onrender.com` + Vercel `https://zegaai.site` + Solana Devnet RPC)
 
@@ -122,14 +122,14 @@ This guarantees **zero collision** between identity management (Privy) and busin
 
 const deriveEmbeddedWallet = (email?: string): string => {
   if (!email || isGuestSession) {
-    return '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'; // Public sandbox
+    return 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK'; // Public sandbox
   }
   return PrivyWalletService.getEmbeddedSolanaWallet(email).address;
 };
 
 const activeMerchantWallet = accountMode === 'authenticated'
   ? deriveEmbeddedWallet(userEmail)
-  : '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+  : 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK';
 ```
 
 ### What Privy Provides to ZeroClaw
@@ -324,7 +324,7 @@ The frontend makes direct JSON-RPC calls to `https://api.devnet.solana.com` for:
 ### Verified Live Data (2026-08-01)
 
 ```
-Wallet: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
+Wallet: DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK
 Network: solana-devnet
 Confirmed Signatures: 20+ (Slot 480320796+)
 Status: All signatures "finalized"
@@ -549,7 +549,7 @@ R2_ENDPOINT=https://xxx.r2.cloudflarestorage.com
 
 # Solana
 SOLANA_RPC_URL=https://api.devnet.solana.com
-SOLANA_MERCHANT_PUBKEY=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
+SOLANA_MERCHANT_PUBKEY=DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK
 ```
 
 ---
@@ -638,12 +638,29 @@ Flagged prompts generate **SOP Checkpoints** requiring human admin approval.
 
 ---
 
+## 16. Real-Time Solana Pay Reconciliation & Enterprise Invoice Management
+
+### Pure Automated RPC Monitoring (No Manual Inputs)
+- **Zero-Trust Automated Polling**: Settlement reconciliation relies exclusively on automated RPC calls (`getSignaturesForAddress`) against Solana Devnet reference accounts and Associated Token Accounts (ATAs). Manual input forms are intentionally omitted to prevent anti-replay spoofing.
+- **Strict Base58 Signature Regex (`70-96` chars)**: Enforces `/^[1-9A-HJ-NP-Za-km-z]{70,96}$/` for transaction signatures, guaranteeing that 32-44 character Public Keys or Reference Keys are never confused with authentic 86-90 character ed25519 signatures.
+
+### Official Brand Explorer Integration
+- **Solscan Explorer**: Displays official brand logo loaded via Cloudflare R2 CDN (`/assets/logo/solscan.png`), linking directly to on-chain tx signatures: `https://solscan.io/tx/{sig}?cluster=devnet`.
+- **Solana Official Explorer**: Displays official brand logo (`/assets/logo/Solana Explorer.png`), linking directly to `https://explorer.solana.com/tx/{sig}?cluster=devnet`.
+
+### Enterprise Double-Confirmation Modal UX
+- **Invoice Management**: Replaced raw deletion buttons with an interactive **Kelola / Edit** modal (`editInvoiceModal`).
+- **Parameter Adjustments**: Merchants can edit Memo, Customer Target (Telegram/WhatsApp), or Amount.
+- **Double-Confirmation Alert**: Deleting an invoice triggers an explicit confirmation card with red alert styling: *"Apakah Anda yakin ingin membatalkan & menghapus tagihan ini dari Supabase DB dan Cloudflare R2 Vault CDN?"*.
+
+---
+
 ## Appendix: File References
 
 | File | Purpose |
 |------|---------|
 | `apps/api/src/routes/v1/zeroclaw.routes.ts` | All ZeroClaw REST API route handlers |
-| `apps/web/src/app/dashboard/enterprise/views/ZeroClawTerminalView.tsx` | Enterprise ZeroClaw Terminal UI (3017 lines) |
+| `apps/web/src/app/dashboard/enterprise/views/ZeroClawTerminalView.tsx` | Enterprise ZeroClaw Terminal UI |
 | `apps/web/src/app/dashboard/umkm/views/FinanceView.tsx` | UMKM Finance + ZeroClaw Settlement Stream |
 | `apps/web/src/app/DocsPage.tsx` | Public documentation page with API reference |
 | `apps/web/src/services/privyWalletService.ts` | Privy wallet derivation service |

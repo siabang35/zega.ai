@@ -67,6 +67,7 @@ const DOCS_NAV = [
       { id: 'defi-guardian', title: 'DeFi Guardian (Jupiter & Switchboard)' },
       { id: 'webhook-hmac', title: 'HMAC-SHA256 Webhook Verification' },
       { id: 'solana-pay', title: 'Solana Pay QR & Devnet RPC' },
+      { id: 'solana-rpc-manager', title: 'Solana RPC Pool & Circuit Breaker' },
       { id: 'strict-privy-checkout', title: '100% Strict Privy Auth & Solana Pay Checkout' },
       { id: 'enterprise-zeroclaw', title: 'Enterprise Swarm & Guardrails' },
     ],
@@ -88,7 +89,7 @@ const CODE_EXAMPLES = {
 // Initialize ZEGA ZeroClaw Solana Pay Agent
 const agent = new ZeroClawAgent({
   network: 'solana-devnet',
-  merchantAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', // Valid Base58 Pubkey
+  merchantAddress: 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK', // Valid Base58 Pubkey
   usdcMint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
 });
 
@@ -100,7 +101,7 @@ const invoice = await agent.createSolanaPayInvoice({
 });
 
 console.log('Scannable QR URL:', invoice.solanaPayUrl);
-// output: solana:7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?amount=15.00&spl-token=4zMMC...
+// output: solana:DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK?amount=15.00&spl-token=4zMMC...
 
 // Listen for Real-Time On-Chain Settlement (<2s auto-reconciliation)
 invoice.onReconciled((settlement) => {
@@ -113,7 +114,7 @@ invoice.onReconciled((settlement) => {
 # Initialize ZeroClaw Solana Agent
 agent = ZeroClawAgent(
     network="solana-devnet",
-    merchant_address="7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+    merchant_address="DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK"
 )
 
 # Create Solana Pay Invoice with locked amount
@@ -130,7 +131,7 @@ print(f"QRIS Solana Pay URL: {invoice.solana_pay_url}")`,
     "prompt": "Order 2 Kopi Espresso (15.00 USDC)",
     "preferredModel": "auto",
     "merchantContext": {
-      "usdcAddress": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
+      "usdcAddress": "DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK"
     }
   }'`,
 };
@@ -322,6 +323,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               {activeTab === 'defi-guardian' && 'Real-time token price checks via Jupiter Price V2 API & Switchboard Crossbar with threshold alerts and portfolio tracking.'}
               {activeTab === 'webhook-hmac' && 'Inbound webhook channel signature verification using HMAC-SHA256 headers for secure agent messaging ingress.'}
               {activeTab === 'solana-pay' && 'Real-time Solana Devnet RPC transaction verification, preset merchant invoices, and global USD/IDR currency conversion.'}
+              {activeTab === 'solana-rpc-manager' && 'Production multi-provider RPC failover pool (Alchemy + Helius + Solana Devnet) with exponential circuit breaker cooldowns, token bucket rate limiting, request deduplication, and OWASP security guards.'}
               {activeTab === 'sop-checkpoints' && 'Human-in-the-loop audit checkpoints protecting AI agent financial execution against prompt injection and unauthorized refund requests.'}
               {activeTab === 'quickstart' && 'Learn how to integrate the ZEGA AI client and leverage 9Router dynamic model selection for optimal latency and enterprise cost savings.'}
               {activeTab === 'architecture' && 'Understand the 5-layer architecture powering autonomous swarms, sandbox environments, and real-time LLM orchestration.'}
@@ -752,6 +754,44 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
                 <p>
                   All generated transactions link directly to active, verifiable Solana Devnet RPC signatures (<code className="font-mono">Slot 480013691+</code>). Backed by <strong>Rate Limiting (100 req/min Anti-Throttling)</strong> and <strong>1MB Payload Size Limit (Anti-Chunking / Anti-DoS)</strong>.
                 </p>
+              </section>
+            </div>
+          )}
+
+          {/* Solana RPC Pool & Circuit Breaker Manager */}
+          {activeTab === 'solana-rpc-manager' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  ⚡ Enterprise Solana RPC Pool & Circuit Breaker Architecture
+                </h2>
+                <p>
+                  ZEGA AI eliminates <strong>HTTP 429 Rate Limiting</strong> and retry storms via a centralized, multi-provider failover pool (<code className="font-mono text-emerald-500">SolanaRpcManager</code>). The engine orchestrates requests across <strong>Alchemy Devnet</strong>, <strong>Helius Devnet</strong>, and <strong>Official Solana Devnet</strong>.
+                </p>
+
+                <div className="grid sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
+                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400">Circuit Breaker Cooldown</h4>
+                    <p className="text-[11px] text-slate-500">Automatically isolates failing or rate-limited providers into 30s → 60s → 120s exponential cooldowns.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-1.5">
+                    <h4 className="font-bold text-blue-600 dark:text-blue-400">Request Deduplication</h4>
+                    <p className="text-[11px] text-slate-500">Coalesces parallel duplicate calls into a single in-flight Promise, cutting RPC network overhead by up to 90%.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-1.5">
+                    <h4 className="font-bold text-purple-600 dark:text-purple-400">OWASP Hardened</h4>
+                    <p className="text-[11px] text-slate-500">Validates RPC method whitelists and cleans string parameters against zero-width unicode injection vectors.</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Live Status Telemetry API</h3>
+                <p>Query real-time provider health scores, active cooldowns, and average latency metrics via Fastify endpoint:</p>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 space-y-2 overflow-x-auto">
+                  <div className="text-slate-400 font-bold"># Query Live Solana RPC Pool Telemetry</div>
+                  <pre>{`curl -s http://localhost:3001/v1/zeroclaw/rpc-pool/status`}</pre>
+                </div>
               </section>
             </div>
           )}

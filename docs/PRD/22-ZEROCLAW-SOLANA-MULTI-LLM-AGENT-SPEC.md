@@ -78,7 +78,7 @@ Automated test suite (`apps/api/src/test_live_llm_keys.ts` & `src/test_zeroclaw_
 ## 6. Dedicated ZeroClaw Keyless Embedded Wallet & Authenticated Session Isolation
 
 ### 1. Deterministic Keyless Solana Embedded Wallet Derivation
-- **Guest / Demo Mode (`isGuest === true`)**: Terminal generates payment URIs pointing to public demo address `7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`.
+- **Guest / Demo Mode (`isGuest === true`)**: Terminal generates payment URIs pointing to public demo address `DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK`.
 - **Authenticated Mode (`isGuest === false`)**: Terminal invokes deterministic Keyless Solana Embedded Wallet derivation (`deriveEmbeddedWallet(userEmail)`), generating a private user wallet (`4zMMC7x9K2pW87dT7XJSDpbD5jBkheTqA83TZRuJosgAsU`).
 - **Full Pay URL & Explorer Alignment**: All generated Solana Pay QR URIs (`solana:<activeMerchantWallet>?amount=...`), copy actions, and Solana Explorer links dynamically target the user's private Keyless Embedded Wallet address.
 

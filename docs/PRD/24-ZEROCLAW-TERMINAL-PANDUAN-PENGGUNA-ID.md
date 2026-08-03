@@ -62,7 +62,7 @@ Perusahaan enterprise, manajer keuangan/treasury, pengembang multi-agent swarm, 
 ## 5. Keyless Embedded Wallet Khusus Per Akun & Isolasi Sesi Terautentikasi
 
 ### 1. Pembentukan Embedded Wallet Solana Deterministik
-- **Mode Visitor / Demo (`isGuest === true`)**: Menggunakan alamat penerima publik `7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`.
+- **Mode Visitor / Demo (`isGuest === true`)**: Menggunakan alamat penerima publik `DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK`.
 - **Mode Akun Terautentikasi (`isGuest === false`)**: Terminal mengeksekusi derivasi Keyless Embedded Wallet (`deriveEmbeddedWallet(userEmail)`), membentuk alamat wallet Solana private per akun (`4zMMC7x9K2pW87dT7XJSDpbD5jBkheTqA83TZRuJosgAsU`).
 - **Penyelarasan URI & Explorer**: Semua link QR Code Solana Pay (`solana:<activeMerchantWallet>?amount=...`), aksi copy address, dan tautan Solana Explorer secara otomatis menggunakan alamat wallet private pengguna yang terautentikasi.
 

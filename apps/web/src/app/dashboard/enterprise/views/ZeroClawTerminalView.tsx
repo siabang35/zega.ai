@@ -28,6 +28,7 @@ import {
   ArrowUpRight,
   Shield,
   Layers,
+  Trash2,
   FileText,
   Coffee,
   ShieldAlert,
@@ -35,7 +36,9 @@ import {
   Play,
   Video,
   X,
-  Info
+  Info,
+  Pencil,
+  Edit3
 } from 'lucide-react';
 
 import {
@@ -404,10 +407,8 @@ export function ZeroClawTerminalView({
   // Persistent Payment History State for Authenticated & Demo Users
   const sanitizeTxSig = (sig?: string | null): string | undefined => {
     if (!sig || typeof sig !== 'string') return undefined;
-    if (sig.length < 80 || sig.length > 90 || sig.startsWith('gen_inv_') || sig.startsWith('inv_') || sig.startsWith('INV-') || sig.startsWith('5vzr')) {
-      return undefined;
-    }
-    return sig;
+    const trimmed = sig.trim();
+    return /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(trimmed) ? trimmed : undefined;
   };
 
   const [generatedInvoicesHistory, setGeneratedInvoicesHistory] = useState<GeneratedInvoice[]>(() => {
@@ -418,10 +419,15 @@ export function ZeroClawTerminalView({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((inv: any) => ({
-              ...inv,
-              tx_signature: sanitizeTxSig(inv.tx_signature)
-            }));
+            return parsed
+              .filter((inv: any) => 
+                !inv.isDemo && !inv.is_demo &&
+                (inv.merchantWallet === activeMerchantWallet || (inv.solanaPayUrl && inv.solanaPayUrl.includes(activeMerchantWallet)))
+              )
+              .map((inv: any) => ({
+                ...inv,
+                tx_signature: sanitizeTxSig(inv.tx_signature)
+              }));
           }
         }
       } catch (e) { }
@@ -434,44 +440,37 @@ export function ZeroClawTerminalView({
     if (typeof window !== 'undefined') {
       try {
         const key = userEmail ? `zeroclaw_invoices_${userEmail}` : 'zeroclaw_invoices_guest';
-        localStorage.setItem(key, JSON.stringify(generatedInvoicesHistory));
+        const filtered = generatedInvoicesHistory.filter((inv: any) => 
+          !inv.isDemo && !inv.is_demo &&
+          (inv.merchantWallet === activeMerchantWallet || (inv.solanaPayUrl && inv.solanaPayUrl.includes(activeMerchantWallet)))
+        );
+        localStorage.setItem(key, JSON.stringify(filtered));
       } catch (e) { }
     }
-  }, [generatedInvoicesHistory, userEmail]);
+  }, [generatedInvoicesHistory, userEmail, activeMerchantWallet]);
 
   // Fetch persistent invoices from Supabase Master Database & Cloudflare R2 CDN
   const fetchDbInvoices = async () => {
     try {
-      const isDemoParam = isGuestSession;
-      const query = !isDemoParam && userEmail
-        ? `isDemo=false&userId=${encodeURIComponent(userEmail)}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`
-        : `isDemo=true`;
+      const query = `isDemo=false&userId=${encodeURIComponent(userEmail || 'user@zegaai.site')}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`;
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/list?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.invoices)) {
         setGeneratedInvoicesHistory((prev) => {
           const map = new Map<string, GeneratedInvoice>();
-          // 1. If authenticated, strictly purge demo/mock entries from local state
-          if (!isDemoParam) {
-            prev.filter(inv => !inv.isDemo).forEach((inv) => {
+          // Purge demo/mock entries and entries from other merchant wallets
+          prev
+            .filter(inv => !inv.isDemo && (inv.merchantWallet === activeMerchantWallet || (inv.solanaPayUrl && inv.solanaPayUrl.includes(activeMerchantWallet))))
+            .forEach((inv) => {
               const key = inv.referenceKey || inv.id;
               if (key) map.set(key, { ...inv, tx_signature: sanitizeTxSig(inv.tx_signature) });
             });
-          } else {
-            prev.forEach((inv) => {
-              const key = inv.referenceKey || inv.id;
-              if (key) map.set(key, { ...inv, tx_signature: sanitizeTxSig(inv.tx_signature) });
-            });
-          }
-          // 2. Filter & union merge server-side DB invoices
-          const serverInvoices = !isDemoParam
-            ? json.invoices.filter((i: any) =>
-                !i.isDemo && !i.is_demo &&
-                (i.merchantWallet === activeMerchantWallet ||
-                 i.buyerEmail === userEmail ||
-                 (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet)))
-              )
-            : json.invoices;
+
+          // Union merge server-side DB invoices for active merchant wallet only
+          const serverInvoices = json.invoices.filter((i: any) =>
+            !i.isDemo && !i.is_demo &&
+            (i.merchantWallet === activeMerchantWallet || (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet)))
+          );
 
           serverInvoices.forEach((i: any) => {
             const key = i.referenceKey || i.id;
@@ -484,10 +483,68 @@ export function ZeroClawTerminalView({
               });
             }
           });
+
           return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
         });
       }
     } catch (err) { }
+  };
+
+  // Delete an individual invoice record from local state, localStorage & Supabase DB
+  const handleDeleteSingleInvoice = async (invoiceId: string, refKey?: string) => {
+    try {
+      const targetId = invoiceId || refKey;
+      if (!targetId) return;
+
+      // 1. Optimistically update local React state
+      setGeneratedInvoicesHistory((prev) => prev.filter((i) => i.id !== invoiceId && i.referenceKey !== targetId));
+
+      // 2. Call backend API to delete from Supabase DB & CDN Vault
+      await fetch(`${API_BASE}/v1/zeroclaw/invoice/${encodeURIComponent(targetId)}`, {
+        method: 'DELETE'
+      });
+
+      onTriggerToast(`🗑️ Tagihan #${targetId.slice(-6)} Berhasil Dihapus!`);
+    } catch (e) {
+      onTriggerToast('⚠️ Gagal menghapus tagihan');
+    }
+  };
+
+  // Enterprise Edit & Double Confirmation Modal States
+  const [editInvoiceModal, setEditInvoiceModal] = useState<GeneratedInvoice | null>(null);
+  const [editMemoInput, setEditMemoInput] = useState<string>('');
+  const [editTargetInput, setEditTargetInput] = useState<string>('');
+  const [editAmountInput, setEditAmountInput] = useState<string>('');
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState<boolean>(false);
+
+  const handleOpenEditModal = (inv: GeneratedInvoice) => {
+    setEditInvoiceModal(inv);
+    setEditMemoInput(inv.memo || '');
+    setEditTargetInput(inv.customerTarget || '');
+    setEditAmountInput(String(inv.amount || '0.50'));
+    setShowDeleteConfirmDialog(false);
+  };
+
+  const handleSaveInvoiceEdit = () => {
+    if (!editInvoiceModal) return;
+    try {
+      const updatedMemo = editMemoInput.trim() || editInvoiceModal.memo;
+      const updatedTarget = editTargetInput.trim();
+      const updatedAmount = editAmountInput.trim() || editInvoiceModal.amount;
+
+      setGeneratedInvoicesHistory((prev) =>
+        prev.map((item) =>
+          item.id === editInvoiceModal.id || item.referenceKey === editInvoiceModal.referenceKey
+            ? { ...item, memo: updatedMemo, customerTarget: updatedTarget, amount: updatedAmount }
+            : item
+        )
+      );
+
+      onTriggerToast(`✏️ Tagihan #${(editInvoiceModal.referenceKey || editInvoiceModal.id).slice(-6)} Berhasil Diperbarui!`);
+      setEditInvoiceModal(null);
+    } catch (err) {
+      onTriggerToast('⚠️ Gagal menyimpan perubahan tagihan');
+    }
   };
 
   useEffect(() => {
@@ -565,7 +622,7 @@ export function ZeroClawTerminalView({
           userEmail,
           telegramChannel: targetChannel,
           merchantPubkey: activeMerchantWallet,
-          txSignature: sigToVerify.length >= 80 ? sigToVerify : undefined
+          txSignature: sigToVerify.length >= 70 ? sigToVerify : (inv.tx_signature && inv.tx_signature.length >= 70 ? inv.tx_signature : undefined)
         })
       });
 
@@ -574,7 +631,7 @@ export function ZeroClawTerminalView({
         setPaymentCheckResult(json);
         if (json.paid) {
           const foundSig = json.matchedEvent?.signature;
-          if (foundSig && foundSig.length >= 80 && foundSig.length <= 90 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
+          if (foundSig && foundSig.length >= 70 && foundSig.length <= 96 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
             setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'finished', tx_signature: foundSig } : prev);
           }
           onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
@@ -657,11 +714,8 @@ export function ZeroClawTerminalView({
     let responseText = jsonResult?.response;
     let payUrl = jsonResult?.solanaPayUrl;
 
-    if (payUrl && accountMode === 'authenticated') {
-      payUrl = payUrl.replace(/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU/g, activeMerchantWallet);
-    }
-    if (responseText && accountMode === 'authenticated') {
-      responseText = responseText.replace(/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU/g, activeMerchantWallet);
+    if (payUrl && !payUrl.includes(activeMerchantWallet)) {
+      payUrl = payUrl.replace(/solana:[A-Za-z0-9]+/g, `solana:${activeMerchantWallet}`);
     }
 
     if (!responseText) {
@@ -2607,6 +2661,17 @@ export function ZeroClawTerminalView({
                           >
                             <Copy size={12} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(inv);
+                            }}
+                            className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-950 text-emerald-600 dark:text-emerald-400 transition-colors"
+                            title="Kelola & Edit Tagihan Enterprise"
+                          >
+                            <Pencil size={12} />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -3038,14 +3103,13 @@ export function ZeroClawTerminalView({
                                   </a>
 
                                   <button
-                                    onClick={() => {
-                                      setGeneratedInvoicesHistory(prev => prev.filter(item => item.id !== inv.id));
-                                      onTriggerToast('🗑️ Tagihan Dihapus dari Vault');
-                                    }}
-                                    className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
-                                    title="Hapus Tagihan"
+                                    type="button"
+                                    onClick={() => handleOpenEditModal(inv)}
+                                    className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 transition-all cursor-pointer flex items-center gap-1 text-[10px]"
+                                    title="Kelola & Edit Tagihan Enterprise"
                                   >
-                                    <X size={12} />
+                                    <Pencil size={10} />
+                                    <span>Kelola / Edit</span>
                                   </button>
                                 </div>
                               </div>
@@ -3536,12 +3600,7 @@ checkpoint = "human_approval_on_refund"`}
                 {(() => {
                   const isRealSuccessSig = Boolean(
                     paymentSuccessModal.signature &&
-                    paymentSuccessModal.signature.length >= 80 &&
-                    paymentSuccessModal.signature.length <= 90 &&
-                    !paymentSuccessModal.signature.startsWith('gen_inv_') &&
-                    !paymentSuccessModal.signature.startsWith('inv_') &&
-                    !paymentSuccessModal.signature.startsWith('INV-') &&
-                    !paymentSuccessModal.signature.startsWith('5vzr')
+                    /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(paymentSuccessModal.signature.trim())
                   );
                   const successExplorerUrl = isRealSuccessSig
                     ? `https://explorer.solana.com/tx/${paymentSuccessModal.signature}?cluster=devnet`
@@ -3752,11 +3811,7 @@ checkpoint = "human_approval_on_refund"`}
                       const realTxSig = paymentCheckResult.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
                       const isRealOnChain = Boolean(
                         realTxSig && 
-                        realTxSig.length >= 80 && 
-                        realTxSig.length <= 90 && 
-                        !realTxSig.startsWith('gen_inv_') && 
-                        !realTxSig.startsWith('inv_') && 
-                        !realTxSig.startsWith('INV-')
+                        /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(realTxSig.trim())
                       );
                       const explorerUrl = isRealOnChain 
                         ? `https://explorer.solana.com/tx/${realTxSig}?cluster=devnet`
@@ -3798,7 +3853,7 @@ checkpoint = "human_approval_on_refund"`}
                 {checkingPayment ? (
                   <>
                     <RefreshCw size={15} className="animate-spin" />
-                    <span>Melakukan Multi-Layer On-Chain Check...</span>
+                    <span>Melakukan Real-Time Solana RPC Check...</span>
                   </>
                 ) : (
                   <>
@@ -3812,30 +3867,44 @@ checkpoint = "human_approval_on_refund"`}
                 const candidateSig = paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
                 const isValidTxSig = Boolean(
                   candidateSig &&
-                  candidateSig.length >= 80 &&
-                  candidateSig.length <= 90 &&
-                  !candidateSig.startsWith('gen_inv_') &&
-                  !candidateSig.startsWith('inv_') &&
-                  !candidateSig.startsWith('INV-') &&
-                  !candidateSig.startsWith('5vzr')
+                  /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(candidateSig.trim())
                 );
-                const targetExplorerUrl = isValidTxSig
+                const solscanUrl = isValidTxSig
+                  ? `https://solscan.io/tx/${candidateSig}?cluster=devnet`
+                  : `https://solscan.io/account/${activeMerchantWallet}?cluster=devnet`;
+                const solanaExplorerUrl = isValidTxSig
                   ? `https://explorer.solana.com/tx/${candidateSig}?cluster=devnet`
                   : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
-                const targetLabel = isValidTxSig
-                  ? 'Cek Real Solana Tx Hash di Explorer 🌐'
-                  : 'Cek Solana Merchant Wallet di Explorer 🌐';
 
                 return (
-                  <a
-                    href={targetExplorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-sky-400 hover:text-sky-300 font-bold text-xs border border-sky-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <ExternalLink size={14} />
-                    <span>{targetLabel}</span>
-                  </a>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={solscanUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 font-bold text-xs border border-purple-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs group"
+                    >
+                      <img
+                        src={getR2CdnUrl('/assets/logo/solscan.png')}
+                        alt="Solscan"
+                        className="size-4 object-contain rounded-full bg-white/20 p-0.5 group-hover:scale-110 transition-transform"
+                      />
+                      <span>Solscan Explorer</span>
+                    </a>
+                    <a
+                      href={solanaExplorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-sky-200 font-bold text-xs border border-sky-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs group"
+                    >
+                      <img
+                        src={getR2CdnUrl('/assets/logo/Solana Explorer.png')}
+                        alt="Solana Explorer"
+                        className="size-4 object-contain group-hover:scale-110 transition-transform"
+                      />
+                      <span>Solana Explorer</span>
+                    </a>
+                  </div>
                 );
               })()}
 
@@ -3852,6 +3921,128 @@ checkpoint = "human_approval_on_refund"`}
                 Copy Link Solana Pay
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enterprise Edit & Double-Confirmation Modal */}
+      {editInvoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-100 relative">
+            <button
+              onClick={() => setEditInvoiceModal(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors p-1"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Pencil size={18} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-100">Kelola & Edit Tagihan Enterprise</h3>
+                <p className="text-[10px] text-slate-400 font-mono truncate max-w-[280px]">
+                  ID Ref: {editInvoiceModal.referenceKey || editInvoiceModal.id}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Catatan / Memo Tagihan:</label>
+                <input
+                  type="text"
+                  value={editMemoInput}
+                  onChange={(e) => setEditMemoInput(e.target.value)}
+                  placeholder="Contoh: Pembayaran AI Service Tier Enterprise"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Target Pelanggan (Telegram / WA):</label>
+                <input
+                  type="text"
+                  value={editTargetInput}
+                  onChange={(e) => setEditTargetInput(e.target.value)}
+                  placeholder="Contoh: @username atau +628123456789"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Nominal Tagihan (USDC):</label>
+                <input
+                  type="text"
+                  value={editAmountInput}
+                  onChange={(e) => setEditAmountInput(e.target.value)}
+                  placeholder="0.50"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-xs font-mono text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Double-Confirmation Delete Section */}
+            {showDeleteConfirmDialog ? (
+              <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2.5 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 text-rose-300 font-bold text-xs">
+                  <ShieldAlert size={16} />
+                  <span>Konfirmasi Pembatalan & Penghapusan</span>
+                </div>
+                <p className="text-[11px] text-rose-200/80 leading-relaxed">
+                  Apakah Anda yakin ingin membatalkan tagihan ini? Rekaman tagihan akan dihapus permanen dari Supabase Master DB dan Cloudflare R2 Vault CDN.
+                </p>
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirmDialog(false)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
+                  >
+                    Batalkan Hapus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = editInvoiceModal.referenceKey || editInvoiceModal.id;
+                      setEditInvoiceModal(null);
+                      handleDeleteSingleInvoice(editInvoiceModal.id, targetId);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition-colors shadow-md shadow-rose-600/20"
+                  >
+                    Ya, Hapus Permanen 🗑️
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirmDialog(true)}
+                  className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-xs border border-rose-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 size={13} />
+                  <span>Hapus Tagihan</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditInvoiceModal(null)}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveInvoiceEdit}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

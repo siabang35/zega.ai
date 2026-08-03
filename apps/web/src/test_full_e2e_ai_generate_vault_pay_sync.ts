@@ -1,6 +1,6 @@
 const API_BASE = 'http://127.0.0.1:3001';
 const TEST_USER_EMAIL = 'siabang35@gmail.com';
-const MERCHANT_WALLET = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+const MERCHANT_WALLET = 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK';
 const TEST_TX_SIGNATURE = '3ZbjPvgeYjxmcChZPXUDr5NyJ9YqZw2ydu8kVFGPD1hEunKGdV8h8S1nMLsjc1AL5sRoy8pnzAmqHrj4eRCXdkEq';
 
 async function runFullE2ESynchronizationTest() {

@@ -1,15 +1,9 @@
-import https from 'https';
-import http from 'http';
-import { URL } from 'url';
 import { Connection } from '@solana/web3.js';
 import { logger } from '../utils/logger.js';
 import { SupabaseService } from './supabaseService.js';
+import { solanaRpcManager } from './solanaRpcManager.js';
 
 const DEVNET_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const RPC_FALLBACKS = [
-  DEVNET_RPC_URL,
-  'https://api.devnet.solana.com',
-];
 
 export interface ParsedOnChainTxDetails {
   signature: string;
@@ -128,202 +122,27 @@ export class ZeroClawSignatureMonitorService {
       totalSettlementsReconciled: this.totalSettlementsReconciled,
       lastPollTimestamp: this.lastPollTimestamp,
       pollIntervalMs: this.pollIntervalMs,
-      rpcUrl: DEVNET_RPC_URL,
+      rpcPoolStatus: solanaRpcManager.getPoolStatus(),
     };
   }
 
   /**
-   * ⚡ Ultra-Fast Parallel RPC Racing Engine (Promise.any across all fallbacks)
-   * Dispatches RPC call to all endpoints in parallel and returns the fastest (<100ms) valid response.
+   * Delegates to SolanaRpcManager for high-speed parallel RPC calls with rate limiting and circuit breaker
    */
   public async callFastRpcParallel(method: string, params: any[]): Promise<any> {
-    const postData = JSON.stringify({
-      jsonrpc: '2.0',
-      id: `fast_rpc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      method,
-      params,
-    });
-
-    const rpcPromises = RPC_FALLBACKS.map((rpcUrl) => {
-      return new Promise<any>((resolve, reject) => {
-        try {
-          const parsedUrl = new URL(rpcUrl);
-          const isHttps = parsedUrl.protocol === 'https:';
-          const client = isHttps ? https : http;
-
-          const req = client.request(
-            parsedUrl,
-            {
-              method: 'POST',
-              family: 4, // Force IPv4 family resolution to prevent node fetch timeouts
-              timeout: 2500, // 2.5 second aggressive timeout for fast fallback
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData),
-                'User-Agent': 'ZeroClaw-FastRPC/1.0',
-              },
-            },
-            (res) => {
-              let body = '';
-              res.on('data', (chunk) => (body += chunk));
-              res.on('end', () => {
-                if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-                  try {
-                    const json = JSON.parse(body);
-                    if (json.result !== undefined && json.result !== null) {
-                      resolve(json.result);
-                    } else {
-                      reject(new Error('RPC returned null result'));
-                    }
-                  } catch (e) {
-                    reject(e);
-                  }
-                } else {
-                  reject(new Error(`RPC status code ${res.statusCode}`));
-                }
-              });
-            }
-          );
-
-          req.on('error', reject);
-          req.on('timeout', () => {
-            req.destroy();
-            reject(new Error('RPC timeout'));
-          });
-          req.write(postData);
-          req.end();
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-
-    try {
-      // Promise.any resolves immediately as soon as ANY RPC node responds successfully
-      return await Promise.any(rpcPromises);
-    } catch {
-      // Fallback to sequential callRpc if all parallel node requests fail
-      return this.callRpc(method, params);
-    }
+    return solanaRpcManager.callRpc(method, params);
   }
 
   /**
-   * Helper: Execute JSON-RPC call with endpoint fallbacks using forced IPv4 sockets
+   * Delegates to SolanaRpcManager with connection pooling, exponential backoff, and weighted failover
    */
   public async callRpc(method: string, params: any[]): Promise<any> {
-    const endpoints = [
-      DEVNET_RPC_URL,
-      'https://api.devnet.solana.com',
-      'https://solana-devnet.g.alchemy.com/v2/demo',
-    ];
-
-    for (const rpcUrl of endpoints) {
-      // Up to 3 retries per endpoint for 429 rate limit handling
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const parsedUrl = new URL(rpcUrl);
-          const postData = JSON.stringify({
-            jsonrpc: '2.0',
-            id: `zeroclaw_mon_${Date.now()}`,
-            method,
-            params,
-          });
-
-          const isHttps = parsedUrl.protocol === 'https:';
-          const client = isHttps ? https : http;
-
-          const result = await new Promise<any>((resolve, reject) => {
-            const req = client.request(parsedUrl, {
-              method: 'POST',
-              family: 4, // Force IPv4 family resolution to prevent node fetch timeouts
-              timeout: 6000,
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData),
-                'User-Agent': 'ZeroClaw-SignatureMonitor/1.0',
-              },
-            }, (res) => {
-              let body = '';
-              res.on('data', (chunk) => body += chunk);
-              res.on('end', () => {
-                if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-                  try {
-                    const json = JSON.parse(body);
-                    if (json.error && json.error.code === 429) {
-                      reject(new Error(`429 Rate Limit`));
-                    } else {
-                      resolve(json.result !== undefined ? json.result : null);
-                    }
-                  } catch (e) {
-                    reject(e);
-                  }
-                } else if (res.statusCode === 429) {
-                  reject(new Error(`429 Rate Limit`));
-                } else {
-                  reject(new Error(`RPC status code ${res.statusCode}`));
-                }
-              });
-            });
-
-            req.on('error', reject);
-            req.on('timeout', () => {
-              req.destroy();
-              reject(new Error('RPC timeout'));
-            });
-            req.write(postData);
-            req.end();
-          });
-
-          if (result !== null) {
-            return result;
-          }
-        } catch (err: any) {
-          if (err.message && err.message.includes('429')) {
-            // Exponential backoff delay for 429 rate limit recovery (200ms, 400ms)
-            await new Promise(resolve => setTimeout(resolve, attempt * 200));
-          }
-        }
-      }
-    }
-
-    // Phase 2: @solana/web3.js Connection fallback (handles 429 retries internally)
-    const connEndpoints = [
-      DEVNET_RPC_URL,
-      'https://api.devnet.solana.com',
-    ];
-    for (const ep of connEndpoints) {
-      try {
-        const conn = new Connection(ep, { commitment: 'confirmed', confirmTransactionInitialTimeout: 8000 });
-        const postData = JSON.stringify({
-          jsonrpc: '2.0',
-          id: `zeroclaw_web3_${Date.now()}`,
-          method,
-          params,
-        });
-        // Use Connection's internal fetch which handles 429 retries
-        const rawRes = await fetch(ep, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: postData,
-          signal: AbortSignal.timeout(8000),
-        });
-        if (rawRes.ok) {
-          const json = await rawRes.json() as any;
-          if (json.result !== undefined && json.result !== null) {
-            return json.result;
-          }
-        }
-      } catch {
-        // try next endpoint
-      }
-    }
-
-    return null;
+    return solanaRpcManager.callRpc(method, params);
   }
 
   /**
    * Parse detailed on-chain transaction data for any Solana Tx signature
-   * Uses high-speed in-memory cache and parallel RPC racing for sub-100ms response times.
+   * Uses high-speed in-memory cache and RPC Manager for sub-100ms response times.
    */
   public async parseOnChainTxSignature(signature: string): Promise<ParsedOnChainTxDetails | null> {
     if (!signature || signature.length < 80) return null;
@@ -335,36 +154,28 @@ export class ZeroClawSignatureMonitorService {
     }
 
     try {
-      // ⚡ 2. Parallel RPC Racing for getSignatureStatuses & getTransaction (<100ms Response)
+      // ⚡ 2. RPC Manager execution for getSignatureStatuses & getTransaction (<100ms Response)
       let [statusResult, txResult] = await Promise.all([
-        this.callFastRpcParallel('getSignatureStatuses', [
+        solanaRpcManager.callRpc('getSignatureStatuses', [
           [signature],
           { searchTransactionHistory: true },
         ]).catch(() => null),
-        this.callFastRpcParallel('getTransaction', [
+        solanaRpcManager.callRpc('getTransaction', [
           signature,
           { encoding: 'jsonParsed', commitment: 'confirmed', maxSupportedTransactionVersion: 0 },
         ]).catch(() => null),
       ]);
 
-      // ⚡ 3. Web3 Connection Fallback if raw HTTP RPC returns null / 429
+      // ⚡ 3. Web3 Connection Pool Fallback if raw JSON-RPC returned null
       if (!txResult) {
-        const connEndpoints = [
-          DEVNET_RPC_URL,
-          'https://solana-devnet.g.alchemy.com/v2/demo',
-          'https://api.devnet.solana.com',
-        ];
-        for (const ep of connEndpoints) {
-          try {
-            const conn = new Connection(ep, { commitment: 'confirmed' });
-            const parsedWeb3Tx = await conn.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
-            if (parsedWeb3Tx) {
-              txResult = parsedWeb3Tx;
-              break;
-            }
-          } catch (e: any) {
-            logger.warn({ err: e.message, ep, signature }, 'Web3 connection fallback failed');
+        try {
+          const conn = solanaRpcManager.getConnection();
+          const parsedWeb3Tx = await conn.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
+          if (parsedWeb3Tx) {
+            txResult = parsedWeb3Tx;
           }
+        } catch (e: any) {
+          logger.warn({ err: e.message, signature }, 'Web3 connection pool fallback failed');
         }
       }
 
@@ -438,11 +249,14 @@ export class ZeroClawSignatureMonitorService {
             }
           }
 
-          // Extract non-signer read-only reference accounts
-          if (!inst.program && inst.accounts) {
-            for (const acc of inst.accounts) {
-              if (typeof acc === 'string' && acc.length >= 32 && acc.length <= 44 && !referenceKeys.includes(acc)) {
-                referenceKeys.push(acc);
+          // Extract non-signer read-only reference accounts (handles both parsed string keys and compiled v0 numeric indices)
+          const rawInstAccounts = inst.accounts || [];
+          if (Array.isArray(rawInstAccounts)) {
+            for (const acc of rawInstAccounts) {
+              const rawKey = typeof acc === 'number' ? accountKeys[acc] : acc;
+              const kStr = typeof rawKey === 'string' ? rawKey : rawKey?.pubkey;
+              if (kStr && kStr.length >= 32 && kStr.length <= 44 && !referenceKeys.includes(kStr)) {
+                referenceKeys.push(kStr);
               }
             }
           }
@@ -478,7 +292,7 @@ export class ZeroClawSignatureMonitorService {
         err,
         sender,
         recipient,
-        amountUsdc: amountUsdc > 0 ? amountUsdc : (amountSol > 0 ? amountSol * 180 : 0),
+        amountUsdc: amountUsdc > 0 ? amountUsdc : (amountSol > 0 ? amountSol : 0),
         amountSol,
         memo,
         referenceKeys,

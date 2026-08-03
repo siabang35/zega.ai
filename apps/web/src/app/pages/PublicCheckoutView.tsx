@@ -130,13 +130,18 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     ? `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`
     : '';
 
-  // Real-time Solana On-Chain Settlement Poller (Active for 5 minutes)
+  // Real-time Solana On-Chain Settlement Poller (Active for 5 minutes with Tab Visibility Protection)
   useEffect(() => {
-    if (isExpired || !params?.reference) return;
+    if (isExpired || !params?.reference || paymentStatus === 'settled_exact' || paymentStatus === 'settled_overpaid') return;
 
     let intervalId: any = null;
 
     const pollSettlement = async () => {
+      // 🛡️ Tab Visibility Guard: Skip network request if user switched tabs
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
+
       try {
         const apiBase = typeof window !== 'undefined' && (window.location.hostname.includes('zegaai.site') || window.location.hostname.includes('render.com'))
           ? 'https://zega-ai.onrender.com'
@@ -164,10 +169,11 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     };
 
     pollSettlement();
-    intervalId = setInterval(pollSettlement, 3000);
+    // Adaptive 5-second polling interval (prevents rate limiting)
+    intervalId = setInterval(pollSettlement, 5000);
 
     return () => clearInterval(intervalId);
-  }, [params?.reference, isExpired]);
+  }, [params?.reference, isExpired, paymentStatus]);
 
   const handleCopyWallet = () => {
     if (!params?.recipient) return;
