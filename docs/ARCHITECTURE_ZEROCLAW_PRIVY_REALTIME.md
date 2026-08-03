@@ -1,9 +1,9 @@
 # ZEGA AI — ZeroClaw v0.8.3 + Privy Keyless Wallet Real-Time Architecture
 
-> **Version**: 2.4.0  
-> **Last Updated**: 2026-08-01  
+> **Version**: 3.0.0  
+> **Last Updated**: 2026-08-03  
 > **Author**: ZEGA AI Engineering Team  
-> **Status**: Production (Live on Render + Vercel + Solana Devnet)
+> **Status**: Production (Live on Render `https://zega-ai.onrender.com` + Vercel `https://zegaai.site` + Solana Devnet RPC)
 
 ---
 

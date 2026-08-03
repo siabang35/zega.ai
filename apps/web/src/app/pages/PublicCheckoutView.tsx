@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Copy, Check, ExternalLink, QrCode, RefreshCw, Zap, ArrowLeft, Building2, CheckCircle2, Wallet, User, ShoppingBag, Send, Clock, AlertTriangle, X } from 'lucide-react';
+import { PrivyWalletService } from '../services/privyWalletService';
 
 interface PublicCheckoutViewProps {
   onBack?: () => void;
@@ -71,7 +72,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             tier: tierParam === 'enterprise' ? 'enterprise' : 'umkm'
           });
         } else {
-          const validRec = isValidBase58SolanaAddress(rawRec) ? rawRec!.trim() : 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+          const validRec = isValidBase58SolanaAddress(rawRec) ? rawRec!.trim() : PrivyWalletService.getEmbeddedSolanaWallet().address;
           setParams({
             reference: ref || `RefDSP_${Date.now().toString().slice(-6)}`,
             amount: amt || '0.10',

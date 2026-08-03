@@ -59,6 +59,7 @@ const DOCS_NAV = [
     items: [
       { id: 'privy-wallet', title: 'Privy Keyless Embedded Wallet' },
       { id: 'zeroclaw', title: 'ZeroClaw Rust Agent Node' },
+      { id: 'zeroclaw-realtime-monitor', title: 'Real-Time Signature Monitor & OWASP Anti-Hacking' },
       { id: 'zeroclaw-sop', title: 'Directory SOP Engine & Checkpoints' },
       { id: 'zeroclaw-mcp', title: 'MCP Proxy (Helius & SendAI)' },
       { id: 'zeroclaw-memory', title: 'Relationship Memory CRM Graph' },
@@ -553,6 +554,31 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Real-Time Signature Monitor & OWASP Anti-Hacking */}
+          {activeTab === 'zeroclaw-realtime-monitor' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🛡️ ZeroClaw Real-Time Signature Monitor & OWASP Anti-Hacking Suite
+                </h2>
+                <p>
+                  ZeroClaw integrates an automated, real-time Solana Devnet RPC monitoring service (<code className="font-mono text-emerald-500">ZeroClawSignatureMonitorService</code>) executing forced IPv4 socket resolution (<code className="font-mono text-emerald-400">family: 4</code>) to eliminate IPv6 RPC timeout issues and deliver zero-latency payment reconciliation.
+                </p>
+
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">5-Layer OWASP Top 10 Anti-Hacking Hardening</h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-[11.5px]">
+                    <li><strong>OWASP API3 Base58 Input Sanitization:</strong> All <code className="font-mono text-emerald-400">referenceKey</code>, <code className="font-mono text-emerald-400">merchantPubkey</code>, and <code className="font-mono text-emerald-400">txSignature</code> inputs are strictly regex-validated against Base58 pattern (<code className="font-mono text-emerald-500">/^[1-9A-HJ-NP-Za-km-z]{'{32,88}'}$/</code>). SQLi and XSS injection attempts are rejected immediately with HTTP 400.</li>
+                    <li><strong>OWASP API8 Anti-Replay Guard:</strong> Performs automated database lookup in Supabase <code className="font-mono text-emerald-400">zeroclaw_solana_settlements</code> to prevent reusing a single transaction signature across multiple invoices.</li>
+                    <li><strong>OWASP API4 Anti-Throttling & Anti-DDoS:</strong> 100 req/min rate limiting per IP and Fastify 1MB payload size validator.</li>
+                    <li><strong>OWASP API1 Real-Time On-Chain Verification:</strong> Direct RPC slot parsing enforcing <code className="font-mono text-emerald-400">err === null</code> and <code className="font-mono text-emerald-400">confirmationStatus: confirmed | finalized</code>.</li>
+                    <li><strong>OWASP API9 Secure Error Masking:</strong> Prevents stack trace disclosure and logs structured security audit events internally.</li>
+                  </ul>
                 </div>
               </section>
             </div>

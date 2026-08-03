@@ -140,8 +140,7 @@ async function resolveLatestSolanaDevnetSignature(merchantWallet?: string, refer
   const refKeyToSearch = (referenceKey && referenceKey.length >= 32 && referenceKey.length <= 44) ? referenceKey : null;
   const searchCandidates = Array.from(new Set([
     refKeyToSearch,
-    merchantWallet,
-    'JDRE2J3SNo1x2BctQjBZmHnKFZn1wOKqBBs49uVZmeo8'
+    merchantWallet
   ].filter(Boolean) as string[]));
 
   for (const targetWallet of searchCandidates) {
@@ -198,9 +197,7 @@ export function ZeroClawTerminalView({
     return PrivyWalletService.getEmbeddedSolanaWallet(email).address;
   };
 
-  const activeMerchantWallet = accountMode === 'authenticated'
-    ? deriveEmbeddedWallet(userEmail)
-    : 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh';
+  const activeMerchantWallet = deriveEmbeddedWallet(userEmail);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
@@ -417,6 +414,14 @@ export function ZeroClawTerminalView({
   };
 
   // Persistent Payment History State for Authenticated & Demo Users
+  const sanitizeTxSig = (sig?: string | null): string | undefined => {
+    if (!sig || typeof sig !== 'string') return undefined;
+    if (sig.length < 80 || sig.length > 90 || sig.startsWith('gen_inv_') || sig.startsWith('inv_') || sig.startsWith('INV-') || sig.startsWith('5vzr')) {
+      return undefined;
+    }
+    return sig;
+  };
+
   const [generatedInvoicesHistory, setGeneratedInvoicesHistory] = useState<GeneratedInvoice[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -425,7 +430,10 @@ export function ZeroClawTerminalView({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return parsed.map((inv: any) => ({
+              ...inv,
+              tx_signature: sanitizeTxSig(inv.tx_signature)
+            }));
           }
         }
       } catch (e) { }
@@ -457,14 +465,14 @@ export function ZeroClawTerminalView({
           const map = new Map<string, GeneratedInvoice>();
           // 1. If authenticated, strictly purge demo/mock entries from local state
           if (!isDemoParam) {
-            prev.filter(inv => !inv.isDemo && inv.merchantWallet !== 'D28h43NB6eHAJtYnkB1fh7H5NNj9vTm5NxrB7JVTbvfh').forEach((inv) => {
+            prev.filter(inv => !inv.isDemo).forEach((inv) => {
               const key = inv.referenceKey || inv.id;
-              if (key) map.set(key, inv);
+              if (key) map.set(key, { ...inv, tx_signature: sanitizeTxSig(inv.tx_signature) });
             });
           } else {
             prev.forEach((inv) => {
               const key = inv.referenceKey || inv.id;
-              if (key) map.set(key, inv);
+              if (key) map.set(key, { ...inv, tx_signature: sanitizeTxSig(inv.tx_signature) });
             });
           }
           // 2. Filter & union merge server-side DB invoices
@@ -481,7 +489,11 @@ export function ZeroClawTerminalView({
             const key = i.referenceKey || i.id;
             if (key) {
               const existing = map.get(key);
-              map.set(key, { ...existing, ...i });
+              map.set(key, {
+                ...existing,
+                ...i,
+                tx_signature: sanitizeTxSig(i.tx_signature) || sanitizeTxSig(existing?.tx_signature)
+              });
             }
           });
           return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
@@ -543,7 +555,9 @@ export function ZeroClawTerminalView({
     };
   } | null>(null);
 
-  const handleCheckPaymentsModal = async (inv: GeneratedInvoice) => {
+  const [manualTxSigInput, setManualTxSigInput] = useState<string>('');
+
+  const handleCheckPaymentsModal = async (inv: GeneratedInvoice, customSig?: string) => {
     if (!inv) return;
     setCheckingPayment(true);
     setPaymentCheckResult(null);
@@ -552,6 +566,7 @@ export function ZeroClawTerminalView({
       const refKey = inv.referenceKey || inv.id;
       const expectedAmountUsdc = parseFloat(String(inv.amount)) || 15.00;
       const targetChannel = inv.customerTarget || customerChannelTarget || userEmail || '@slzyoung';
+      const sigToVerify = (customSig || manualTxSigInput || '').trim();
 
       const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/check-payment`, {
         method: 'POST',
@@ -561,7 +576,8 @@ export function ZeroClawTerminalView({
           expectedAmountUsdc,
           userEmail,
           telegramChannel: targetChannel,
-          merchantPubkey: activeMerchantWallet
+          merchantPubkey: activeMerchantWallet,
+          txSignature: sigToVerify.length >= 80 ? sigToVerify : undefined
         })
       });
 
@@ -1318,6 +1334,9 @@ export function ZeroClawTerminalView({
                 </div>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60 uppercase tracking-wider">
                   <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> ONLINE
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/60 uppercase tracking-wider">
+                  <Activity size={10} className="text-indigo-500 animate-pulse" /> REALTIME SIGNATURE MONITOR
                 </span>
               </div>
 
@@ -3501,15 +3520,32 @@ checkpoint = "human_approval_on_refund"`}
               )}
 
               <div className="flex items-center gap-2">
-                <a
-                  href={`https://explorer.solana.com/tx/${paymentSuccessModal.signature}?cluster=devnet`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <ExternalLink size={14} />
-                  <span>Lihat Explorer</span>
-                </a>
+                {(() => {
+                  const isRealSuccessSig = Boolean(
+                    paymentSuccessModal.signature &&
+                    paymentSuccessModal.signature.length >= 80 &&
+                    paymentSuccessModal.signature.length <= 90 &&
+                    !paymentSuccessModal.signature.startsWith('gen_inv_') &&
+                    !paymentSuccessModal.signature.startsWith('inv_') &&
+                    !paymentSuccessModal.signature.startsWith('INV-') &&
+                    !paymentSuccessModal.signature.startsWith('5vzr')
+                  );
+                  const successExplorerUrl = isRealSuccessSig
+                    ? `https://explorer.solana.com/tx/${paymentSuccessModal.signature}?cluster=devnet`
+                    : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
+
+                  return (
+                    <a
+                      href={successExplorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      <span>{isRealSuccessSig ? 'Lihat Real Tx Explorer 🌐' : 'Lihat Wallet Explorer 🌐'}</span>
+                    </a>
+                  );
+                })()}
                 <button
                   onClick={() => setPaymentSuccessModal(null)}
                   className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 font-bold text-xs text-white cursor-pointer transition-colors shadow-md"
@@ -3759,17 +3795,36 @@ checkpoint = "human_approval_on_refund"`}
                 )}
               </button>
 
-              {(paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature) && (
-                <a
-                  href={`https://explorer.solana.com/tx/${paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature}?cluster=devnet`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-sky-400 hover:text-sky-300 font-bold text-xs border border-sky-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <ExternalLink size={14} />
-                  <span>Cek On-Chain di Solana Devnet Explorer 🌐</span>
-                </a>
-              )}
+              {(() => {
+                const candidateSig = paymentCheckResult?.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
+                const isValidTxSig = Boolean(
+                  candidateSig &&
+                  candidateSig.length >= 80 &&
+                  candidateSig.length <= 90 &&
+                  !candidateSig.startsWith('gen_inv_') &&
+                  !candidateSig.startsWith('inv_') &&
+                  !candidateSig.startsWith('INV-') &&
+                  !candidateSig.startsWith('5vzr')
+                );
+                const targetExplorerUrl = isValidTxSig
+                  ? `https://explorer.solana.com/tx/${candidateSig}?cluster=devnet`
+                  : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
+                const targetLabel = isValidTxSig
+                  ? 'Cek Real Solana Tx Hash di Explorer 🌐'
+                  : 'Cek Solana Merchant Wallet di Explorer 🌐';
+
+                return (
+                  <a
+                    href={targetExplorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-sky-400 hover:text-sky-300 font-bold text-xs border border-sky-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ExternalLink size={14} />
+                    <span>{targetLabel}</span>
+                  </a>
+                );
+              })()}
 
 
 

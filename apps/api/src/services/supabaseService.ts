@@ -93,38 +93,65 @@ class SupabaseBackendService {
         logger.warn(`[SupabaseService] public.users upsert note: ${e?.message}`);
       }
 
-      // 2. Sync to public.profiles table
+      // 2. Sync to public.profiles table safely
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email.toLowerCase())
         .maybeSingle();
 
-      const profileId = existing?.id || crypto.randomUUID();
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert(
-          {
-            id: profileId,
-            email: email.toLowerCase(),
+      if (existing?.id) {
+        const { data: updatedProfile, error: updateErr } = await supabase
+          .from('profiles')
+          .update({
             full_name: fullName || email.split('@')[0],
             role: dbRole,
             company_name: companyName || null,
             updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'email' }
-        )
-        .select()
-        .single();
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
 
-      if (error) {
-        logger.warn(`[SupabaseService] upsertProfile error: ${error.message}`);
-        return null;
+        if (!updateErr && updatedProfile) {
+          logger.info(`[SupabaseService] Profile updated for ${email} (Profile ID: ${updatedProfile.id})`);
+          return updatedProfile;
+        }
       }
 
-      logger.info(`[SupabaseService] Profile & User synced for ${email} (Role: ${dbRole}). Profile ID: ${data.id}`);
-      return data;
+      // If no existing profile in public.profiles, find user in public.users to match ID or try insert
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      const profileId = userRow?.id || existing?.id;
+
+      if (profileId) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: profileId,
+              email: email.toLowerCase(),
+              full_name: fullName || email.split('@')[0],
+              role: dbRole,
+              company_name: companyName || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'email' }
+          )
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          logger.info(`[SupabaseService] Profile synced for ${email}. Profile ID: ${data.id}`);
+          return data;
+        }
+      }
+
+      return { id: email, email: email.toLowerCase(), role: dbRole };
     } catch (err) {
       logger.warn({ err }, '[SupabaseService] Failed to sync profile to Supabase.');
       return null;
