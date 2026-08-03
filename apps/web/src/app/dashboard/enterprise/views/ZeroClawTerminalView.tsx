@@ -182,20 +182,11 @@ async function resolveLatestSolanaDevnetSignature(merchantWallet?: string, refer
 
   for (const targetWallet of searchCandidates) {
     try {
-      const directRes = await fetch('https://api.devnet.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'direct_client_sig',
-          method: 'getSignaturesForAddress',
-          params: [targetWallet, { limit: 10, commitment: 'confirmed' }]
-        })
-      });
+      const directRes = await fetch(`${API_BASE}/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(targetWallet)}`);
       if (directRes.ok) {
         const directJson = await directRes.json();
-        if (directJson.result && Array.isArray(directJson.result) && directJson.result.length > 0) {
-          const validObj = directJson.result.find((s: any) => !s.err) || directJson.result[0];
+        if (directJson.signatures && Array.isArray(directJson.signatures) && directJson.signatures.length > 0) {
+          const validObj = directJson.signatures.find((s: any) => !s.err) || directJson.signatures[0];
           if (validObj?.signature) {
             return validObj.signature;
           }
@@ -370,48 +361,12 @@ export function ZeroClawTerminalView({
   const fetchOnChainBalances = async () => {
     if (!activeMerchantWallet) return;
     try {
-      // 1. SOL Balance from Devnet RPC
-      const solRes = await fetch('https://api.devnet.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'sol_bal',
-          method: 'getBalance',
-          params: [activeMerchantWallet]
-        })
-      });
-      if (solRes.ok) {
-        const solJson = await solRes.json();
-        if (solJson.result && typeof solJson.result.value === 'number') {
-          const solVal = solJson.result.value / 1e9;
-          setSolBalance(solVal.toFixed(4));
-        }
-      }
-
-      // 2. USDC Token Balance from Devnet RPC (Devnet USDC Mint: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU)
-      const usdcRes = await fetch('https://api.devnet.solana.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'usdc_bal',
-          method: 'getTokenAccountsByOwner',
-          params: [
-            activeMerchantWallet,
-            { mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' },
-            { encoding: 'jsonParsed' }
-          ]
-        })
-      });
-      if (usdcRes.ok) {
-        const usdcJson = await usdcRes.json();
-        if (usdcJson.result?.value && Array.isArray(usdcJson.result.value) && usdcJson.result.value.length > 0) {
-          const parsedInfo = usdcJson.result.value[0]?.account?.data?.parsed?.info;
-          const usdcVal = parsedInfo?.tokenAmount?.uiAmount ?? 0;
-          setUsdcBalance(new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(usdcVal));
-        } else {
-          setUsdcBalance('0.00');
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/balance?address=${encodeURIComponent(activeMerchantWallet)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          if (typeof json.solBalance === 'string') setSolBalance(json.solBalance);
+          if (typeof json.usdcBalance === 'string') setUsdcBalance(json.usdcBalance);
         }
       }
     } catch (e) {
@@ -419,28 +374,24 @@ export function ZeroClawTerminalView({
     }
   };
 
-  // Request 1 SOL Devnet Airdrop via RPC
+  // Request 1 SOL Devnet Airdrop via Backend Proxy
   const requestSolAirdrop = async () => {
     if (!activeMerchantWallet) return;
     setLoading(true);
     onTriggerToast('⚡ Requesting 1.0 SOL Devnet Airdrop via RPC...');
     try {
-      const res = await fetch('https://api.devnet.solana.com', {
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/airdrop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'airdrop_req',
-          method: 'requestAirdrop',
-          params: [activeMerchantWallet, 1000000000] // 1 SOL in lamports
-        })
+        body: JSON.stringify({ address: activeMerchantWallet })
       });
       const json = await res.json();
-      if (json.result) {
-        onTriggerToast(`🟢 Airdrop Successful! Tx: ${json.result.slice(0, 12)}...`);
+      if (json.success) {
+        const sigStr = typeof json.signature === 'string' ? json.signature.slice(0, 12) : 'Airdrop';
+        onTriggerToast(`🟢 Airdrop Successful! Tx: ${sigStr}...`);
         setTimeout(() => fetchOnChainBalances(), 2000);
-      } else if (json.error) {
-        onTriggerToast(`⚠️ Airdrop Rate-Limited: ${json.error.message || 'Try again in a minute'}`);
+      } else {
+        onTriggerToast(`⚠️ Airdrop Rate-Limited: ${json.error || 'Try again in a minute'}`);
         fetchOnChainBalances();
       }
     } catch (err) {

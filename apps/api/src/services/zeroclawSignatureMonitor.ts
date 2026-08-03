@@ -1,6 +1,7 @@
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import { Connection } from '@solana/web3.js';
 import { logger } from '../utils/logger.js';
 import { SupabaseService } from './supabaseService.js';
 
@@ -8,7 +9,6 @@ const DEVNET_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.
 const RPC_FALLBACKS = [
   DEVNET_RPC_URL,
   'https://api.devnet.solana.com',
-  'https://rpc.ankr.com/solana_devnet',
 ];
 
 export interface ParsedOnChainTxDetails {
@@ -49,7 +49,7 @@ export class ZeroClawSignatureMonitorService {
   private txCacheMap = new Map<string, { data: ParsedOnChainTxDetails; expiresAt: number }>();
   private isRunning = false;
   private timer: NodeJS.Timeout | null = null;
-  private pollIntervalMs = 6000; // 6 seconds real-time poll cycle
+  private pollIntervalMs = 15000; // 15 seconds real-time poll cycle (prevents 429 rate limits)
   private totalSignaturesScanned = 0;
   private totalSettlementsReconciled = 0;
   private lastPollTimestamp: string | null = null;
@@ -211,62 +211,113 @@ export class ZeroClawSignatureMonitorService {
    * Helper: Execute JSON-RPC call with endpoint fallbacks using forced IPv4 sockets
    */
   public async callRpc(method: string, params: any[]): Promise<any> {
-    for (const rpcUrl of RPC_FALLBACKS) {
+    const endpoints = [
+      DEVNET_RPC_URL,
+      'https://api.devnet.solana.com',
+      'https://solana-devnet.g.alchemy.com/v2/demo',
+    ];
+
+    for (const rpcUrl of endpoints) {
+      // Up to 3 retries per endpoint for 429 rate limit handling
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const parsedUrl = new URL(rpcUrl);
+          const postData = JSON.stringify({
+            jsonrpc: '2.0',
+            id: `zeroclaw_mon_${Date.now()}`,
+            method,
+            params,
+          });
+
+          const isHttps = parsedUrl.protocol === 'https:';
+          const client = isHttps ? https : http;
+
+          const result = await new Promise<any>((resolve, reject) => {
+            const req = client.request(parsedUrl, {
+              method: 'POST',
+              family: 4, // Force IPv4 family resolution to prevent node fetch timeouts
+              timeout: 6000,
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData),
+                'User-Agent': 'ZeroClaw-SignatureMonitor/1.0',
+              },
+            }, (res) => {
+              let body = '';
+              res.on('data', (chunk) => body += chunk);
+              res.on('end', () => {
+                if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+                  try {
+                    const json = JSON.parse(body);
+                    if (json.error && json.error.code === 429) {
+                      reject(new Error(`429 Rate Limit`));
+                    } else {
+                      resolve(json.result !== undefined ? json.result : null);
+                    }
+                  } catch (e) {
+                    reject(e);
+                  }
+                } else if (res.statusCode === 429) {
+                  reject(new Error(`429 Rate Limit`));
+                } else {
+                  reject(new Error(`RPC status code ${res.statusCode}`));
+                }
+              });
+            });
+
+            req.on('error', reject);
+            req.on('timeout', () => {
+              req.destroy();
+              reject(new Error('RPC timeout'));
+            });
+            req.write(postData);
+            req.end();
+          });
+
+          if (result !== null) {
+            return result;
+          }
+        } catch (err: any) {
+          if (err.message && err.message.includes('429')) {
+            // Exponential backoff delay for 429 rate limit recovery (200ms, 400ms)
+            await new Promise(resolve => setTimeout(resolve, attempt * 200));
+          }
+        }
+      }
+    }
+
+    // Phase 2: @solana/web3.js Connection fallback (handles 429 retries internally)
+    const connEndpoints = [
+      DEVNET_RPC_URL,
+      'https://api.devnet.solana.com',
+    ];
+    for (const ep of connEndpoints) {
       try {
-        const parsedUrl = new URL(rpcUrl);
+        const conn = new Connection(ep, { commitment: 'confirmed', confirmTransactionInitialTimeout: 8000 });
         const postData = JSON.stringify({
           jsonrpc: '2.0',
-          id: `zeroclaw_mon_${Date.now()}`,
+          id: `zeroclaw_web3_${Date.now()}`,
           method,
           params,
         });
-
-        const isHttps = parsedUrl.protocol === 'https:';
-        const client = isHttps ? https : http;
-
-        const result = await new Promise<any>((resolve, reject) => {
-          const req = client.request(parsedUrl, {
-            method: 'POST',
-            family: 4, // Force IPv4 family resolution to prevent node fetch timeouts
-            timeout: 6000,
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(postData),
-              'User-Agent': 'ZeroClaw-SignatureMonitor/1.0',
-            },
-          }, (res) => {
-            let body = '';
-            res.on('data', (chunk) => body += chunk);
-            res.on('end', () => {
-              if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-                try {
-                  const json = JSON.parse(body);
-                  resolve(json.result !== undefined ? json.result : null);
-                } catch (e) {
-                  reject(e);
-                }
-              } else {
-                reject(new Error(`RPC status code ${res.statusCode}`));
-              }
-            });
-          });
-
-          req.on('error', reject);
-          req.on('timeout', () => {
-            req.destroy();
-            reject(new Error('RPC timeout'));
-          });
-          req.write(postData);
-          req.end();
+        // Use Connection's internal fetch which handles 429 retries
+        const rawRes = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: postData,
+          signal: AbortSignal.timeout(8000),
         });
-
-        if (result !== null) {
-          return result;
+        if (rawRes.ok) {
+          const json = await rawRes.json() as any;
+          if (json.result !== undefined && json.result !== null) {
+            return json.result;
+          }
         }
       } catch {
-        // try next RPC fallback
+        // try next endpoint
       }
     }
+
     return null;
   }
 
@@ -285,7 +336,7 @@ export class ZeroClawSignatureMonitorService {
 
     try {
       // ⚡ 2. Parallel RPC Racing for getSignatureStatuses & getTransaction (<100ms Response)
-      const [statusResult, txResult] = await Promise.all([
+      let [statusResult, txResult] = await Promise.all([
         this.callFastRpcParallel('getSignatureStatuses', [
           [signature],
           { searchTransactionHistory: true },
@@ -295,6 +346,27 @@ export class ZeroClawSignatureMonitorService {
           { encoding: 'jsonParsed', commitment: 'confirmed', maxSupportedTransactionVersion: 0 },
         ]).catch(() => null),
       ]);
+
+      // ⚡ 3. Web3 Connection Fallback if raw HTTP RPC returns null / 429
+      if (!txResult) {
+        const connEndpoints = [
+          DEVNET_RPC_URL,
+          'https://solana-devnet.g.alchemy.com/v2/demo',
+          'https://api.devnet.solana.com',
+        ];
+        for (const ep of connEndpoints) {
+          try {
+            const conn = new Connection(ep, { commitment: 'confirmed' });
+            const parsedWeb3Tx = await conn.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
+            if (parsedWeb3Tx) {
+              txResult = parsedWeb3Tx;
+              break;
+            }
+          } catch (e: any) {
+            logger.warn({ err: e.message, ep, signature }, 'Web3 connection fallback failed');
+          }
+        }
+      }
 
       const statusItem = statusResult?.value?.[0];
 
