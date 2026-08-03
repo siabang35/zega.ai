@@ -219,7 +219,7 @@ export function ZeroClawTerminalView({
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
 
   // Customer In-Chat Channel Registration & Auto-Dispatch State
-  const [customerChannelTarget, setCustomerChannelTarget] = useState<string>('@slzyoung');
+  const [customerChannelTarget, setCustomerChannelTarget] = useState<string>('');
   const [customerChannelType, setCustomerChannelType] = useState<'whatsapp' | 'telegram'>('telegram');
   const [autoDispatchEnabled, setAutoDispatchEnabled] = useState<boolean>(true);
   const [dispatchingChannel, setDispatchingChannel] = useState<string | null>(null);
@@ -565,7 +565,7 @@ export function ZeroClawTerminalView({
     try {
       const refKey = inv.referenceKey || inv.id;
       const expectedAmountUsdc = parseFloat(String(inv.amount)) || 15.00;
-      const targetChannel = inv.customerTarget || customerChannelTarget || userEmail || '@slzyoung';
+      const targetChannel = inv.customerTarget || customerChannelTarget || (userEmail?.startsWith('@') ? userEmail : '');
       const sigToVerify = (customSig || manualTxSigInput || '').trim();
 
       const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/check-payment`, {
@@ -761,9 +761,9 @@ export function ZeroClawTerminalView({
 
       // 5. In-Prompt Customer Target Extraction (WhatsApp E.164 phone or Telegram handle)
       const phoneMatch = promptToRun.match(/\+?[1-9]\d{9,14}\b/) || promptToRun.match(/\b08\d{8,11}\b/);
-      const telegramMatch = promptToRun.match(/@([a-zA-Z0-9_]{4,32})\b/);
+      const telegramMatch = promptToRun.match(/@([a-zA-Z0-9_]{3,32})\b/);
 
-      let targetToDispatch = customerChannelTarget;
+      let targetToDispatch = (customerChannelTarget || '').trim();
       let channelToDispatch = customerChannelType;
 
       if (phoneMatch) {
@@ -782,6 +782,27 @@ export function ZeroClawTerminalView({
         channelToDispatch = 'telegram';
         setCustomerChannelTarget(targetToDispatch);
         setCustomerChannelType('telegram');
+      }
+
+      // 🛡️ Strict Customer Target Validation: Target must be Telegram @username or valid Phone number
+      const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(targetToDispatch);
+      const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(targetToDispatch);
+
+      if (!isTelegramHandle && !isPhoneNumber) {
+        const rejectionMsg = `⚠️ **TAGIHAN TIDAK VALID**: Pembuatan invoice ditolak. Target penerima (Telegram @username atau Nomor Telepon) wajib ditentukan.\n\nContoh prompt yang benar:\n• \`generate 0.2 usdc for @username\`\n• \`invoice 0.2 usdc ke +628123456789\``;
+        setAgentLogs(prev => [{
+          id: `log_rej_${Date.now()}`,
+          prompt: promptToRun,
+          response: rejectionMsg,
+          timestamp: new Date().toLocaleTimeString(),
+          modelUsed: 'OWASP-Target-Validation-Gate',
+          latencyMs: 8,
+          tps: 500,
+          injectionDetected: false,
+        }, ...prev]);
+        onTriggerToast('⚠️ Gagal: Target penerima (@username / Nomor Telepon) wajib diisi!');
+        setExecutingPrompt(false);
+        return;
       }
 
       // Append to persistent invoice history for Vault
@@ -1230,6 +1251,8 @@ export function ZeroClawTerminalView({
           solanaPayUrl: inv.solanaPayUrl,
           referenceKey: inv.referenceKey,
           buyerEmail: inv.buyerEmail,
+          customerTarget: inv.customerTarget,
+          telegramChannel: inv.customerTarget,
           isDemo: isGuestSession,
         }),
       });
@@ -1249,6 +1272,16 @@ export function ZeroClawTerminalView({
   };
 
   const handleGenerateInvoice = () => {
+    // 🛡️ Strict Customer Target Validation: Must be valid Telegram @username or Phone number
+    const cleanTarget = (customerChannelTarget || '').trim();
+    const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(cleanTarget);
+    const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(cleanTarget);
+
+    if (!isTelegramHandle && !isPhoneNumber) {
+      onTriggerToast('⚠️ Gagal: Target penerima wajib diisi dengan Telegram @username (contoh: @username) atau Nomor Telepon (+628...). Invoice tidak dapat dibuat tanpa target.');
+      return;
+    }
+
     // Normalize Indonesian comma decimals (e.g. "1,7" or "15,50") to dot decimals ("1.7")
     const cleanAmountStr = invoiceAmount.replace(',', '.');
     const parsedAmount = parseFloat(cleanAmountStr) || 15.00;
@@ -1753,19 +1786,19 @@ export function ZeroClawTerminalView({
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Sample Prompts:</span>
               <button
                 type="button"
-                onClick={() => setAgentPrompt('Generate invoice 25 USDC for Table 4')}
+                onClick={() => setAgentPrompt('Invoice 0.2 USDC ke @username (Meja 4)')}
                 className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/60 hover:border-amber-500 font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] shrink-0"
               >
                 <Coffee size={12} className="text-amber-500" />
-                <span>Invoice 25 USDC (Table 4)</span>
+                <span>Invoice 0.2 USDC (@username)</span>
               </button>
               <button
                 type="button"
-                onClick={() => setAgentPrompt('Agent Swarm Escrow Settlement 250 USDC')}
+                onClick={() => setAgentPrompt('Invoice 15 USDC ke +628123456789')}
                 className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/60 hover:border-purple-500 font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] shrink-0"
               >
                 <Bot size={12} className="text-purple-500" />
-                <span>Swarm Escrow (250 USDC)</span>
+                <span>Invoice WA (+62812...)</span>
               </button>
               <button
                 type="button"
@@ -1797,7 +1830,7 @@ export function ZeroClawTerminalView({
                     handleExecutePrompt();
                   }
                 }}
-                placeholder="Ask ZeroClaw AI Agent... e.g. 'Generate invoice 25 USDC for table 4' or 'Check Solana RPC status'"
+                placeholder="Ketik instruksi AI... contoh: 'Generate invoice 0.2 USDC untuk @username' atau 'Invoice 15 USDC ke +628123456789'"
                 className="w-full bg-transparent font-medium text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none pr-32"
               />
 

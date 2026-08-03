@@ -96,13 +96,170 @@ function derivePrivyEmbeddedSolanaWallet(email?: string): string {
   return result;
 }
 
-// Global Telegram Username -> Numeric Chat ID Registry
-const telegramChatRegistry = new Map<string, string>([
-  ['slzyoung', '7303438046'],
-  ['@slzyoung', '7303438046'],
-  ['rubycapacapa', '7303438046'],
-  ['@rubycapacapa', '7303438046']
-]);
+// Global Telegram Username -> Numeric Chat ID Dynamic In-Memory Cache (0% Hardcoded)
+const telegramChatRegistry = new Map<string, string>();
+
+/**
+ * ⚡ Dynamic Telegram Chat ID Auto-Resolver & Database Synchronizer
+ * Dynamically resolves Telegram handles (@username) to numeric Chat IDs via:
+ * 1. Immediate numeric check
+ * 2. In-memory dynamic runtime registry cache
+ * 3. Supabase DB persistent lookup (shared across Local & Production)
+ * 4. Telegram Bot API getUpdates live polling (dynamically extracts active user chat_ids)
+ * 5. Telegram Bot API getChat endpoint fallback
+ */
+async function resolveTelegramChatId(target: string, token?: string): Promise<string> {
+  const raw = target.trim();
+  if (/^\d+$/.test(raw)) return raw;
+
+  const cleaned = raw.replace(/^@/, '').toLowerCase();
+
+  // 1. Check in-memory dynamic runtime cache
+  if (telegramChatRegistry.has(cleaned)) return telegramChatRegistry.get(cleaned)!;
+  if (telegramChatRegistry.has(`@${cleaned}`)) return telegramChatRegistry.get(`@${cleaned}`)!;
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  // 2. Query Supabase DB persistent lookup table (zeroclaw_pairing_tokens / zeroclaw_telegram_users)
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_pairing_tokens?username=eq.${encodeURIComponent(cleaned)}&select=chat_id`, {
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+      });
+      if (dbRes.ok) {
+        const rows: any = await dbRes.json();
+        if (Array.isArray(rows) && rows.length > 0 && rows[0].chat_id) {
+          const cid = String(rows[0].chat_id);
+          telegramChatRegistry.set(cleaned, cid);
+          telegramChatRegistry.set(`@${cleaned}`, cid);
+          return cid;
+        }
+      }
+    } catch {}
+  }
+
+  const botToken = token || process.env.TELEGRAM_BOT_TOKEN;
+  if (botToken && botToken.trim().length > 10) {
+    // 3. Poll Telegram Bot API getUpdates to auto-discover active user usernames -> chat_ids
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getUpdates?limit=100`);
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.ok && Array.isArray(json.result)) {
+          for (const update of json.result) {
+            const msg = update.message || update.edited_message || update.channel_post || update.callback_query?.message;
+            if (msg && msg.from && msg.from.username) {
+              const uname = msg.from.username.toLowerCase();
+              const cidStr = String(msg.from.id || msg.chat?.id);
+              telegramChatRegistry.set(uname, cidStr);
+              telegramChatRegistry.set(`@${uname}`, cidStr);
+
+              // Auto-persist dynamically mapped user chat_id to Supabase DB
+              if (supabaseUrl && supabaseKey) {
+                fetch(`${supabaseUrl}/rest/v1/zeroclaw_pairing_tokens`, {
+                  method: 'POST',
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates',
+                  },
+                  body: JSON.stringify({
+                    username: uname,
+                    chat_id: cidStr,
+                    updated_at: new Date().toISOString(),
+                  })
+                }).catch(() => {});
+              }
+
+              if (uname === cleaned) {
+                return cidStr;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    // 4. Fallback: Query Telegram getChat API endpoint
+    try {
+      const getChatRes = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getChat?chat_id=${encodeURIComponent(raw.startsWith('@') ? raw : `@${raw}`)}`);
+      if (getChatRes.ok) {
+        const getChatJson: any = await getChatRes.json();
+        if (getChatJson.ok && getChatJson.result?.id) {
+          const resolvedCid = String(getChatJson.result.id);
+          telegramChatRegistry.set(cleaned, resolvedCid);
+          telegramChatRegistry.set(`@${cleaned}`, resolvedCid);
+
+          if (supabaseUrl && supabaseKey) {
+            fetch(`${supabaseUrl}/rest/v1/zeroclaw_pairing_tokens`, {
+              method: 'POST',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates',
+              },
+              body: JSON.stringify({
+                username: cleaned,
+                chat_id: resolvedCid,
+                updated_at: new Date().toISOString(),
+              })
+            }).catch(() => {});
+          }
+
+          return resolvedCid;
+        }
+      }
+    } catch {}
+  }
+
+  return raw.startsWith('@') ? raw : `@${raw}`;
+}
+
+/**
+ * 🛡️ Strict Customer Target Recipient Validation Helper
+ * Enforces that any invoice MUST have a valid Telegram @username (e.g. @slzyoung) or Phone Number (+628...).
+ * Invoices without a valid target are strictly rejected as invalid.
+ */
+function validateAndExtractCustomerTarget(rawTarget?: string, textContent?: string): { valid: boolean; target: string | null; error?: string } {
+  let candidate = (rawTarget || '').trim();
+
+  // Extract candidate from text content / prompt if candidate is not explicitly set or is default email
+  if ((!candidate || candidate.includes('@zegaai.site') || (!candidate.startsWith('@') && !candidate.startsWith('+') && !candidate.startsWith('08'))) && textContent) {
+    const handleMatch = textContent.match(/@([a-zA-Z0-9_]{3,32})/);
+    if (handleMatch) {
+      candidate = handleMatch[0];
+    } else {
+      const phoneMatch = textContent.match(/(\+?62\d{8,13}|08\d{8,12})/);
+      if (phoneMatch) {
+        candidate = phoneMatch[0];
+      }
+    }
+  }
+
+  if (!candidate || candidate.includes('@zegaai.site')) {
+    return {
+      valid: false,
+      target: null,
+      error: 'Target penerima invoice wajib diisi dengan Telegram @username (contoh: @username) atau Nomor Telepon (+628...). Invoice tidak dapat dibuat tanpa target penerima yang valid.'
+    };
+  }
+
+  const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(candidate);
+  const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(candidate);
+
+  if (!isTelegramHandle && !isPhoneNumber) {
+    return {
+      valid: false,
+      target: null,
+      error: `Format target penerima "${candidate}" tidak valid. Harus diawali dengan @ untuk Telegram @username (contoh: @username) atau Nomor Telepon (+628...).`
+    };
+  }
+
+  return { valid: true, target: candidate };
+}
 
 // 🛡️ Global In-Memory Invoice Deduplication Map (Prevents double-sending within 15s window)
 const sentInvoiceDeduplicationMap = new Map<string, { timestamp: number; response: any }>();
@@ -642,15 +799,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 `📌 <b>INFO REFUND:</b> Pembayaran Anda lunas. Kelebihan sebesar <b>+${excessAmount.toFixed(2)} USDC</b> telah dicatat &amp; otomatis masuk ke Daftar Refund (Refund Queue) merchant untuk pengembalian.`;
             }
 
-            let cleanChatId = customerTarget.trim();
-            if (!/^\d+$/.test(cleanChatId)) {
-              const normWithAt = cleanChatId.startsWith('@') ? cleanChatId.toLowerCase() : `@${cleanChatId.toLowerCase()}`;
-              const normNoAt = cleanChatId.replace(/^@/, '').toLowerCase();
-              const cachedCid = telegramChatRegistry.get(normWithAt) || telegramChatRegistry.get(normNoAt);
-              if (cachedCid) {
-                cleanChatId = cachedCid;
-              }
-            }
+            const cleanChatId = await resolveTelegramChatId(customerTarget, telegramBotToken);
             try {
               const tgReceiptRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 method: 'POST',
@@ -967,13 +1116,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           } catch {}
         }
 
-        // Send Telegram Auto-Dispatch Receipt
+        // Dynamic Telegram Target: Only dispatch if explicitly provided by request body or valid handle
         let telegramSent = false;
         const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-        const tgTarget = telegramChannel || userEmail || '@slzyoung';
+        const rawTarget = (telegramChannel && telegramChannel.trim()) ||
+          (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+
+        const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
 
         if (tgToken && tgToken.trim().length > 10 && tgTarget) {
           try {
+            const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
             const text =
               `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -989,7 +1142,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                chat_id: tgTarget,
+                chat_id: targetChatId,
                 text,
                 parse_mode: 'HTML',
               }),
@@ -1137,13 +1290,25 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       solanaPayUrl: string;
       referenceKey: string;
       buyerEmail?: string;
+      customerTarget?: string;
+      telegramChannel?: string;
       isDemo?: boolean;
     }
   }>('/invoice/create', async (request, reply) => {
-    const { userId, merchantPubkey, amount, memo, solanaPayUrl, referenceKey, buyerEmail, isDemo } = request.body || {};
+    const { userId, merchantPubkey, amount, memo, solanaPayUrl, referenceKey, buyerEmail, customerTarget, telegramChannel, isDemo } = request.body || {};
     const userEmail = userId || 'user@zegaai.site';
     const amountUsdc = parseFloat(amount) || 15.00;
     const isDemoBool = false;
+
+    // 🛡️ Strict Customer Target Validation: Must be valid Telegram @username or Phone number
+    const targetValidation = validateAndExtractCustomerTarget(customerTarget || telegramChannel || buyerEmail, memo);
+    if (!targetValidation.valid) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Customer Target',
+        message: targetValidation.error
+      });
+    }
 
     let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
     try {
@@ -1208,6 +1373,45 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             created_at: new Date().toISOString()
           })
         });
+      }
+
+      // 4. Auto-dispatch Telegram Photo QR Code to target recipient if Telegram handle provided
+      const resolvedTarget = customerTarget || telegramChannel;
+      if (resolvedTarget && resolvedTarget.trim().startsWith('@')) {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (botToken && botToken.trim().length > 10) {
+          resolveTelegramChatId(resolvedTarget, botToken).then(async (targetChatId) => {
+            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
+            const captionText =
+              `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `• <b>Tagihan:</b> <code>${amountUsdc.toFixed(2)} USDC</code>\n` +
+              `• <b>Memo:</b> ${memo || 'Solana Pay Invoice'}\n` +
+              `• <b>Ref Key:</b> <code>${referenceKey}</code>\n` +
+              `• <b>R2 CDN Audit:</b> <a href="${r2CdnUrl}">Audit Certificate</a>\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `📱 <b>Solana Pay URI:</b>\n<code>${solanaPayUrl}</code>\n\n` +
+              `⚡ <b>Scan QR Code di atas menggunakan Phantom / Solflare Mobile untuk menyelesaikan pembayaran.</b>`;
+
+            await fetch(`https://api.telegram.org/bot${botToken.trim()}/sendPhoto`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: targetChatId,
+                photo: qrImageUrl,
+                caption: captionText,
+                parse_mode: 'HTML',
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: `⚡ Web Checkout (${amountUsdc.toFixed(2)} USDC)`, url: `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}` }
+                    ]
+                  ]
+                }
+              })
+            }).catch(() => {});
+          }).catch(() => {});
+        }
       }
     } catch (e) {
       // Fallback
@@ -1554,6 +1758,24 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let solanaPayUrl = '';
     let referenceKey = '';
     if (isPayRequest) {
+      // 🛡️ Strict Customer Target Validation for AI Invoice Prompts (@username or Phone required)
+      const rawCustomerTarget = (merchantContext as any)?.customerTarget || (merchantContext as any)?.telegramChannel;
+      const targetValidation = validateAndExtractCustomerTarget(rawCustomerTarget, prompt);
+
+      if (!targetValidation.valid) {
+        return reply.status(400).send({
+          success: false,
+          executionStatus: 'rejected_invalid_target',
+          error: 'Invalid Customer Target',
+          message: `⚠️ Invoice generation rejected: ${targetValidation.error}`,
+          modelUsed: 'OWASP-Target-Validation-Gate',
+          latencyMs: 8,
+          tps: 500,
+          solanaPayUrl: null,
+          referenceKey: null,
+        });
+      }
+
       const normalizedPrompt = prompt.replace(/(\d+),(\d+)/g, '$1.$2');
       // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
@@ -2813,31 +3035,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (telegramBotToken) {
         try {
-          const cleanTarget = target.trim();
-          let chatIdParam: string = cleanTarget;
-
-          // If target is a handle (@username or plain username), resolve to numeric Chat ID
-          if (!/^\d+$/.test(cleanTarget)) {
-            const normalizedWithAt = cleanTarget.startsWith('@') ? cleanTarget.toLowerCase() : `@${cleanTarget.toLowerCase()}`;
-            const normalizedNoAt = cleanTarget.replace(/^@/, '').toLowerCase();
-
-            const cachedId = telegramChatRegistry.get(normalizedWithAt) || telegramChatRegistry.get(normalizedNoAt);
-            if (cachedId) {
-              chatIdParam = cachedId;
-            } else {
-              try {
-                const getChatRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/getChat?chat_id=${encodeURIComponent(normalizedWithAt)}`);
-                if (getChatRes.ok) {
-                  const getChatJson: any = await getChatRes.json();
-                  if (getChatJson.ok && getChatJson.result?.id) {
-                    chatIdParam = String(getChatJson.result.id);
-                    telegramChatRegistry.set(normalizedWithAt, chatIdParam);
-                    telegramChatRegistry.set(normalizedNoAt, chatIdParam);
-                  }
-                }
-              } catch { /* resolution fallback */ }
-            }
-          }
+          const chatIdParam = await resolveTelegramChatId(target, telegramBotToken);
 
           // 🛡️ Single-Dispatch Telegram Photo QR Delivery (Anti-Duplicate Guard)
           const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
