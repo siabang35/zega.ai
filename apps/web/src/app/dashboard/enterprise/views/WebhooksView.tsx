@@ -282,7 +282,7 @@ export function WebhooksView({ onTriggerToast }: WebhooksViewProps) {
             <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
               <span className="text-slate-500">Secret</span>
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-slate-700 dark:text-slate-300">{showSecret ? 'whsec_88921a009fb24c' : 'whsec_••••••••••••'}</span>
+                <span className="text-slate-700 dark:text-slate-300">{showSecret ? 'sec_88921a009fb24c' : 'sec_••••••••••••'}</span>
                 <button onClick={() => setShowSecret(!showSecret)} className="text-indigo-600 text-[10.5px] font-bold hover:underline">
                   {showSecret ? 'Hide' : 'Reveal'}
                 </button>

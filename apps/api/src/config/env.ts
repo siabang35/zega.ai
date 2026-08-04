@@ -66,6 +66,12 @@ const envSchema = z.object({
   R2_ENDPOINT: z.string().default(''),
   R2_PUBLIC_DOMAIN: z.string().default('https://cdn.zegaai.site'),
 
+  // ZEGA API & Webhook Configuration
+  ZEGA_PUBLIC_API_KEY: z.string().default(''),
+  ZEGA_SECRET_API_KEY: z.string().default(''),
+  ZEGA_WEBHOOK_URL: z.string().default('https://zegaai.site/api/v1/webhook'),
+  ZEGA_WEBHOOK_SECRET: z.string().default(''),
+
   // x402
   X402_NETWORK: z.enum(['base', 'base-sepolia', 'arbitrum', 'polygon']).default('base-sepolia'),
   X402_RPC_URL: z.string().url().default('https://sepolia.base.org'),

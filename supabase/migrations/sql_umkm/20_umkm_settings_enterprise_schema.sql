@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS public.umkm_settings_integrations (
 CREATE TABLE IF NOT EXISTS public.umkm_settings_api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id VARCHAR(100) NOT NULL DEFAULT 'STORE-DEMO-1283',
-  public_api_key VARCHAR(100) NOT NULL DEFAULT 'pk_live_5h2c819241924192419241924',
-  secret_api_key VARCHAR(100) NOT NULL DEFAULT 'zga_sec_9dj781249124819248124812',
-  webhook_url TEXT NOT NULL DEFAULT 'https://app.zega.ai/webhook/stripe',
-  webhook_secret VARCHAR(100) DEFAULT 'whsec_812491249124',
+  public_api_key VARCHAR(100) NOT NULL DEFAULT '',
+  secret_api_key VARCHAR(100) NOT NULL DEFAULT '',
+  webhook_url TEXT NOT NULL DEFAULT 'https://zegaai.site/api/v1/webhook',
+  webhook_secret VARCHAR(100) DEFAULT '',
   is_active BOOLEAN NOT NULL DEFAULT true,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -84,7 +84,7 @@ ON CONFLICT (store_id, integration_key) DO UPDATE SET updated_at = NOW();
 
 -- Seed default API keys
 INSERT INTO public.umkm_settings_api_keys (store_id, public_api_key, secret_api_key, webhook_url)
-VALUES ('STORE-DEMO-1283', 'pk_live_5h2c819241924192419241924', 'zga_sec_9dj781249124819248124812', 'https://app.zega.ai/webhook/stripe')
+VALUES ('STORE-DEMO-1283', '', '', 'https://zegaai.site/api/v1/webhook')
 ON CONFLICT (store_id) DO UPDATE SET updated_at = NOW();
 
 -- Seed default system preferences

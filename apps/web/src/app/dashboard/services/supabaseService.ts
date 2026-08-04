@@ -2259,9 +2259,9 @@ export const SupabaseDashboardService = {
       return {
         integrations: integrations || [],
         apiKeys: apiKeys || {
-          public_api_key: 'pk_live_5h2c819241924192419241924',
-          secret_api_key: 'zga_sec_9dj781249124819248124812',
-          webhook_url: 'https://app.zega.ai/webhook/stripe'
+          public_api_key: (import.meta.env.VITE_ZEGA_PUBLIC_API_KEY as string) || '',
+          secret_api_key: '',
+          webhook_url: (import.meta.env.VITE_ZEGA_WEBHOOK_URL as string) || 'https://zegaai.site/api/v1/webhook'
         },
         preferences: preferences || {
           timezone: 'Asia/Jakarta (WIB)',
