@@ -605,6 +605,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
+    let expectedAmount = validAmountUsdc;
+    let settlementStatus: 'settled_exact' | 'settled_underpaid' | 'settled_overpaid' = 'settled_exact';
+    let shortageAmount = 0;
+    let excessAmount = 0;
+
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 2: Base58 Solana Signature Validation (Zero-Trust Real On-Chain Check)
     // Synthetic IDs (sol_..., gen_inv_...) are strictly REJECTED.
@@ -801,7 +806,6 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         // DYNAMIC PAYMENT ACCURACY CLASSIFICATION & TELEGRAM NOTIFICATION
         // ════════════════════════════════════════════════════════════════════════
         let invoiceRow: any = null;
-        let expectedAmount = validAmountUsdc;
         let customerTarget: string | null = null;
         let channelType = 'telegram';
 
@@ -824,10 +828,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }
         }
 
-        let settlementStatus: 'settled_exact' | 'settled_underpaid' | 'settled_overpaid' = 'settled_exact';
         let statusDbString = 'confirmed';
-        let shortageAmount = 0;
-        let excessAmount = 0;
 
         if (validAmountUsdc < expectedAmount - 0.001) {
           settlementStatus = 'settled_underpaid';
