@@ -18,8 +18,8 @@ export function UserDashboard({
   dark,
   setDark,
   userRole = 'individual',
-  userEmail = 'siabang35@gmail.com',
-  userName = 'Authentic User',
+  userEmail = '',
+  userName = '',
   isGuest = false,
 }: UserDashboardProps) {
   if (userRole === 'enterprise') {

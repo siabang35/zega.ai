@@ -23,18 +23,16 @@ export interface ZegaOrchestratorViewProps {
 
 export function ZegaOrchestratorView({
   userRole = 'enterprise',
-  userName = 'PT Zenith Enterprise',
-  userEmail = 'wildan@zenith.ai',
-  isGuest = true,
+  userName = '',
+  userEmail = '',
+  isGuest = false,
   dark = false,
   onNavigateToSandbox,
   onSwitchWorkspace
 }: ZegaOrchestratorViewProps) {
   // Determine displayed organization name based on auth state
-  const isGuestUser = isGuest ?? true;
-  const displayOrgName = !isGuest 
-    ? (userName && !userName.includes('Guest') ? userName : 'PT Zenith Enterprise')
-    : 'Guest Enterprise (Demo)';
+  const isGuestUser = false;
+  const displayOrgName = userName || 'Enterprise';
 
   // Time Range State
   const [timeRange, setTimeRange] = useState('Last 24 hours');
@@ -163,7 +161,7 @@ export function ZegaOrchestratorView({
             Good Morning, {displayOrgName} 👋
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-            Enterprise AI Operating System {isGuestUser && '(Guest Preview)'}
+            Enterprise AI Operating System
           </p>
         </div>
 

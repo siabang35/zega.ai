@@ -45,16 +45,14 @@ interface EnterpriseDashboardProps {
   setDark: (val: boolean) => void;
   userEmail?: string;
   userName?: string;
-  isGuest?: boolean;
 }
 
 export function EnterpriseDashboardView({
   onClose,
   dark,
   setDark,
-  userEmail = 'enterprise@zegaai.site',
-  userName = 'Acme Enterprise Admin',
-  isGuest = false,
+  userEmail = '',
+  userName = '',
 }: EnterpriseDashboardProps) {
   const tabToSlugMap: Record<string, string> = {
     console: 'overview',
@@ -148,10 +146,8 @@ export function EnterpriseDashboardView({
   };
 
   // Determine displayed organization name based on auth state
-  const displayOrgName = isGuest 
-    ? 'Guest Enterprise (Demo)' 
-    : (userName && !userName.includes('Guest') ? userName : 'PT Zenith Enterprise');
-  const displayUserRole = isGuest ? 'Enterprise Guest Admin' : 'Enterprise Admin';
+  const displayOrgName = userName || 'Enterprise';
+  const displayUserRole = 'Enterprise Admin';
 
   const enterpriseMenuCategories = [
     {
@@ -378,17 +374,7 @@ export function EnterpriseDashboardView({
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
-        {/* Guest Demo Mode Banner */}
-        {isGuest && (
-          <div className="bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-200/80 dark:border-indigo-900/50 px-4 md:px-6 py-2 flex items-center gap-2.5 text-[11px] md:text-xs text-indigo-950 dark:text-indigo-200 font-medium select-none">
-            <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-sans text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-none border-none">
-              Enterprise Mode
-            </span>
-            <span className="truncate">
-              Exploring ZEGA AI Platform in <strong>Enterprise Mode (Guest Demo)</strong>.
-            </span>
-          </div>
-        )}
+
 
         {/* Top Header Navigation */}
         <header className="h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
@@ -429,20 +415,7 @@ export function EnterpriseDashboardView({
             </button>
             <LanguageSelector />
             
-            {/* Close 'X' Button — Only available in Guest/Demo Mode to prevent accidental logout */}
-            {isGuest && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onClose();
-                }}
-                title="Exit Demo Sandbox"
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            )}
+
           </div>
         </header>
 
@@ -451,7 +424,7 @@ export function EnterpriseDashboardView({
           {(activeTab === 'console' || activeTab === 'overview') && (
             <OverviewView 
               onNavigateToSandbox={() => setActiveTab('sandbox')} 
-              isGuest={isGuest}
+              isGuest={false}
               userName={displayOrgName}
               userEmail={userEmail}
             />
@@ -467,7 +440,7 @@ export function EnterpriseDashboardView({
           {activeTab === 'api_sdk' && <ApiSdkView onTriggerToast={triggerToast} />}
           {activeTab === 'webhooks' && <WebhooksView onTriggerToast={triggerToast} />}
           {activeTab === 'system_logs' && <DeveloperLogsView onTriggerToast={triggerToast} />}
-          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} isGuest={isGuest} userEmail={userEmail} userName={userName} />}
+          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} isGuest={false} userEmail={userEmail} userName={userName} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
           {(activeTab === 'usage_billing' || activeTab === 'payments_bills') && <UsageBillingView onTriggerToast={triggerToast} />}
           {(activeTab === 'ai_safety' || activeTab === 'security_center') && <AiSafetyView onTriggerToast={triggerToast} />}

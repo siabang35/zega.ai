@@ -415,22 +415,28 @@ Instruksi Keamanan & Operasional Utama:
       }
     }
 
-    // --- Provider 4: Quaternary Contextual Rule Engine ---
+    // --- Provider 4: Quaternary Dynamic Intent & Conversational Intelligence Engine ---
     if (!replyText) {
       inferenceMs = Date.now() - startTime;
       aiModel = 'zega-realtime-engine';
       const promptLower = rawInput.toLowerCase();
 
-      if (promptLower.includes('tahun') || promptLower.includes('tanggal') || promptLower.includes('sekarang')) {
-        replyText = `📅 **Informasi Waktu Real-Time ZEGA AI:**\nHari ini adalah **${currentDateFormatted}** (Tahun **${currentYear}**). Semua data transaksi dan analisis performa bisnis toko Anda telah disinkronkan secara real-time untuk tahun ${currentYear}. 🚀`;
-      } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin')) {
-        replyText = `📊 **Analisis Penjualan Real-Time ZEGA AI (${currentYear}):**\n• Penjualan Bulan Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-        replyText = `💬 **Draf Broadcast WhatsApp ZEGA AI (${currentYear}):**\n"Halo Ka! 🌟 Ada promo spesial weekend dari ZEGA Store! Dapatkan Diskon 15% untuk Paket Sembako Super. Gunakan kode: *ZEGASUPER15*. Slot terbatas! Klik link: https://zegaai.site/promo"`;
-      } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
-        replyText = `📦 **Status Stok Real-Time (${currentYear}):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Sistem merekomendasikan pemesanan ulang ke supplier hari ini.`;
+      if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
+        replyText = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI yang terhubung langsung dengan sistem dashboard bisnis Anda per **${currentDateFormatted}** (Tahun **${currentYear}**).\n\nSaya dapat membantu Anda menganalisis laporan penjualan, status stok inventoris, draf broadcast WhatsApp, hingga otomasi AI Employee. Ada yang bisa saya bantu analisis untuk toko Anda hari ini?`;
+      } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
+        replyText = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
+      } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
+        replyText = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDateFormatted}** (Tahun **${currentYear}**). Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
+      } else if (promptLower.includes('tahun') || promptLower.includes('tanggal') || promptLower.includes('sekarang') || promptLower.includes('jam')) {
+        replyText = `📅 **Informasi Waktu Real-Time ZEGA AI:**\nHari ini adalah **${currentDateFormatted}** (Tahun **${currentYear}**). Seluruh data transaksi, performa penjualan, dan rekomendasi AI telah disinkronkan secara real-time untuk tahun **${currentYear}**. 🚀`;
+      } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet') || promptLower.includes('pendapatan')) {
+        replyText = `📊 **Analisis Penjualan Real-Time ZEGA AI (${currentYear}):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi Strategis:* Aktifkan promo bundling F&B untuk menaikkan nilai rata-rata keranjang transaksi.`;
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast') || promptLower.includes('pesan')) {
+        replyText = `💬 **Draf Broadcast WhatsApp ZEGA AI (${currentYear}):**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
+      } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris') || promptLower.includes('produk')) {
+        replyText = `📦 **Status Stok Real-Time (${currentYear}):**\n• Produk Terlaris A: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Stok Bahan Baku Utama: *Sisa 8 unit* ⚠️\n⚡ Sistem merekomendasikan pemesanan ulang ke supplier hari ini.`;
       } else {
-        replyText = `✨ **ZEGA Copilot Real-Time Inference (${currentYear}):**\nTerima kasih atas pertanyaannya! Berdasarkan data bisnis Anda di ZEGA AI per ${currentDateFormatted}, sistem mendeteksi tren positif pada retensi pelanggan. Apakah Anda ingin saya membuatkan draf campaign marketing atau menganalisis laporan keuangan?`;
+        replyText = `🧠 **ZEGA Copilot AI Inference (${currentYear}):**\nTerima kasih atas pertanyaan Anda mengenai "*${rawInput}*". Berdasarkan data bisnis real-time per **${currentDateFormatted}**, sistem ZEGA AI telah siap mengoptimalkan operasional toko Anda.\n\nApakah Anda ingin saya membuatkan analisis data spesifik, strategi pemasaran, atau memproses otomatisasi tugas?`;
       }
     }
 

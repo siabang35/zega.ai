@@ -91,7 +91,7 @@ export class PrivyWalletService {
     providerLabel: string;
   } {
     const isPrivyActive = this.isConfigured();
-    const userEmail = email || 'user@zegaai.site';
+    const userEmail = email || '';
     const derivedAddress = this.deriveSolanaPublicKey(userEmail);
 
     return {

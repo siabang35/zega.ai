@@ -894,23 +894,7 @@ function AuthModal({
     }
   };
 
-  const handleQuickRoleLogin = async (role: 'superadmin' | 'enterprise' | 'individual') => {
-    setLoading(true);
-    setAuthError(null);
-    const mockRes = await SupabaseDashboardService.setDemoSession(role);
-    const session = mockRes.data?.session;
-    const sessionEmail = session?.email || 'user@zegaai.site';
-    const sessionName = session?.fullName || 'Authenticated User';
-
-    await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: sessionEmail });
-
-    // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
-    PrivyWalletService.syncUserToPrivyBackend(sessionEmail, role, 'email', sessionName).catch(() => { });
-
-    setLoading(false);
-    onSubmitSuccess(`Authenticated as ${sessionName} (${role.toUpperCase()})! Opening Dashboard...`, role);
-    onClose();
-  };
+  // handleQuickRoleLogin removed — OWASP Zero-Trust: All dashboard access requires authenticated session via OTP or OAuth.
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -918,7 +902,12 @@ function AuthModal({
     setAuthError(null);
     setInfoMessage(null);
 
-    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zegaai.site' : 'user@zegaai.site');
+    if (!email || !email.trim()) {
+      setAuthError('Silakan masukkan alamat email Anda untuk melanjutkan.');
+      setLoading(false);
+      return;
+    }
+    const userEmail = email.trim();
     const tokenToSend = turnstileToken || "DEVELOPMENT_BYPASS_TOKEN";
 
     try {
@@ -957,7 +946,12 @@ function AuthModal({
     setLoading(true);
     setAuthError(null);
 
-    const userEmail = email || (audienceSegment === 'enterprise' ? 'enterprise@zegaai.site' : 'user@zegaai.site');
+    if (!email || !email.trim()) {
+      setAuthError('Email tidak valid. Silakan masukkan email Anda.');
+      setLoading(false);
+      return;
+    }
+    const userEmail = email.trim();
 
     try {
       const res = await SupabaseDashboardService.verifyOtp(
@@ -1384,7 +1378,17 @@ function getInitialPath(): string {
     path === "/admin" || path.startsWith("/admin/");
 
   if (isDirectDash) {
-    return path;
+    try {
+      const mockStr = localStorage.getItem('zega_mock_session');
+      if (mockStr) {
+        const parsed = JSON.parse(mockStr);
+        if (parsed && parsed.email && !parsed.isGuest) {
+          return path;
+        }
+      }
+    } catch (e) { }
+    // OWASP Zero-Trust Route Guard: Redirect unauthenticated direct URL requests to landing page
+    return "/";
   }
 
   // Check if authenticated user has active session stored in localStorage
@@ -2241,27 +2245,37 @@ function AppContent() {
     currentPath === '/admin' || currentPath.startsWith('/admin/');
 
   if (isDashboardRoute) {
-    let mock = localStorage.getItem('zega_mock_session');
-    if (!mock) {
-      const defaultRole = currentPath.startsWith('/admin') ? 'superadmin' : currentPath.startsWith('/console') ? 'enterprise' : 'individual';
-      const defaultSession = {
-        role: defaultRole,
-        email: 'user@zegaai.site',
-        fullName: 'Authenticated User',
-        isGuest: false,
-      };
-      localStorage.setItem('zega_mock_session', JSON.stringify(defaultSession));
-      mock = JSON.stringify(defaultSession);
+    let session: any = null;
+    try {
+      const mock = localStorage.getItem('zega_mock_session');
+      if (mock) {
+        session = JSON.parse(mock);
+      }
+    } catch (e) {
+      session = null;
     }
-    const session = mock ? JSON.parse(mock) : null;
-    if (session) {
-      const role = currentPath.startsWith('/admin')
-        ? 'superadmin'
-        : currentPath.startsWith('/console')
-          ? 'enterprise'
-          : currentPath.startsWith('/dashboard')
-            ? 'individual'
-            : (session?.role || 'individual');
+
+    // OWASP Zero-Trust Authentication Guard: Block unauthenticated or guest users from dashboard routes
+    if (!session || !session.email || session.isGuest) {
+      localStorage.removeItem('zega_mock_session');
+      if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+        window.history.replaceState({}, '', '/');
+      }
+      setTimeout(() => {
+        setCurrentPath('/');
+        setIsAuthModalOpen(true);
+        setToastMessage('🔒 Akses Dibatasi: Silakan masuk dengan akun terverifikasi untuk mengakses Dashboard ZEGA AI.');
+      }, 0);
+      return null;
+    }
+
+    const role = currentPath.startsWith('/admin')
+      ? 'superadmin'
+      : currentPath.startsWith('/console')
+        ? 'enterprise'
+        : currentPath.startsWith('/dashboard')
+          ? 'individual'
+          : (session?.role || 'individual');
 
       if (role === 'superadmin') {
         return (
@@ -2280,8 +2294,6 @@ function AppContent() {
               const userSession = {
                 ...session,
                 role: 'enterprise',
-                email: 'enterprise@zegaai.site',
-                fullName: 'Acme Enterprise Admin',
               };
               localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
               navigateTo('/console');
@@ -2302,15 +2314,13 @@ function AppContent() {
           dark={dark}
           setDark={setDark}
           userRole={role as any}
-          userEmail={session?.email || 'siabang35@gmail.com'}
-          userName={session?.fullName || 'Authentic User'}
-          isGuest={session?.isGuest ?? false}
+          userEmail={session?.email || ''}
+          userName={session?.fullName || ''}
+          isGuest={false}
           onSwitchToAdminMode={() => {
             const adminSession = {
               ...session,
               role: 'superadmin',
-              email: 'admin@zegaai.site',
-              fullName: 'ZEGA SuperAdmin',
             };
             localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
             navigateTo('/admin');
@@ -2318,7 +2328,6 @@ function AppContent() {
         />
       );
     }
-  }
 
   return (
     <div
@@ -3821,8 +3830,6 @@ function AppContent() {
                 const userSession = {
                   ...session,
                   role: 'enterprise',
-                  email: 'enterprise@zegaai.site',
-                  fullName: 'Acme Enterprise Admin',
                 };
                 localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
                 setShowDashboard(false);
@@ -3845,9 +3852,9 @@ function AppContent() {
             dark={dark}
             setDark={setDark}
             userRole={role}
-            userEmail={session?.email || 'siabang35@gmail.com'}
-            userName={session?.fullName || 'Authentic User'}
-            isGuest={session?.isGuest ?? false}
+            userEmail={session?.email || ''}
+            userName={session?.fullName || ''}
+            isGuest={false}
           />
         );
       })()}

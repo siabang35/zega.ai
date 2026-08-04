@@ -182,7 +182,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     return () => unsubscribe();
   }, []);
 
-  const activeMerchantWallet = PrivyWalletService.getEmbeddedSolanaWallet(userEmail || 'user@zegaai.site').address;
+  const activeMerchantWallet = PrivyWalletService.getEmbeddedSolanaWallet(userEmail || '').address;
   const shortMerchantWallet = activeMerchantWallet ? `${activeMerchantWallet.substring(0, 6)}...${activeMerchantWallet.substring(activeMerchantWallet.length - 6)}` : 'CikBeriuk...XYZ123';
 
   const handleCopyWallet = () => {

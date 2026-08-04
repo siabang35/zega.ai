@@ -3,9 +3,9 @@ import { ZegaOrchestratorView } from './ZegaOrchestratorView';
 
 export function OverviewView({ 
   onNavigateToSandbox, 
-  isGuest = true, 
-  userName = 'PT Zenith Enterprise', 
-  userEmail = 'wildan@zenith.ai' 
+  isGuest = false, 
+  userName = '', 
+  userEmail = '' 
 }: { 
   onNavigateToSandbox: () => void; 
   isGuest?: boolean; 
@@ -16,7 +16,7 @@ export function OverviewView({
     <div className="animate-fadeIn">
       <ZegaOrchestratorView 
         onNavigateToSandbox={onNavigateToSandbox} 
-        isGuest={isGuest} 
+        isGuest={false} 
         userName={userName} 
         userEmail={userEmail} 
       />
