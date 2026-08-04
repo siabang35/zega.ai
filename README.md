@@ -213,6 +213,7 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [24. ZeroClaw Terminal Panduan Pengguna (Bahasa Indonesia)](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md)
 - [32. ZEGA Copilot Enterprise Security & Multi-LLM Specification](docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md)
 - [33. 2026 Flagship AI Models, 9Router Swarm & OWASP Security Specification](docs/PRD/33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md)
+- [34. ZEGA AI 6-Layer Enterprise Swarm Architecture Specification](docs/PRD/34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md)
 
 ---
 
