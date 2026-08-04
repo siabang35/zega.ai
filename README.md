@@ -134,29 +134,23 @@ ZEGA/
   - `supabase/migrations/sql_superadmin/` (`20260731000200_master_superadmin_realtime_schema.sql`): Privileged root security guard `fn_is_superadmin_root()`, Token Bucket rate limiter (500 cap), OWASP Sentinel 2MB anti-chunking payload validator, platform telemetry KPIs ($485k MRR), root account audit triggers.
 - **Supabase Realtime Channel Subscriptions**: `SupabaseDashboardService` (`supabaseService.ts`) streaming WebSocket update events across UMKM, Enterprise, and SuperAdmin dashboard containers.
 
-### 9. 🤖 Enterprise ZEGA Copilot AI Assistant, OWASP Guardrails & Multi-LLM Failover Engine
-- **6-Layer OWASP Top 10 for LLM Defense Architecture (`POST /v1/umkm/copilot/chat`)**:
-  - Prompt injection & system prompt override defense.
-  - Multi-tenant data isolation (`store_id` enforcement via Supabase RLS).
-  - Automated secret & API key redaction (`[REDACTED_SECRET]`).
-  - Strict backend proxy isolation (zero API keys exposed in client bundle).
-  - 2,048-character payload validation and anti-DoS rate limiting (100 req/min).
-  - Real-time cryptographic audit trail (`security_status = 'verified'`).
-- **5-Stage Real-Time Multi-LLM Failover Pipeline**:
-  - Stage 1: Google Gemini 1.5 Flash
-  - Stage 2: Groq Llama 3.3 70B
-  - Stage 3: OpenRouter Router Pool
-  - Stage 4: HuggingFace Inference Endpoints
-  - Stage 5: Offline Fallback Rule Engine
-- **Dynamic Temporal Anchoring (Year 2026 Context)**:
-  - System prompt dynamically injects `Tahun: 2026` and current date (`2026-08-05`), eliminating knowledge cutoff hallucinations.
-- **Enterprise Mobile UX & Real-Time Dynamic Calendar Popover**:
-  - **Floating Pill Button**: Positioned at `bottom-[76px]` clearing mobile bottom navigation bar.
-  - **Mobile Bottom Sheet Drawer**: Auto-adapts into a `w-[94vw] h-[72vh]` bottom sheet drawer on screens `< sm`.
-  - **Clean Markdown Renderer**: Custom parser rendering bold highlights, code blocks, lists, and spacing without raw markdown noise.
-  - **100% Real-Time Dynamic Calendar**: Ticking digital clock (`liveTime`), programmatic day matrix generator highlighting today (**5 Ags 2026**), quick date filter shortcuts, and AI store automation schedule.
-  - **Seamless Control Center Bar**: User profile header dropdown with 3-column uniform icon pill bar (`Theme Pill`, `Calendar Pill`, `Language Selector Pill` at `h-8.5 rounded-xl`) and shortened account links (`Profil`, `Billing`, `Keluar`).
-- **Detailed Specification**: Complete architecture documented in [`docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md`](docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md).
+### 9. 🤖 Enterprise ZEGA Copilot AI Assistant, 2026 Flagship Models & 9Router Layer 5 Engine
+- **2026 Flagship LLM Engine Suite**:
+  - **Groq Llama 3.3 70B**: Primary ultra-fast versatile model (<300ms latency).
+  - **DeepSeek V4 / V3**: Analytical reasoning engine served via HuggingFace Inference Endpoints & OpenRouter.
+  - **Google Gemini 3.6 Flash**: Multimodal AI engine powering real-time context & schedule processing.
+- **9Router Layer 5 Model Router Engine**:
+  - Multi-LLM load balance and cost optimization hub listening on `http://localhost:20128/v1/chat/completions`.
+  - Automatic fallback to native swarm consensus if local daemon is unreachable.
+- **5-Layer OWASP LLM Top 10 Security Architecture (`POST /v1/umkm/copilot/chat`)**:
+  1. Input sanitization & 2,048-character length capping.
+  2. IP-based rate limiting (100 req/min).
+  3. Target E.164 / Telegram recipient validation gate.
+  4. Prompt injection & system prompt override guard.
+  5. Secret redaction (`[REDACTED_SECRET]`) masking API keys.
+- **Zero-Trust Mandatory User Authentication**:
+  - All dashboard and terminal features require verified email login (`App.tsx` zero-trust route guard). Guest sessions are completely isolated and blocked from accessing financial/agent tools.
+- **Detailed Specification**: Complete architecture documented in [`docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md`](docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md) and [`docs/PRD/33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md`](docs/PRD/33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md).
 
 ---
 
@@ -179,7 +173,11 @@ pnpm install
 # 3. Copy environment configuration
 cp .env.example .env
 
-# 4. Start frontend and backend concurrently
+# 4. (Optional) Run 9Router Local Daemon
+npm install -g 9router
+9router
+
+# 5. Start frontend and backend concurrently
 pnpm dev
 ```
 
@@ -214,6 +212,7 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [23. ZeroClaw Terminal User Guide (English)](docs/PRD/23-ZEROCLAW-TERMINAL-USER-GUIDE.md)
 - [24. ZeroClaw Terminal Panduan Pengguna (Bahasa Indonesia)](docs/PRD/24-ZEROCLAW-TERMINAL-PANDUAN-PENGGUNA-ID.md)
 - [32. ZEGA Copilot Enterprise Security & Multi-LLM Specification](docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md)
+- [33. 2026 Flagship AI Models, 9Router Swarm & OWASP Security Specification](docs/PRD/33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md)
 
 ---
 

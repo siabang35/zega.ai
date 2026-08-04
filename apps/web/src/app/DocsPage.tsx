@@ -51,8 +51,9 @@ const DOCS_NAV = [
   {
     category: 'CORE ENGINES',
     items: [
-      { id: '9router', title: 'Dynamic LLM Routing' },
-      { id: 'guardrails', title: '5-Layer Guardrails' },
+      { id: '9router', title: 'Dynamic LLM Routing & 9Router Engine' },
+      { id: 'flagship-2026-models', title: '2026 Flagship LLM Models & DeepSeek V4' },
+      { id: 'guardrails', title: '5-Layer OWASP Guardrails' },
       { id: 'orchestrator', title: 'ZEGA Orchestrator' },
     ],
   },
@@ -482,6 +483,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               {activeTab === 'architecture' && 'Understand the 5-layer architecture powering autonomous swarms, sandbox environments, and real-time LLM orchestration.'}
               {activeTab === 'installation' && 'Set up the ZEGA AI SDK in TypeScript, Python, or raw cURL HTTP calls for your production backend.'}
               {activeTab === '9router' && 'Dynamic latency & cost-based AI model routing with zero-downtime automatic fallback across OpenAI, Anthropic, and Google AI.'}
+              {activeTab === 'flagship-2026-models' && '2026 flagship AI models suite integrating DeepSeek V4 (HuggingFace/OpenRouter), Groq Llama 3.3 70B, Google Gemini 3.6 Flash, and 9Router Swarm Engine.'}
               {activeTab === 'guardrails' && '5-layer security guardrail system ensuring PII redaction, prompt injection defense, and schema validation.'}
               {activeTab === 'orchestrator' && 'Manage multi-agent swarms, sandbox task execution, and automated workflow triggers.'}
               {activeTab === 'i18n-enterprise' && 'Enterprise-grade multi-language internationalization (i18n) framework supporting English (EN), Indonesian (ID), and Chinese (ZH) with zero-flicker React context persistence.'}
@@ -557,6 +559,62 @@ VITE_PRIVY_APP_ID=cm6privy_app_id_placeholder
 PRIVY_APP_ID=cm6privy_app_id_placeholder
 PRIVY_APP_SECRET=sec_privy_app_secret_placeholder`}
                   </pre>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* 2026 Flagship LLM Models & 9Router Swarm Engine Interactive Article Renderer */}
+          {activeTab === 'flagship-2026-models' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🤖 2026 Flagship LLM Engine Suite & 9Router Swarm Router
+                </h2>
+                <p>
+                  ZEGA AI integrates 2026 flagship AI models with an automated 5-tier failover orchestrator and <strong>9Router Layer 5 Model Router Engine</strong> running via local daemon or native swarm consensus.
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Zap size={14} className="text-amber-500" />
+                      <span>Groq Llama 3.3 70B</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Primary ultra-fast versatile model (&lt;300ms latency) serving real-time UMKM Copilot queries.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Sparkles size={14} className="text-blue-500" />
+                      <span>DeepSeek V4 / V3</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      High-precision analytical reasoning engine served via HuggingFace Inference Endpoints & OpenRouter.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Globe size={14} className="text-emerald-500" />
+                      <span>Google Gemini 3.6 Flash</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Next-gen multimodal AI engine powering complex context parsing and schedule automation.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Cpu size={14} className="text-purple-500" />
+                      <span>9Router Layer 5 Engine</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Multi-LLM load balance and cost optimization hub listening locally on <code className="font-mono text-purple-400">http://localhost:20128</code>.
+                    </p>
+                  </div>
                 </div>
               </section>
             </div>
