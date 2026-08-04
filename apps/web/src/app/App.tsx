@@ -2425,39 +2425,17 @@ function AppContent() {
             {/* Mobile Menu Hamburger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="grid size-8 place-items-center rounded-full border border-border/80 bg-card text-muted-foreground transition-colors hover:text-foreground md:hidden"
+              className="grid size-8 place-items-center rounded-full border border-border/80 bg-card text-muted-foreground transition-colors hover:text-foreground md:hidden cursor-pointer"
               aria-label="Menu"
             >
-              {mobileOpen ? <X size={14} /> : <Menu size={14} />}
+              {mobileOpen ? <X size={15} className="text-[#ff6b35]" /> : <Menu size={15} />}
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Mobile Drawer Menu — Enterprise Best Practice Redesign */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-[100] h-[100dvh] w-full flex flex-col bg-background text-foreground md:hidden overflow-y-auto animate-fadeIn border-0">
-          {/* Mobile Drawer Top Sticky Header Bar */}
-          <div className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-border/80 bg-background px-5 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <img
-                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                alt="ZEGA AI"
-                width={120}
-                height={34}
-                className="h-6 w-auto object-contain dark:invert"
-              />
-            </div>
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="grid size-8.5 place-items-center rounded-xl border border-border/80 bg-card text-foreground transition-all hover:bg-muted active:scale-95 cursor-pointer shadow-2xs"
-              aria-label="Close menu"
-            >
-              <X size={17} className="text-[#ff6b35]" />
-            </button>
-          </div>
-
-          <div className="flex-1 p-5 space-y-6">
+        {/* Mobile Sticky Sub-Header Dropdown Menu — Absolute Attached to Sticky Header */}
+        {mobileOpen && (
+          <div className="absolute top-full left-0 right-0 z-50 max-h-[85vh] w-full overflow-y-auto border-b border-border/80 bg-background text-foreground p-4 sm:p-5 shadow-2xl md:hidden animate-fadeIn">
             <div className="mx-auto flex max-w-md flex-col gap-1.5">
               {[
                 { label: "Home", id: "home", sub: "Platform Overview & Features", Icon: Home, href: "/home" },
@@ -2468,7 +2446,7 @@ function AppContent() {
                 <a
                   key={label}
                   href={href}
-                  className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/60 active:scale-[0.99]"
+                  className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/80 active:scale-[0.99]"
                   onClick={(e) => {
                     e.preventDefault();
                     setMobileOpen(false);
@@ -2479,17 +2457,17 @@ function AppContent() {
                     } else if (id === "pricing") {
                       navigateTo("/pricing");
                     } else {
-                      navigateTo("/home");
+                      navigateTo("/");
                     }
                   }}
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="grid size-9.5 flex-shrink-0 place-items-center rounded-xl border border-border/60 bg-card text-foreground/80 group-hover:border-[#ff6b35]/40 group-hover:text-[#ff6b35] transition-all">
-                      <Icon size={17} />
+                    <div className="grid size-9 flex-shrink-0 place-items-center rounded-xl border border-border/60 bg-card text-foreground/80 group-hover:border-[#ff6b35]/40 group-hover:text-[#ff6b35] transition-all">
+                      <Icon size={16} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground leading-tight group-hover:text-[#ff6b35] transition-colors">{label}</p>
-                      <p className="text-[11px] text-muted-foreground font-normal mt-0.5">{sub}</p>
+                      <p className="text-[13.5px] font-bold text-foreground leading-tight group-hover:text-[#ff6b35] transition-colors">{label}</p>
+                      <p className="text-[10.5px] text-muted-foreground font-normal mt-0.5">{sub}</p>
                     </div>
                   </div>
                   <ChevronRight size={15} className="text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
@@ -2497,20 +2475,19 @@ function AppContent() {
               ))}
 
               {/* Mobile Footer CTAs & Operational Status */}
-              <div className="mt-4 border-t border-border/50 pt-5 space-y-3">
+              <div className="mt-3 border-t border-border/50 pt-4 space-y-3">
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
-                    className="w-full rounded-xl border border-border bg-card py-3 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer"
+                    className="w-full rounded-xl border border-border/80 bg-card py-2.5 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
                     onClick={() => {
                       setMobileOpen(false);
-                      setShowDocs(true);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      navigateTo("/docs");
                     }}
                   >
                     View Docs
                   </button>
                   <button
-                    className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-3 text-xs font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
+                    className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-2.5 text-xs font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
                     onClick={() => {
                       setMobileOpen(false);
                       handleOpenAuth("self-serve");
@@ -2533,8 +2510,8 @@ function AppContent() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* HERO */}
       <section
