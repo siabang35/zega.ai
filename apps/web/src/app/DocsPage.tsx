@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getR2CdnUrl } from './utils/cdn';
 import {
   ArrowLeft,
@@ -147,6 +147,18 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Prevent background body scroll when documentation mobile menu drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const handleBackToMain = () => {
     if (typeof window !== 'undefined' && (window.location.hostname === 'docs.zegaai.site' || window.location.hostname.startsWith('docs.'))) {
       window.location.href = 'https://zegaai.site';
@@ -235,18 +247,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             </div>
           </div>
 
-          {/* Right: Seamless Main Site Back Link, Theme Toggle & API Key CTA */}
+          {/* Right: Theme Toggle & API Key CTA */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-            {/* Seamless Professional Back to Main Site Button */}
-            <button
-              onClick={handleBackToMain}
-              className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/80 px-2.5 py-1.5 text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted/80 hover:border-[#ff6b35]/40 hover:text-[#ff6b35] shadow-2xs group cursor-pointer whitespace-nowrap"
-              title="Return to ZEGA AI Main Site"
-            >
-              <ArrowLeft size={13} className="text-muted-foreground group-hover:-translate-x-0.5 group-hover:text-[#ff6b35] transition-transform flex-shrink-0" />
-              <span className="inline">Main Site</span>
-            </button>
-
             <a
               href="https://github.com/siabang35/zega.ai"
               target="_blank"
@@ -281,10 +283,24 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
         </div>
       </header>
 
-      {/* Mobile Glassmorphic Navigation Drawer Overlay */}
+      {/* Mobile Navigation Drawer Overlay (100% Opaque Enterprise Overlay) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 md:hidden bg-background/95 backdrop-blur-2xl flex flex-col pt-[58px] animate-in fade-in duration-200">
-          <div className="p-4 border-b border-border/50">
+        <div className="fixed inset-0 z-[100] md:hidden bg-background text-foreground flex flex-col pt-[58px] animate-in fade-in duration-200 h-[100dvh] overflow-y-auto">
+          {/* Drawer Header Action: Professional Back to Main Website Button */}
+          <div className="p-3.5 border-b border-border/50 bg-card/60 flex items-center justify-between gap-3">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleBackToMain();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-[#ff6b35]/30 bg-[#ff6b35]/10 px-3.5 py-2 text-xs font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 transition-all cursor-pointer shadow-2xs group"
+            >
+              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+              <span>Back to Main Site (zegaai.site)</span>
+            </button>
+          </div>
+
+          <div className="p-4 border-b border-border/40">
             <div className="relative">
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input

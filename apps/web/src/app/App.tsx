@@ -1671,6 +1671,18 @@ function AppContent() {
   };
   const [showSplash, setShowSplash] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Prevent background scrolling when mobile navigation drawer is open (Enterprise UX)
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [activeTab, setActiveTab] = useState("Utilization");
   const [vizTab, setVizTab] = useState<"Agent" | "Integration" | "Automation" | "Memory">("Agent");
@@ -2424,78 +2436,100 @@ function AppContent() {
 
       {/* Mobile Drawer Menu — Enterprise Best Practice Redesign */}
       {mobileOpen && (
-        <div className="fixed inset-x-0 top-[60px] z-40 border-b border-border/60 bg-background/95 p-5 backdrop-blur-2xl shadow-2xl transition-all md:hidden animate-fadeIn">
-          <div className="mx-auto flex max-w-md flex-col gap-1.5">
-            {[
-              { label: "Home", id: "home", sub: "Platform Overview & Features", Icon: Home, href: "/home" },
-              { label: "Products", id: "products", sub: "Core AI Engines & Guardrails", Icon: Layers3, href: "/products" },
-              { label: "Docs", id: "docs", sub: "Developer Guides & API Spec", Icon: BookOpen, href: "/docs" },
-              { label: "Pricing", id: "pricing", sub: "Flexible Enterprise Tiers", Icon: Tag, href: "/pricing" },
-            ].map(({ label, id, sub, Icon, href }) => (
-              <a
-                key={label}
-                href={href}
-                className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/60 active:scale-[0.99]"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMobileOpen(false);
-                  if (id === "docs") {
-                    navigateTo("/docs");
-                  } else if (id === "products") {
-                    navigateTo("/products");
-                  } else if (id === "pricing") {
-                    navigateTo("/pricing");
-                  } else {
-                    navigateTo("/home");
-                  }
-                }}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="grid size-9 flex-shrink-0 place-items-center rounded-xl border border-border/60 bg-card text-foreground/80 group-hover:border-[#ff6b35]/40 group-hover:text-[#ff6b35] transition-all">
-                    <Icon size={16} />
+        <div className="fixed inset-0 z-[100] h-[100dvh] w-full flex flex-col bg-background text-foreground md:hidden overflow-y-auto animate-fadeIn border-0">
+          {/* Mobile Drawer Top Sticky Header Bar */}
+          <div className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-border/80 bg-background px-5 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <img
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                alt="ZEGA AI"
+                width={120}
+                height={34}
+                className="h-6 w-auto object-contain dark:invert"
+              />
+            </div>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="grid size-8.5 place-items-center rounded-xl border border-border/80 bg-card text-foreground transition-all hover:bg-muted active:scale-95 cursor-pointer shadow-2xs"
+              aria-label="Close menu"
+            >
+              <X size={17} className="text-[#ff6b35]" />
+            </button>
+          </div>
+
+          <div className="flex-1 p-5 space-y-6">
+            <div className="mx-auto flex max-w-md flex-col gap-1.5">
+              {[
+                { label: "Home", id: "home", sub: "Platform Overview & Features", Icon: Home, href: "/home" },
+                { label: "Products", id: "products", sub: "Core AI Engines & Guardrails", Icon: Layers3, href: "/products" },
+                { label: "Docs", id: "docs", sub: "Developer Guides & API Spec", Icon: BookOpen, href: "/docs" },
+                { label: "Pricing", id: "pricing", sub: "Flexible Enterprise Tiers", Icon: Tag, href: "/pricing" },
+              ].map(({ label, id, sub, Icon, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className="group flex items-center justify-between rounded-xl p-3 transition-all hover:bg-muted/60 active:scale-[0.99]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileOpen(false);
+                    if (id === "docs") {
+                      navigateTo("/docs");
+                    } else if (id === "products") {
+                      navigateTo("/products");
+                    } else if (id === "pricing") {
+                      navigateTo("/pricing");
+                    } else {
+                      navigateTo("/home");
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="grid size-9.5 flex-shrink-0 place-items-center rounded-xl border border-border/60 bg-card text-foreground/80 group-hover:border-[#ff6b35]/40 group-hover:text-[#ff6b35] transition-all">
+                      <Icon size={17} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground leading-tight group-hover:text-[#ff6b35] transition-colors">{label}</p>
+                      <p className="text-[11px] text-muted-foreground font-normal mt-0.5">{sub}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[13px] font-bold text-foreground leading-tight group-hover:text-[#ff6b35] transition-colors">{label}</p>
-                    <p className="text-[10px] text-muted-foreground font-normal mt-0.5">{sub}</p>
-                  </div>
+                  <ChevronRight size={15} className="text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </a>
+              ))}
+
+              {/* Mobile Footer CTAs & Operational Status */}
+              <div className="mt-4 border-t border-border/50 pt-5 space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    className="w-full rounded-xl border border-border bg-card py-3 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setShowDocs(true);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    View Docs
+                  </button>
+                  <button
+                    className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-3 text-xs font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      handleOpenAuth("self-serve");
+                    }}
+                  >
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Sparkles size={13} /> Try Now
+                    </span>
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  </button>
                 </div>
-                <ChevronRight size={14} className="text-muted-foreground/60 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-              </a>
-            ))}
 
-            {/* Mobile Footer CTAs & Operational Status */}
-            <div className="mt-3 border-t border-border/50 pt-4 space-y-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  className="w-full rounded-xl border border-border bg-card py-2.5 text-[11px] font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setShowDocs(true);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                >
-                  View Docs
-                </button>
-                <button
-                  className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-2.5 text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    handleOpenAuth("self-serve");
-                  }}
-                >
-                  <span className="relative z-10 flex items-center gap-1">
-                    <Sparkles size={12} /> Try Now
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-muted/40 py-2 text-[10px] font-mono text-muted-foreground border border-border/40">
+                  <span className="relative flex size-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
                   </span>
-                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/40 py-1.5 text-[9.5px] font-mono text-muted-foreground">
-                <span className="relative flex size-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
-                </span>
-                <span>ZEGA Cloud Systems Operational — 99.97% Uptime</span>
+                  <span>ZEGA Cloud Systems Operational — 99.97% Uptime</span>
+                </div>
               </div>
             </div>
           </div>
