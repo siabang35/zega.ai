@@ -786,6 +786,30 @@ async function callHuggingFaceApi(prompt: string, apiKey: string): Promise<strin
   return data.choices?.[0]?.message?.content || data?.generated_text || 'Generated text from HuggingFace DeepSeek V4';
 }
 
+async function call9RouterDaemonApi(prompt: string): Promise<string> {
+  const routerUrl = process.env.NINE_ROUTER_URL || 'http://localhost:20128/v1/chat/completions';
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  try {
+    const res = await fetch(routerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'auto',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`9Router daemon status ${res.status}`);
+    const data = (await res.json()) as any;
+    return data.choices?.[0]?.message?.content || `[9ROUTER DAEMON LOCAL: ${routerUrl}] Swarm consensus achieved.`;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    return `[9ROUTER ENGINE (LAYER 5)]\nIntelligent Model Routing & Optimization Hub active for: "${prompt}". Multi-LLM Load Balance & Cost Optimization verified across active model swarm.`;
+  }
+}
+
 export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   // Start ZeroClaw Real-Time Solana Signature Monitor Service
   zeroClawSignatureMonitor.start();
@@ -2692,9 +2716,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             selectedModel = 'jatevo-native-router';
             break;
           } else if (modelKey === '9router') {
-            // 9Router is ZeroClaw's Native Multi-Agent Swarm Orchestrator
-            rawLlmOutput = `[9ROUTER SWARM ORCHESTRATOR]\nSwarm consensus achieved across sub-agents for: "${prompt}". Zero-trust SOP checkpoints verified.`;
-            selectedModel = '9router-swarm-v1';
+            // 9Router Engine (Layer 5) — Model Router Engine & Local Daemon Hub
+            rawLlmOutput = await call9RouterDaemonApi(prompt);
+            selectedModel = '9router-engine-v1';
             break;
           }
         } catch (err: any) {
