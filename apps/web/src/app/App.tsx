@@ -1557,6 +1557,12 @@ function AppContent() {
   };
 
   const navigateTo = (path: string) => {
+    if (path === "/docs" || path.startsWith("/docs/")) {
+      if (typeof window !== "undefined" && window.location.hostname !== "docs.zegaai.site") {
+        window.location.href = "https://docs.zegaai.site";
+        return;
+      }
+    }
     if (typeof window !== "undefined" && window.location.pathname !== path) {
       window.history.pushState({}, "", path);
     }

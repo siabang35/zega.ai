@@ -3,6 +3,41 @@
   "buildCommand": "pnpm --filter web build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/docs",
+      "has": [
+        {
+          "type": "host",
+          "value": "zegaai.site"
+        }
+      ],
+      "destination": "https://docs.zegaai.site",
+      "permanent": true
+    },
+    {
+      "source": "/docs",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.zegaai.site"
+        }
+      ],
+      "destination": "https://docs.zegaai.site",
+      "permanent": true
+    },
+    {
+      "source": "/docs/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "zegaai.site"
+        }
+      ],
+      "destination": "https://docs.zegaai.site/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
