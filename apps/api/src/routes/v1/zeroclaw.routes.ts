@@ -2573,38 +2573,39 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const normalizedPrompt = prompt.replace(/(\d+),(\d+)/g, '$1.$2');
-      // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
+      // Strip table/meja identifiers first so table numbers like "table 3" are not parsed as currency amounts
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
+      const promptToParse = promptWithoutTable.replace(/,/g, '.');
 
-      // 1. Explicit currency match: e.g. "0.543 USDC", "0,32 USDC", "$0.543", "0.543 sol"
-      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:[.,]\d+)?)\s*(?:usdc|sol|\$)/i) ||
-        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:[.,]\d+)?)/i);
+      // 1. Explicit currency match: e.g. "0.543 USDC", "0.98 USDC", "$0.543", "0.543 sol"
+      const explicitCurrencyMatch = promptToParse.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
+        promptToParse.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
 
-      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0,32", "0.543 for invoice")
-      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:[.,]\d+)?)/i) ||
-        promptWithoutTable.match(/(\d+(?:[.,]\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.98", "0.98 for invoice")
+      const directAmountMatch = promptToParse.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
+        promptToParse.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
 
-      // 3. Parenthetical match e.g. "(0.543)" or "(0,32)"
-      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:[.,]\d+)?)/);
+      // 3. Parenthetical match e.g. "(0.98 USDC)" or "(0.98)"
+      const parenMatch = promptToParse.match(/\(\s*(\d+(?:\.\d+)?)/);
 
       // 4. Quantity x price match ONLY when explicit quantity word or "x/@" is present e.g. "2 x 7.5" or "2 kopi @ 7.5"
-      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:[.,]\d+)?)/i);
+      const explicitQtyMatch = promptToParse.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
 
       let amount = 15.00;
       if (explicitCurrencyMatch) {
-        amount = parseFloat(explicitCurrencyMatch[1].replace(',', '.'));
+        amount = parseFloat(explicitCurrencyMatch[1]);
       } else if (directAmountMatch) {
-        amount = parseFloat(directAmountMatch[1].replace(',', '.'));
+        amount = parseFloat(directAmountMatch[1]);
       } else if (parenMatch) {
-        amount = parseFloat(parenMatch[1].replace(',', '.'));
+        amount = parseFloat(parenMatch[1]);
       } else if (explicitQtyMatch) {
         const qty = parseInt(explicitQtyMatch[1], 10);
-        const unitPrice = parseFloat(explicitQtyMatch[2].replace(',', '.'));
+        const unitPrice = parseFloat(explicitQtyMatch[2]);
         amount = qty * unitPrice;
       } else {
-        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:[.,]\d+)?\b/g);
+        const anyNumberMatch = promptToParse.match(/(?:\b|\b0)\d+(?:\.\d+)?\b/g) || promptToParse.match(/(\d+(?:\.\d+)?)/g);
         if (anyNumberMatch && anyNumberMatch.length > 0) {
-          amount = parseFloat(anyNumberMatch[0].replace(',', '.'));
+          amount = parseFloat(anyNumberMatch[0]);
         }
       }
 

@@ -738,24 +738,26 @@ export function ZeroClawTerminalView({
     );
 
     if (isInvoiceIntent) {
-      // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
+      // 🛡️ Enterprise Comma & Decimal Sanitization: Normalize "0,98" or "0.98" before regex evaluation
+      // Replaces Indonesian/European comma decimal notation with standard dot notation
       const normalizedPrompt = promptToRun.replace(/(\d+),(\d+)/g, '$1.$2');
+      // Strip table/meja identifiers first so table numbers like "table 3" are not parsed as currency amounts
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
-
-      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol", "0,34 usdc"
       const promptToParse = promptWithoutTable.replace(/,/g, '.');
+
+      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol", "0.98 usdc"
       const explicitCurrencyMatch = promptToParse.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
         promptToParse.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
 
-      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
+      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.98", "0.98 for invoice")
       const directAmountMatch = promptToParse.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
         promptToParse.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
 
-      // 3. Parenthetical match e.g. "(0.543)"
-      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
+      // 3. Parenthetical match e.g. "(0.98 USDC)" or "(0.98)"
+      const parenMatch = promptToParse.match(/\(\s*(\d+(?:\.\d+)?)/);
 
       // 4. Quantity x price match ONLY when explicit quantity word or "x/@" is present e.g. "2 x 7.5" or "2 kopi @ 7.5"
-      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
+      const explicitQtyMatch = promptToParse.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
 
       let parsedNum = 15.00;
       if (explicitCurrencyMatch) {
@@ -769,7 +771,7 @@ export function ZeroClawTerminalView({
         const unitPrice = parseFloat(explicitQtyMatch[2]);
         parsedNum = qty * unitPrice;
       } else {
-        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:\.\d+)?\b/g);
+        const anyNumberMatch = promptToParse.match(/(?:\b|\b0)\d+(?:\.\d+)?\b/g) || promptToParse.match(/(\d+(?:\.\d+)?)/g);
         if (anyNumberMatch && anyNumberMatch.length > 0) {
           parsedNum = parseFloat(anyNumberMatch[0]);
         }
