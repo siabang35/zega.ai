@@ -28,6 +28,8 @@ import {
   ArrowRight,
   Sun,
   Moon,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface DocsPageProps {
@@ -143,6 +145,15 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
   const [pkgManager, setPkgManager] = useState<'npm' | 'pnpm' | 'yarn' | 'bun' | 'curl'>('npm');
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleBackToMain = () => {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'docs.zegaai.site' || window.location.hostname.startsWith('docs.'))) {
+      window.location.href = 'https://zegaai.site';
+    } else {
+      onBack();
+    }
+  };
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -150,16 +161,34 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Filter navigation items by search query
+  const filteredNav = DOCS_NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.category.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+  })).filter((group) => group.items.length > 0);
+
   return (
     <div className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased selection:bg-[#ff6b35]/20 selection:text-[#ff6b35]">
       {/* Enterprise Dedicated Documentation Header (Stripe / Vercel Standard) */}
       <header className="sticky top-0 z-50 h-[58px] border-b border-border/50 bg-background/90 backdrop-blur-xl transition-all">
-        <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-4 sm:px-8">
+        <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-3 sm:px-8">
           {/* Left: Branding & Navigation Back Link */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Mobile Sidebar Hamburger Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden grid size-8 place-items-center rounded-lg border border-border/80 bg-card/80 text-foreground transition-all hover:bg-muted cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
+
             {/* Seamless Back to Main Site Button on LEFT */}
             <button
-              onClick={onBack}
+              onClick={handleBackToMain}
               className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/80 px-2.5 py-1 text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted/80 hover:border-[#ff6b35]/40 hover:text-[#ff6b35] shadow-2xs group cursor-pointer whitespace-nowrap"
               title="Return to ZEGA AI Main Site"
             >
@@ -171,7 +200,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <div className="h-3.5 w-px bg-border/60" />
 
             <button
-              onClick={onBack}
+              onClick={handleBackToMain}
               className="flex items-center gap-1.5 group focus:outline-none cursor-pointer"
               title="ZEGA AI Home"
             >
@@ -180,7 +209,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
                 alt="ZEGA AI"
                 width={120}
                 height={34}
-                className="h-6 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
+                className="h-5.5 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
                 loading="eager"
                 decoding="async"
               />
@@ -239,7 +268,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <button
               onClick={() => {
                 if (triggerComingSoon) triggerComingSoon();
-                else onBack();
+                else handleBackToMain();
               }}
               className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:scale-[1.03] active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
             >
@@ -249,6 +278,52 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
           </div>
         </div>
       </header>
+
+      {/* Mobile Glassmorphic Navigation Drawer Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40 md:hidden bg-background/95 backdrop-blur-2xl flex flex-col pt-[58px] animate-in fade-in duration-200">
+          <div className="p-4 border-b border-border/50">
+            <div className="relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search documentation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#ff6b35]"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {(searchQuery ? filteredNav : DOCS_NAV).map((group) => (
+              <div key={group.category} className="space-y-2">
+                <h4 className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                  {group.category}
+                </h4>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                        activeTab === item.id
+                          ? 'bg-[#ff6b35]/15 text-[#ff6b35] font-bold border border-[#ff6b35]/30'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                      }`}
+                    >
+                      <span>{item.title}</span>
+                      {activeTab === item.id && <Check size={14} className="text-[#ff6b35]" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mx-auto flex max-w-[1500px]">
         {/* Left Navigation Sidebar */}
         <aside className="w-64 flex-shrink-0 border-r border-border/40 p-6 hidden md:block min-h-[calc(100vh-56px)] sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto">
@@ -280,21 +355,26 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
 
         {/* Center Main Article Column */}
         <main className="flex-1 min-w-0 px-4 py-6 sm:px-6 md:px-12 max-w-4xl min-h-[calc(100vh-56px)]">
-          {/* Mobile Documentation Navigation Pills */}
-          <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-b border-border/40">
-            {DOCS_NAV.flatMap((g) => g.items).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex-shrink-0 rounded-full px-3 py-1 text-[10.5px] font-semibold transition-all cursor-pointer ${
-                  activeTab === item.id
-                    ? 'bg-[#ff6b35] text-white shadow-xs'
-                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                {item.title}
-              </button>
-            ))}
+          {/* Mobile Documentation Navigation Bar (<768px) */}
+          <div className="md:hidden flex items-center justify-between gap-2 pb-3 mb-4 border-b border-border/40">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex-1 flex items-center justify-between rounded-xl border border-border/80 bg-card/80 px-3 py-2 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted/80 transition-all cursor-pointer truncate"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <BookOpen size={14} className="text-[#ff6b35] flex-shrink-0" />
+                <span className="truncate">{DOCS_NAV.flatMap((g) => g.items).find((i) => i.id === activeTab)?.title || 'Quickstart'}</span>
+              </div>
+              <ChevronDown size={14} className="text-muted-foreground flex-shrink-0 ml-2" />
+            </button>
+
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-[#ff6b35]/30 bg-[#ff6b35]/10 px-3 py-2 text-[11px] font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 transition-all cursor-pointer flex-shrink-0"
+            >
+              <Menu size={14} />
+              <span>Menu</span>
+            </button>
           </div>
 
           {/* Breadcrumbs */}

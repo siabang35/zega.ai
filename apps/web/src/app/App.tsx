@@ -1569,11 +1569,18 @@ function AppContent() {
     setCurrentPath(path);
   };
 
-  // Sync initial URL bar state on mount if redirected to dashboard
+  // Sync initial URL bar state on mount if redirected to dashboard or docs subdomain
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.pathname !== currentPath) {
-      const search = window.location.search || "";
-      window.history.replaceState({}, "", currentPath + search);
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname === "docs.zegaai.site" || hostname.startsWith("docs.")) {
+        if (window.location.pathname === "/docs" || window.location.pathname === "/docs/") {
+          window.history.replaceState({}, "", "/" + window.location.search);
+        }
+      } else if (window.location.pathname !== currentPath) {
+        const search = window.location.search || "";
+        window.history.replaceState({}, "", currentPath + search);
+      }
     }
   }, []);
 
