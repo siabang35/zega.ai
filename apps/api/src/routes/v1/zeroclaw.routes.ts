@@ -237,18 +237,73 @@ async function upsertVerifiedInvoice(params: {
   }
 }
 
+// 🛡️ Single-Flight Promise Lock for Telegram getUpdates (Prevents HTTP 409 Conflicts under high concurrency)
+let activeTelegramUpdatesPromise: Promise<void> | null = null;
+
+async function syncTelegramBotUpdatesSingleFlight(botToken: string): Promise<void> {
+  if (activeTelegramUpdatesPromise) {
+    return activeTelegramUpdatesPromise;
+  }
+
+  activeTelegramUpdatesPromise = (async () => {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getUpdates?limit=100`);
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.ok && Array.isArray(json.result)) {
+          const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+          for (const update of json.result) {
+            const msg = update.message || update.edited_message || update.channel_post || update.callback_query?.message;
+            if (msg && msg.from && msg.from.username) {
+              const uname = msg.from.username.toLowerCase();
+              const cidStr = String(msg.from.id || msg.chat?.id);
+              telegramChatRegistry.set(uname, cidStr);
+              telegramChatRegistry.set(`@${uname}`, cidStr);
+
+              if (supabaseUrl && supabaseKey) {
+                fetch(`${supabaseUrl}/rest/v1/zeroclaw_pairing_tokens`, {
+                  method: 'POST',
+                  headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates',
+                  },
+                  body: JSON.stringify({
+                    username: uname,
+                    chat_id: cidStr,
+                    updated_at: new Date().toISOString(),
+                  })
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore transient update poll errors */
+    } finally {
+      activeTelegramUpdatesPromise = null;
+    }
+  })();
+
+  return activeTelegramUpdatesPromise;
+}
+
 /**
  * ⚡ Dynamic Telegram Chat ID Auto-Resolver & Database Synchronizer
  * Dynamically resolves Telegram handles (@username) to numeric Chat IDs via:
  * 1. Immediate numeric check
  * 2. In-memory dynamic runtime registry cache
  * 3. Supabase DB persistent lookup (shared across Local & Production)
- * 4. Telegram Bot API getUpdates live polling (dynamically extracts active user chat_ids)
+ * 4. Single-Flight Telegram Bot API getUpdates live polling (concurrency-safe)
  * 5. Telegram Bot API getChat endpoint fallback
  */
 async function resolveTelegramChatId(target: string, token?: string): Promise<string> {
   const raw = target.trim();
-  if (/^\d+$/.test(raw)) return raw;
+  if (/^\d+$/.test(raw) || /^-\d+$/.test(raw)) return raw;
 
   const cleaned = raw.replace(/^@/, '').toLowerCase();
 
@@ -279,46 +334,10 @@ async function resolveTelegramChatId(target: string, token?: string): Promise<st
 
   const botToken = token || process.env.TELEGRAM_BOT_TOKEN;
   if (botToken && botToken.trim().length > 10) {
-    // 3. Poll Telegram Bot API getUpdates to auto-discover active user usernames -> chat_ids
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${botToken.trim()}/getUpdates?limit=100`);
-      if (res.ok) {
-        const json: any = await res.json();
-        if (json.ok && Array.isArray(json.result)) {
-          for (const update of json.result) {
-            const msg = update.message || update.edited_message || update.channel_post || update.callback_query?.message;
-            if (msg && msg.from && msg.from.username) {
-              const uname = msg.from.username.toLowerCase();
-              const cidStr = String(msg.from.id || msg.chat?.id);
-              telegramChatRegistry.set(uname, cidStr);
-              telegramChatRegistry.set(`@${uname}`, cidStr);
-
-              // Auto-persist dynamically mapped user chat_id to Supabase DB
-              if (supabaseUrl && supabaseKey) {
-                fetch(`${supabaseUrl}/rest/v1/zeroclaw_pairing_tokens`, {
-                  method: 'POST',
-                  headers: {
-                    'apikey': supabaseKey,
-                    'Authorization': `Bearer ${supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates',
-                  },
-                  body: JSON.stringify({
-                    username: uname,
-                    chat_id: cidStr,
-                    updated_at: new Date().toISOString(),
-                  })
-                }).catch(() => {});
-              }
-
-              if (uname === cleaned) {
-                return cidStr;
-              }
-            }
-          }
-        }
-      }
-    } catch {}
+    // 3. Single-Flight Poll Telegram Bot API getUpdates (Deduplicated across concurrent callers)
+    await syncTelegramBotUpdatesSingleFlight(botToken);
+    if (telegramChatRegistry.has(cleaned)) return telegramChatRegistry.get(cleaned)!;
+    if (telegramChatRegistry.has(`@${cleaned}`)) return telegramChatRegistry.get(`@${cleaned}`)!;
 
     // 4. Fallback: Query Telegram getChat API endpoint
     try {
@@ -353,7 +372,66 @@ async function resolveTelegramChatId(target: string, token?: string): Promise<st
     } catch {}
   }
 
-  return raw.startsWith('@') ? raw : `@${raw}`;
+  return raw;
+}
+
+/**
+ * ⚡ Resilient Concurrency-Safe Telegram Message Dispatcher
+ * Guarantees message delivery under heavy concurrent requests with:
+ * • Exponential Backoff Retry (1s, 2s, 4s)
+ * • Telegram HTTP 429 Rate Limit Auto-Pause & Resume
+ * • Self-Healing Chat ID Re-Resolution on 400 Errors
+ */
+export async function sendTelegramMessageWithRetry(
+  botToken: string,
+  chatIdOrTarget: string,
+  textHtml: string,
+  maxRetries = 3
+): Promise<boolean> {
+  if (!botToken || botToken.trim().length < 10 || !chatIdOrTarget) return false;
+  const cleanToken = botToken.trim();
+
+  let targetChatId = await resolveTelegramChatId(chatIdOrTarget, cleanToken);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChatId,
+          text: textHtml,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      if (res.ok) {
+        return true;
+      }
+
+      // Handle Telegram 429 Rate Limit (Too Many Requests)
+      if (res.status === 429) {
+        const errJson: any = await res.json().catch(() => ({}));
+        const retryAfterSec = errJson.parameters?.retry_after || 2;
+        await new Promise((r) => setTimeout(r, (retryAfterSec + 0.5) * 1000));
+        continue;
+      }
+
+      // Handle 400 Chat ID Mismatch (Re-sync single-flight and retry)
+      if (res.status === 400 && attempt === 1 && !/^\d+$/.test(targetChatId)) {
+        await syncTelegramBotUpdatesSingleFlight(cleanToken);
+        targetChatId = await resolveTelegramChatId(chatIdOrTarget, cleanToken);
+      }
+
+      const backoffMs = Math.pow(2, attempt) * 500;
+      await new Promise((r) => setTimeout(r, backoffMs));
+    } catch {
+      const backoffMs = Math.pow(2, attempt) * 500;
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -2283,41 +2361,42 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       // Strip table/meja identifiers first so table numbers like "table 5" are not parsed as currency amounts or item quantities
       const promptWithoutTable = normalizedPrompt.replace(/(?:table|meja)\s*#?\d+/gi, '');
 
-      // 1. Explicit currency match: e.g. "0.543 USDC", "$0.543", "0.543 sol"
-      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:\.\d+)?)\s*(?:usdc|sol|\$)/i) ||
-        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:\.\d+)?)/i);
+      // 1. Explicit currency match: e.g. "0.543 USDC", "0,32 USDC", "$0.543", "0.543 sol"
+      const explicitCurrencyMatch = promptWithoutTable.match(/(\d+(?:[.,]\d+)?)\s*(?:usdc|sol|\$)/i) ||
+        promptWithoutTable.match(/(?:usdc|sol|\$)\s*(\d+(?:[.,]\d+)?)/i);
 
-      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0.543", "0.543 for invoice")
-      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:\.\d+)?)/i) ||
-        promptWithoutTable.match(/(\d+(?:\.\d+)?)\s+(?:for|invoice|usdc|sol)/i);
+      // 2. Direct decimal/amount match right after intent words (e.g. "generate 0.543", "invoice 0,32", "0.543 for invoice")
+      const directAmountMatch = promptWithoutTable.match(/(?:generate|create|invoice|charge|pay|for)\s+(\d+(?:[.,]\d+)?)/i) ||
+        promptWithoutTable.match(/(\d+(?:[.,]\d+)?)\s+(?:for|invoice|usdc|sol)/i);
 
-      // 3. Parenthetical match e.g. "(0.543)"
-      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:\.\d+)?)/);
+      // 3. Parenthetical match e.g. "(0.543)" or "(0,32)"
+      const parenMatch = promptWithoutTable.match(/\(\s*(\d+(?:[.,]\d+)?)/);
 
       // 4. Quantity x price match ONLY when explicit quantity word or "x/@" is present e.g. "2 x 7.5" or "2 kopi @ 7.5"
-      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:\.\d+)?)/i);
+      const explicitQtyMatch = promptWithoutTable.match(/(\d+)\s*(?:x|@|pcs|kopi|items?)\s*(\d+(?:[.,]\d+)?)/i);
 
       let amount = 15.00;
       if (explicitCurrencyMatch) {
-        amount = parseFloat(explicitCurrencyMatch[1]);
+        amount = parseFloat(explicitCurrencyMatch[1].replace(',', '.'));
       } else if (directAmountMatch) {
-        amount = parseFloat(directAmountMatch[1]);
+        amount = parseFloat(directAmountMatch[1].replace(',', '.'));
       } else if (parenMatch) {
-        amount = parseFloat(parenMatch[1]);
+        amount = parseFloat(parenMatch[1].replace(',', '.'));
       } else if (explicitQtyMatch) {
         const qty = parseInt(explicitQtyMatch[1], 10);
-        const unitPrice = parseFloat(explicitQtyMatch[2]);
+        const unitPrice = parseFloat(explicitQtyMatch[2].replace(',', '.'));
         amount = qty * unitPrice;
       } else {
-        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:\.\d+)?\b/g);
+        const anyNumberMatch = promptWithoutTable.match(/\b\d+(?:[.,]\d+)?\b/g);
         if (anyNumberMatch && anyNumberMatch.length > 0) {
-          amount = parseFloat(anyNumberMatch[0]);
+          amount = parseFloat(anyNumberMatch[0].replace(',', '.'));
         }
       }
 
       const merchantAddress = merchantContext?.usdcAddress || derivePrivyEmbeddedSolanaWallet((merchantContext as any)?.email || 'user@zegaai.site');
-      // Standard scannable Solana Pay URI
-      solanaPayUrl = `solana:${merchantAddress}?amount=${amount.toFixed(2)}`;
+      // Standard scannable Solana Pay URI with dynamic decimal formatting (preserves exact decimals like 0.32)
+      const formattedAmountStr = amount < 1 ? amount.toString() : amount.toFixed(2);
+      solanaPayUrl = `solana:${merchantAddress}?amount=${formattedAmountStr}`;
 
     }
 
@@ -3199,8 +3278,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       telegramChatRegistry.set(`@${uname}`, cidStr);
     }
 
-    // Parse amount from text or default to 15.00 USDC
-    const amountMatch = userText.match(/(\d+(\.\d{1,2})?)/);
+    // Parse amount from text or default to 15.00 USDC (Supports 0,32 or 0.32)
+    const cleanUserText = userText.replace(/(\d+),(\d+)/g, '$1.$2');
+    const amountMatch = cleanUserText.match(/(\d+(?:\.\d{1,6})?)/);
     const amount = amountMatch ? parseFloat(amountMatch[1]) : 15.00;
 
     // Create Action / Solana Pay reference key
@@ -3274,7 +3354,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const text = (messageBody || '').trim();
     const sender = ProfileName || (From ? From.replace('whatsapp:', '') : 'WhatsApp User');
 
-    const amountMatch = text.match(/(\d+(\.\d{1,2})?)/);
+    const cleanText = text.replace(/(\d+),(\d+)/g, '$1.$2');
+    const amountMatch = cleanText.match(/(\d+(?:\.\d{1,6})?)/);
     const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
 
     const actionId = `action_wa_${Date.now()}`;

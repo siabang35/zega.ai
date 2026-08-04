@@ -226,10 +226,22 @@ export class ZeroClawSignatureMonitorService {
             const parsed = inst.parsed;
             if (parsed && (parsed.type === 'transfer' || parsed.type === 'transferChecked')) {
               const info = parsed.info;
-              const rawAmt = info?.tokenAmount?.uiAmount || info?.amount;
+              const rawAmt = info?.tokenAmount?.uiAmountString || info?.tokenAmount?.uiAmount || info?.amount;
               const decimals = info?.tokenAmount?.decimals || 6;
-              if (rawAmt) {
-                amountUsdc = typeof rawAmt === 'number' ? rawAmt : parseFloat(rawAmt) / Math.pow(10, decimals);
+              if (rawAmt !== undefined && rawAmt !== null) {
+                if (typeof rawAmt === 'number') {
+                  amountUsdc = rawAmt;
+                } else if (typeof rawAmt === 'string') {
+                  const cleanStr = rawAmt.replace(/,/g, '.');
+                  const parsed = parseFloat(cleanStr);
+                  if (!isNaN(parsed)) {
+                    if (info?.tokenAmount?.uiAmountString || info?.tokenAmount?.uiAmount !== undefined) {
+                      amountUsdc = parsed;
+                    } else {
+                      amountUsdc = parsed > 10000 ? parsed / Math.pow(10, decimals) : parsed;
+                    }
+                  }
+                }
               }
               recipient = info?.destination || recipient;
             }
@@ -451,7 +463,7 @@ export class ZeroClawSignatureMonitorService {
         }),
       });
 
-      // 3. Dispatch automated receipt notification via Telegram Bot if recipient configured
+      // 3. Dispatch automated receipt notification via Telegram Bot with Exponential Backoff Retry & Single-Flight Chat Resolution
       const tgToken = process.env.TELEGRAM_BOT_TOKEN;
       if (monitored.customerTarget && tgToken && tgToken.trim().length > 10) {
         const text =
@@ -464,15 +476,8 @@ export class ZeroClawSignatureMonitorService {
           `━━━━━━━━━━━━━━━━━━━━━━\n` +
           `✅ Payment reconciled automatically via ZeroClaw Real-Time Signature Monitor.`;
 
-        await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: monitored.customerTarget,
-            text,
-            parse_mode: 'HTML',
-          }),
-        }).catch(() => {});
+        const { sendTelegramMessageWithRetry } = await import('../routes/v1/zeroclaw.routes.js');
+        await sendTelegramMessageWithRetry(tgToken, monitored.customerTarget, text);
       }
     } catch (err) {
       logger.error({ err }, 'Error persisting ZeroClaw monitored settlement');
