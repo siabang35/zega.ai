@@ -541,18 +541,21 @@ export class ZeroClawSignatureMonitorService {
       // 3. Dispatch automated receipt notification via Telegram Bot with Exponential Backoff Retry & Single-Flight Chat Resolution
       const tgToken = process.env.TELEGRAM_BOT_TOKEN;
       if (monitored.customerTarget && tgToken && tgToken.trim().length > 10) {
-        const { dispatchTelegramReceipt } = await import('../routes/v1/zeroclaw.routes.js');
-        await dispatchTelegramReceipt({
-          botToken: tgToken,
-          chatIdOrTarget: monitored.customerTarget,
-          recAmt: tx.amountUsdc,
-          expectedAmt: monitored.expectedAmountUsdc || tx.amountUsdc,
-          statusMode: settlementStatus,
-          txSignature: tx.signature,
-          slot: tx.slot,
-          referenceKey: monitored.address,
-          memo: tx.memo || `On-Chain Real-Time Verified (${tx.amountUsdc.toFixed(2)} USDC)`,
-        });
+        const { dispatchTelegramReceipt, sentTelegramReceiptSignatures } = await import('../routes/v1/zeroclaw.routes.js');
+        if (!sentTelegramReceiptSignatures.has(tx.signature)) {
+          sentTelegramReceiptSignatures.add(tx.signature);
+          await dispatchTelegramReceipt({
+            botToken: tgToken,
+            chatIdOrTarget: monitored.customerTarget,
+            recAmt: tx.amountUsdc,
+            expectedAmt: monitored.expectedAmountUsdc || tx.amountUsdc,
+            statusMode: settlementStatus,
+            txSignature: tx.signature,
+            slot: tx.slot,
+            referenceKey: monitored.address,
+            memo: tx.memo || `On-Chain Real-Time Verified (${tx.amountUsdc.toFixed(2)} USDC)`,
+          });
+        }
       }
     } catch (err) {
       logger.error({ err }, 'Error persisting ZeroClaw monitored settlement');

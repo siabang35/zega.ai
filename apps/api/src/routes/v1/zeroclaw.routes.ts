@@ -497,10 +497,17 @@ export async function dispatchTelegramReceipt(params: {
     return sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textUnderpaid);
   }
 
-  // ── SCENARIO 2 & 3: EXACT OR OVERPAID (PEMBAYARAN LUNAS) ──
-  // Step 1: Dispatch Main Receipt Pembayaran Lunas
-  const exactStatusTitle = isOverpaid ? '🎉 <b>Pembayaran Lunas (Nominal Kelebihan)!</b>' : '🎉 <b>Pembayaran Lunas!</b>';
+  // ── SCENARIO 2 & 3: EXACT OR OVERPAID (PEMBAYARAN LUNAS - EXACT OR OVERPAID) ──
+  // Rule: Send EXACTLY 1 High-Fidelity Receipt per Transaction Signature.
+  const exactStatusTitle = isOverpaid ? '🎉 <b>Pembayaran Lunas (Kelebihan Bayar)!</b>' : '🎉 <b>Pembayaran Lunas!</b>';
   const headerBadge = isOverpaid ? '🎉 <b>SOLANA DEVNET RECONCILED (KELEBIHAN BAYAR)</b> 🎉' : '⚡ <b>SOLANA DEVNET RECONCILED (100% PAS)</b> ⚡';
+
+  const surplusAmount = isOverpaid ? Math.max(0, recAmtNum - expectedAmtNum).toFixed(2) : '0.00';
+  const surplusLine = isOverpaid ? `• <b>Nominal Kelebihan Bayar:</b> <code>🎁 +${surplusAmount} USDC</code>\n` : '';
+  const statusBadgeStr = isOverpaid ? '<code>✅ LUNAS (SETTLED_OVERPAID)</code>' : '<code>✅ LUNAS (SETTLED_EXACT)</code>';
+  const notesLine = isOverpaid
+    ? `💡 <b>Informasi Kelebihan Bayar:</b> Tagihan Anda telah <b>LUNAS</b>. Kelebihan pembayaran sebesar <b>+${surplusAmount} USDC</b> telah dicatat oleh sistem kasir merchant. Anda dapat menghubungi merchant untuk refund atau penyesuaian pesanan.\n\n`
+    : '';
 
   const textSuccess =
     `${headerBadge}\n` +
@@ -509,35 +516,18 @@ export async function dispatchTelegramReceipt(params: {
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `• <b>Total Tagihan (Target):</b> <code>${expectedAmtFormatted} USDC</code>\n` +
     `• <b>Nominal Masuk (On-Chain):</b> <code>+${recAmtFormatted} USDC</code>\n` +
-    `• <b>Status Pembayaran:</b> <code>✅ LUNAS (SETTLED)</code>\n` +
+    surplusLine +
+    `• <b>Status Pembayaran:</b> ${statusBadgeStr}\n` +
     `• <b>Order / Memo:</b> <code>${cleanMemo}</code>\n` +
     `• <b>Reference Key:</b> <code>${cleanRef}</code>\n` +
     `• <b>Tx Hash:</b> <code>${params.txSignature}</code>\n` +
     `• <b>Devnet Slot:</b> <code>${params.slot}</code>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    notesLine +
     `🌐 <a href="${explorerUrl}"><b>Lihat Real Tx Explorer</b></a>\n\n` +
     `✅ Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis via ZeroClaw Real-Time Signature Monitor.`;
 
-  const sentSuccess = await sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textSuccess);
-
-  // Step 2: If OVERPAID, send Message 2 (Notification of Overpayment Surplus)
-  if (isOverpaid) {
-    const surplus = Math.max(0, recAmtNum - expectedAmtNum).toFixed(2);
-    const textSurplus =
-      `🎁 <b>PEMBERITAHUAN KELEBIHAN PEMBAYARAN (SURPLUS)</b> 🎁\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• <b>Total Tagihan Target:</b> <code>${expectedAmtFormatted} USDC</code>\n` +
-      `• <b>Total Nominal Masuk:</b> <code>+${recAmtFormatted} USDC</code>\n` +
-      `• <b>Nominal Kelebihan Bayar:</b> <code>🎁 +${surplus} USDC</code>\n` +
-      `• <b>Tx Hash:</b> <code>${params.txSignature}</code>\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 <b>Informasi Tambahan:</b> Tagihan Anda telah <b>LUNAS</b>. Kelebihan pembayaran sebesar <b>+${surplus} USDC</b> telah dicatat oleh sistem kasir merchant. Anda dapat menghubungi merchant untuk refund atau penyesuaian pesanan.\n\n` +
-      `🌐 <a href="${explorerUrl}"><b>Lihat Real Tx Explorer</b></a>`;
-
-    await sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textSurplus);
-  }
-
-  return sentSuccess;
+  return sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textSuccess);
 }
 
 /** 🛡️ Global Deduplication Set preventing duplicate Telegram receipt dispatches for the same transaction signature */
