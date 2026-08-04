@@ -3,7 +3,7 @@ import {
   Store, Plus, Download, AlertTriangle, TrendingUp, ShoppingBag, 
   DollarSign, Package, AlertCircle 
 } from 'lucide-react';
-import { getR2CdnUrl } from '../../../utils/cdn';
+import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
 
 interface StoreViewProps {
   triggerToast: (msg: string) => void;
@@ -97,35 +97,40 @@ export function StoreView({ triggerToast }: StoreViewProps) {
                 category: 'Apparel · Cotton Comb 30s',
                 stock: '2 pcs', 
                 bg: 'bg-red-50 text-red-600 dark:bg-red-950/40 border-red-200/50',
-                img: getR2CdnUrl('/assets/products/kaoshitam.png') 
+                rawPath: '/assets/products/kaoshitam.png',
+                img: getR2CdnUrl('/assets/products/kaoshitam.png', true) 
               },
               { 
                 name: 'Tumbler Premium', 
                 category: 'Drinkware · Stainless 500ml',
                 stock: '4 pcs', 
                 bg: 'bg-orange-50 text-orange-600 dark:bg-orange-950/40 border-orange-200/50',
-                img: getR2CdnUrl('/assets/products/tumbler.png') 
+                rawPath: '/assets/products/tumbler.png',
+                img: getR2CdnUrl('/assets/products/tumbler.png', true) 
               },
               { 
                 name: 'Botol Minum 500ml', 
                 category: 'Drinkware · BPA Free',
                 stock: '5 pcs', 
                 bg: 'bg-orange-50 text-orange-600 dark:bg-orange-950/40 border-orange-200/50',
-                img: getR2CdnUrl('/assets/products/botolminum.jpeg') 
+                rawPath: '/assets/products/botolminum.jpeg',
+                img: getR2CdnUrl('/assets/products/botolminum.jpeg', true) 
               },
               { 
                 name: 'Hoodie Full Zip', 
                 category: 'Apparel · Fleece Premium',
                 stock: '7 pcs', 
                 bg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 border-amber-200/50',
-                img: getR2CdnUrl('/assets/products/hoodie.webp') 
+                rawPath: '/assets/products/hoodie.webp',
+                img: getR2CdnUrl('/assets/products/hoodie.webp', true) 
               },
               { 
                 name: 'Totebag Canvas', 
                 category: 'Accessories · Canvas Drill',
                 stock: '8 pcs', 
                 bg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 border-amber-200/50',
-                img: getR2CdnUrl('/assets/products/tottebag.jpeg') 
+                rawPath: '/assets/products/tottebag.jpeg',
+                img: getR2CdnUrl('/assets/products/tottebag.jpeg', true) 
               },
             ].map((item, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:border-slate-300 transition-all">
@@ -136,6 +141,14 @@ export function StoreView({ triggerToast }: StoreViewProps) {
                       alt={item.name} 
                       className="w-full h-full object-contain"
                       loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src.includes('cdn.zegaai.site')) {
+                          target.src = item.rawPath;
+                        } else {
+                          target.src = generateInitialsAvatar(item.name);
+                        }
+                      }}
                     />
                   </div>
                   <div>
@@ -171,35 +184,40 @@ export function StoreView({ triggerToast }: StoreViewProps) {
                 sold: '32', 
                 rev: 'Rp1.920.000', 
                 trend: '📈',
-                img: getR2CdnUrl('/assets/products/kaoshitam.png')
+                rawPath: '/assets/products/kaoshitam.png',
+                img: getR2CdnUrl('/assets/products/kaoshitam.png', true)
               },
               { 
                 name: 'Tumbler Premium', 
                 sold: '28', 
                 rev: 'Rp2.800.000', 
                 trend: '📈',
-                img: getR2CdnUrl('/assets/products/tumbler.png')
+                rawPath: '/assets/products/tumbler.png',
+                img: getR2CdnUrl('/assets/products/tumbler.png', true)
               },
               { 
                 name: 'Botol Minum 500ml', 
                 sold: '24', 
                 rev: 'Rp1.680.000', 
                 trend: '📈',
-                img: getR2CdnUrl('/assets/products/botolminum.jpeg')
+                rawPath: '/assets/products/botolminum.jpeg',
+                img: getR2CdnUrl('/assets/products/botolminum.jpeg', true)
               },
               { 
                 name: 'Hoodie Full Zip', 
                 sold: '18', 
                 rev: 'Rp3.600.000', 
                 trend: '📈',
-                img: getR2CdnUrl('/assets/products/hoodie.webp')
+                rawPath: '/assets/products/hoodie.webp',
+                img: getR2CdnUrl('/assets/products/hoodie.webp', true)
               },
               { 
                 name: 'Totebag Canvas', 
                 sold: '15', 
                 rev: 'Rp750.000', 
                 trend: '📈',
-                img: getR2CdnUrl('/assets/products/tottebag.jpeg')
+                rawPath: '/assets/products/tottebag.jpeg',
+                img: getR2CdnUrl('/assets/products/tottebag.jpeg', true)
               },
             ].map((p, i) => (
               <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -210,6 +228,14 @@ export function StoreView({ triggerToast }: StoreViewProps) {
                       alt={p.name} 
                       className="w-full h-full object-contain"
                       loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src.includes('cdn.zegaai.site')) {
+                          target.src = p.rawPath;
+                        } else {
+                          target.src = generateInitialsAvatar(p.name);
+                        }
+                      }}
                     />
                   </div>
                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{p.name}</span>

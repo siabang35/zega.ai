@@ -9,20 +9,26 @@ export const R2_PUBLIC_CDN_DOMAIN = import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'ht
 /**
  * Normalizes any asset path or remote URL to local public assets or Cloudflare R2 CDN URL.
  */
-export function getR2CdnUrl(assetPath: string): string {
-  if (!assetPath) return '/assets/logo/zegalogo.png';
+export function getR2CdnUrl(assetPath: string, preferRemote = false): string {
+  if (!assetPath) return `${R2_PUBLIC_CDN_DOMAIN}/assets/logo/zegalogo.png`;
 
-  // If already pointing to absolute http/https domain
+  // If already pointing to an absolute http/https domain
   if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
     return assetPath;
   }
 
-  // If it's a relative path (e.g. /assets/logo/webhook.webp), return relative path to guarantee local static asset loading
-  if (assetPath.startsWith('/')) {
-    return assetPath;
+  // Ensure clean leading slash
+  const cleanPath = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+
+  // Ensure path starts with /assets/
+  const normalizedPath = cleanPath.startsWith('/assets/') ? cleanPath : `/assets${cleanPath}`;
+
+  // In production builds, or when preferRemote is requested, or when VITE_USE_REMOTE_CDN is enabled
+  if (preferRemote || import.meta.env.PROD || import.meta.env.VITE_USE_REMOTE_CDN === 'true') {
+    return `${R2_PUBLIC_CDN_DOMAIN}${normalizedPath}`;
   }
 
-  return `/assets/${assetPath}`;
+  return normalizedPath;
 }
 
 /**
@@ -47,5 +53,35 @@ export function generateInitialsAvatar(name: string, bgGradient = 'linear-gradie
     <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-weight="700" font-size="38">${initials}</text>
   </svg>`;
 
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * 100% Fail-safe Vector USDC Brand Fallback SVG
+ */
+export function getUsdcSvgFallback(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+    <circle cx="50" cy="50" r="50" fill="#2775CA"/>
+    <circle cx="50" cy="50" r="42" fill="none" stroke="#FFFFFF" stroke-width="4" opacity="0.4"/>
+    <text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-weight="800" font-size="44">$</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * 100% Fail-safe Vector Solana Brand Fallback SVG
+ */
+export function getSolanaSvgFallback(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+    <defs>
+      <linearGradient id="solGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#9945FF"/>
+        <stop offset="50%" stop-color="#14F195"/>
+        <stop offset="100%" stop-color="#00C2FF"/>
+      </linearGradient>
+    </defs>
+    <circle cx="50" cy="50" r="50" fill="url(#solGrad)"/>
+    <text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-weight="900" font-size="40">S</text>
+  </svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }

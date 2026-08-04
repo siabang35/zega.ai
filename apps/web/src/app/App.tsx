@@ -1358,6 +1358,19 @@ function AuthModal({
 function getInitialPath(): string {
   if (typeof window === "undefined") return "/";
   const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
+  const search = window.location.search || "";
+
+  // Check if current URL is directly a public checkout / payment route OR contains payment reference params
+  const isPublicCheckout = 
+    path === '/checkout' || path.startsWith('/checkout') ||
+    path === '/payment' || path.startsWith('/payment') ||
+    path === '/pay' || path.startsWith('/pay') ||
+    path === '/invoice' || path.startsWith('/invoice') ||
+    search.includes('reference=') || search.includes('ref=');
+
+  if (isPublicCheckout) {
+    return path === "/" ? "/checkout" : path;
+  }
 
   // Check if current URL is directly a dashboard path
   const isDirectDash = path === "/dashboard" || path.startsWith("/dashboard/") ||
@@ -1388,7 +1401,7 @@ function getInitialPath(): string {
   if (path === "/" || path === "" || path === "/home") {
     return path === "/home" ? "/home" : "/";
   }
-  if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/admin", "/products", "/pricing"].includes(path)) {
+  if (["/docs", "/terms", "/privacy", "/console", "/dashboard", "/admin", "/products", "/pricing", "/checkout", "/payment", "/pay", "/invoice"].includes(path)) {
     return path;
   }
   return "/";
@@ -1547,7 +1560,8 @@ function AppContent() {
   // Sync initial URL bar state on mount if redirected to dashboard
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.pathname !== currentPath) {
-      window.history.replaceState({}, "", currentPath);
+      const search = window.location.search || "";
+      window.history.replaceState({}, "", currentPath + search);
     }
   }, []);
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Copy, Check, ExternalLink, QrCode, RefreshCw, Zap, ArrowLeft, Building2, CheckCircle2, Wallet, User, ShoppingBag, Send, Clock, AlertTriangle, X } from 'lucide-react';
 import { PrivyWalletService } from '../services/privyWalletService';
+import { getR2CdnUrl, getUsdcSvgFallback, getSolanaSvgFallback } from '../utils/cdn';
 
 interface PublicCheckoutViewProps {
   onBack?: () => void;
@@ -24,10 +25,15 @@ const isValidBase58SolanaAddress = (addr?: string | null): boolean => {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed);
 };
 
+const DEVNET_USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+
 export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
   // Purely dynamic initial state — zero hardcoded mockup fallbacks
   const [params, setParams] = useState<CheckoutParams | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Dual Currency Asset Selection ('USDC' | 'SOL') - Enterprise Solana Pay Spec Standard
+  const [selectedCurrency, setSelectedCurrency] = useState<'USDC' | 'SOL'>('USDC');
 
   const [copiedWallet, setCopiedWallet] = useState(false);
   const [copiedPayUrl, setCopiedPayUrl] = useState(false);
@@ -59,6 +65,13 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
         const customerVal = searchParams.get('customer') || searchParams.get('user') || targetVal;
         const ch = searchParams.get('channel') || (targetVal.startsWith('+') ? 'whatsapp' : 'telegram');
         const tierParam = searchParams.get('tier') || 'umkm';
+        const rawCurr = (searchParams.get('currency') || searchParams.get('asset') || searchParams.get('token') || 'USDC').toUpperCase();
+
+        if (rawCurr === 'SOL' || rawCurr === 'SOLANA') {
+          setSelectedCurrency('SOL');
+        } else {
+          setSelectedCurrency('USDC');
+        }
 
         if (ref && amt && rawRec && isValidBase58SolanaAddress(rawRec)) {
           setParams({
@@ -117,11 +130,19 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Enterprise Standard Solana Pay Specification URI
+  // Includes `spl-token` mint address for USDC so mobile wallets (Solflare/Phantom) open as USDC transfer!
   const solanaPayUrl = params
-    ? `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(2)}&reference=${params.reference}&memo=${encodeURIComponent(params.reference)}`
+    ? selectedCurrency === 'USDC'
+      ? `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(2)}&spl-token=${DEVNET_USDC_MINT}&reference=${params.reference}&label=${encodeURIComponent('ZEGA Pay Checkout')}&message=${encodeURIComponent(params.description)}&memo=${encodeURIComponent(params.reference)}`
+      : `solana:${params.recipient}?amount=${parseFloat(params.amount).toFixed(4)}&reference=${params.reference}&label=${encodeURIComponent('ZEGA Pay Checkout')}&message=${encodeURIComponent(params.description)}&memo=${encodeURIComponent(params.reference)}`
     : '';
+
+  // Solflare Deep Link Specification with dynamic spl-token parameter
   const solflareTransferUrl = params
-    ? `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(2)}`
+    ? selectedCurrency === 'USDC'
+      ? `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(2)}&spl-token=${DEVNET_USDC_MINT}&memo=${encodeURIComponent(params.reference)}`
+      : `https://solflare.com/ul/v1/transfer?recipient=${params.recipient}&amount=${parseFloat(params.amount).toFixed(4)}&memo=${encodeURIComponent(params.reference)}`
     : '';
   const phantomUniversalUrl = `https://phantom.app/ul/browse/${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://zegaai.site')}`;
   const backpackUniversalUrl = `https://backpack.app/ul/browse/${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://zegaai.site')}`;
@@ -249,8 +270,11 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     if (solanaPayUrl) {
       triggerToast('⚡ Link Solana Pay Disalin! Membuka Wallet Mobile...');
       try {
-        // Attempt native solana: scheme launch directly
-        window.location.href = solanaPayUrl;
+        // Safe trigger using dynamic link click to prevent desktop browser navigation resets
+        const link = document.createElement('a');
+        link.href = solanaPayUrl;
+        link.rel = 'noopener';
+        link.click();
       } catch {
         // Fallback to Phantom browse URL
         window.open(phantomUniversalUrl, '_blank', 'noopener,noreferrer');
@@ -521,6 +545,77 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             </span>
           </div>
 
+          {/* Enterprise Dual Asset Currency Selector (USDC vs SOL) */}
+          <div className="p-3 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-300 flex items-center gap-1.5">
+                <Wallet className="size-3.5 text-indigo-400" />
+                <span>Asset Pembayaran (Solana Pay Spec)</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                {selectedCurrency === 'USDC' ? 'SPL Token' : 'Native SOL'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950/80 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCurrency('USDC');
+                  triggerToast('⚡ Solana Pay URI diset ke USDC (SPL Token)');
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                  selectedCurrency === 'USDC'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg border border-emerald-400/40'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <img
+                  src={getR2CdnUrl('/assets/logo/usdc.webp', true)}
+                  alt="USDC Logo"
+                  className="size-4.5 rounded-full object-contain shadow-xs"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes('cdn.zegaai.site')) {
+                      target.src = '/assets/logo/usdc.webp';
+                    } else {
+                      target.src = getUsdcSvgFallback();
+                    }
+                  }}
+                />
+                <span>USDC (SPL)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCurrency('SOL');
+                  triggerToast('⚡ Solana Pay URI diset ke Native SOL');
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                  selectedCurrency === 'SOL'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/40'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <img
+                  src={getR2CdnUrl('/assets/logo/solana.png', true)}
+                  alt="Solana Logo"
+                  className="size-4.5 rounded-full object-contain shadow-xs"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes('cdn.zegaai.site')) {
+                      target.src = '/assets/logo/solana.png';
+                    } else {
+                      target.src = getSolanaSvgFallback();
+                    }
+                  }}
+                />
+                <span>SOL (Native)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Merchant Wallet */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/60">
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
@@ -547,7 +642,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/60">
             <span className="text-xs text-slate-400 font-medium">Nominal Tagihan</span>
             <span className="text-lg font-black text-emerald-400 tracking-tight">
-              {parseFloat(params.amount).toFixed(2)} <span className="text-xs font-semibold text-slate-400">USDC</span>
+              {parseFloat(params.amount).toFixed(selectedCurrency === 'USDC' ? 2 : 4)} <span className="text-xs font-semibold text-slate-400">{selectedCurrency}</span>
             </span>
           </div>
 
