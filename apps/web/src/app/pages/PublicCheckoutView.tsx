@@ -445,7 +445,7 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
           </div>
         </div>
 
-        {/* Real-time Status Badge Banner */}
+        {/* Real-time Status Badge Banner (Exact, Underpaid, Overpaid) */}
         <div className="mb-5">
           {isExpired ? (
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 shadow-lg">
@@ -459,8 +459,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-lg">
               <CheckCircle2 className="size-6 flex-shrink-0 text-emerald-400 animate-bounce" />
               <div>
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-300">PEMBAYARAN BERHASIL (SETTLED)</p>
-                <p className="text-[11px] text-emerald-400/90 font-medium">Lunas & Terkonfirmasi 100% On-Chain di Solana</p>
+                <p className="text-xs font-black uppercase tracking-wider text-emerald-300">PEMBAYARAN BERHASIL & LUNAS (EXACT)</p>
+                <p className="text-[11px] text-emerald-400/90 font-medium">Lunas 100% & Terkonfirmasi On-Chain di Solana</p>
                 {settlementDetails?.signature && (
                   <a
                     href={`https://explorer.solana.com/tx/${settlementDetails.signature}?cluster=devnet`}
@@ -472,6 +472,36 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
                     <ExternalLink className="size-3" />
                   </a>
                 )}
+              </div>
+            </div>
+          ) : paymentStatus === 'settled_underpaid' ? (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/20 border border-amber-500/50 text-amber-200 shadow-lg">
+              <AlertTriangle className="size-6 flex-shrink-0 text-amber-400 animate-bounce" />
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-wider text-amber-300">PEMBAYARAN KURANG (BELUM LUNAS)</p>
+                  <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
+                    Kurang: {settlementDetails?.shortageAmount ? settlementDetails.shortageAmount.toFixed(2) : '0.00'} {selectedCurrency}
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-200/90 font-medium mt-1">
+                  Tagihan belum lunas. Silakan transfer sisa kekurangannya sebesar <strong className="text-white underline">{settlementDetails?.shortageAmount ? settlementDetails.shortageAmount.toFixed(2) : ''} {selectedCurrency}</strong> agar pesanan dapat diproses.
+                </p>
+              </div>
+            </div>
+          ) : paymentStatus === 'settled_overpaid' ? (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-teal-500/20 border border-teal-500/50 text-teal-200 shadow-lg">
+              <CheckCircle2 className="size-6 flex-shrink-0 text-teal-300 animate-bounce" />
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-wider text-teal-300">PESANAN LUNAS (KELEBIHAN BAYAR)</p>
+                  <span className="text-[10px] font-mono font-bold text-teal-300 bg-teal-500/20 px-2 py-0.5 rounded border border-teal-500/30">
+                    Refund: +{settlementDetails?.excessAmount ? settlementDetails.excessAmount.toFixed(2) : '0.00'} {selectedCurrency}
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-200/90 font-medium mt-1">
+                  Pembayaran lunas! Kelebihan pembayaran sebesar <strong className="text-white font-bold">+{settlementDetails?.excessAmount ? settlementDetails.excessAmount.toFixed(2) : ''} {selectedCurrency}</strong> telah didaftarkan untuk pengembalian dana (refund) otomatis.
+                </p>
               </div>
             </div>
           ) : (

@@ -1006,7 +1006,26 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       mode: (userId && !isDemo) ? 'authenticated' : 'demo',
       persisted: persistedInDb,
       r2CdnUrl,
-      data: newEvent
+      evaluation: {
+        settlementStatus, // 'settled_exact' | 'settled_underpaid' | 'settled_overpaid'
+        isLunas: settlementStatus !== 'settled_underpaid',
+        expectedAmount,
+        paidAmount: validAmountUsdc,
+        shortageAmount,
+        excessAmount,
+        message: settlementStatus === 'settled_exact'
+          ? `Pembayaran sebesar ${validAmountUsdc.toFixed(2)} USDC telah BERHASIL dan LUNAS 100%!`
+          : settlementStatus === 'settled_underpaid'
+          ? `Pembayaran Anda KURANG sebesar ${shortageAmount.toFixed(2)} USDC. Silakan lunasi sisa ${shortageAmount.toFixed(2)} USDC agar pesanan dapat diproses.`
+          : `Pesanan telah LUNAS! Terdapat KELEBIHAN pembayaran sebesar ${excessAmount.toFixed(2)} USDC. Proses refund sebesar ${excessAmount.toFixed(2)} USDC telah didaftarkan.`
+      },
+      data: {
+        ...newEvent,
+        settlementStatus,
+        shortageAmount,
+        excessAmount,
+        expectedAmount
+      }
     });
   });
 
