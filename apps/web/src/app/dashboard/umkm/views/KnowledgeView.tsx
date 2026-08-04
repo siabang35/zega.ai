@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   NewArticleModal, UploadDocumentModal, AskAIKnowledgeModal, KnowledgeItemDetailModal 
 } from './knowledge/KnowledgeModals';
@@ -15,6 +16,7 @@ interface KnowledgeViewProps {
 }
 
 export function KnowledgeView({ triggerToast }: KnowledgeViewProps) {
+  const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('Semua Kategori');
   const [activeTab, setActiveTab] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,9 +246,11 @@ export function KnowledgeView({ triggerToast }: KnowledgeViewProps) {
       {/* 1. Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Knowledge Hub</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            {t.knowledgeView?.title || 'Knowledge Hub'}
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Semua pengetahuan bisnis Anda. Temukan, kelola, dan tingkatkan dengan AI.
+            {t.knowledgeView?.subtitle || 'Semua pengetahuan bisnis Anda. Temukan, kelola, dan tingkatkan dengan AI.'}
           </p>
         </div>
 

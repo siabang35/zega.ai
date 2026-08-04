@@ -12,6 +12,7 @@ import {
 import { UmkmDashboardView } from './UmkmDashboard';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { SupabaseDashboardService } from '../services/supabaseService';
+import { useLanguage } from '../../../i18n/translations';
 
 interface UmkmDashboardContainerProps {
   onClose: () => void;
@@ -30,6 +31,7 @@ export function UmkmDashboardContainer({
   userName = 'Cik Beriuk',
   isGuest = false,
 }: UmkmDashboardContainerProps) {
+  const { t, language, setLanguage } = useLanguage();
   const tabToSlugMap: Record<string, string> = {
     umkm: 'home',
     overview: 'home',
@@ -342,28 +344,28 @@ export function UmkmDashboardContainer({
 
   // 3 Categorized Menu Groups
   const menuOverview = [
-    { id: 'umkm', label: 'Beranda', icon: LayoutDashboard },
-    { id: 'my_agents', label: 'AI Employees', icon: Bot, subItems: ['AI Support', 'Sales Agent', 'Swarms'] },
-    { id: 'sandbox', label: 'Automation', icon: Workflow },
-    { id: 'wa_bot', label: 'Inbox', icon: MessageSquare, badge: '8', subItems: ['WhatsApp', 'Instagram DMs', 'Shopee Chat'] },
+    { id: 'umkm', label: t.sidebarNav?.beranda || 'Beranda', icon: LayoutDashboard },
+    { id: 'my_agents', label: t.sidebarNav?.aiEmployee || 'AI Employees', icon: Bot, subItems: ['AI Support', 'Sales Agent', 'Swarms'] },
+    { id: 'sandbox', label: t.sidebarNav?.otokomasi || 'Automation', icon: Workflow },
+    { id: 'wa_bot', label: t.sidebarNav?.inbox || 'Inbox', icon: MessageSquare, badge: '8', subItems: ['WhatsApp', 'Instagram DMs', 'Shopee Chat'] },
   ];
 
   const menuBusiness = [
-    { id: 'sales_rekap', label: 'Sales', icon: BarChart3, subItems: ['Ringkasan Sales', 'Transaksi', 'Metode Bayar'] },
-    { id: 'ai_copywriter', label: 'Marketing', icon: Megaphone },
-    { id: 'invoice_gen', label: 'Finance', icon: FileText, subItems: ['Invoices', 'Laporan Keuangan', 'Pajak'] },
-    { id: 'store', label: 'Store', icon: ShoppingBag },
-    { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'reports', label: 'Reports', icon: PieChart },
-    { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
-    { id: 'integrations', label: 'Marketplace', icon: Building },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'sales_rekap', label: t.sidebarNav?.penjualan || 'Sales', icon: BarChart3, subItems: ['Ringkasan Sales', 'Transaksi', 'Metode Bayar'] },
+    { id: 'ai_copywriter', label: t.sidebarNav?.pemasaran || 'Marketing', icon: Megaphone },
+    { id: 'invoice_gen', label: t.sidebarNav?.keuangan || 'Finance', icon: FileText, subItems: ['Invoices', 'Laporan Keuangan', 'Pajak'] },
+    { id: 'store', label: t.sidebarNav?.tokoSaya || 'Store', icon: ShoppingBag },
+    { id: 'customers', label: t.sidebarNav?.pelanggan || 'Customers', icon: Users },
+    { id: 'reports', label: t.sidebarNav?.laporanAi || 'Reports', icon: PieChart },
+    { id: 'knowledge', label: t.sidebarNav?.knowledgeBase || 'Knowledge', icon: BookOpen },
+    { id: 'integrations', label: t.sidebarNav?.marketplaceAi || 'Marketplace', icon: Building },
+    { id: 'billing', label: t.sidebarNav?.billing || 'Billing', icon: CreditCard },
   ];
 
   const menuSettings = [
     { 
       id: 'settings', 
-      label: 'Settings', 
+      label: t.sidebarNav?.pengaturan || 'Settings', 
       icon: Settings, 
       subItems: ['Profil & Akun', 'Tim & Pengguna', 'Integrasi', 'AI Preferences', 'Notifikasi', 'Keamanan', 'Billing & Invoice', 'API Keys', 'System'] 
     }
@@ -724,158 +726,164 @@ export function UmkmDashboardContainer({
               </button>
 
               {calendarOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-orange-500" />
-                      <div>
-                        <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">
-                          {calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                        </h4>
-                        <p className="text-[10px] text-orange-500 font-bold flex items-center gap-1">
-                          <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
-                          <span>{liveTime} WIB • Live Real-Time</span>
-                        </p>
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 bg-transparent" 
+                    onClick={() => setCalendarOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-orange-500" />
+                        <div>
+                          <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">
+                            {calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                          </h4>
+                          <p className="text-[10px] text-orange-500 font-bold flex items-center gap-1">
+                            <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
+                            <span>{liveTime} WIB • Live Real-Time</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            const prev = new Date(calendarCurrentMonth);
+                            prev.setMonth(prev.getMonth() - 1);
+                            setCalendarCurrentMonth(prev);
+                          }}
+                          className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+                          title="Bulan Sebelumnya"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const next = new Date(calendarCurrentMonth);
+                            next.setMonth(next.getMonth() + 1);
+                            setCalendarCurrentMonth(next);
+                          }}
+                          className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+                          title="Bulan Berikutnya"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+
+                    {/* Calendar Quick Filter Pills */}
+                    <div className="grid grid-cols-3 gap-1.5 text-[10px] font-extrabold">
                       <button
                         onClick={() => {
-                          const prev = new Date(calendarCurrentMonth);
-                          prev.setMonth(prev.getMonth() - 1);
-                          setCalendarCurrentMonth(prev);
+                          setSelectedDateRange('Hari Ini (5 Ags 2026)');
+                          triggerToast('📅 Filter: Hari Ini (5 Ags 2026)');
+                          setCalendarOpen(false);
                         }}
-                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-                        title="Bulan Sebelumnya"
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          selectedDateRange.includes('Hari Ini')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                        }`}
                       >
-                        <ChevronLeft size={14} />
+                        Hari Ini
                       </button>
                       <button
                         onClick={() => {
-                          const next = new Date(calendarCurrentMonth);
-                          next.setMonth(next.getMonth() + 1);
-                          setCalendarCurrentMonth(next);
+                          setSelectedDateRange('7 Hari Terakhir');
+                          triggerToast('📅 Filter: 7 Hari Terakhir');
+                          setCalendarOpen(false);
                         }}
-                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-                        title="Bulan Berikutnya"
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          selectedDateRange.includes('7 Hari')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                        }`}
                       >
-                        <ChevronRight size={14} />
+                        7 Hari
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedDateRange('Bulan Ini (Ags 2026)');
+                          triggerToast('📅 Filter: Bulan Ini (Agustus 2026)');
+                          setCalendarOpen(false);
+                        }}
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          selectedDateRange.includes('Bulan Ini')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                        }`}
+                      >
+                        Bulan Ini
                       </button>
                     </div>
-                  </div>
 
-                  {/* Calendar Quick Filter Pills */}
-                  <div className="grid grid-cols-3 gap-1.5 text-[10px] font-extrabold">
-                    <button
-                      onClick={() => {
-                        setSelectedDateRange('Hari Ini (5 Ags 2026)');
-                        triggerToast('📅 Filter: Hari Ini (5 Ags 2026)');
-                        setCalendarOpen(false);
-                      }}
-                      className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        selectedDateRange.includes('Hari Ini')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                      }`}
-                    >
-                      Hari Ini
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedDateRange('7 Hari Terakhir');
-                        triggerToast('📅 Filter: 7 Hari Terakhir');
-                        setCalendarOpen(false);
-                      }}
-                      className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        selectedDateRange.includes('7 Hari')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                      }`}
-                    >
-                      7 Hari
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedDateRange('Bulan Ini (Ags 2026)');
-                        triggerToast('📅 Filter: Bulan Ini (Agustus 2026)');
-                        setCalendarOpen(false);
-                      }}
-                      className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        selectedDateRange.includes('Bulan Ini')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                      }`}
-                    >
-                      Bulan Ini
-                    </button>
-                  </div>
-
-                  {/* Real-Time Mini Calendar Grid (August 2026) */}
-                  <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                    <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
-                      <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold">
-                      {(() => {
-                        const year = calendarCurrentMonth.getFullYear();
-                        const month = calendarCurrentMonth.getMonth();
-                        const daysInMonth = new Date(year, month + 1, 0).getDate();
-                        const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-                        
-                        const cells = [];
-                        for (let i = 0; i < firstDayOffset; i++) {
-                          cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
-                        }
-                        for (let d = 1; d <= daysInMonth; d++) {
-                          const isToday = d === 5 && month === 7 && year === 2026;
-                          cells.push(
-                            <span
-                              key={`day-${d}`}
-                              onClick={() => {
-                                const selected = `${d} ${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
-                                setSelectedDateRange(selected);
-                                triggerToast(`📅 Filter Tanggal: ${selected}`);
-                                setCalendarOpen(false);
-                              }}
-                              className={`p-1 rounded-lg transition-all cursor-pointer ${
-                                isToday
-                                  ? 'bg-orange-500 text-white font-black shadow-md scale-105'
-                                  : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
-                              }`}
-                            >
-                              {d}
-                            </span>
-                          );
-                        }
-                        return cells;
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Upcoming Real-time AI Scheduled Events */}
-                  <div className="space-y-2 pt-1">
-                    <h5 className="text-[11px] font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                      <span>Jadwal Automasi AI Toko</span>
-                      <span className="text-[9px] text-orange-500 font-bold">3 Tugas Hari Ini</span>
-                    </h5>
-                    <div className="space-y-1.5 text-[11px]">
-                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                          <span className="font-bold text-slate-800 dark:text-slate-200">Re-stock Kopi Susu Aren</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-amber-500">10:00 WIB</span>
+                    {/* Real-Time Mini Calendar Grid (August 2026) */}
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
+                        <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
-                          <span className="font-bold text-slate-800 dark:text-slate-200">Broadcast Promo WA Sembako</span>
+                      <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold">
+                        {(() => {
+                          const year = calendarCurrentMonth.getFullYear();
+                          const month = calendarCurrentMonth.getMonth();
+                          const daysInMonth = new Date(year, month + 1, 0).getDate();
+                          const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+                          
+                          const cells = [];
+                          for (let i = 0; i < firstDayOffset; i++) {
+                            cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
+                          }
+                          for (let d = 1; d <= daysInMonth; d++) {
+                            const isToday = d === 5 && month === 7 && year === 2026;
+                            cells.push(
+                              <span
+                                key={`day-${d}`}
+                                onClick={() => {
+                                  const selected = `${d} ${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+                                  setSelectedDateRange(selected);
+                                  triggerToast(`📅 Filter Tanggal: ${selected}`);
+                                  setCalendarOpen(false);
+                                }}
+                                className={`p-1 rounded-lg transition-all cursor-pointer ${
+                                  isToday
+                                    ? 'bg-orange-500 text-white font-black shadow-md scale-105'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
+                                }`}
+                              >
+                                {d}
+                              </span>
+                            );
+                          }
+                          return cells;
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Upcoming Real-time AI Scheduled Events */}
+                    <div className="space-y-2 pt-1">
+                      <h5 className="text-[11px] font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                        <span>Jadwal Automasi AI Toko</span>
+                        <span className="text-[9px] text-orange-500 font-bold">3 Tugas Hari Ini</span>
+                      </h5>
+                      <div className="space-y-1.5 text-[11px]">
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="font-bold text-slate-800 dark:text-slate-200">Re-stock Kopi Susu Aren</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-amber-500">10:00 WIB</span>
                         </div>
-                        <span className="text-[10px] font-bold text-orange-500">14:30 WIB</span>
+                        <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="font-bold text-slate-800 dark:text-slate-200">Broadcast Promo WA Sembako</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-orange-500">14:30 WIB</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
 
@@ -895,42 +903,48 @@ export function UmkmDashboardContainer({
 
               {/* NOTIFICATIONS DROPDOWN MENU */}
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <Bell size={16} className="text-orange-500" />
-                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Notifikasi (2 Baru)</h4>
-                    </div>
-                    <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
-                      Tandai semua dibaca
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {notifications.slice(0, 5).map((notif, idx) => (
-                      <div 
-                        key={idx}
-                        onClick={() => {
-                          if (notif.action_url) setActiveTab(notif.action_url);
-                          setNotificationsOpen(false);
-                        }}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                          notif.is_read 
-                            ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75' 
-                            : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
-                        }`}
-                      >
-                        <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <Activity size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
-                        </div>
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 bg-transparent" 
+                    onClick={() => setNotificationsOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <Bell size={16} className="text-orange-500" />
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Notifikasi (2 Baru)</h4>
                       </div>
-                    ))}
+                      <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
+                        Tandai semua dibaca
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {notifications.slice(0, 5).map((notif, idx) => (
+                        <div 
+                          key={idx}
+                          onClick={() => {
+                            if (notif.action_url) setActiveTab(notif.action_url);
+                            setNotificationsOpen(false);
+                          }}
+                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                            notif.is_read 
+                              ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75' 
+                              : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
+                          }`}
+                        >
+                          <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                            <Activity size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
 
@@ -953,89 +967,95 @@ export function UmkmDashboardContainer({
               </div>
 
               {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-3 space-y-2 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* User Info Header */}
-                  <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                    <img
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                      alt="Profile"
-                      className="size-9 rounded-full object-cover border border-orange-400"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                      <p className="text-[10px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 bg-transparent" 
+                    onClick={() => setProfileDropdownOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-3 space-y-2 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* User Info Header */}
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                      <img
+                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
+                        alt="Profile"
+                        className="size-9 rounded-full object-cover border border-orange-400"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                        <p className="text-[10px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Seamless Quick Utility Icon Bar (Apple Control Center Style) */}
-                  <div className="p-1 bg-slate-100/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-3 gap-1.5 items-center">
-                    {/* Theme Toggle Pill */}
-                    <button
-                      onClick={() => setDark(!dark)}
-                      className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                      title={dark ? 'Mode Terang' : 'Mode Gelap'}
-                    >
-                      {dark ? <Sun size={14} className="text-amber-400 shrink-0" /> : <Moon size={14} className="text-indigo-400 shrink-0" />}
-                      <span className="text-[10.5px] font-black">{dark ? 'Dark' : 'Light'}</span>
-                    </button>
+                    {/* Seamless Quick Utility Icon Bar (Apple Control Center Style) */}
+                    <div className="p-1 bg-slate-100/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-3 gap-1.5 items-center">
+                      {/* Theme Toggle Pill */}
+                      <button
+                        onClick={() => setDark(!dark)}
+                        className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        title={dark ? 'Mode Terang' : 'Mode Gelap'}
+                      >
+                        {dark ? <Sun size={14} className="text-amber-400 shrink-0" /> : <Moon size={14} className="text-indigo-400 shrink-0" />}
+                        <span className="text-[10.5px] font-black">{dark ? 'Dark' : 'Light'}</span>
+                      </button>
 
-                    {/* Real-time Calendar Trigger Pill */}
+                      {/* Real-time Calendar Trigger Pill */}
+                      <button
+                        onClick={() => {
+                          setCalendarOpen(true);
+                          setProfileDropdownOpen(false);
+                        }}
+                        className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs relative"
+                        title="Kalender Real-Time"
+                      >
+                        <Calendar size={14} className="text-orange-500 shrink-0" />
+                        <span className="text-[10.5px] font-black">Kalender</span>
+                        <span className="size-1.5 rounded-full bg-orange-500 animate-ping absolute top-1 right-1" />
+                      </button>
+
+                      {/* Language Selector Pill */}
+                      <div className="h-8.5 flex items-center justify-center">
+                        <LanguageSelector compact={true} className="!h-8.5 !w-full !justify-center !rounded-xl !font-black !text-[10.5px] border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-orange-400" />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+
+                    {/* Account Navigation Links */}
                     <button
                       onClick={() => {
-                        setCalendarOpen(true);
+                        setActiveTab('settings');
                         setProfileDropdownOpen(false);
                       }}
-                      className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs relative"
-                      title="Kalender Real-Time"
+                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
                     >
-                      <Calendar size={14} className="text-orange-500 shrink-0" />
-                      <span className="text-[10.5px] font-black">Kalender</span>
-                      <span className="size-1.5 rounded-full bg-orange-500 animate-ping absolute top-1 right-1" />
+                      <Settings size={14} className="text-slate-400" />
+                      <span>Profil</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('billing');
+                        setProfileDropdownOpen(false);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
+                    >
+                      <CreditCard size={14} className="text-slate-400" />
+                      <span>Billing</span>
                     </button>
 
-                    {/* Language Selector Pill */}
-                    <div className="h-8.5 flex items-center justify-center">
-                      <LanguageSelector compact={true} className="!h-8.5 !w-full !justify-center !rounded-xl !font-black !text-[10.5px] border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-orange-400" />
-                    </div>
+                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+
+                    <button
+                      onClick={async () => {
+                        await SupabaseDashboardService.signOut();
+                        onClose();
+                      }}
+                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 cursor-pointer flex items-center gap-2 font-bold"
+                    >
+                      <LogOut size={14} className="text-rose-500" />
+                      <span>Keluar</span>
+                    </button>
                   </div>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-                  {/* Account Navigation Links */}
-                  <button
-                    onClick={() => {
-                      setActiveTab('settings');
-                      setProfileDropdownOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
-                  >
-                    <Settings size={14} className="text-slate-400" />
-                    <span>Profil</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab('billing');
-                      setProfileDropdownOpen(false);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
-                  >
-                    <CreditCard size={14} className="text-slate-400" />
-                    <span>Billing</span>
-                  </button>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-                  <button
-                    onClick={async () => {
-                      await SupabaseDashboardService.signOut();
-                      onClose();
-                    }}
-                    className="w-full px-3 py-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 cursor-pointer flex items-center gap-2 font-bold"
-                  >
-                    <LogOut size={14} className="text-rose-500" />
-                    <span>Keluar</span>
-                  </button>
-                </div>
+                </>
               )}
             </div>
 
@@ -1129,18 +1149,18 @@ export function UmkmDashboardContainer({
           {/* Backdrop Blur */}
           <div 
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
           />
 
           {/* Slide-out Drawer Panel */}
-          <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 shadow-2xl z-50 overflow-y-auto">
+          <div className="relative w-[75vw] max-w-[270px] bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 shadow-2xl z-50 overflow-y-auto rounded-r-3xl border-r border-slate-200 dark:border-slate-800 animate-in slide-in-from-left duration-250">
             <div className="space-y-4">
               {/* Drawer Top Header with Logo & Close Button */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <img
                   src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                   alt="ZEGA AI Platform"
-                  className="h-9 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
+                  className="h-8.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
                 />
                 <button
                   onClick={() => setMobileMenuOpen(false)}
@@ -1149,6 +1169,19 @@ export function UmkmDashboardContainer({
                 >
                   <PanelLeftClose size={20} />
                 </button>
+              </div>
+
+              {/* Mobile Profile Banner inside Drawer */}
+              <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5">
+                <img
+                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
+                  alt="Profile"
+                  className="size-8.5 rounded-full object-cover border border-orange-400 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                  <p className="text-[9.5px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                </div>
               </div>
 
               {/* Navigation Category Groups */}
@@ -1169,14 +1202,14 @@ export function UmkmDashboardContainer({
                             setMobileMenuOpen(false);
                             triggerToast(`✓ Membuka ${item.label}`);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                             isActive
                               ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
+                          <div className="flex items-center gap-2.5">
+                            <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
                             <span>{item.label}</span>
                           </div>
                           {(item as any).badge && (
@@ -1193,13 +1226,13 @@ export function UmkmDashboardContainer({
             </div>
 
             {/* Drawer Bottom Actions */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
               <button
                 onClick={() => {
                   setActiveTab('help');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
               >
                 <HelpCircle size={16} className="text-orange-500" />
                 <span>Pusat Bantuan</span>
@@ -1211,7 +1244,7 @@ export function UmkmDashboardContainer({
                   await SupabaseDashboardService.signOut();
                   onClose();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer"
               >
                 <LogOut size={16} />
                 <span>Keluar</span>
@@ -1222,7 +1255,7 @@ export function UmkmDashboardContainer({
       )}
 
       {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL */}
-      <div className="fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 z-[60] flex flex-col items-end gap-2">
+      <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
         {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
         {copilotOpen && (
           <div className="w-[94vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">

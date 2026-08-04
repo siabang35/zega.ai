@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { ProfileTab } from './settings/ProfileTab';
 import { TeamTab } from './settings/TeamTab';
 import { IntegrationsTab } from './settings/IntegrationsTab';
@@ -15,6 +16,7 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ triggerToast }: SettingsViewProps) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Profil & Akun');
   
   // API Keys & Integrations state
@@ -92,12 +94,12 @@ export function SettingsView({ triggerToast }: SettingsViewProps) {
       {/* 1. Header & Subtitle */}
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-          {activeTab === 'Profil & Akun' ? 'Profil Saya' : activeTab}
+          {t.settingsView?.title || (activeTab === 'Profil & Akun' ? 'Profil Saya' : activeTab)}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-          {activeTab === 'Profil & Akun' 
+          {t.settingsView?.subtitle || (activeTab === 'Profil & Akun' 
             ? 'Kelola informasi akun, preferensi, dan pengaturan pribadi Anda.' 
-            : 'Kelola akun, tim, integrasi, preferensi, dan keamanan sistem Anda.'}
+            : 'Kelola akun, tim, integrasi, preferensi, dan keamanan sistem Anda.')}
         </p>
       </div>
 

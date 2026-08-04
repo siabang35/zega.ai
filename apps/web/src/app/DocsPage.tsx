@@ -77,6 +77,9 @@ const DOCS_NAV = [
   {
     category: 'ENTERPRISE & COMPLIANCE',
     items: [
+      { id: 'i18n-enterprise', title: 'Enterprise Multi-Language System (EN, ID, ZH)' },
+      { id: 'mobile-ux-hardening', title: 'Mobile UX & Autoclose Architecture' },
+      { id: 'backend-security-keys', title: 'Backend Secret Isolation & Environment Architecture' },
       { id: 'pii', title: 'PII Redaction & Audit' },
       { id: 'auth', title: 'OTP & Bot Defense' },
       { id: 'deployment', title: 'Vercel & Render Setup' },
@@ -481,6 +484,9 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               {activeTab === '9router' && 'Dynamic latency & cost-based AI model routing with zero-downtime automatic fallback across OpenAI, Anthropic, and Google AI.'}
               {activeTab === 'guardrails' && '5-layer security guardrail system ensuring PII redaction, prompt injection defense, and schema validation.'}
               {activeTab === 'orchestrator' && 'Manage multi-agent swarms, sandbox task execution, and automated workflow triggers.'}
+              {activeTab === 'i18n-enterprise' && 'Enterprise-grade multi-language internationalization (i18n) framework supporting English (EN), Indonesian (ID), and Chinese (ZH) with zero-flicker React context persistence.'}
+              {activeTab === 'mobile-ux-hardening' && 'Mobile-first responsive UX hardening featuring click-outside backdrop auto-close popovers, optimized navigation drawer width (270px), and layer-safe z-index overlay management.'}
+              {activeTab === 'backend-security-keys' && 'Zero-Trust environment variable separation ensuring private API keys and webhook secrets remain strictly isolated on Fastify backend services with Zod schema validation.'}
               {activeTab === 'pii' && 'Automated real-time PII scrubbing, hashing, and audit logging to ensure strict HIPAA, GDPR, and SOC2 compliance.'}
               {activeTab === 'auth' && 'Hardened authentication flow combining Cloudflare Turnstile bot defense, Brevo SMTP OTP delivery, and Supabase RLS policies.'}
               {activeTab === 'deployment' && 'Production deployment instructions for hosting the Vite web application on Vercel and the Fastify API on Render Cloud.'}
@@ -1035,6 +1041,142 @@ supabase
     // Forward to ERP System (SAP / Salesforce)
   })
   .subscribe();`}
+                  </pre>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Enterprise Multi-Language System (EN, ID, ZH) */}
+          {activeTab === 'i18n-enterprise' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🌐 Enterprise Multi-Language System (EN, ID, ZH)
+                </h2>
+                <p>
+                  ZEGA AI features a high-performance, single-source-of-truth <strong>Internationalization (i18n) Engine</strong> built with React Context (`LanguageContext`) and persistent `localStorage` synchronization.
+                </p>
+                <div className="grid sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <span>🇬🇧 English (EN)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Default global business standard for international users and developer documentation.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <span>🇮🇩 Bahasa Indonesia (ID)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Optimized localization for UMKM merchants, POS cashiers, and domestic business operations.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <span>🇨🇳 Simplified Chinese (ZH)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Native translation coverage for regional enterprise clients and Web3 cross-border commerce.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2 mt-4">
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Key Implementation Details</h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-[11.5px]">
+                    <li><strong>Single Source of Truth (`translations.tsx`):</strong> Centralized translation dictionary mapping keys across EN, ID, and ZH to prevent fragmented language files.</li>
+                    <li><strong>Custom `useLanguage()` Hook:</strong> Instant access to <code className="font-mono text-emerald-500">language</code>, <code className="font-mono text-emerald-500">setLanguage()</code>, and <code className="font-mono text-emerald-500">t(key)</code> across all dashboard views.</li>
+                    <li><strong>Zero-Flicker Persistence:</strong> Language preferences automatically persist to <code className="font-mono text-emerald-500">localStorage.getItem('zega_lang')</code> upon selection.</li>
+                  </ul>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">React Component Integration Example</h3>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                  <pre>
+{`import { useLanguage } from '../i18n/translations';
+
+export const MerchantHeader = () => {
+  const { language, setLanguage, t } = useLanguage();
+
+  return (
+    <div className="flex items-center justify-between">
+      <h1>{t('dashboardTitle')}</h1>
+      
+      {/* Language Switcher Dropdown */}
+      <select 
+        value={language} 
+        onChange={(e) => setLanguage(e.target.value as 'en' | 'id' | 'zh')}
+        className="bg-slate-900 text-white rounded-lg px-2 py-1"
+      >
+        <option value="id">🇮🇩 Indonesia</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="zh">🇨🇳 中文</option>
+      </select>
+    </div>
+  );
+};`}
+                  </pre>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Mobile UX Hardening & Click-Outside Autoclose */}
+          {activeTab === 'mobile-ux-hardening' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  📱 Mobile UX Hardening & Autoclose Architecture
+                </h2>
+                <p>
+                  ZEGA AI applies mobile-first design principles ensuring fluid navigation, ideal drawer proportions, and touch-friendly click-outside auto-close popovers.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 space-y-2">
+                    <h4 className="font-bold text-blue-600 dark:text-blue-400 text-xs">Click-Outside Backdrop Autoclose</h4>
+                    <p className="text-[11px] text-slate-500">Every header popover (User Profile, Notifications, Real-Time Calendar) is paired with a transparent fixed backdrop (`fixed inset-0 z-40 bg-transparent`). Tapping anywhere outside immediately dismisses the menu.</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
+                    <h4 className="font-bold text-purple-600 dark:text-purple-400 text-xs">Optimized Mobile Navigation Drawer</h4>
+                    <p className="text-[11px] text-slate-500">Mobile sidebar drawer panel width is explicitly styled to <code className="font-mono text-purple-400">w-[75vw] max-w-[270px]</code> with rounded right borders (<code className="font-mono text-purple-400">rounded-r-3xl</code>) to prevent screen overcrowding.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Backend Secret Isolation & Environment Architecture */}
+          {activeTab === 'backend-security-keys' && (
+            <div className="space-y-8 my-8 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  🔒 Backend Environment Secret Isolation & Security Architecture
+                </h2>
+                <p>
+                  ZEGA AI adheres to strict <strong>Zero-Trust Secret Isolation</strong> guidelines. Secret API keys, webhook signing secrets, and database credentials are hosted exclusively on secure Fastify backend servers (`apps/api/.env`).
+                </p>
+                <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5 space-y-2">
+                  <h3 className="font-bold text-rose-600 dark:text-rose-400 text-sm">Security Best Practices & Secret Guidelines</h3>
+                  <ul className="list-disc pl-5 space-y-1.5 text-[11.5px]">
+                    <li><strong>Never Expose Secret Keys in Client Builds:</strong> Frontend static bundles (`apps/web`) must never include secret API keys (`ZEGA_SECRET_API_KEY`, `ZEGA_WEBHOOK_SECRET`, `PRIVY_APP_SECRET`). Only safe public identifiers (`VITE_ZEGA_PUBLIC_API_KEY`, `VITE_PRIVY_APP_ID`) are permitted.</li>
+                    <li><strong>Zod Environment Schema Validation:</strong> The Fastify API validates all environment variables on boot using Zod schemas (`envSchema`). Missing or invalid keys halt execution immediately.</li>
+                    <li><strong>Vercel & Render Secret Isolation:</strong> Configure backend secrets exclusively in Render environment dashboard and public variables in Vercel.</li>
+                  </ul>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Environment Architecture Breakdown</h3>
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 font-mono text-[11px] text-slate-200 overflow-x-auto">
+                  <pre>
+{`# Backend Production Environment Variables (apps/api/.env - Render ONLY)
+ZEGA_PUBLIC_API_KEY=zga_pk_live_client_demo_key
+ZEGA_SECRET_API_KEY=zga_sec_demo_secret_key_placeholder
+ZEGA_WEBHOOK_URL=https://zegaai.site/api/v1/webhook
+ZEGA_WEBHOOK_SECRET=zga_whsec_demo_secret_key_placeholder
+
+# Frontend Public Environment Variables (apps/web/.env - Vercel)
+VITE_ZEGA_PUBLIC_API_KEY=zga_pk_live_4f89d3a2e1b07c6598421357604f8e91
+VITE_ZEGA_WEBHOOK_URL=https://zegaai.site/api/v1/webhook`}
                   </pre>
                 </div>
               </section>

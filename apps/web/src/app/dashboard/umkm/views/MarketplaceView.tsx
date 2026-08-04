@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   AIAgentDetailModal, ConnectPaymentModal, RequestCustomAIModal, MarketplaceHelpModal 
 } from './marketplace/MarketplaceModals';
@@ -59,6 +60,7 @@ const BrandLogos: Record<string, React.ReactNode> = {
 };
 
 export function MarketplaceView({ triggerToast }: MarketplaceViewProps) {
+  const { t } = useLanguage();
   const [selectedCategoryPill, setSelectedCategoryPill] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -231,9 +233,11 @@ export function MarketplaceView({ triggerToast }: MarketplaceViewProps) {
       {/* 1. Header Section with Top Right Shortcut Cards */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">AI Marketplace</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            {t.marketplaceView?.title || 'AI Marketplace'}
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Temukan, instal, dan kelola AI Employee atau integrasi premium untuk mempercepat bisnis Anda.
+            {t.marketplaceView?.subtitle || 'Temukan, instal, dan kelola AI Employee atau integrasi premium untuk mempercepat bisnis Anda.'}
           </p>
         </div>
 

@@ -7,6 +7,7 @@ import {
 import { ZeroClawTerminalView } from '../../enterprise/views/ZeroClawTerminalView';
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { PrivyWalletService } from '../../../services/privyWalletService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   CreateInvoiceModal, RecordExpenseModal, ReconciliationModal, 
   TaxSettingsModal, AllTransactionsModal, DateFilterModal, FilterModal 
@@ -43,6 +44,7 @@ interface FinanceViewProps {
 }
 
 export function FinanceView({ triggerToast, isGuest, userEmail, userName }: FinanceViewProps) {
+  const { t } = useLanguage();
   const [activeFinanceTab, setActiveFinanceTab] = useState<'overview' | 'zeroclaw'>('overview');
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'IDR'>('USDC');
   const [periodLabel, setPeriodLabel] = useState('1 Jul - 31 Jul 2026');

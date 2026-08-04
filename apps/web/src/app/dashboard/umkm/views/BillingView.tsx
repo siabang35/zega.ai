@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   UpgradePlanModal, AddPaymentMethodModal, UsageDetailModal, InvoiceDetailModal 
 } from './billing/BillingModals';
@@ -15,6 +16,7 @@ interface BillingViewProps {
 }
 
 export function BillingView({ triggerToast }: BillingViewProps) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Overview');
   const [trendRange, setTrendRange] = useState('30 Hari Terakhir');
 
@@ -127,10 +129,10 @@ export function BillingView({ triggerToast }: BillingViewProps) {
       {/* 1. Header & Page Subtitle */}
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-          Billing & Subscription
+          {t.billingView?.title || 'Billing & Subscription'}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-          Kelola langganan, penggunaan, dan metode pembayaran Anda.
+          {t.billingView?.subtitle || 'Kelola langganan, penggunaan, dan metode pembayaran Anda.'}
         </p>
       </div>
 

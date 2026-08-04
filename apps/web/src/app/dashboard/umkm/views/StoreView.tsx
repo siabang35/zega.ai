@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { AddProductModal, ImportProductModal, ExportDataModal } from './store/StoreModals';
 
 import {
@@ -38,6 +39,7 @@ interface StoreViewProps {
 }
 
 export function StoreView({ triggerToast }: StoreViewProps) {
+  const { t } = useLanguage();
   const [storeData, setStoreData] = useState<any>({
     metrics: {
       total_products: 152,
@@ -208,9 +210,11 @@ export function StoreView({ triggerToast }: StoreViewProps) {
       {/* 1. Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Store</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            {t.storeView?.title || 'Store'}
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Kelola produk, stok, dan pesanan dengan mudah dalam satu dashboard.
+            {t.storeView?.subtitle || 'Kelola produk, stok, dan pesanan dengan mudah dalam satu dashboard.'}
           </p>
         </div>
         <div className="flex items-center gap-2.5">

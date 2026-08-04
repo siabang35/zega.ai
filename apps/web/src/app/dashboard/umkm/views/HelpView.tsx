@@ -7,8 +7,10 @@ import {
   Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 
 export const HelpView: React.FC = () => {
+  const { t } = useLanguage();
   const [faqs, setFaqs] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,10 +112,10 @@ export const HelpView: React.FC = () => {
             <span>Pusat Bantuan & Layanan Bimbingan</span>
           </div>
           <h1 className="text-2xl md:text-4xl font-black tracking-tight">
-            Bagaimana Kami Bisa Membantu Bisnis Anda Hari Ini?
+            {t.helpView?.title || 'Bagaimana Kami Bisa Membantu Bisnis Anda Hari Ini?'}
           </h1>
           <p className="text-xs md:text-sm text-orange-100 font-medium">
-            Cari panduan otomatisasi, integrasi API, manajemen AI Employees, atau ajukan tiket bantuan langsung ke tim teknis ZEGA.
+            {t.helpView?.subtitle || 'Cari panduan otomatisasi, integrasi API, manajemen AI Employees, atau ajukan tiket bantuan langsung ke tim teknis ZEGA.'}
           </p>
 
           {/* Search Input */}

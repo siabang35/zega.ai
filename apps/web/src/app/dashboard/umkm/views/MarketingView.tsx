@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   CreateCampaignModal, CreateContentModal, AllChannelsModal, 
   AllCampaignsModal, DateFilterModal, FilterModal 
@@ -40,6 +41,7 @@ interface MarketingViewProps {
 }
 
 export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
+  const { t } = useLanguage();
   const [timeTab, setTimeTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [contentTab, setContentTab] = useState<string>('Semua');
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -257,11 +259,11 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            Marketing Overview
+            {t.marketingView?.title || 'Marketing Overview'}
             {loading && <RefreshCw size={16} className="animate-spin text-orange-500" />}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Pantau semua aktivitas marketing Anda dalam satu dashboard.
+            {t.marketingView?.subtitle || 'Pantau semua aktivitas marketing Anda dalam satu dashboard.'}
           </p>
         </div>
 

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 import { 
   AddCustomerModal, EditCustomerModal, CustomerDetailModal, 
   AIRetentionCampaignModal, ImportCustomerModal, ExportCustomerDataModal 
@@ -43,6 +44,7 @@ interface CustomersViewProps {
 }
 
 export function CustomersView({ triggerToast }: CustomersViewProps) {
+  const { t } = useLanguage();
   const [customerData, setCustomerData] = useState<any>({
     metrics: {
       total_customers: 1248,
@@ -261,9 +263,11 @@ export function CustomersView({ triggerToast }: CustomersViewProps) {
       {/* 1. Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Customers</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            {t.customersView?.title || 'Customers'}
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Kelola pelanggan, pahami perilaku mereka, dan tingkatkan loyalitas.
+            {t.customersView?.subtitle || 'Kelola pelanggan, pahami perilaku mereka, dan tingkatkan loyalitas.'}
           </p>
         </div>
 

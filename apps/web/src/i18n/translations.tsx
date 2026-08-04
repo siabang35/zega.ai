@@ -353,6 +353,126 @@ export const TRANSLATIONS = {
       salesBySource: 'Sales per Source',
       viewAllChannels: 'View all channels',
       aiReportFull: 'Full AI Report'
+    },
+    sidebarNav: {
+      beranda: 'Overview',
+      aiEmployee: 'AI Workforce',
+      otokomasi: 'Automations',
+      inbox: 'Unified Inbox',
+      penjualan: 'Sales Hub',
+      pemasaran: 'AI Marketing',
+      keuangan: 'Finance & P&L',
+      tokoSaya: 'Store Management',
+      pelanggan: 'CRM Customers',
+      laporanAi: 'AI Intelligence',
+      knowledgeBase: 'Knowledge Base',
+      marketplaceAi: 'AI Marketplace',
+      billing: 'Billing & Plan',
+      pengaturan: 'System Settings',
+      bantuan: 'Help Center'
+    },
+    marketingView: {
+      title: 'AI Marketing Campaigns',
+      subtitle: 'Create, automate, and analyze high-converting marketing campaigns driven by AI.',
+      createCampaign: 'Create Campaign',
+      activeCampaigns: 'Active Campaigns',
+      totalReach: 'Total Audience Reach',
+      conversionRate: 'Avg Conversion Rate',
+      roi: 'Marketing ROI',
+      filterAll: 'All Channels',
+      whatsapp: 'WhatsApp Broadcast',
+      instagram: 'Instagram DM & Promo',
+      email: 'Email Marketing',
+      facebook: 'Facebook Ads',
+      colCampaign: 'CAMPAIGN',
+      colChannel: 'CHANNEL',
+      colAudience: 'AUDIENCE',
+      colStatus: 'STATUS',
+      colConversions: 'CONVERSIONS',
+      colActions: 'ACTIONS'
+    },
+    financeView: {
+      title: 'Finance & P&L Analysis',
+      subtitle: 'Real-time financial monitoring, automated bookkeeping, and P&L reports.',
+      downloadReport: 'Download P&L Report',
+      addTransaction: 'Add Record',
+      totalIncome: 'Total Revenue',
+      totalExpense: 'Total Expenses',
+      netProfit: 'Net Operating Profit',
+      profitMargin: 'Profit Margin',
+      recentTransactions: 'Recent Transactions',
+      cashflowTrend: 'Cashflow Trend'
+    },
+    storeView: {
+      title: 'Store & Inventory Management',
+      subtitle: 'Manage product catalog, stock inventory, and multi-channel store sync.',
+      addProduct: 'Add Product',
+      importProducts: 'Import Catalog',
+      totalProducts: 'Total SKUs',
+      lowStockAlerts: 'Low Stock Alerts',
+      outOfStock: 'Out of Stock',
+      activeCatalog: 'Active Items',
+      colProduct: 'PRODUCT SKU',
+      colCategory: 'CATEGORY',
+      colPrice: 'PRICE',
+      colStock: 'STOCK STATUS',
+      colAction: 'ACTION'
+    },
+    customersView: {
+      title: 'Customer Relationship (CRM)',
+      subtitle: 'Track customer profiles, purchase history, and AI sentiment analysis.',
+      addCustomer: 'Add Customer',
+      exportCsv: 'Export Segment',
+      totalCustomers: 'Total Customers',
+      vipCustomers: 'VIP Members',
+      churnRisk: 'Churn Risk',
+      avgLtv: 'Avg Lifetime Value'
+    },
+    reportsView: {
+      title: 'AI Intelligence & Reports',
+      subtitle: 'Deep business insights, predictive analytics, and AI executive summaries.',
+      generateReport: 'Generate AI Report',
+      businessHealth: 'Business Health Index',
+      predictedGrowth: 'Predicted 30D Growth',
+      topInsight: 'Top AI Recommendation'
+    },
+    knowledgeView: {
+      title: 'Store AI Knowledge Base',
+      subtitle: 'Upload documents, FAQs, and product catalogs to train your custom AI copilot.',
+      uploadDoc: 'Upload Document',
+      addFaq: 'Add FAQ',
+      trainedDocs: 'Trained Files',
+      accuracy: 'AI Knowledge Accuracy'
+    },
+    marketplaceView: {
+      title: 'ZEGA AI Agent Marketplace',
+      subtitle: 'Browse and deploy specialized pre-trained AI employees for your industry.',
+      deployAgent: 'Deploy Agent',
+      searchPlaceholder: 'Search AI agents by industry or role...'
+    },
+    billingView: {
+      title: 'Billing & Plan Subscriptions',
+      subtitle: 'Manage enterprise subscription tier, usage quota, and invoice history.',
+      currentPlan: 'Current Subscription',
+      upgradePlan: 'Upgrade Tier',
+      usageQuota: 'Monthly Quota',
+      invoices: 'Billing Invoices'
+    },
+    settingsView: {
+      title: 'System & Security Settings',
+      subtitle: 'Configure store profile, team permissions, integrations, and API security.',
+      profileTab: 'General Profile',
+      integrationsTab: 'Integrations & Webhooks',
+      apiKeysTab: 'API Keys & Security',
+      notificationsTab: 'Notifications',
+      systemTab: 'Preferences'
+    },
+    helpView: {
+      title: 'Help Center & AI Support',
+      subtitle: 'Find guides, documentation, or chat directly with 24/7 technical support.',
+      searchGuides: 'Search help guides...',
+      contactSupport: 'Contact Support',
+      docs: 'System Docs'
     }
   },
   id: {
@@ -692,6 +812,126 @@ export const TRANSLATIONS = {
       salesBySource: 'Penjualan per Sumber',
       viewAllChannels: 'Lihat Semua Channel',
       aiReportFull: 'Laporan AI Lengkap'
+    },
+    sidebarNav: {
+      beranda: 'Beranda',
+      aiEmployee: 'AI Employee',
+      otokomasi: 'Otomasi',
+      inbox: 'Inbox',
+      penjualan: 'Penjualan',
+      pemasaran: 'Pemasaran',
+      keuangan: 'Keuangan',
+      tokoSaya: 'Toko Saya',
+      pelanggan: 'Pelanggan',
+      laporanAi: 'Laporan AI',
+      knowledgeBase: 'Knowledge Base',
+      marketplaceAi: 'Marketplace AI',
+      billing: 'Billing',
+      pengaturan: 'Pengaturan',
+      bantuan: 'Bantuan'
+    },
+    marketingView: {
+      title: 'Kampanye Marketing AI',
+      subtitle: 'Buat, otomatiskan, dan analisis kampanye pemasaran berkonversi tinggi bertenaga AI.',
+      createCampaign: 'Buat Kampanye',
+      activeCampaigns: 'Kampanye Aktif',
+      totalReach: 'Jangkauan Audiens',
+      conversionRate: 'Rata-rata Konversi',
+      roi: 'ROI Pemasaran',
+      filterAll: 'Semua Channel',
+      whatsapp: 'Broadcast WhatsApp',
+      instagram: 'DM & Promo Instagram',
+      email: 'Email Marketing',
+      facebook: 'Iklan Facebook',
+      colCampaign: 'KAMPANYE',
+      colChannel: 'CHANNEL',
+      colAudience: 'AUDIENS',
+      colStatus: 'STATUS',
+      colConversions: 'KONVERSI',
+      colActions: 'AKSI'
+    },
+    financeView: {
+      title: 'Analisis Keuangan & Laba Rugi',
+      subtitle: 'Pemantauan keuangan real-time, pembukuan otomatis, dan laporan P&L.',
+      downloadReport: 'Unduh Laporan Laba Rugi',
+      addTransaction: 'Tambah Catatan',
+      totalIncome: 'Total Pendapatan',
+      totalExpense: 'Total Pengeluaran',
+      netProfit: 'Laba Bersih Operasional',
+      profitMargin: 'Margin Keuntungan',
+      recentTransactions: 'Transaksi Terbaru',
+      cashflowTrend: 'Tren Arus Kas'
+    },
+    storeView: {
+      title: 'Manajemen Toko & Inventaris',
+      subtitle: 'Kelola katalog produk, stok inventaris, dan sinkronisasi toko multi-channel.',
+      addProduct: 'Tambah Produk',
+      importProducts: 'Impor Katalog',
+      totalProducts: 'Total SKU',
+      lowStockAlerts: 'Peringatan Stok Rendah',
+      outOfStock: 'Stok Habis',
+      activeCatalog: 'Item Aktif',
+      colProduct: 'SKU PRODUK',
+      colCategory: 'KATEGORI',
+      colPrice: 'HARGA',
+      colStock: 'STATUS STOK',
+      colAction: 'AKSI'
+    },
+    customersView: {
+      title: 'Hubungan Pelanggan (CRM)',
+      subtitle: 'Lacak profil pelanggan, riwayat pembelian, dan analisis sentimen AI.',
+      addCustomer: 'Tambah Pelanggan',
+      exportCsv: 'Ekspor Segmen',
+      totalCustomers: 'Total Pelanggan',
+      vipCustomers: 'Anggota VIP',
+      churnRisk: 'Risiko Churn',
+      avgLtv: 'Nilai Seumur Hidup Rata-rata'
+    },
+    reportsView: {
+      title: 'Laporan & Intelijen AI',
+      subtitle: 'Wawasan bisnis mendalam, analitik prediktif, dan ringkasan eksekutif AI.',
+      generateReport: 'Buat Laporan AI',
+      businessHealth: 'Indeks Kesehatan Bisnis',
+      predictedGrowth: 'Prediksi Pertumbuhan 30 Hari',
+      topInsight: 'Rekomendasi Utama AI'
+    },
+    knowledgeView: {
+      title: 'Knowledge Base AI Toko',
+      subtitle: 'Unggah dokumen, FAQ, dan katalog produk untuk melatih copilot AI kustom Anda.',
+      uploadDoc: 'Unggah Dokumen',
+      addFaq: 'Tambah FAQ',
+      trainedDocs: 'File Terlatih',
+      accuracy: 'Akurasi Pengetahuan AI'
+    },
+    marketplaceView: {
+      title: 'Marketplace Agen AI ZEGA',
+      subtitle: 'Jelajahi dan terapkan karyawan AI terlatih untuk industri Anda.',
+      deployAgent: 'Terapkan Agen',
+      searchPlaceholder: 'Cari agen AI berdasarkan industri atau peran...'
+    },
+    billingView: {
+      title: 'Langganan & Tagihan',
+      subtitle: 'Kelola tingkat paket langganan enterprise, kuota penggunaan, dan riwayat faktur.',
+      currentPlan: 'Langganan Saat Ini',
+      upgradePlan: 'Tingkatkan Paket',
+      usageQuota: 'Kuota Bulanan',
+      invoices: 'Faktur Tagihan'
+    },
+    settingsView: {
+      title: 'Pengaturan Sistem & Keamanan',
+      subtitle: 'Konfigurasi profil toko, izin tim, integrasi, dan keamanan API.',
+      profileTab: 'Profil Umum',
+      integrationsTab: 'Integrasi & Webhook',
+      apiKeysTab: 'API Key & Keamanan',
+      notificationsTab: 'Notifikasi',
+      systemTab: 'Preferensi'
+    },
+    helpView: {
+      title: 'Pusat Bantuan & Dukungan AI',
+      subtitle: 'Temukan panduan, dokumentasi, atau chat langsung dengan dukungan teknis 24/7.',
+      searchGuides: 'Cari panduan bantuan...',
+      contactSupport: 'Hubungi Dukungan',
+      docs: 'Dokumentasi Sistem'
     }
   },
   zh: {
@@ -1031,6 +1271,126 @@ export const TRANSLATIONS = {
       salesBySource: '渠道销售额',
       viewAllChannels: '查看所有渠道',
       aiReportFull: '完整 AI 报告'
+    },
+    sidebarNav: {
+      beranda: '概览',
+      aiEmployee: 'AI 员工团队',
+      otokomasi: '自动化',
+      inbox: '统一收件箱',
+      penjualan: '销售中心',
+      pemasaran: 'AI 营销',
+      keuangan: '财务与损益',
+      tokoSaya: '店铺管理',
+      pelanggan: '客户管理',
+      laporanAi: 'AI 智能报告',
+      knowledgeBase: '知识库',
+      marketplaceAi: 'AI 市场',
+      billing: '订阅与账单',
+      pengaturan: '系统设置',
+      bantuan: '帮助中心'
+    },
+    marketingView: {
+      title: 'AI 营销活动',
+      subtitle: '创建、自动化并分析由 AI 驱动的高转化率营销活动。',
+      createCampaign: '创建活动',
+      activeCampaigns: '进行中活动',
+      totalReach: '受众覆盖量',
+      conversionRate: '平均转化率',
+      roi: '营销投资回报率',
+      filterAll: '所有渠道',
+      whatsapp: 'WhatsApp 广播',
+      instagram: 'Instagram 私信与促销',
+      email: '邮件营销',
+      facebook: 'Facebook 广告',
+      colCampaign: '营销活动',
+      colChannel: '渠道',
+      colAudience: '受众',
+      colStatus: '状态',
+      colConversions: '转化量',
+      colActions: '操作'
+    },
+    financeView: {
+      title: '财务与损益分析',
+      subtitle: '实时财务监控、自动化记账与损益表报告。',
+      downloadReport: '下载损益表',
+      addTransaction: '添加记录',
+      totalIncome: '总收入',
+      totalExpense: '总支出',
+      netProfit: '营业净利润',
+      profitMargin: '利润率',
+      recentTransactions: '最新交易',
+      cashflowTrend: '现金流趋势'
+    },
+    storeView: {
+      title: '店铺与库存管理',
+      subtitle: '管理商品目录、库存数量及多渠道店铺同步。',
+      addProduct: '添加商品',
+      importProducts: '导入目录',
+      totalProducts: 'SKU 总数',
+      lowStockAlerts: '低库存预警',
+      outOfStock: '缺货',
+      activeCatalog: '在售商品',
+      colProduct: '商品 SKU',
+      colCategory: '分类',
+      colPrice: '价格',
+      colStock: '库存状态',
+      colAction: '操作'
+    },
+    customersView: {
+      title: '客户关系管理 (CRM)',
+      subtitle: '追踪客户资料、购买历史与 AI 情感分析。',
+      addCustomer: '添加客户',
+      exportCsv: '导出分群',
+      totalCustomers: '客户总数',
+      vipCustomers: 'VIP 会员',
+      churnRisk: '流失风险',
+      avgLtv: '平均客户终身价值'
+    },
+    reportsView: {
+      title: 'AI 智能与商业报告',
+      subtitle: '深度商业洞察、预测性分析与 AI 高管摘要。',
+      generateReport: '生成 AI 报告',
+      businessHealth: '业务健康指数',
+      predictedGrowth: '预测 30 天增长',
+      topInsight: 'AI 核心建议'
+    },
+    knowledgeView: {
+      title: '店铺 AI 知识库',
+      subtitle: '上传文档、常见问题与商品目录，训练专属 AI 助手。',
+      uploadDoc: '上传文档',
+      addFaq: '添加 FAQ',
+      trainedDocs: '已训练文件',
+      accuracy: 'AI 知识准确率'
+    },
+    marketplaceView: {
+      title: 'ZEGA AI 代理市场',
+      subtitle: '浏览并部署针对您行业预训练的专业 AI 员工。',
+      deployAgent: '部署代理',
+      searchPlaceholder: '按行业或角色搜索 AI 代理...'
+    },
+    billingView: {
+      title: '订阅与账单管理',
+      subtitle: '管理企业订阅层级、使用配额与发票历史。',
+      currentPlan: '当前订阅',
+      upgradePlan: '升级方案',
+      usageQuota: '每月配额',
+      invoices: '账单发票'
+    },
+    settingsView: {
+      title: '系统与安全设置',
+      subtitle: '配置店铺资料、团队权限、工具集成与 API 安全。',
+      profileTab: '基本资料',
+      integrationsTab: '集成与 Webhook',
+      apiKeysTab: 'API 密钥与安全',
+      notificationsTab: '通知设置',
+      systemTab: '系统偏好'
+    },
+    helpView: {
+      title: '帮助中心与 AI 支持',
+      subtitle: '查找指南、技术文档或与 7x24 小时技术支持直接对话。',
+      searchGuides: '搜索帮助指南...',
+      contactSupport: '联系支持',
+      docs: '系统文档'
     }
   }
 };
