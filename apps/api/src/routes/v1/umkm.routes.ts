@@ -411,11 +411,11 @@ Instruksi Keamanan & Operasional Utama:
       }
     }
 
-    // --- Provider 4: Google Gemini 2.0 Flash API (Next-Gen Gemini Engine) ---
+    // --- Provider 4: Google Gemini 3.6 Flash API (Next-Gen 2026 Gemini Engine) ---
     if (!replyText && geminiApiKey) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -439,12 +439,13 @@ Instruksi Keamanan & Operasional Utama:
           const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (rawText && rawText.trim()) {
             replyText = rawText.trim();
-            aiModel = 'gemini-2.0-flash';
+            aiModel = 'gemini-3.6-flash';
             inferenceMs = Date.now() - startTime;
+            fastify.log.info('[Copilot] Gemini 3.6 Flash Inference Succeeded');
           }
         }
       } catch (err) {
-        fastify.log.warn({ err }, '[Gemini 2.0 Flash Failover Triggered]');
+        fastify.log.warn({ err }, '[Gemini 3.6 Flash Failover Triggered]');
       }
     }
 
