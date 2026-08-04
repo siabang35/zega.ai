@@ -1776,12 +1776,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 }
 
                 // 🛡️ Strict On-Chain Reconciliation Anti-Fraud Rule:
-                // If an explicit referenceKey exists (e.g. Base58 >= 32 chars and not REF-GENERAL), refMatches MUST BE true!
-                // Loose fallback matching by amount alone is ONLY allowed when no specific referenceKey is provided (REF-GENERAL).
+                // For invoices with a unique referenceKey (Base58 >= 32 chars), refMatches MUST BE true!
+                // Loose matching of old wallet transactions by amount alone is strictly prohibited for specific invoices to prevent false immediate auto-payments.
                 const hasExplicitRefKey = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL'));
                 const isMatchValid = hasExplicitRefKey
-                  ? refMatches
-                  : (refMatches || (isFreshShort && amountMatches && matchesRecipient));
+                  ? (refMatches && isFresh)
+                  : (refMatches || (isFreshShort && amountMatches && matchesRecipient && !referenceKey));
 
                 if (!isAlreadyClaimed && isMatchValid) {
                   let settlementStatus = 'settled_exact';

@@ -216,12 +216,12 @@ export function ZeroClawTerminalView({
 
   const userEmail = propUserEmail && propUserEmail.trim().length > 0 && !propUserEmail.includes('guest')
     ? propUserEmail
-    : (propUserEmail || 'user@zegaai.site');
+    : (propUserEmail || '');
   const isGuestSession = false;
   const accountMode: 'demo' | 'authenticated' = 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    const targetEmail = email || userEmail || 'user@zegaai.site';
+    const targetEmail = email || userEmail || '';
     return PrivyWalletService.getEmbeddedSolanaWallet(targetEmail).address;
   };
 
@@ -449,7 +449,7 @@ export function ZeroClawTerminalView({
   // Fetch persistent invoices from Supabase Master Database & Cloudflare R2 CDN
   const fetchDbInvoices = async () => {
     try {
-      const query = `isDemo=false&userId=${encodeURIComponent(userEmail || 'user@zegaai.site')}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`;
+      const query = `isDemo=false&userId=${encodeURIComponent(userEmail || '')}&merchantPubkey=${encodeURIComponent(activeMerchantWallet)}`;
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/list?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.invoices)) {
@@ -1005,7 +1005,7 @@ export function ZeroClawTerminalView({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: userEmail || 'user@zegaai.site',
+            userId: userEmail || '',
             merchantPubkey: activeMerchantWallet,
             amountUsdc: paidAmount,
             referenceKey: targetHash.substring(0, 32),
@@ -1283,7 +1283,7 @@ export function ZeroClawTerminalView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userEmail || 'user@zegaai.site',
+          userId: userEmail || '',
           merchantPubkey: inv.merchantWallet,
           amount: inv.amount,
           memo: inv.memo,
@@ -1326,12 +1326,14 @@ export function ZeroClawTerminalView({
     const parsedAmount = parseFloat(cleanAmountStr) || 15.00;
     const formattedAmount = parsedAmount.toFixed(2);
 
-    // Standard scannable Solana Pay URI
-    const url = `solana:${activeMerchantWallet}?amount=${formattedAmount}`;
+    // Generate valid 32-byte Ed25519 Solana Reference Key using Base58 standard
+    const refKey = generateSolanaReferenceKey();
+
+    // Standard scannable Solana Pay URI with mandatory Base58 reference key
+    const url = `solana:${activeMerchantWallet}?amount=${formattedAmount}&reference=${refKey}`;
 
     setGeneratedUrl(url);
 
-    const refKey = `RefKeyGen${Date.now().toString(36)}`;
     const newHistItem: GeneratedInvoice = {
       id: `inv_manual_${Date.now()}`,
       amount: formattedAmount,
