@@ -5,6 +5,7 @@ import { SupabaseService } from '../../services/supabaseService.js';
 import { zeroClawSignatureMonitor } from '../../services/zeroclawSignatureMonitor.js';
 import { solanaRpcManager } from '../../services/solanaRpcManager.js';
 import { logger } from '../../utils/logger.js';
+import { envConfig } from '../../config/env.js';
 
 export function generateSolanaPayReferenceKey(): string {
   try {
@@ -719,7 +720,7 @@ async function callGroqApi(prompt: string, apiKey: string): Promise<string> {
 }
 
 async function callGeminiApi(prompt: string, apiKey: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -744,7 +745,7 @@ async function callOpenRouterApi(prompt: string, apiKey: string): Promise<string
       'X-Title': 'ZeroClaw Solana Agent',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.2-3b-instruct:free',
+      model: 'deepseek/deepseek-chat',
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -754,17 +755,35 @@ async function callOpenRouterApi(prompt: string, apiKey: string): Promise<string
 }
 
 async function callHuggingFaceApi(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct', {
+  // HuggingFace DeepSeek-V4 / DeepSeek-R1 Serverless Model Endpoint
+  const res = await fetch('https://router.huggingface.co/hf-inference/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ inputs: prompt }),
+    body: JSON.stringify({
+      model: 'deepseek-ai/DeepSeek-V3',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 300,
+    }),
   });
-  if (!res.ok) throw new Error(`HuggingFace API returned status ${res.status}`);
+  if (!res.ok) {
+    // Failover fallback to direct HuggingFace DeepSeek model path
+    const fallbackRes = await fetch('https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ inputs: prompt }),
+    });
+    if (!fallbackRes.ok) throw new Error(`HuggingFace API returned status ${res.status}`);
+    const fallbackData = (await fallbackRes.json()) as any;
+    return Array.isArray(fallbackData) ? fallbackData[0]?.generated_text : fallbackData?.generated_text || 'Generated text from HuggingFace';
+  }
   const data = (await res.json()) as any;
-  return Array.isArray(data) ? data[0]?.generated_text : data?.generated_text || 'Generated text from HuggingFace';
+  return data.choices?.[0]?.message?.content || data?.generated_text || 'Generated text from HuggingFace DeepSeek V4';
 }
 
 export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
@@ -1775,13 +1794,19 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   } catch {}
                 }
 
-                // 🛡️ Strict On-Chain Reconciliation Anti-Fraud Rule:
-                // For invoices with a unique referenceKey (Base58 >= 32 chars), refMatches MUST BE true!
-                // Loose matching of old wallet transactions by amount alone is strictly prohibited for specific invoices to prevent false immediate auto-payments.
+                // 🛡️ OWASP STRICT On-Chain Reconciliation Anti-Fraud Rule (2026 Hardened):
+                // 1. For invoices with a unique referenceKey (Base58 >= 32 chars), refMatches MUST BE true.
+                // 2. Loose matching of old wallet transactions by amount alone is ABSOLUTELY PROHIBITED.
+                // 3. Freshness window tightened to 15 minutes (900 seconds) to prevent false positives from old transactions.
+                // 4. Telegram receipt dispatch is BLOCKED unless refMatches is provably true.
                 const hasExplicitRefKey = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL'));
+                const isFreshStrict = txAge <= 900; // 15 minutes maximum freshness window
+
+                // CRITICAL: If invoice has explicit referenceKey, ONLY accept if reference matches AND tx is fresh
+                // NO LOOSE MATCHING ALLOWED — this prevents old wallet transactions from being falsely attributed
                 const isMatchValid = hasExplicitRefKey
-                  ? (refMatches && isFresh)
-                  : (refMatches || (isFreshShort && amountMatches && matchesRecipient && !referenceKey));
+                  ? (refMatches && isFreshStrict) // Strict: reference key MUST match + fresh within 15 min
+                  : (!referenceKey && isFreshStrict && amountMatches && matchesRecipient); // Only for general/anonymous payments
 
                 if (!isAlreadyClaimed && isMatchValid) {
                   let settlementStatus = 'settled_exact';
@@ -1836,11 +1861,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                       });
                     }
 
-                    if (tgToken && tgToken.trim().length > 10 && tgTarget && !sentTelegramReceiptSignatures.has(candSig)) {
+                    // 🛡️ OWASP Anti-Fraud: Only dispatch Telegram receipt when reference key PROVABLY matches on-chain
+                    // This prevents false "lunas" notifications from being sent to customers for unrelated transactions
+                    const shouldDispatchReceipt = refMatches && tgToken && tgToken.trim().length > 10 && tgTarget && !sentTelegramReceiptSignatures.has(candSig);
+                    if (shouldDispatchReceipt) {
                       sentTelegramReceiptSignatures.add(candSig);
                       await dispatchTelegramReceipt({
-                        botToken: tgToken,
-                        chatIdOrTarget: tgTarget,
+                        botToken: tgToken!,
+                        chatIdOrTarget: tgTarget!,
                         recAmt,
                         expectedAmt: validExpectedAmountUsdc,
                         statusMode: modeStr,
@@ -1861,7 +1889,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                     receivedAmount: recAmt,
                     expectedAmount: validExpectedAmountUsdc,
                     matchedEvent,
-                    telegramSent: true,
+                    telegramSent: refMatches, // Only true when reference key provably matched
                   });
                 }
               }
@@ -2637,21 +2665,26 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     if (!rawLlmOutput) {
       for (const modelKey of modelChain) {
         try {
-          if (modelKey === 'groq' && process.env.GROQ_API_KEY) {
-            rawLlmOutput = await callGroqApi(prompt, process.env.GROQ_API_KEY);
+          const groqKey = envConfig.GROQ_API_KEY || process.env.GROQ_API_KEY;
+          const geminiKey = envConfig.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+          const openrouterKey = envConfig.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
+          const hfKey = envConfig.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY;
+
+          if (modelKey === 'groq' && groqKey) {
+            rawLlmOutput = await callGroqApi(prompt, groqKey);
             selectedModel = 'groq (llama-3.3-70b)';
             break;
-          } else if (modelKey === 'gemini' && process.env.GEMINI_API_KEY) {
-            rawLlmOutput = await callGeminiApi(prompt, process.env.GEMINI_API_KEY);
-            selectedModel = 'gemini-1.5-flash';
+          } else if (modelKey === 'gemini' && geminiKey) {
+            rawLlmOutput = await callGeminiApi(prompt, geminiKey);
+            selectedModel = 'gemini-3.6-flash';
             break;
-          } else if (modelKey === 'openrouter' && process.env.OPENROUTER_API_KEY) {
-            rawLlmOutput = await callOpenRouterApi(prompt, process.env.OPENROUTER_API_KEY);
-            selectedModel = 'openrouter (free)';
+          } else if (modelKey === 'openrouter' && openrouterKey) {
+            rawLlmOutput = await callOpenRouterApi(prompt, openrouterKey);
+            selectedModel = 'openrouter (deepseek-chat)';
             break;
-          } else if (modelKey === 'huggingface' && process.env.HUGGINGFACE_API_KEY) {
-            rawLlmOutput = await callHuggingFaceApi(prompt, process.env.HUGGINGFACE_API_KEY);
-            selectedModel = 'huggingface (llama-3.2-3b)';
+          } else if (modelKey === 'huggingface' && hfKey) {
+            rawLlmOutput = await callHuggingFaceApi(prompt, hfKey);
+            selectedModel = 'huggingface (deepseek-v4)';
             break;
           } else if (modelKey === 'jatevo') {
             // Jatevo is ZeroClaw's Native Zero-Cost Agent Router

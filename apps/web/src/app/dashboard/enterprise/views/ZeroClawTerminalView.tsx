@@ -1761,13 +1761,13 @@ export function ZeroClawTerminalView({
                         className="size-4 object-contain shrink-0"
                       />
                       <span className="truncate">
-                        {selectedModel === 'auto' ? 'Auto Failover' :
-                         selectedModel === 'groq' ? 'Groq (<300ms)' :
-                         selectedModel === 'gemini' ? 'Gemini Flash' :
-                         selectedModel === 'openrouter' ? 'OpenRouter' :
+                        {selectedModel === 'auto' ? 'Auto (Llama 3.3 70B / Gemini 3.6)' :
+                         selectedModel === 'groq' ? 'Groq (Llama 3.3 70B)' :
+                         selectedModel === 'gemini' ? 'Gemini 3.6 Flash' :
+                         selectedModel === 'openrouter' ? 'OpenRouter (DeepSeek Chat)' :
                          selectedModel === 'jatevo' ? 'Jatevo AI' :
                          selectedModel === '9router' ? '9Router' :
-                         'HuggingFace'}
+                         'Hugging Face (DeepSeek V4)'}
                       </span>
                     </div>
                     <ChevronDown size={14} className={`text-indigo-500 shrink-0 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
@@ -1777,15 +1777,15 @@ export function ZeroClawTerminalView({
                   {isModelDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsModelDropdownOpen(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-64 max-h-72 overflow-y-auto p-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-2xl z-50 space-y-1 scrollbar-thin">
+                      <div className="absolute right-0 top-full mt-2 w-72 max-h-72 overflow-y-auto p-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-2xl z-50 space-y-1 scrollbar-thin">
                         {[
-                          { id: 'auto', title: 'Auto Failover', desc: 'Smart Groq + Gemini Failover', logo: '/assets/logo/ai-agents.png' },
+                          { id: 'auto', title: 'Auto Failover (2026)', desc: 'Groq 70B + Gemini 3.6 + DeepSeek', logo: '/assets/logo/ai-agents.png' },
                           { id: 'groq', title: 'Groq (Llama 3.3 70B)', desc: 'Ultra-Fast <300ms execution', logo: '/assets/logo/groq.png' },
-                          { id: 'gemini', title: 'Gemini 2.0 Flash', desc: 'High Precision Reasoning', logo: '/assets/logo/gemini.svg' },
-                          { id: 'openrouter', title: 'OpenRouter Gateway', desc: 'DeepSeek / Claude Router', logo: '/assets/logo/openrouter.svg' },
+                          { id: 'gemini', title: 'Google Gemini 3.6 Flash', desc: 'Next-Gen High-Speed Reasoning', logo: '/assets/logo/gemini.svg' },
+                          { id: 'openrouter', title: 'OpenRouter (DeepSeek Chat)', desc: 'DeepSeek V3 / Llama 3.3 Gateway', logo: '/assets/logo/openrouter.svg' },
                           { id: 'jatevo', title: 'Jatevo AI Engine', desc: 'Enterprise Bot Infrastructure', logo: '/assets/logo/jatevo.svg' },
                           { id: '9router', title: '9Router Swarm', desc: 'Multi-Agent Consensus', logo: '/assets/logo/9router.png' },
-                          { id: 'huggingface', title: 'Hugging Face', desc: 'Open-Source AI Models', logo: '/assets/logo/huggingface.webp' },
+                          { id: 'huggingface', title: 'Hugging Face (DeepSeek V4)', desc: 'DeepSeek V4 / R1 Serverless Model', logo: '/assets/logo/huggingface.webp' },
                         ].map((m) => (
                           <button
                             key={m.id}

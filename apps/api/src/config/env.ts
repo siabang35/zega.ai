@@ -44,6 +44,10 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
   GOOGLE_AI_API_KEY: z.string().default(''),
+  GEMINI_API_KEY: z.string().default(''),
+  GROQ_API_KEY: z.string().default(''),
+  OPENROUTER_API_KEY: z.string().default(''),
+  HUGGINGFACE_API_KEY: z.string().default(''),
 
   // Security
   JWT_SECRET: z.string().min(32).default('zega-ai-dev-jwt-secret-change-in-production-32chars'),
