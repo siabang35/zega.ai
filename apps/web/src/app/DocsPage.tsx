@@ -281,81 +281,70 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Mobile Navigation Drawer Overlay (100% Opaque Enterprise Overlay) */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] md:hidden bg-background text-foreground flex flex-col pt-[58px] animate-in fade-in duration-200 h-[100dvh] overflow-y-auto">
-          {/* Drawer Header Action: Professional Back to Main Website Button */}
-          <div className="p-3.5 border-b border-border/50 bg-card/60 flex items-center justify-between gap-3">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                handleBackToMain();
-              }}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-[#ff6b35]/30 bg-[#ff6b35]/10 px-3.5 py-2 text-xs font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 transition-all cursor-pointer shadow-2xs group"
-            >
-              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
-              <span>Back to Main Site (zegaai.site)</span>
-            </button>
-          </div>
+        {/* Mobile Navigation Dropdown Card — Absolute Attached to Sticky Header (Enterprise Standard) */}
+        {mobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 z-50 md:hidden bg-background text-foreground flex flex-col border-b border-border/80 shadow-2xl max-h-[82vh] overflow-y-auto animate-in fade-in duration-200">
+            {/* Live Search Bar inside Menu */}
+            <div className="p-3.5 border-b border-border/40 bg-card/40">
+              <div className="relative">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search documentation..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#ff6b35]"
+                />
+              </div>
+            </div>
 
-          <div className="p-4 border-b border-border/40">
-            <div className="relative">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search documentation..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#ff6b35]"
-              />
+            {/* Navigation Category Groups */}
+            <div className="p-4 space-y-5">
+              {(searchQuery ? filteredNav : DOCS_NAV).map((group) => (
+                <div key={group.category} className="space-y-1.5">
+                  <h4 className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
+                    {group.category}
+                  </h4>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                          activeTab === item.id
+                            ? 'bg-[#ff6b35]/15 text-[#ff6b35] font-bold border border-[#ff6b35]/30'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                        }`}
+                      >
+                        <span>{item.title}</span>
+                        {activeTab === item.id && <Check size={14} className="text-[#ff6b35]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Single Prominent Footer Action: Return to Main Website */}
+            <div className="p-3.5 border-t border-border/50 bg-card/60 sticky bottom-0">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleBackToMain();
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff6b35]/30 bg-[#ff6b35]/10 py-2.5 px-4 text-xs font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 active:scale-[0.98] transition-all cursor-pointer shadow-2xs group"
+              >
+                <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+                <span>Return to Main Website (zegaai.site)</span>
+              </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {(searchQuery ? filteredNav : DOCS_NAV).map((group) => (
-              <div key={group.category} className="space-y-2">
-                <h4 className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">
-                  {group.category}
-                </h4>
-                <div className="space-y-1">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
-                        activeTab === item.id
-                          ? 'bg-[#ff6b35]/15 text-[#ff6b35] font-bold border border-[#ff6b35]/30'
-                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                      }`}
-                    >
-                      <span>{item.title}</span>
-                      {activeTab === item.id && <Check size={14} className="text-[#ff6b35]" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Drawer Footer: Back to Main Website */}
-          <div className="p-4 border-t border-border/50 bg-card/40">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                handleBackToMain();
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 px-4 text-xs font-bold text-foreground hover:bg-muted hover:border-[#ff6b35]/40 transition-all cursor-pointer shadow-xs"
-            >
-              <ArrowLeft size={14} className="text-[#ff6b35]" />
-              <span>Return to Main Website (zegaai.site)</span>
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </header>
       <div className="mx-auto flex max-w-[1500px]">
         {/* Left Navigation Sidebar */}
         <aside className="w-64 flex-shrink-0 border-r border-border/40 p-6 hidden md:block min-h-[calc(100vh-56px)] sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto">
