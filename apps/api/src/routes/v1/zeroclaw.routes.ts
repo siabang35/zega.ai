@@ -375,6 +375,9 @@ async function resolveTelegramChatId(target: string, token?: string): Promise<st
   return raw;
 }
 
+/** 🛡️ Global Deduplication Set preventing duplicate Telegram receipt dispatches for the same transaction signature */
+export const sentTelegramReceiptSignatures = new Set<string>();
+
 /**
  * ⚡ Resilient Concurrency-Safe Telegram Message Dispatcher
  * Guarantees message delivery under heavy concurrent requests with:
@@ -1384,12 +1387,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               });
             }
 
-            if (tgToken && tgToken.trim().length > 10 && tgTarget) {
-              try {
-                const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
-                const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${providedTxSig}</code>\n• <b>Devnet Slot:</b> <code>${directParsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
-                await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
-              } catch {}
+            if (tgToken && tgToken.trim().length > 10 && tgTarget && !sentTelegramReceiptSignatures.has(providedTxSig)) {
+              sentTelegramReceiptSignatures.add(providedTxSig);
+              const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${providedTxSig}</code>\n• <b>Devnet Slot:</b> <code>${directParsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
+              await sendTelegramMessageWithRetry(tgToken, tgTarget, text);
             }
           }).catch(() => {});
 
@@ -1480,12 +1481,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   });
                 }
 
-                if (tgToken && tgToken.trim().length > 10 && tgTarget) {
-                  try {
-                    const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
-                    const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
-                    await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
-                  } catch {}
+                if (tgToken && tgToken.trim().length > 10 && tgTarget && !sentTelegramReceiptSignatures.has(candSig)) {
+                  sentTelegramReceiptSignatures.add(candSig);
+                  const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
+                  await sendTelegramMessageWithRetry(tgToken, tgTarget, text);
                 }
               }).catch(() => {});
 
@@ -1649,12 +1648,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                       });
                     }
 
-                    if (tgToken && tgToken.trim().length > 10 && tgTarget) {
-                      try {
-                        const targetChatId = await resolveTelegramChatId(tgTarget, tgToken);
-                        const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
-                        await fetch(`https://api.telegram.org/bot${tgToken.trim()}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: 'HTML' }) });
-                      } catch {}
+                    if (tgToken && tgToken.trim().length > 10 && tgTarget && !sentTelegramReceiptSignatures.has(candSig)) {
+                      sentTelegramReceiptSignatures.add(candSig);
+                      const text = `⚡ <b>ZEROCLAW SOLANA PAY RECEIPT</b> ⚡\n━━━━━━━━━━━━━━━━━━━━━━\n• <b>Diterima:</b> <code>${recAmt.toFixed(2)} USDC</code>\n• <b>Tagihan:</b> <code>${validExpectedAmountUsdc.toFixed(2)} USDC</code>\n• <b>Status:</b> <code>${modeStr}</code>\n• <b>Tx Signature:</b> <code>${candSig}</code>\n• <b>Devnet Slot:</b> <code>${parsed.slot}</code>\n━━━━━━━━━━━━━━━━━━━━━━\n✅ Terverifikasi On-Chain via ZeroClaw Real-Time Signature Monitor.`;
+                      await sendTelegramMessageWithRetry(tgToken, tgTarget, text);
                     }
                   }).catch(() => {});
 

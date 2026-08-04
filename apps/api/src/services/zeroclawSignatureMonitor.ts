@@ -382,6 +382,32 @@ export class ZeroClawSignatureMonitorService {
           // 🛡️ Strict Base58 Solana Signature Format Check (87-88 characters)
           if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(sig)) continue;
 
+          // 🛡️ DB Persistent Deduplication Guard: Skip if transaction signature was already reconciled in Supabase
+          if (supabaseUrl && supabaseKey) {
+            try {
+              const checkRes = await fetch(
+                `${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?tx_signature=eq.${encodeURIComponent(sig)}&select=tx_signature,status`,
+                {
+                  headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                  },
+                }
+              );
+              if (checkRes.ok) {
+                const existingRows = (await checkRes.json()) as any[];
+                if (Array.isArray(existingRows) && existingRows.length > 0) {
+                  this.processedSignatures.add(sig);
+                  const { sentTelegramReceiptSignatures } = await import('../routes/v1/zeroclaw.routes.js');
+                  sentTelegramReceiptSignatures.add(sig);
+                  continue; // Signature already reconciled in DB; skip processing
+                }
+              }
+            } catch {
+              // Ignore DB check error, proceed to on-chain parsing
+            }
+          }
+
           // Process new unhandled transaction signature
           const txDetails = await this.parseOnChainTxSignature(sig);
           if (!txDetails || !txDetails.isVerified || txDetails.err) continue;
@@ -399,6 +425,37 @@ export class ZeroClawSignatureMonitorService {
           if (!isTargetMatch) {
             logger.warn({ sig, address: item.address, recipient: txDetails.recipient }, '🛡️ Monitor Anti-Fraud: Skipping transaction not matching recipient/reference key');
             continue;
+          }
+
+          // 🛡️ Invoice Protection: If reference key invoice is already settled as EXACT or OVERPAID, do not process older underpaid signatures
+          if (item.type === 'reference' && supabaseUrl && supabaseKey) {
+            try {
+              const invRes = await fetch(
+                `${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(item.address)}&select=status,settlement_status,paid_amount_usdc,tx_signature`,
+                {
+                  headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                  },
+                }
+              );
+              if (invRes.ok) {
+                const invData = (await invRes.json()) as any[];
+                if (Array.isArray(invData) && invData.length > 0) {
+                  const inv = invData[0];
+                  if (inv.status === 'confirmed' || inv.settlement_status === 'settled_exact' || inv.settlement_status === 'settled_overpaid') {
+                    // Invoice is already settled. Only allow processing if this signature matches the settled signature or has a higher/equal amount.
+                    if (inv.tx_signature && inv.tx_signature !== sig && txDetails.amountUsdc < (item.expectedAmountUsdc || 0) - 0.001) {
+                      logger.info({ sig, referenceKey: item.address }, '🛡️ Monitor Guard: Skipping older underpaid signature on an already settled invoice');
+                      this.processedSignatures.add(sig);
+                      continue;
+                    }
+                  }
+                }
+              }
+            } catch {
+              // Ignore check error
+            }
           }
 
           this.processedSignatures.add(sig);
