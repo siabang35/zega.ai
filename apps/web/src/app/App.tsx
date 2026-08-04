@@ -905,7 +905,7 @@ function AuthModal({
     await SupabaseDashboardService.logAuditTrail('DEMO_ROLE_LOGIN', { role, email: sessionEmail });
 
     // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
-    PrivyWalletService.syncUserToPrivyBackend(sessionEmail, role, 'email', sessionName).catch(() => {});
+    PrivyWalletService.syncUserToPrivyBackend(sessionEmail, role, 'email', sessionName).catch(() => { });
 
     setLoading(false);
     onSubmitSuccess(`Authenticated as ${sessionName} (${role.toUpperCase()})! Opening Dashboard...`, role);
@@ -1005,7 +1005,7 @@ function AuthModal({
       SupabaseDashboardService.setSessionCookie(realSession);
 
       // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
-      PrivyWalletService.syncUserToPrivyBackend(userEmail, role as any, 'email', name).catch(() => {});
+      PrivyWalletService.syncUserToPrivyBackend(userEmail, role as any, 'email', name).catch(() => { });
 
       onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`, role as any);
       onClose();
@@ -1084,8 +1084,8 @@ function AuthModal({
                 type="button"
                 onClick={() => setAudienceSegment("individual")}
                 className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${audienceSegment === "individual"
-                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
-                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                   }`}
               >
                 Individual & UMKM
@@ -1094,8 +1094,8 @@ function AuthModal({
                 type="button"
                 onClick={() => setAudienceSegment("enterprise")}
                 className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer ${audienceSegment === "enterprise"
-                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
-                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-bold border border-slate-200/80 dark:border-slate-700"
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
                   }`}
               >
                 Enterprise Scale
@@ -1361,13 +1361,13 @@ function getInitialPath(): string {
   const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
   const search = window.location.search || "";
 
-  // Auto-route docs.zegaai.site subdomain directly to /docs page
-  if (hostname === "docs.zegaai.site" || hostname.startsWith("docs.")) {
+  // Auto-route docs.zegaai.site subdomain or /docs/* paths directly to /docs page
+  if (hostname === "docs.zegaai.site" || hostname.startsWith("docs.") || path === "/docs" || path.startsWith("/docs/")) {
     return "/docs";
   }
 
   // Check if current URL is directly a public checkout / payment route OR contains payment reference params
-  const isPublicCheckout = 
+  const isPublicCheckout =
     path === '/checkout' || path.startsWith('/checkout') ||
     path === '/payment' || path.startsWith('/payment') ||
     path === '/pay' || path.startsWith('/pay') ||
@@ -1380,8 +1380,8 @@ function getInitialPath(): string {
 
   // Check if current URL is directly a dashboard path
   const isDirectDash = path === "/dashboard" || path.startsWith("/dashboard/") ||
-                       path === "/console" || path.startsWith("/console/") ||
-                       path === "/admin" || path.startsWith("/admin/");
+    path === "/console" || path.startsWith("/console/") ||
+    path === "/admin" || path.startsWith("/admin/");
 
   if (isDirectDash) {
     return path;
@@ -1395,14 +1395,14 @@ function getInitialPath(): string {
       if (parsed && parsed.email && !parsed.isGuest) {
         const role = parsed.role || 'individual';
         const targetDashPath = role === 'superadmin' ? '/admin' : role === 'enterprise' ? '/console' : '/dashboard';
-        
+
         // If current path is root landing page, home, or matching their dashboard, route directly to role dashboard
         if (path === "/" || path === "" || path === "/home") {
           return targetDashPath;
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   if (path === "/" || path === "" || path === "/home") {
     return path === "/home" ? "/home" : "/";
@@ -1495,7 +1495,7 @@ function AppContent() {
               };
               localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
               SupabaseDashboardService.setSessionCookie(realSession);
-              PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, profile.fullName).catch(() => {});
+              PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, profile.fullName).catch(() => { });
               setShowDashboard(true);
               setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
               setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
@@ -1549,7 +1549,7 @@ function AppContent() {
     };
     localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
     SupabaseDashboardService.setSessionCookie(realSession);
-    PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, oauthDisplayName.trim()).catch(() => {});
+    PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, oauthDisplayName.trim()).catch(() => { });
 
     setShowDashboard(true);
     setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
@@ -1992,11 +1992,11 @@ function AppContent() {
   }, [dark]);
 
   useEffect(() => {
-    const isDash = 
+    const isDash =
       currentPath === '/console' || currentPath.startsWith('/console/') ||
       currentPath === '/dashboard' || currentPath.startsWith('/dashboard/') ||
       currentPath === '/admin' || currentPath.startsWith('/admin/');
-    
+
     const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('zega_theme_user_toggled') : null;
     if (!savedTheme) {
       setDarkState(false);
@@ -2042,7 +2042,7 @@ function AppContent() {
       <div className={dark ? 'dark' : ''}>
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xl overflow-hidden transition-all">
-            
+
             {/* Top Brand Banner */}
             <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2121,7 +2121,7 @@ function AppContent() {
                     className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'individual'
                       ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700 font-bold'
                       : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     Individual / UMKM
                   </button>
@@ -2131,7 +2131,7 @@ function AppContent() {
                     className={`flex-1 rounded-lg py-2 text-xs transition-all cursor-pointer font-semibold ${oauthRole === 'enterprise'
                       ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/80 dark:border-slate-700 font-bold'
                       : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     Enterprise Scale
                   </button>
@@ -2184,7 +2184,7 @@ function AppContent() {
     );
   }
 
-  const isPublicCheckout = 
+  const isPublicCheckout =
     currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
     currentPath === '/payment' || currentPath.startsWith('/payment') ||
     currentPath === '/pay' || currentPath.startsWith('/pay') ||
@@ -2235,7 +2235,7 @@ function AppContent() {
     );
   }
 
-  const isDashboardRoute = 
+  const isDashboardRoute =
     currentPath === '/console' || currentPath.startsWith('/console/') ||
     currentPath === '/dashboard' || currentPath.startsWith('/dashboard/') ||
     currentPath === '/admin' || currentPath.startsWith('/admin/');
@@ -2258,10 +2258,10 @@ function AppContent() {
       const role = currentPath.startsWith('/admin')
         ? 'superadmin'
         : currentPath.startsWith('/console')
-        ? 'enterprise'
-        : currentPath.startsWith('/dashboard')
-        ? 'individual'
-        : (session?.role || 'individual');
+          ? 'enterprise'
+          : currentPath.startsWith('/dashboard')
+            ? 'individual'
+            : (session?.role || 'individual');
 
       if (role === 'superadmin') {
         return (
@@ -2529,7 +2529,7 @@ function AppContent() {
 
         <div className="relative z-10 mx-auto max-w-3xl">
           {/* Seamless Enterprise Announcement Pill */}
-          <div 
+          <div
             onClick={() => handleOpenAuth('enterprise')}
             className="hero-text-reveal mx-auto mb-6 max-w-[96vw] sm:max-w-none inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3 sm:px-4 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group select-none"
           >
@@ -2555,7 +2555,7 @@ function AppContent() {
           >
             {t.hero.title}
           </h1>
-          <p 
+          <p
             className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-[640px] text-[14px] sm:text-[15px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal [text-wrap:balance]"
             style={{ textWrap: 'balance' }}
           >
@@ -2611,523 +2611,523 @@ function AppContent() {
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ff6b35]/50 dark:via-[#ff6b35]/70 via-[#e8295a]/40 to-transparent z-20" />
 
               {/* Dot grid */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+              <div className="pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
-            {/* Dynamic Curved Bezier Connectors Overlay — Direct child of containerRef */}
-            <svg
-              viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
-              preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
-              fill="none"
-              className="absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
-            >
-              {/* Fallback to static percentage lines while layout coordinates are loading */}
-              {(!coords.leftHub || coords.leftPoints.length === 0) ? (
-                <>
-                  {/* 10 Paths from Layer 2 Integrations to Left Hub Node */}
-                  {[22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 382.5, 427.5].map((y, i) => {
-                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                    const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
-                    return (
-                      <g key={`static-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
-                        <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+              {/* Dynamic Curved Bezier Connectors Overlay — Direct child of containerRef */}
+              <svg
+                viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
+                preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
+                fill="none"
+                className="absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
+              >
+                {/* Fallback to static percentage lines while layout coordinates are loading */}
+                {(!coords.leftHub || coords.leftPoints.length === 0) ? (
+                  <>
+                    {/* 10 Paths from Layer 2 Integrations to Left Hub Node */}
+                    {[22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 382.5, 427.5].map((y, i) => {
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                      return (
+                        <g key={`static-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                          <path d={`M 178 ${y} C 250 ${y}, 290 225, 333 225`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                        </g>
+                      );
+                    })}
+                    {/* Left Hub Node to Center */}
+                    <path d="M 333 225 L 340 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Memory' ? 0.25 : 0.9} fill="none" />
+                    {/* Center to Right Hub Node */}
+                    <path d="M 660 225 L 667 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Integration' ? 0.25 : 0.9} fill="none" />
+                    {/* 8 Paths from Right Hub Node to Layer 4 AI Agents */}
+                    {[30, 86, 142, 198, 254, 310, 366, 422].map((y, i) => {
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
+                      return (
+                        <g key={`static-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
+                          <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
+                        </g>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <>
+                    {/* Dynamic top lines fanning from Layer 1 cards to Top Hub Node */}
+                    {coords.topPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0) || !coords.topHub) return null;
+                      const color = i % 2 === 0 ? "#38bdf8" : "#818cf8";
+                      const x1 = pt.x;
+                      const y1 = pt.y;
+                      const x2 = coords.topHub.x;
+                      const y2 = coords.topHub.y;
+                      const cp1x = x1;
+                      const cp1y = y1 + (y2 - y1) * 0.55;
+                      const cp2x = x2;
+                      const cp2y = y1 + (y2 - y1) * 0.45;
+                      return (
+                        <g key={`dyn-l1-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.12}s` }} />
+                        </g>
+                      );
+                    })}
+
+                    {/* Dynamic left lines fanning to connection hub (Layer 2 Integrations -> Database Hub) */}
+                    {coords.leftPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0) || !coords.leftHub) return null;
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const x1 = pt.x;
+                      const y1 = pt.y;
+                      const x2 = coords.leftHub.x;
+                      const y2 = coords.leftHub.y;
+
+                      const cp1x = x1 + (x2 - x1) * 0.55;
+                      const cp1y = y1;
+                      const cp2x = x1 + (x2 - x1) * 0.45;
+                      const cp2y = y2;
+
+                      const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
+                      const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
+                      return (
+                        <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
+                        </g>
+                      );
+                    })}
+
+                    {/* Dynamic right lines fanning from connection hub (Layer 4 Shield Hub -> AI Agents) */}
+                    {coords.rightPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0) || !coords.rightHub) return null;
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
+                      const x1 = coords.rightHub.x;
+                      const y1 = coords.rightHub.y;
+                      const x2 = pt.x;
+                      const y2 = pt.y;
+
+                      const cp1x = x1 + (x2 - x1) * 0.45;
+                      const cp1y = y1;
+                      const cp2x = x1 + (x2 - x1) * 0.55;
+                      const cp2y = y2;
+
+                      const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
+                      const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
+                      const strokeOpacity2 = isRightActive ? 0.9 : 0.15;
+                      return (
+                        <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
+                        </g>
+                      );
+                    })}
+                    {/* Dynamic line from ZEGA AI Orchestrator bottom to 9Router Engine top */}
+                    {coords.bottomHub && coords.routerTop && (
+                      <g fill="none" className="transition-opacity duration-350">
+                        <path
+                          d={`M ${coords.bottomHub.x} ${coords.bottomHub.y} C ${coords.bottomHub.x} ${coords.bottomHub.y + (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y - (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y}`}
+                          className="orch-line"
+                          stroke="#ff6b35"
+                          strokeWidth="1.5"
+                          fill="none"
+                        />
                       </g>
-                    );
-                  })}
-                  {/* Left Hub Node to Center */}
-                  <path d="M 333 225 L 340 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Memory' ? 0.25 : 0.9} fill="none" />
-                  {/* Center to Right Hub Node */}
-                  <path d="M 660 225 L 667 225" className="orch-line" stroke="#ff6b35" strokeWidth="1.5" strokeOpacity={vizTab === 'Integration' ? 0.25 : 0.9} fill="none" />
-                  {/* 8 Paths from Right Hub Node to Layer 4 AI Agents */}
-                  {[30, 86, 142, 198, 254, 310, 366, 422].map((y, i) => {
-                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                    const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
-                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isRightActive ? 0.9 : 0.1;
-                    return (
-                      <g key={`static-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="3.5" strokeOpacity={strokeOpacity1} fill="none" />
-                        <path d={`M 667 225 C 710 225, 750 ${y}, 822 ${y}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" />
-                      </g>
-                    );
-                  })}
-                </>
-              ) : (
-                <>
-                  {/* Dynamic top lines fanning from Layer 1 cards to Top Hub Node */}
-                  {coords.topPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.topHub) return null;
-                    const color = i % 2 === 0 ? "#38bdf8" : "#818cf8";
-                    const x1 = pt.x;
-                    const y1 = pt.y;
-                    const x2 = coords.topHub.x;
-                    const y2 = coords.topHub.y;
-                    const cp1x = x1;
-                    const cp1y = y1 + (y2 - y1) * 0.55;
-                    const cp2x = x2;
-                    const cp2y = y1 + (y2 - y1) * 0.45;
-                    return (
-                      <g key={`dyn-l1-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.12}s` }} />
-                      </g>
-                    );
-                  })}
+                    )}
 
-                  {/* Dynamic left lines fanning to connection hub (Layer 2 Integrations -> Database Hub) */}
-                  {coords.leftPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.leftHub) return null;
-                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                    const x1 = pt.x;
-                    const y1 = pt.y;
-                    const x2 = coords.leftHub.x;
-                    const y2 = coords.leftHub.y;
+                    {/* Dynamic lines fanning from 9Router Engine bottom to 7 LLM Model cards */}
+                    {coords.routerBottom && coords.bottomPoints.map((pt, i) => {
+                      if (!pt || (pt.x === 0 && pt.y === 0)) return null;
+                      const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#38bdf8" : "#6366f1";
+                      const x1 = coords.routerBottom!.x;
+                      const y1 = coords.routerBottom!.y;
+                      const x2 = pt.x;
+                      const y2 = pt.y;
+                      const cp1x = x1;
+                      const cp1y = y1 + (y2 - y1) * 0.5;
+                      const cp2x = x2;
+                      const cp2y = y1 + (y2 - y1) * 0.5;
+                      return (
+                        <g key={`dyn-l5-${i}`} fill="none" className="transition-opacity duration-350">
+                          <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.1}s` }} />
+                        </g>
+                      );
+                    })}
+                  </>
+                )}
+              </svg>
 
-                    const cp1x = x1 + (x2 - x1) * 0.55;
-                    const cp1y = y1;
-                    const cp2x = x1 + (x2 - x1) * 0.45;
-                    const cp2y = y2;
-
-                    const isLeftActive = vizTab === 'Agent' || vizTab === 'Integration' || vizTab === 'Automation';
-                    const strokeOpacity1 = isLeftActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isLeftActive ? 0.9 : 0.15;
-                    return (
-                      <g key={`dyn-l2-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.08}s` }} />
-                      </g>
-                    );
-                  })}
-
-                  {/* Dynamic right lines fanning from connection hub (Layer 4 Shield Hub -> AI Agents) */}
-                  {coords.rightPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0) || !coords.rightHub) return null;
-                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#e8295a" : "#38bdf8";
-                    const x1 = coords.rightHub.x;
-                    const y1 = coords.rightHub.y;
-                    const x2 = pt.x;
-                    const y2 = pt.y;
-
-                    const cp1x = x1 + (x2 - x1) * 0.45;
-                    const cp1y = y1;
-                    const cp2x = x1 + (x2 - x1) * 0.55;
-                    const cp2y = y2;
-
-                    const isRightActive = vizTab === 'Agent' || vizTab === 'Automation' || vizTab === 'Memory';
-                    const strokeOpacity1 = isRightActive ? 0.12 : 0.02;
-                    const strokeOpacity2 = isRightActive ? 0.9 : 0.15;
-                    return (
-                      <g key={`dyn-l4-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="3" strokeOpacity={strokeOpacity1} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="0.85" strokeOpacity={strokeOpacity2} fill="none" style={{ animationDelay: `${i * 0.15}s` }} />
-                      </g>
-                    );
-                  })}
-                  {/* Dynamic line from ZEGA AI Orchestrator bottom to 9Router Engine top */}
-                  {coords.bottomHub && coords.routerTop && (
-                    <g fill="none" className="transition-opacity duration-350">
-                      <path
-                        d={`M ${coords.bottomHub.x} ${coords.bottomHub.y} C ${coords.bottomHub.x} ${coords.bottomHub.y + (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y - (coords.routerTop.y - coords.bottomHub.y) * 0.5}, ${coords.routerTop.x} ${coords.routerTop.y}`}
-                        className="orch-line"
-                        stroke="#ff6b35"
-                        strokeWidth="1.5"
-                        fill="none"
-                      />
-                    </g>
-                  )}
-
-                  {/* Dynamic lines fanning from 9Router Engine bottom to 7 LLM Model cards */}
-                  {coords.routerBottom && coords.bottomPoints.map((pt, i) => {
-                    if (!pt || (pt.x === 0 && pt.y === 0)) return null;
-                    const color = i % 3 === 0 ? "#ff6b35" : i % 3 === 1 ? "#38bdf8" : "#6366f1";
-                    const x1 = coords.routerBottom!.x;
-                    const y1 = coords.routerBottom!.y;
-                    const x2 = pt.x;
-                    const y2 = pt.y;
-                    const cp1x = x1;
-                    const cp1y = y1 + (y2 - y1) * 0.5;
-                    const cp2x = x2;
-                    const cp2y = y1 + (y2 - y1) * 0.5;
-                    return (
-                      <g key={`dyn-l5-${i}`} fill="none" className="transition-opacity duration-350">
-                        <path d={`M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`} className="orch-line" stroke={color} strokeWidth="1.2" strokeOpacity={0.85} fill="none" style={{ animationDelay: `${i * 0.1}s` }} />
-                      </g>
-                    );
-                  })}
-                </>
-              )}
-            </svg>
-
-            {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
-            <div className="orch-fade relative z-10 mb-4">
-              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/70 text-indigo-700 mb-2">Layer 1 · Event Sources</p>
-              <div className="grid grid-cols-5 gap-2">
-                {([
-                  { Icon: Globe, label: 'API', sub: 'REST / GraphQL' },
-                  { Icon: Zap, label: 'Webhook', sub: 'Real-time Events' },
-                  { Icon: Calendar, label: 'Scheduler', sub: 'Cron / Intervals' },
-                  { Icon: FileText, label: 'Form Submitted', sub: 'Web / Mobile' },
-                  { Icon: Network, label: 'MCP', sub: 'Model Context Protocol' },
-                ] as const).map(({ Icon, label, sub }, i) => (
-                  <div
-                    key={label}
-                    ref={(el) => { topPointsRef.current[i] = el; }}
-                    className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-slate-200/80 dark:bg-white/[0.02] bg-white px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-slate-50 hover:shadow-xs"
-                  >
-                    <Icon size={14} className="flex-shrink-0 dark:text-[#818cf8] text-indigo-500" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{label}</p>
-                      <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
-            <div className="orch-fade relative z-10 grid grid-cols-[28%_44%_28%] justify-between gap-0 items-center">
-
-              {/* LEFT — Layer 2: Integrations */}
-              <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/70 text-emerald-700 mb-1 text-left">Layer 2 · Integrations</p>
-                <p className="text-[7px] dark:text-white/20 text-slate-400 mb-2 text-left font-medium">Connected tools and services</p>
-                <div className="space-y-1">
+              {/* ═══════════ LAYER 1 — EVENT SOURCES ═══════════ */}
+              <div className="orch-fade relative z-10 mb-4">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#818cf8]/70 text-indigo-700 mb-2">Layer 1 · Event Sources</p>
+                <div className="grid grid-cols-5 gap-2">
                   {([
-                    { name: 'Google Maps', sub: 'Location & Geo Data' },
-                    { name: 'WhatsApp Business', sub: 'Messaging API' },
-                    { name: 'Stripe Connect', sub: 'Payments & Billing' },
-                    { name: 'x402 Protocol', sub: 'M2M Micropayments' },
-                    { name: 'Meta API', sub: 'Instagram & Ads' },
-                    { name: 'BigQuery', sub: 'Data Warehouse' },
-                    { name: 'Spreadsheet', sub: 'Google Sheets & Excel' },
-                    { name: 'Browser Use', sub: 'Web Automation' },
-                    { name: 'GitHub', sub: 'Code & Repos' },
-                    { name: 'Slack', sub: 'Team Collaboration' },
-                  ] as const).map(({ name, sub }, i) => (
-                    <div key={name} className="flex items-center justify-between rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex-shrink-0 size-6 rounded-md dark:bg-white/[0.04] bg-slate-100 flex items-center justify-center">
-                          <BrandIcon name={name} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[9.5px] font-semibold dark:text-white/90 text-slate-900 truncate">{name}</p>
-                          <p className="text-[7px] dark:text-white/40 text-slate-500 font-medium truncate">{sub}</p>
-                        </div>
+                    { Icon: Globe, label: 'API', sub: 'REST / GraphQL' },
+                    { Icon: Zap, label: 'Webhook', sub: 'Real-time Events' },
+                    { Icon: Calendar, label: 'Scheduler', sub: 'Cron / Intervals' },
+                    { Icon: FileText, label: 'Form Submitted', sub: 'Web / Mobile' },
+                    { Icon: Network, label: 'MCP', sub: 'Model Context Protocol' },
+                  ] as const).map(({ Icon, label, sub }, i) => (
+                    <div
+                      key={label}
+                      ref={(el) => { topPointsRef.current[i] = el; }}
+                      className="flex items-center gap-2 rounded-lg border dark:border-white/[0.06] border-slate-200/80 dark:bg-white/[0.02] bg-white px-3 py-2 transition-all hover:dark:bg-white/[0.04] hover:bg-slate-50 hover:shadow-xs"
+                    >
+                      <Icon size={14} className="flex-shrink-0 dark:text-[#818cf8] text-indigo-500" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold dark:text-white/85 text-slate-800 truncate">{label}</p>
+                        <p className="text-[7.5px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
                       </div>
-                      <span
-                        ref={(el) => { leftPointsRef.current[i] = el; }}
-                        className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse ml-1.5 flex-shrink-0"
-                      />
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
-              <div className="relative z-10 w-full max-w-[440px] mx-auto px-1 sm:px-2">
-                <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-none dark:shadow-[0_8px_32px_rgba(255,107,53,0.08)] transition-all mt-4 sm:mt-6">
-                  {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
-                  <div ref={leftHubRef} className="flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
-                    <Database size={13} className="text-[#ff6b35]" />
-                  </div>
+              {/* ═══════════ LAYER 2+3+4 — MAIN ORCHESTRATION ═══════════ */}
+              <div className="orch-fade relative z-10 grid grid-cols-[28%_44%_28%] justify-between gap-0 items-center">
 
-                  {/* RIGHT HUB NODE BADGE — GLOWING ORANGE/RED */}
-                  <div ref={rightHubRef} className="flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
-                    <ShieldCheck size={13} className="text-[#ff6b35]" />
-                  </div>
-
-                  {/* Tabs bar — Fixed height 38px at the top of the card */}
-                  <div className="flex h-[38px] border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-2xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
-                    {(['Agent', 'Integration', 'Automation', 'Memory'] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setVizTab(tab)}
-                        className={`flex-1 py-2 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
-                          ? 'dark:text-white text-gray-900 dark:bg-white/[0.06] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35] font-bold shadow-xs'
-                          : 'dark:text-white/40 text-gray-500 hover:dark:text-white/70 hover:text-gray-700 hover:bg-slate-100/50 dark:hover:bg-white/[0.02]'
-                          }`}
-                      >
-                        {tab}
-                      </button>
+                {/* LEFT — Layer 2: Integrations */}
+                <div className="relative z-10">
+                  <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-emerald-400/70 text-emerald-700 mb-1 text-left">Layer 2 · Integrations</p>
+                  <p className="text-[7px] dark:text-white/20 text-slate-400 mb-2 text-left font-medium">Connected tools and services</p>
+                  <div className="space-y-1">
+                    {([
+                      { name: 'Google Maps', sub: 'Location & Geo Data' },
+                      { name: 'WhatsApp Business', sub: 'Messaging API' },
+                      { name: 'Stripe Connect', sub: 'Payments & Billing' },
+                      { name: 'x402 Protocol', sub: 'M2M Micropayments' },
+                      { name: 'Meta API', sub: 'Instagram & Ads' },
+                      { name: 'BigQuery', sub: 'Data Warehouse' },
+                      { name: 'Spreadsheet', sub: 'Google Sheets & Excel' },
+                      { name: 'Browser Use', sub: 'Web Automation' },
+                      { name: 'GitHub', sub: 'Code & Repos' },
+                      { name: 'Slack', sub: 'Team Collaboration' },
+                    ] as const).map(({ name, sub }, i) => (
+                      <div key={name} className="flex items-center justify-between rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex-shrink-0 size-6 rounded-md dark:bg-white/[0.04] bg-slate-100 flex items-center justify-center">
+                            <BrandIcon name={name} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[9.5px] font-semibold dark:text-white/90 text-slate-900 truncate">{name}</p>
+                            <p className="text-[7px] dark:text-white/40 text-slate-500 font-medium truncate">{sub}</p>
+                          </div>
+                        </div>
+                        <span
+                          ref={(el) => { leftPointsRef.current[i] = el; }}
+                          className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse ml-1.5 flex-shrink-0"
+                        />
+                      </div>
                     ))}
                   </div>
+                </div>
 
-                  {/* Dynamic Smooth Animated Tab Content Container */}
-                  <div key={vizTab} className="animate-fadeIn transition-opacity duration-300 transform-gpu will-change-[opacity]">
-                    {/* Logo + Title — Fixed Height 70px Header across all tabs */}
-                    <div className="flex flex-col items-center h-[70px] justify-center px-4 pt-2.5 pb-1.5">
-                      <img
-                        src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                        alt="ZEGA AI"
-                        className="h-6 sm:h-7 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
-                      />
-                      {VIZ_TAB_DATA[vizTab].title && (
-                        <h3 className="mt-0.5 text-[12.5px] sm:text-[13.5px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
-                          {VIZ_TAB_DATA[vizTab].title}
-                        </h3>
-                      )}
-                      <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center flex items-center justify-center gap-1.5">
-                        <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all inline-block" alt="Jatevo" />
-                        <span>Enterprise Orchestration Engine</span>
-                      </p>
+                {/* CENTER — Layer 3: ZEGA AI Orchestrator */}
+                <div className="relative z-10 w-full max-w-[440px] mx-auto px-1 sm:px-2">
+                  <div ref={topHubRef} className="relative rounded-2xl border dark:border-[#ff6b35]/35 border-orange-200 dark:bg-[#091422] bg-white overflow-visible shadow-none dark:shadow-[0_8px_32px_rgba(255,107,53,0.08)] transition-all mt-4 sm:mt-6">
+                    {/* LEFT HUB NODE BADGE — GLOWING ORANGE/RED */}
+                    <div ref={leftHubRef} className="flex absolute -left-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                      <Database size={13} className="text-[#ff6b35]" />
                     </div>
 
-                    {/* Workflow Pipeline — Fixed 215px Height across all tabs */}
-                    <div className="px-4 sm:px-5 pb-2.5 space-y-1.5 h-[215px] flex flex-col justify-center transition-all duration-300">
-                      {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }, idx) => (
-                        <div
-                          key={label}
-                          className="flex items-center gap-3 rounded-xl dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/70 border-slate-200/80 px-3 py-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs transform-gpu"
-                          style={{ animationDelay: `${idx * 40}ms` }}
+                    {/* RIGHT HUB NODE BADGE — GLOWING ORANGE/RED */}
+                    <div ref={rightHubRef} className="flex absolute -right-4 top-1/2 -translate-y-1/2 z-30 size-8 rounded-full border-2 border-[#ff6b35] dark:bg-[#1a0a14] bg-white shadow-[0_4px_12px_rgba(255,107,53,0.25)] dark:shadow-[0_0_16px_rgba(255,107,53,0.8)] items-center justify-center">
+                      <ShieldCheck size={13} className="text-[#ff6b35]" />
+                    </div>
+
+                    {/* Tabs bar — Fixed height 38px at the top of the card */}
+                    <div className="flex h-[38px] border-b dark:border-white/[0.06] border-gray-200/80 rounded-t-2xl overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                      {(['Agent', 'Integration', 'Automation', 'Memory'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setVizTab(tab)}
+                          className={`flex-1 py-2 text-[9.5px] sm:text-[10px] font-semibold tracking-wide transition-all duration-200 ease-out cursor-pointer transform-gpu active:scale-98 ${vizTab === tab
+                            ? 'dark:text-white text-gray-900 dark:bg-white/[0.06] bg-white border-b-2 border-[#ff6b35] dark:border-[#ff6b35] font-bold shadow-xs'
+                            : 'dark:text-white/40 text-gray-500 hover:dark:text-white/70 hover:text-gray-700 hover:bg-slate-100/50 dark:hover:bg-white/[0.02]'
+                            }`}
                         >
-                          <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/80 text-indigo-550" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[9.5px] sm:text-[10px] font-semibold dark:text-white/85 text-gray-800">{label}</p>
-                            <p className="text-[7.5px] sm:text-[8px] dark:text-white/30 text-slate-500 font-medium">{sub}</p>
-                          </div>
-                          <Check size={12} className="flex-shrink-0 dark:text-emerald-400/80 text-emerald-500" />
-                        </div>
+                          {tab}
+                        </button>
                       ))}
                     </div>
 
-                    {/* Live status bar — Fixed Height 36px */}
-                    <div className="flex items-center justify-between px-4 sm:px-5 h-[36px] border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50 rounded-b-2xl">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
-                        <span className={`text-[8px] sm:text-[8.5px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-2 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
+                    {/* Dynamic Smooth Animated Tab Content Container */}
+                    <div key={vizTab} className="animate-fadeIn transition-opacity duration-300 transform-gpu will-change-[opacity]">
+                      {/* Logo + Title — Fixed Height 70px Header across all tabs */}
+                      <div className="flex flex-col items-center h-[70px] justify-center px-4 pt-2.5 pb-1.5">
+                        <img
+                          src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                          alt="ZEGA AI"
+                          className="h-6 sm:h-7 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
+                        />
+                        {VIZ_TAB_DATA[vizTab].title && (
+                          <h3 className="mt-0.5 text-[12.5px] sm:text-[13.5px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
+                            {VIZ_TAB_DATA[vizTab].title}
+                          </h3>
+                        )}
+                        <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center flex items-center justify-center gap-1.5">
+                          <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all inline-block" alt="Jatevo" />
+                          <span>Enterprise Orchestration Engine</span>
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2.5 sm:gap-3">
-                        {VIZ_TAB_DATA[vizTab].metrics.map((m, idx) => {
-                          const Icon = m.Icon;
-                          return (
-                            <span key={idx} className="text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-medium flex items-center gap-1">
-                              {Icon && <Icon size={9} />}
-                              {m.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* RIGHT — Layer 4: AI Agents */}
-              <div className="relative z-10">
-                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/70 text-sky-700 mb-1 text-left">Layer 4 · AI Agents</p>
-                <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2 text-left">Autonomous agents working on your business</p>
-                <div className="space-y-1">
-                  {([
-                    { Icon: Zap, name: 'Agentic Payment Agent', sub: 'Solana Pay · ZeroClaw Escrow · Settle', active: true },
-                    { Icon: Cpu, name: 'DeFi Guardian Agent', sub: 'Solana DEX · Auto-Yield · Protection', active: true },
-                    { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
-                    { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
-                    { Icon: Headphones, name: 'CS Agent', sub: 'WhatsApp · Telegram · Email', active: true },
-                    { Icon: TrendingUp, name: 'SEO Agent', sub: 'GSC · GA4 · Ads · Keywords', active: true },
-                    { Icon: BarChart3, name: 'Analytics Agent', sub: 'BigQuery · Metabase · Reports', active: true },
-                    { Icon: ShieldCheck, name: 'Risk & Strategy Agent', sub: 'Cost Optimization & Mitigation', active: true },
-                    { Icon: Search, name: 'Research Agent', sub: 'Web · Papers · News · Data', active: false },
-                    { Icon: Code2, name: 'Coding Agent', sub: 'GitHub · Code · Deployments', active: false },
-                  ] as const).map(({ Icon, name, sub, active }, i) => (
-                    <div
-                      ref={(el) => { rightPointsRef.current[i] = el; }}
-                      key={name}
-                      className="flex items-center gap-2 rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300"
-                    >
-                      <div className={`flex-shrink-0 size-6 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-slate-50'}`}>
-                        <Icon size={12} className={active ? 'dark:text-sky-400 text-sky-600' : 'dark:text-white/25 text-slate-400'} />
+                      {/* Workflow Pipeline — Fixed 215px Height across all tabs */}
+                      <div className="px-4 sm:px-5 pb-2.5 space-y-1.5 h-[215px] flex flex-col justify-center transition-all duration-300">
+                        {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }, idx) => (
+                          <div
+                            key={label}
+                            className="flex items-center gap-3 rounded-xl dark:bg-[#0a1622] bg-slate-50/50 border dark:border-[#1e3a4a]/70 border-slate-200/80 px-3 py-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs transform-gpu"
+                            style={{ animationDelay: `${idx * 40}ms` }}
+                          >
+                            <Icon size={13} className="flex-shrink-0 dark:text-[#818cf8]/80 text-indigo-550" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[9.5px] sm:text-[10px] font-semibold dark:text-white/85 text-gray-800">{label}</p>
+                              <p className="text-[7.5px] sm:text-[8px] dark:text-white/30 text-slate-500 font-medium">{sub}</p>
+                            </div>
+                            <Check size={12} className="flex-shrink-0 dark:text-emerald-400/80 text-emerald-500" />
+                          </div>
+                        ))}
                       </div>
-                      <div className="min-w-0 flex-1">
+
+                      {/* Live status bar — Fixed Height 36px */}
+                      <div className="flex items-center justify-between px-4 sm:px-5 h-[36px] border-t dark:border-white/[0.05] border-gray-100 dark:bg-white/[0.01] bg-slate-50/50 rounded-b-2xl">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-[9.5px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
-                          <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200' : 'dark:bg-white/[0.04] bg-slate-100 dark:text-white/30 text-slate-400 border dark:border-white/[0.05] border-slate-200'}`}>{active ? 'Active' : 'Idle'}</span>
+                          <span className={`size-1.5 rounded-full ${VIZ_TAB_DATA[vizTab].badgePulse} animate-pulse`} />
+                          <span className={`text-[8px] sm:text-[8.5px] font-bold ${VIZ_TAB_DATA[vizTab].badgeColor} border px-2 py-0.5 rounded-md`}>{VIZ_TAB_DATA[vizTab].badge}</span>
                         </div>
-                        <p className="text-[7px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
+                        <div className="flex items-center gap-2.5 sm:gap-3">
+                          {VIZ_TAB_DATA[vizTab].metrics.map((m, idx) => {
+                            const Icon = m.Icon;
+                            return (
+                              <span key={idx} className="text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-medium flex items-center gap-1">
+                                {Icon && <Icon size={9} />}
+                                {m.label}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ═══════════ LAYER 5 — 9ROUTER & MODEL ROUTER ═══════════ */}
-            <div className="orch-fade relative z-10 my-4 lg:mt-6 lg:mb-3">
-              <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router Engine</p>
-
-              {/* 9Router Engine — Centered Hub */}
-              <div ref={routerTopRef} className="flex flex-col items-center justify-center mx-auto max-w-xl mb-4 lg:mb-6">
-                <div ref={routerBottomRef} className="w-full flex flex-col items-center rounded-xl border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#091522] bg-white px-4 py-3 shadow-md shadow-orange-500/5">
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <div className="size-8.5 rounded-lg dark:bg-white/[0.04] bg-orange-50/80 flex items-center justify-center p-0.5 border border-orange-200/60 dark:border-orange-500/30 overflow-hidden flex-shrink-0">
-                      <img src="/assets/visualization/9router.jpeg" alt="9Router Logo" className="size-full object-cover rounded-md" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[12px] font-bold dark:text-white/90 text-slate-800">9Router Engine</p>
-                      <p className="text-[8.5px] dark:text-white/35 text-slate-500 font-medium">Intelligent Model Routing & Optimization Hub</p>
-                    </div>
                   </div>
+                </div>
 
-                  {/* Integrated capability badges */}
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 border-t dark:border-white/[0.06] border-slate-100 w-full">
+                {/* RIGHT — Layer 4: AI Agents */}
+                <div className="relative z-10">
+                  <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#0ea5e9]/70 text-sky-700 mb-1 text-left">Layer 4 · AI Agents</p>
+                  <p className="text-[7px] dark:text-white/20 text-gray-400 mb-2 text-left">Autonomous agents working on your business</p>
+                  <div className="space-y-1">
                     {([
-                      { Icon: Clock, label: 'Latency Opt' },
-                      { Icon: CreditCard, label: 'Cost Opt' },
-                      { Icon: GitBranch, label: 'Fallback Mgmt' },
-                      { Icon: Activity, label: 'AI Scoring' },
-                      { Icon: Sparkles, label: 'Smart Routing' },
-                      { Icon: Cpu, label: 'Multi-LLM Load Balance' },
-                    ] as const).map(({ Icon, label }) => (
-                      <div key={label} className="flex items-center gap-1 rounded-md dark:bg-white/[0.03] bg-slate-50 border dark:border-white/[0.05] border-slate-200/60 px-2 py-1 transition-all hover:border-orange-500/40">
-                        <Icon size={10} className="dark:text-orange-400 text-[#ff6b35]" />
-                        <span className="text-[8px] font-semibold dark:text-white/70 text-slate-700">{label}</span>
+                      { Icon: Zap, name: 'Agentic Payment Agent', sub: 'Solana Pay · ZeroClaw Escrow · Settle', active: true },
+                      { Icon: Cpu, name: 'DeFi Guardian Agent', sub: 'Solana DEX · Auto-Yield · Protection', active: true },
+                      { Icon: Star, name: 'Sales Agent', sub: 'HubSpot · LinkedIn · WhatsApp', active: true },
+                      { Icon: CreditCard, name: 'Finance Agent', sub: 'Stripe · x402 · Invoices', active: true },
+                      { Icon: Headphones, name: 'CS Agent', sub: 'WhatsApp · Telegram · Email', active: true },
+                      { Icon: TrendingUp, name: 'SEO Agent', sub: 'GSC · GA4 · Ads · Keywords', active: true },
+                      { Icon: BarChart3, name: 'Analytics Agent', sub: 'BigQuery · Metabase · Reports', active: true },
+                      { Icon: ShieldCheck, name: 'Risk & Strategy Agent', sub: 'Cost Optimization & Mitigation', active: true },
+                      { Icon: Search, name: 'Research Agent', sub: 'Web · Papers · News · Data', active: false },
+                      { Icon: Code2, name: 'Coding Agent', sub: 'GitHub · Code · Deployments', active: false },
+                    ] as const).map(({ Icon, name, sub, active }, i) => (
+                      <div
+                        ref={(el) => { rightPointsRef.current[i] = el; }}
+                        key={name}
+                        className="flex items-center gap-2 rounded-lg border dark:border-[#1e3a4a] border-slate-200/90 dark:bg-[#091522] bg-white px-2.5 py-1 transition-all hover:dark:bg-[#0c1e30] hover:bg-slate-50 hover:border-slate-300"
+                      >
+                        <div className={`flex-shrink-0 size-6 rounded-md flex items-center justify-center ${active ? 'dark:bg-sky-500/10 bg-sky-50' : 'dark:bg-white/[0.03] bg-slate-50'}`}>
+                          <Icon size={12} className={active ? 'dark:text-sky-400 text-sky-600' : 'dark:text-white/25 text-slate-400'} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[9.5px] font-semibold dark:text-white/85 text-slate-800 truncate">{name}</p>
+                            <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[6.5px] font-bold uppercase tracking-wider ${active ? 'dark:bg-emerald-500/15 bg-emerald-50 dark:text-emerald-400 text-emerald-600 dark:border-emerald-500/20 border-emerald-200' : 'dark:bg-white/[0.04] bg-slate-100 dark:text-white/30 text-slate-400 border dark:border-white/[0.05] border-slate-200'}`}>{active ? 'Active' : 'Idle'}</span>
+                          </div>
+                          <p className="text-[7px] dark:text-white/30 text-slate-500 font-medium truncate">{sub}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* LLM Models Grid */}
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-                {([
-                  { label: 'Claude', sub: 'Anthropic' },
-                  { label: 'GPT-4o', sub: 'OpenAI' },
-                  { label: 'Gemini', sub: 'Google' },
-                  { label: 'DeepSeek', sub: 'DeepSeek' },
-                  { label: 'Qwen', sub: 'Alibaba' },
-                  { label: 'Mistral', sub: 'Mistral AI' },
-                  { label: 'Llama', sub: 'Meta' },
-                ] as const).map(({ label, sub }, i) => (
-                  <div
-                    key={label}
-                    ref={(el) => { bottomPointsRef.current[i] = el; }}
-                    className="flex flex-col items-center rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2 py-2 transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+              {/* ═══════════ LAYER 5 — 9ROUTER & MODEL ROUTER ═══════════ */}
+              <div className="orch-fade relative z-10 my-4 lg:mt-6 lg:mb-3">
+                <p className="text-[8px] font-bold tracking-[0.2em] uppercase dark:text-[#ff6b35]/60 text-orange-500 mb-2">Layer 5 · Model Router Engine</p>
+
+                {/* 9Router Engine — Centered Hub */}
+                <div ref={routerTopRef} className="flex flex-col items-center justify-center mx-auto max-w-xl mb-4 lg:mb-6">
+                  <div ref={routerBottomRef} className="w-full flex flex-col items-center rounded-xl border dark:border-[#ff6b35]/30 border-orange-200 dark:bg-[#091522] bg-white px-4 py-3 shadow-md shadow-orange-500/5">
+                    <div className="flex items-center gap-3 mb-2.5">
+                      <div className="size-8.5 rounded-lg dark:bg-white/[0.04] bg-orange-50/80 flex items-center justify-center p-0.5 border border-orange-200/60 dark:border-orange-500/30 overflow-hidden flex-shrink-0">
+                        <img src="/assets/visualization/9router.jpeg" alt="9Router Logo" className="size-full object-cover rounded-md" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[12px] font-bold dark:text-white/90 text-slate-800">9Router Engine</p>
+                        <p className="text-[8.5px] dark:text-white/35 text-slate-500 font-medium">Intelligent Model Routing & Optimization Hub</p>
+                      </div>
+                    </div>
+
+                    {/* Integrated capability badges */}
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 border-t dark:border-white/[0.06] border-slate-100 w-full">
+                      {([
+                        { Icon: Clock, label: 'Latency Opt' },
+                        { Icon: CreditCard, label: 'Cost Opt' },
+                        { Icon: GitBranch, label: 'Fallback Mgmt' },
+                        { Icon: Activity, label: 'AI Scoring' },
+                        { Icon: Sparkles, label: 'Smart Routing' },
+                        { Icon: Cpu, label: 'Multi-LLM Load Balance' },
+                      ] as const).map(({ Icon, label }) => (
+                        <div key={label} className="flex items-center gap-1 rounded-md dark:bg-white/[0.03] bg-slate-50 border dark:border-white/[0.05] border-slate-200/60 px-2 py-1 transition-all hover:border-orange-500/40">
+                          <Icon size={10} className="dark:text-orange-400 text-[#ff6b35]" />
+                          <span className="text-[8px] font-semibold dark:text-white/70 text-slate-700">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LLM Models Grid */}
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                  {([
+                    { label: 'Claude', sub: 'Anthropic' },
+                    { label: 'GPT-4o', sub: 'OpenAI' },
+                    { label: 'Gemini', sub: 'Google' },
+                    { label: 'DeepSeek', sub: 'DeepSeek' },
+                    { label: 'Qwen', sub: 'Alibaba' },
+                    { label: 'Mistral', sub: 'Mistral AI' },
+                    { label: 'Llama', sub: 'Meta' },
+                  ] as const).map(({ label, sub }, i) => (
+                    <div
+                      key={label}
+                      ref={(el) => { bottomPointsRef.current[i] = el; }}
+                      className="flex flex-col items-center rounded-lg border dark:border-[#1e3a4a] border-slate-200/60 dark:bg-[#091522] bg-white px-2 py-2 transition-all hover:bg-slate-50/50 hover:border-slate-350 hover:shadow shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                    >
+                      <div className="size-6 rounded-md dark:bg-white/[0.04] bg-orange-50 flex items-center justify-center mb-1">
+                        <BrandIcon name={label} />
+                      </div>
+                      <p className="text-[9px] font-semibold dark:text-white/80 text-slate-800">{label}</p>
+                      <p className="text-[7px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ═══════════ GUARDRAILS ═══════════ */}
+              <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-3 rounded-xl dark:bg-[#080d1a] bg-slate-50/70 dark:border-white/[0.06] border-slate-200/80 border p-3">
+                <div className="flex items-center gap-2.5 flex-shrink-0">
+                  <div className="size-7 rounded-lg bg-[#2563eb]/10 dark:bg-[#3b82f6]/20 flex items-center justify-center border border-blue-500/20">
+                    <ShieldCheck size={15} className="dark:text-blue-400 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black tracking-wider uppercase dark:text-white/90 text-slate-800">Guardrails</p>
+                    <p className="text-[8px] dark:text-white/35 text-slate-500 font-medium">5-Layer Protection System</p>
+                  </div>
+                </div>
+
+                {/* Guardrails Pills Grid — 5 Equal Columns for 100% Proportional Width Fill */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 flex-1">
+                  {([
+                    {
+                      Symbol: ChartJsBarSymbol,
+                      label: 'Input Sanitize',
+                      sub: 'Validate & Clean',
+                      color: '#36A2EB', // Chart.js Blue
+                      bg: 'dark:bg-[#0f172a] bg-[#eff6ff]',
+                      border: 'dark:border-[#1e3a8a]/60 border-[#bfdbfe]',
+                      text: 'dark:text-[#60a5fa] text-[#1d4ed8]',
+                    },
+                    {
+                      Symbol: ChartJsDoughnutSymbol,
+                      label: 'PII Redaction',
+                      sub: 'Protect Privacy',
+                      color: '#9966FF', // Chart.js Purple
+                      bg: 'dark:bg-[#1e1b4b] bg-[#f5f3ff]',
+                      border: 'dark:border-[#4c1d95]/60 border-[#ddd6fe]',
+                      text: 'dark:text-[#a78bfa] text-[#6d28d9]',
+                    },
+                    {
+                      Symbol: ChartJsScatterSymbol,
+                      label: 'Injection Block',
+                      sub: 'Prevent Attacks',
+                      color: '#FF9F40', // Chart.js Amber/Orange
+                      bg: 'dark:bg-[#431407] bg-[#fff7ed]',
+                      border: 'dark:border-[#7c2d12]/60 border-[#fed7aa]',
+                      text: 'dark:text-[#fb923c] text-[#c2410c]',
+                    },
+                    {
+                      Symbol: ChartJsLineSymbol,
+                      label: 'Output Filter',
+                      sub: 'Harm Shield',
+                      color: '#FF6384', // Chart.js Red/Rose
+                      bg: 'dark:bg-[#4c0519] bg-[#fff1f2]',
+                      border: 'dark:border-[#881337]/60 border-[#fecdd3]',
+                      text: 'dark:text-[#f43f5e] text-[#be123c]',
+                    },
+                    {
+                      Symbol: ChartJsStepSymbol,
+                      label: 'Audit Trail',
+                      sub: 'Log Everything',
+                      color: '#4BC0C0', // Chart.js Teal/Emerald
+                      bg: 'dark:bg-[#064e3b] bg-[#ecfdf5]',
+                      border: 'dark:border-[#065f46]/60 border-[#a7f3d0]',
+                      text: 'dark:text-[#34d399] text-[#047857]',
+                    },
+                  ] as const).map(({ Symbol, label, sub, color, bg, border, text }) => (
+                    <div key={label} className={`flex items-center justify-center gap-2 rounded-lg border ${border} ${bg} px-2.5 py-1.5 shadow-sm transition-all hover:scale-[1.01]`}>
+                      <div className="flex-shrink-0 flex items-center justify-center">
+                        <Symbol color={color} className="size-3.5" />
+                      </div>
+                      <div className="flex flex-col text-left min-w-0">
+                        <span className={`text-[8.5px] sm:text-[9.5px] font-bold ${text} leading-normal truncate`}>{label}</span>
+                        <span className="text-[7.5px] sm:text-[8px] font-semibold text-slate-400 dark:text-white/35 leading-none mt-0.5 truncate">{sub}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ═══════════ SETTLEMENT & EXECUTION LAYER ═══════════ */}
+              <div className="relative z-10 mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl dark:bg-[#091522] bg-slate-50 dark:border-white/[0.08] border-slate-200 border p-3 shadow-none">
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                  <span className="text-[11.5px] font-bold dark:text-slate-100 text-slate-900 tracking-tight">Autonomous Execution & On-Chain Terminal</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border dark:border-slate-800 border-slate-200/80 shadow-none">
+                    <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-4 rounded object-cover border border-slate-700/50" alt="ZeroClaw" />
+                    <span className="text-[11px] font-semibold dark:text-slate-100 text-slate-900">ZeroClaw AI</span>
+                    <span className="text-[9px] text-slate-500 font-mono">(Rust)</span>
+                  </div>
+
+                  <span className="text-slate-400 dark:text-slate-600 font-bold text-xs">×</span>
+
+                  <a
+                    href="https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors shadow-none cursor-pointer group"
+                    title="View live ZeroClaw settlement transactions on Solana Devnet Explorer"
                   >
-                    <div className="size-6 rounded-md dark:bg-white/[0.04] bg-orange-50 flex items-center justify-center mb-1">
-                      <BrandIcon name={label} />
-                    </div>
-                    <p className="text-[9px] font-semibold dark:text-white/80 text-slate-800">{label}</p>
-                    <p className="text-[7px] dark:text-white/25 text-slate-500 font-medium">{sub}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+                    <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-4 rounded object-contain" alt="Solana" />
+                    <span className="text-[11px] font-semibold">Solana Devnet</span>
+                    <ArrowUpRight size={12} className="text-emerald-500 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </a>
 
-            {/* ═══════════ GUARDRAILS ═══════════ */}
-            <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-3 rounded-xl dark:bg-[#080d1a] bg-slate-50/70 dark:border-white/[0.06] border-slate-200/80 border p-3">
-              <div className="flex items-center gap-2.5 flex-shrink-0">
-                <div className="size-7 rounded-lg bg-[#2563eb]/10 dark:bg-[#3b82f6]/20 flex items-center justify-center border border-blue-500/20">
-                  <ShieldCheck size={15} className="dark:text-blue-400 text-blue-600" />
+                  <button
+                    onClick={() => handleOpenAuth('enterprise')}
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white font-semibold text-xs transition-all shadow-none flex items-center gap-1.5 cursor-pointer ml-1"
+                  >
+                    <span>Demo Terminal</span>
+                    <ArrowRight size={13} />
+                  </button>
                 </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-black tracking-wider uppercase dark:text-white/90 text-slate-800">Guardrails</p>
-                  <p className="text-[8px] dark:text-white/35 text-slate-500 font-medium">5-Layer Protection System</p>
-                </div>
-              </div>
-
-              {/* Guardrails Pills Grid — 5 Equal Columns for 100% Proportional Width Fill */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 flex-1">
-                {([
-                  {
-                    Symbol: ChartJsBarSymbol,
-                    label: 'Input Sanitize',
-                    sub: 'Validate & Clean',
-                    color: '#36A2EB', // Chart.js Blue
-                    bg: 'dark:bg-[#0f172a] bg-[#eff6ff]',
-                    border: 'dark:border-[#1e3a8a]/60 border-[#bfdbfe]',
-                    text: 'dark:text-[#60a5fa] text-[#1d4ed8]',
-                  },
-                  {
-                    Symbol: ChartJsDoughnutSymbol,
-                    label: 'PII Redaction',
-                    sub: 'Protect Privacy',
-                    color: '#9966FF', // Chart.js Purple
-                    bg: 'dark:bg-[#1e1b4b] bg-[#f5f3ff]',
-                    border: 'dark:border-[#4c1d95]/60 border-[#ddd6fe]',
-                    text: 'dark:text-[#a78bfa] text-[#6d28d9]',
-                  },
-                  {
-                    Symbol: ChartJsScatterSymbol,
-                    label: 'Injection Block',
-                    sub: 'Prevent Attacks',
-                    color: '#FF9F40', // Chart.js Amber/Orange
-                    bg: 'dark:bg-[#431407] bg-[#fff7ed]',
-                    border: 'dark:border-[#7c2d12]/60 border-[#fed7aa]',
-                    text: 'dark:text-[#fb923c] text-[#c2410c]',
-                  },
-                  {
-                    Symbol: ChartJsLineSymbol,
-                    label: 'Output Filter',
-                    sub: 'Harm Shield',
-                    color: '#FF6384', // Chart.js Red/Rose
-                    bg: 'dark:bg-[#4c0519] bg-[#fff1f2]',
-                    border: 'dark:border-[#881337]/60 border-[#fecdd3]',
-                    text: 'dark:text-[#f43f5e] text-[#be123c]',
-                  },
-                  {
-                    Symbol: ChartJsStepSymbol,
-                    label: 'Audit Trail',
-                    sub: 'Log Everything',
-                    color: '#4BC0C0', // Chart.js Teal/Emerald
-                    bg: 'dark:bg-[#064e3b] bg-[#ecfdf5]',
-                    border: 'dark:border-[#065f46]/60 border-[#a7f3d0]',
-                    text: 'dark:text-[#34d399] text-[#047857]',
-                  },
-                ] as const).map(({ Symbol, label, sub, color, bg, border, text }) => (
-                  <div key={label} className={`flex items-center justify-center gap-2 rounded-lg border ${border} ${bg} px-2.5 py-1.5 shadow-sm transition-all hover:scale-[1.01]`}>
-                    <div className="flex-shrink-0 flex items-center justify-center">
-                      <Symbol color={color} className="size-3.5" />
-                    </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className={`text-[8.5px] sm:text-[9.5px] font-bold ${text} leading-normal truncate`}>{label}</span>
-                      <span className="text-[7.5px] sm:text-[8px] font-semibold text-slate-400 dark:text-white/35 leading-none mt-0.5 truncate">{sub}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ═══════════ SETTLEMENT & EXECUTION LAYER ═══════════ */}
-            <div className="relative z-10 mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl dark:bg-[#091522] bg-slate-50 dark:border-white/[0.08] border-slate-200 border p-3 shadow-none">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-                <span className="text-[11.5px] font-bold dark:text-slate-100 text-slate-900 tracking-tight">Autonomous Execution & On-Chain Terminal</span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border dark:border-slate-800 border-slate-200/80 shadow-none">
-                  <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-4 rounded object-cover border border-slate-700/50" alt="ZeroClaw" />
-                  <span className="text-[11px] font-semibold dark:text-slate-100 text-slate-900">ZeroClaw AI</span>
-                  <span className="text-[9px] text-slate-500 font-mono">(Rust)</span>
-                </div>
-
-                <span className="text-slate-400 dark:text-slate-600 font-bold text-xs">×</span>
-
-                <a
-                  href="https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg dark:bg-[#0c1a29] bg-white border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors shadow-none cursor-pointer group"
-                  title="View live ZeroClaw settlement transactions on Solana Devnet Explorer"
-                >
-                  <img src={getR2CdnUrl('/assets/logo/solana.png')} className="size-4 rounded object-contain" alt="Solana" />
-                  <span className="text-[11px] font-semibold">Solana Devnet</span>
-                  <ArrowUpRight size={12} className="text-emerald-500 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </a>
-
-                <button
-                  onClick={() => handleOpenAuth('enterprise')}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white font-semibold text-xs transition-all shadow-none flex items-center gap-1.5 cursor-pointer ml-1"
-                >
-                  <span>Demo Terminal</span>
-                  <ArrowRight size={13} />
-                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* COLLABORATIVE AGENTS */}
       <section

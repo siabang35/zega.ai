@@ -139,13 +139,67 @@ print(f"QRIS Solana Pay URL: {invoice.solana_pay_url}")`,
 };
 
 
+// Helper to derive active tab ID from current window location pathname
+function getTabFromUrl(): string {
+  if (typeof window === 'undefined') return 'quickstart';
+  const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '') || '';
+  const segments = pathname.split('/').filter(Boolean);
+  const lastSegment = segments[segments.length - 1];
+  const allIds = DOCS_NAV.flatMap((group) => group.items.map((item) => item.id));
+  if (lastSegment && allIds.includes(lastSegment)) {
+    return lastSegment;
+  }
+  return 'quickstart';
+}
+
 export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, triggerComingSoon }) => {
-  const [activeTab, setActiveTab] = useState('quickstart');
+  const [activeTab, setActiveTab] = useState<string>(getTabFromUrl);
   const [codeLang, setCodeLang] = useState<'typescript' | 'python' | 'curl'>('typescript');
   const [pkgManager, setPkgManager] = useState<'npm' | 'pnpm' | 'yarn' | 'bun' | 'curl'>('npm');
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sync activeTab with URL & popstate (browser back/forward button)
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getTabFromUrl());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Update browser URL and document title when activeTab changes
+  const selectTab = (tabId: string) => {
+    setActiveTab(tabId);
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname.toLowerCase();
+      const isSubdomain = hostname === 'docs.zegaai.site' || hostname.startsWith('docs.');
+      const newPath = isSubdomain ? `/${tabId}` : `/docs/${tabId}`;
+      
+      if (window.location.pathname !== newPath) {
+        window.history.pushState({}, '', newPath + window.location.search);
+      }
+
+      // Update document title for SEO & GitBook UX
+      const allItems = DOCS_NAV.flatMap((g) => g.items);
+      const currentItem = allItems.find((i) => i.id === tabId);
+      if (currentItem) {
+        document.title = `${currentItem.title} - ZEGA AI Documentation`;
+      }
+    }
+  };
+
+  // Ensure initial title is set on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const allItems = DOCS_NAV.flatMap((g) => g.items);
+      const currentItem = allItems.find((i) => i.id === activeTab);
+      if (currentItem) {
+        document.title = `${currentItem.title} - ZEGA AI Documentation`;
+      }
+    }
+  }, [activeTab]);
 
   // Prevent background body scroll when documentation mobile menu drawer is open
   useEffect(() => {
@@ -313,7 +367,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
                         <button
                           key={item.id}
                           onClick={() => {
-                            setActiveTab(item.id);
+                            selectTab(item.id);
                             setMobileMenuOpen(false);
                           }}
                           className={`flex w-full items-center justify-between transition-all cursor-pointer text-xs ${
@@ -361,8 +415,8 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
                   {group.items.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id)}
-                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition-all ${
+                      onClick={() => selectTab(item.id)}
+                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition-all cursor-pointer ${
                         activeTab === item.id
                           ? 'bg-[#ff6b35]/10 text-[#ff6b35] font-bold border border-[#ff6b35]/20'
                           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
