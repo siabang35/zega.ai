@@ -45,7 +45,7 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
   const [isEditingWebhook, setIsEditingWebhook] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
-  const publicApiKey = (import.meta.env.VITE_ZEGA_PUBLIC_API_KEY as string) || 'zga_pk_live_client_key';
+  const publicApiKey = 'zga_pk_live_••••••••••••••••34a1';
   const secretApiKey = '••••••••••••••••••••••••••••••••';
 
   const handleCopy = (text: string, label: string) => {
