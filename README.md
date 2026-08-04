@@ -114,6 +114,12 @@ ZEGA/
 - **DeFi Financial Guardian (`/v1/zeroclaw/defi/*`)**: Real-time token price checks via Jupiter Price V2 API & Switchboard Crossbar fallback with customizable percentage threshold alerts and wallet portfolio tracking.
 - **Operator Reproducibility**: Complete single-evening setup instructions documented in [`docs/zeroclaw/AGENT_OPERATOR_GUIDE.md`](docs/zeroclaw/AGENT_OPERATOR_GUIDE.md).
 
+### 8. 🛡️ Zero-Trust On-Chain Anti-Fraud Pipeline & High-Concurrency Resilient Queue
+- **5-Layer On-Chain Anti-Fraud Pipeline**: Enforces 87-88 Base58 signature format verification, zero-amount transfer rejection (`ZERO_AMOUNT_CHECK`), and strict merchant/reference key matching (`RECIPIENT_MATCH_FAIL`). Synthetic signature IDs or zero-transfer transactions are rejected with HTTP 403.
+- **Indonesian Comma Decimal Normalization**: Automatically converts `,` to `.` (`0,32` -> `0.32 USDC`) across prompt parsing, `/generate-qr`, `/invoice`, and webhooks, with 6-decimal precision and SPL token micro-unit scaling.
+- **Single-Flight Messaging Lock & Exponential Backoff Queue**: Eliminates Telegram `HTTP 409 Conflict: terminated by other getUpdates request` via single-flight promise locks, and handles Telegram `HTTP 429` rate limits with 3-attempt exponential backoff retry (1s, 2s, 4s).
+- **Solana Pay Reference Key Concurrency Indexing**: Dynamically appends unique single-use `reference_key` accounts to Solana Pay URIs, allowing thousands of concurrent same-amount payments (e.g. 10 users sending 1.00 USDC at the exact same millisecond) without misattribution.
+
 ### 7. 🛡️ Multi-Tenant Realtime SQL Migrations & Cloudflare R2 CDN Audit Certificates
 - **Cloudflare R2 CDN Cryptographic Audit Certificates (`R2StorageService`)**:
   - Automatically generates and uploads SHA-256 hashed JSON audit certificates (`https://cdn.zegaai.site/privy-audits/{email}/{timestamp}-audit.json`) to Cloudflare R2 bucket `zega-ai` upon every user sync or ZeroClaw settlement.

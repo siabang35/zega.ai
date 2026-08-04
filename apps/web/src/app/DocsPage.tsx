@@ -573,13 +573,13 @@ curl -s -X POST http://localhost:3001/v1/zeroclaw/pair \\
                 </p>
 
                 <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
-                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">5-Layer OWASP Top 10 Anti-Hacking Hardening</h3>
+                  <h3 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">5-Layer OWASP Top 10 Anti-Hacking & Zero-Trust Hardening</h3>
                   <ul className="list-disc pl-5 space-y-1.5 text-[11.5px]">
-                    <li><strong>OWASP API3 Base58 Input Sanitization:</strong> All <code className="font-mono text-emerald-400">referenceKey</code>, <code className="font-mono text-emerald-400">merchantPubkey</code>, and <code className="font-mono text-emerald-400">txSignature</code> inputs are strictly regex-validated against Base58 pattern (<code className="font-mono text-emerald-500">/^[1-9A-HJ-NP-Za-km-z]{'{32,88}'}$/</code>). SQLi and XSS injection attempts are rejected immediately with HTTP 400.</li>
+                    <li><strong>OWASP API3 Base58 Input Sanitization:</strong> All <code className="font-mono text-emerald-400">referenceKey</code>, <code className="font-mono text-emerald-400">merchantPubkey</code>, and <code className="font-mono text-emerald-400">txSignature</code> inputs are strictly regex-validated against Base58 pattern (<code className="font-mono text-emerald-500">/^[1-9A-HJ-NP-Za-km-z]{'{87,88}'}$/</code>). Synthetic or invalid signature strings are rejected immediately at Layer 2.</li>
+                    <li><strong>Zero-Amount Transfer Rejection (Layer 5):</strong> Transactions with <code className="font-mono text-emerald-400">0</code> USDC or SOL transfer amount (account initializations, non-payment contract calls) are strictly rejected with HTTP 403 (<code className="font-mono text-emerald-400">ZERO_AMOUNT_CHECK</code>).</li>
+                    <li><strong>Merchant & Reference Key Recipient Match (Layer 5):</strong> Deep inspection verifies that the transaction destination account or account list matches the merchant's Privy wallet address or invoice reference key (<code className="font-mono text-emerald-400">RECIPIENT_MATCH_FAIL</code>).</li>
                     <li><strong>OWASP API8 Anti-Replay Guard:</strong> Performs automated database lookup in Supabase <code className="font-mono text-emerald-400">zeroclaw_solana_settlements</code> to prevent reusing a single transaction signature across multiple invoices.</li>
-                    <li><strong>OWASP API4 Anti-Throttling & Anti-DDoS:</strong> 100 req/min rate limiting per IP and Fastify 1MB payload size validator.</li>
-                    <li><strong>OWASP API1 Real-Time On-Chain Verification:</strong> Direct RPC slot parsing enforcing <code className="font-mono text-emerald-400">err === null</code> and <code className="font-mono text-emerald-400">confirmationStatus: confirmed | finalized</code>.</li>
-                    <li><strong>OWASP API9 Secure Error Masking:</strong> Prevents stack trace disclosure and logs structured security audit events internally.</li>
+                    <li><strong>High-Concurrency Single-Flight Queue:</strong> Single-flight promise lock (<code className="font-mono text-emerald-500">syncTelegramBotUpdatesSingleFlight</code>) eliminates Telegram HTTP 409 Conflicts, paired with exponential backoff retry dispatcher for rate-limited (<code className="font-mono text-emerald-400">HTTP 429</code>) message delivery.</li>
                   </ul>
                 </div>
               </section>
