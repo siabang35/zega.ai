@@ -175,33 +175,25 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
       {/* Enterprise Dedicated Documentation Header (Stripe / Vercel Standard) */}
       <header className="sticky top-0 z-50 h-[58px] border-b border-border/50 bg-background/90 backdrop-blur-xl transition-all">
         <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-3 sm:px-8">
-          {/* Left: Branding & Navigation Back Link */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Mobile Sidebar Hamburger Toggle */}
+          {/* Left: Hamburger Toggle (Mobile) & Branding */}
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+            {/* Single Modern Mobile Menu Open/Close Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden grid size-8 place-items-center rounded-lg border border-border/80 bg-card/80 text-foreground transition-all hover:bg-muted cursor-pointer"
-              aria-label="Toggle navigation menu"
+              className="md:hidden grid size-8.5 place-items-center rounded-xl border border-border/80 bg-card/80 text-foreground transition-all hover:bg-muted hover:border-[#ff6b35]/40 active:scale-95 cursor-pointer shadow-2xs"
+              aria-label="Toggle documentation navigation"
             >
-              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+              {mobileMenuOpen ? (
+                <X size={17} className="text-[#ff6b35] transition-transform duration-200" />
+              ) : (
+                <Menu size={17} className="text-foreground transition-transform duration-200" />
+              )}
             </button>
 
-            {/* Seamless Back to Main Site Button on LEFT */}
+            {/* ZEGA AI Logo */}
             <button
               onClick={handleBackToMain}
-              className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/80 px-2.5 py-1 text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted/80 hover:border-[#ff6b35]/40 hover:text-[#ff6b35] shadow-2xs group cursor-pointer whitespace-nowrap"
-              title="Return to ZEGA AI Main Site"
-            >
-              <ArrowLeft size={13} className="text-muted-foreground group-hover:-translate-x-0.5 group-hover:text-[#ff6b35] transition-transform flex-shrink-0" />
-              <span className="hidden sm:inline">Main Site</span>
-              <span className="sm:hidden text-[10px]">Back</span>
-            </button>
-
-            <div className="h-3.5 w-px bg-border/60" />
-
-            <button
-              onClick={handleBackToMain}
-              className="flex items-center gap-1.5 group focus:outline-none cursor-pointer"
+              className="flex items-center gap-2 group focus:outline-none cursor-pointer"
               title="ZEGA AI Home"
             >
               <img
@@ -218,7 +210,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             <div className="h-3.5 w-px bg-border/60" />
 
             <div className="flex items-center gap-1.5">
-              <span className="rounded-md bg-[#ff6b35]/10 px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-[#ff6b35] border border-[#ff6b35]/20">
+              <span className="rounded-md bg-[#ff6b35]/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-bold text-[#ff6b35] border border-[#ff6b35]/20">
                 Docs
               </span>
               <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[9.5px] font-mono text-muted-foreground border border-border/60">
@@ -243,8 +235,18 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             </div>
           </div>
 
-          {/* Right: Theme Toggle & API Key CTA */}
+          {/* Right: Seamless Main Site Back Link, Theme Toggle & API Key CTA */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+            {/* Seamless Professional Back to Main Site Button */}
+            <button
+              onClick={handleBackToMain}
+              className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/80 px-2.5 py-1.5 text-[11px] font-semibold text-foreground/90 transition-all hover:bg-muted/80 hover:border-[#ff6b35]/40 hover:text-[#ff6b35] shadow-2xs group cursor-pointer whitespace-nowrap"
+              title="Return to ZEGA AI Main Site"
+            >
+              <ArrowLeft size={13} className="text-muted-foreground group-hover:-translate-x-0.5 group-hover:text-[#ff6b35] transition-transform flex-shrink-0" />
+              <span className="inline">Main Site</span>
+            </button>
+
             <a
               href="https://github.com/siabang35/zega.ai"
               target="_blank"
@@ -258,10 +260,10 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
             {setDark && (
               <button
                 onClick={() => setDark(!dark)}
-                className="grid size-7.5 sm:size-8 place-items-center rounded-full border border-border/80 bg-card/60 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground cursor-pointer flex-shrink-0"
+                className="grid size-8 place-items-center rounded-full border border-border/80 bg-card/60 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground cursor-pointer flex-shrink-0"
                 aria-label="Toggle theme"
               >
-                {dark ? <Sun size={12} /> : <Moon size={12} />}
+                {dark ? <Sun size={13} /> : <Moon size={13} />}
               </button>
             )}
 
@@ -270,7 +272,7 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
                 if (triggerComingSoon) triggerComingSoon();
                 else handleBackToMain();
               }}
-              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:scale-[1.03] active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
+              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-3 py-1.5 text-[10.5px] sm:text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:scale-[1.03] active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
             >
               <span>Get API Key</span>
               <ExternalLink size={10} className="ml-1 opacity-80 hidden sm:inline" />
@@ -322,6 +324,20 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
               </div>
             ))}
           </div>
+
+          {/* Drawer Footer: Back to Main Website */}
+          <div className="p-4 border-t border-border/50 bg-card/40">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleBackToMain();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 px-4 text-xs font-bold text-foreground hover:bg-muted hover:border-[#ff6b35]/40 transition-all cursor-pointer shadow-xs"
+            >
+              <ArrowLeft size={14} className="text-[#ff6b35]" />
+              <span>Return to Main Website (zegaai.site)</span>
+            </button>
+          </div>
         </div>
       )}
       <div className="mx-auto flex max-w-[1500px]">
@@ -355,25 +371,17 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
 
         {/* Center Main Article Column */}
         <main className="flex-1 min-w-0 px-4 py-6 sm:px-6 md:px-12 max-w-4xl min-h-[calc(100vh-56px)]">
-          {/* Mobile Documentation Navigation Bar (<768px) */}
-          <div className="md:hidden flex items-center justify-between gap-2 pb-3 mb-4 border-b border-border/40">
+          {/* Mobile Documentation Section Selector (<768px) */}
+          <div className="md:hidden pb-3 mb-4 border-b border-border/40">
             <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="flex-1 flex items-center justify-between rounded-xl border border-border/80 bg-card/80 px-3 py-2 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted/80 transition-all cursor-pointer truncate"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex w-full items-center justify-between rounded-xl border border-border/80 bg-card/80 px-3.5 py-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted/80 transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2 truncate">
                 <BookOpen size={14} className="text-[#ff6b35] flex-shrink-0" />
                 <span className="truncate">{DOCS_NAV.flatMap((g) => g.items).find((i) => i.id === activeTab)?.title || 'Quickstart'}</span>
               </div>
-              <ChevronDown size={14} className="text-muted-foreground flex-shrink-0 ml-2" />
-            </button>
-
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-[#ff6b35]/30 bg-[#ff6b35]/10 px-3 py-2 text-[11px] font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 transition-all cursor-pointer flex-shrink-0"
-            >
-              <Menu size={14} />
-              <span>Menu</span>
+              <ChevronDown size={14} className={`text-muted-foreground flex-shrink-0 ml-2 transition-transform duration-200 ${mobileMenuOpen ? 'rotate-180 text-[#ff6b35]' : ''}`} />
             </button>
           </div>
 
