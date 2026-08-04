@@ -243,12 +243,15 @@ export function UmkmDashboardContainer({
     const startTime = Date.now();
     const envApi = import.meta.env.VITE_API_URL;
     const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
-    const apiUrl = (isProdDomain && (!envApi || envApi.includes('localhost')))
+    
+    let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
       ? 'https://zega-ai.onrender.com'
       : (envApi || 'http://localhost:3001');
 
+    const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
+
     try {
-      const response = await fetch(`${apiUrl}/v1/umkm/copilot/chat`, {
+      const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

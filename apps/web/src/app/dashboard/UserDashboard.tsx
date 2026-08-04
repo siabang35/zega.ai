@@ -20,7 +20,6 @@ export function UserDashboard({
   userRole = 'individual',
   userEmail = '',
   userName = '',
-  isGuest = false,
 }: UserDashboardProps) {
   if (userRole === 'enterprise') {
     return (
@@ -30,7 +29,6 @@ export function UserDashboard({
         setDark={setDark}
         userEmail={userEmail}
         userName={userName}
-        isGuest={isGuest}
       />
     );
   }
@@ -42,7 +40,6 @@ export function UserDashboard({
       setDark={setDark}
       userEmail={userEmail}
       userName={userName}
-      isGuest={isGuest}
     />
   );
 }

@@ -23,7 +23,7 @@ export const TRANSLATIONS = {
       docs: 'Docs',
       pricing: 'Pricing',
       console: 'Portal',
-      tryNow: 'Launch Platform',
+      tryNow: 'Launch App',
     },
     hero: {
       badge: 'Enterprise Agentic AI Platform',
@@ -482,7 +482,7 @@ export const TRANSLATIONS = {
       docs: 'Dokumentasi',
       pricing: 'Harga',
       console: 'Portal',
-      tryNow: 'Buka Platform',
+      tryNow: 'Launch App',
     },
     hero: {
       badge: 'Platform AI Agen Enterprise Otonom',

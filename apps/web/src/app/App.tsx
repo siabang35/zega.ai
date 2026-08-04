@@ -2405,7 +2405,7 @@ function AppContent() {
               {dark ? <Sun size={13} /> : <Moon size={13} />}
             </button>
 
-            {/* Unified Launch Platform CTA Button — Smart Authentication & Role Aware */}
+            {/* Unified Launch App CTA Button — Smart Authentication & Role Aware */}
             <button
               onClick={async () => {
                 const session = await SupabaseDashboardService.getCurrentSession();
@@ -2423,12 +2423,20 @@ function AppContent() {
                   handleOpenAuth("self-serve");
                 }
               }}
-              className="group relative hidden items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2 text-[12px] font-bold text-white shadow-lg shadow-[#ff6b35]/30 transition-all duration-500 hover:bg-right hover:shadow-xl hover:shadow-[#ff6b35]/40 hover:scale-[1.04] active:scale-95 sm:inline-flex cursor-pointer"
+              className="group relative hidden sm:inline-flex items-center justify-center gap-2 h-9 px-4.5 text-[12.5px] font-semibold tracking-wide text-white whitespace-nowrap shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff4500] bg-[length:200%_100%] border border-white/25 shadow-md shadow-[#ff6b35]/25 transition-all duration-300 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/40 hover:scale-[1.03] active:scale-95 cursor-pointer select-none"
             >
-              <span className="relative z-10 flex items-center gap-1.5">
-                <Sparkles size={13} className="animate-pulse" /> {t.nav.tryNow}
+              <span className="relative z-10 flex items-center gap-2 whitespace-nowrap shrink-0">
+                <img
+                  src="https://cdn.zegaai.site/assets/logo/rockets_upgrade.png"
+                  alt="Rocket"
+                  className="w-4.5 h-4.5 shrink-0 object-contain transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]"
+                  onError={(e) => {
+                    e.currentTarget.src = '/assets/logo/rockets_upgrade.png';
+                  }}
+                />
+                <span className="whitespace-nowrap shrink-0 font-semibold tracking-wide leading-none">{t.nav.tryNow}</span>
               </span>
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
 
             {/* Mobile Menu Hamburger */}
@@ -2496,14 +2504,22 @@ function AppContent() {
                     View Docs
                   </button>
                   <button
-                    className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] py-2.5 text-xs font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
+                    className="group relative w-full flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff4500] bg-[length:200%_100%] py-2.5 text-xs font-bold text-white shadow-md shadow-[#ff6b35]/20 hover:bg-right active:scale-[0.98] transition-all cursor-pointer"
                     onClick={() => {
                       setMobileOpen(false);
                       handleOpenAuth("self-serve");
                     }}
                   >
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <Sparkles size={13} /> Try Now
+                    <span className="relative z-10 flex items-center gap-2">
+                      <img
+                        src="https://cdn.zegaai.site/assets/logo/rockets_upgrade.png"
+                        alt="Rocket"
+                        className="w-4 h-4 object-contain transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 drop-shadow-xs"
+                        onError={(e) => {
+                          e.currentTarget.src = '/assets/logo/rockets_upgrade.png';
+                        }}
+                      />
+                      <span className="font-semibold tracking-wide">{t.nav.tryNow}</span>
                     </span>
                     <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                   </button>
