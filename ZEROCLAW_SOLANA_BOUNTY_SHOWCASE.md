@@ -3,6 +3,7 @@
 > **Project Name**: ZEGA AI — Autonomous ZeroClaw Solana Pay & Settlement Terminal  
 > **Repository**: [https://github.com/siabang35/zega.ai](https://github.com/siabang35/zega.ai)  
 > **Live Documentation**: [https://docs.zegaai.site](https://docs.zegaai.site)  
+> **Demo Video**: [https://youtube.com/shorts/P3TFS2Uk9lg](https://youtube.com/shorts/P3TFS2Uk9lg)  
 > **Custody Tier**: **Tier 1 (T1) Build** — Keyless Privy Auth + ZeroClaw SOP Human-in-the-Loop Checkpoint Gate  
 
 ---
