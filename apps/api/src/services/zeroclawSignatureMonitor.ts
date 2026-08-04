@@ -379,9 +379,27 @@ export class ZeroClawSignatureMonitorService {
           const sig = sigInfo.signature;
           if (!sig || this.processedSignatures.has(sig)) continue;
 
+          // 🛡️ Strict Base58 Solana Signature Format Check (87-88 characters)
+          if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(sig)) continue;
+
           // Process new unhandled transaction signature
           const txDetails = await this.parseOnChainTxSignature(sig);
           if (!txDetails || !txDetails.isVerified || txDetails.err) continue;
+
+          // 🛡️ Anti-Fraud Guard: Reject transactions with zero transfer amount
+          if (txDetails.amountUsdc <= 0 && txDetails.amountSol <= 0) {
+            logger.warn({ sig, address: item.address }, '🛡️ Monitor Anti-Fraud: Skipping transaction with 0 transfer amount');
+            continue;
+          }
+
+          // 🛡️ Anti-Fraud Guard: Verify recipient or reference key matches monitored address
+          const isTargetMatch = txDetails.recipient === item.address ||
+            Boolean(txDetails.referenceKeys && txDetails.referenceKeys.includes(item.address));
+
+          if (!isTargetMatch) {
+            logger.warn({ sig, address: item.address, recipient: txDetails.recipient }, '🛡️ Monitor Anti-Fraud: Skipping transaction not matching recipient/reference key');
+            continue;
+          }
 
           this.processedSignatures.add(sig);
 

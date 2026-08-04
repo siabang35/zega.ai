@@ -793,8 +793,34 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           const targetMerchant = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userId);
+          const targetRef = referenceKey;
+
           txRecipientMatch = parsedTx.recipient === targetMerchant ||
-            Boolean(parsedTx.referenceKeys && parsedTx.referenceKeys.includes(targetMerchant));
+            Boolean(targetMerchant && parsedTx.referenceKeys && parsedTx.referenceKeys.includes(targetMerchant)) ||
+            Boolean(targetRef && parsedTx.referenceKeys && parsedTx.referenceKeys.includes(targetRef)) ||
+            Boolean(targetRef && parsedTx.recipient === targetRef);
+
+          // 🛡️ Layer 5 Anti-Fraud Check 1: Reject zero-amount transactions
+          if (parsedTx.amountUsdc <= 0 && parsedTx.amountSol <= 0) {
+            processedSignaturesSet.delete(effectiveSig);
+            return reply.status(403).send({
+              success: false,
+              error: `🛡️ Layer 5 Rejected: Transaksi "${effectiveSig.substring(0, 16)}..." tidak berisi transfer nominal USDC atau SOL. Transaksi tanpa pembayaran ditolak.`,
+              layer: 'ZERO_AMOUNT_CHECK'
+            });
+          }
+
+          // 🛡️ Layer 5 Anti-Fraud Check 2: Reject transactions that do not match merchant wallet or reference key
+          if (!txRecipientMatch && !isDemo) {
+            processedSignaturesSet.delete(effectiveSig);
+            return reply.status(403).send({
+              success: false,
+              error: `🛡️ Layer 5 Rejected: Transaksi "${effectiveSig.substring(0, 16)}..." tidak ditujukan ke wallet merchant (${targetMerchant.slice(0, 12)}...) atau reference key invoice yang sesuai.`,
+              layer: 'RECIPIENT_MATCH_FAIL',
+              expectedMerchant: targetMerchant,
+              actualRecipient: parsedTx.recipient
+            });
+          }
 
           // Freshness check: reject transactions older than 72 hours
           if (txBlockTime) {
