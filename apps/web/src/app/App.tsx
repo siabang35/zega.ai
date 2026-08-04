@@ -1357,8 +1357,14 @@ function AuthModal({
 
 function getInitialPath(): string {
   if (typeof window === "undefined") return "/";
+  const hostname = window.location.hostname.toLowerCase();
   const path = window.location.pathname.toLowerCase().replace(/\/$/, "") || "/";
   const search = window.location.search || "";
+
+  // Auto-route docs.zegaai.site subdomain directly to /docs page
+  if (hostname === "docs.zegaai.site" || hostname.startsWith("docs.")) {
+    return "/docs";
+  }
 
   // Check if current URL is directly a public checkout / payment route OR contains payment reference params
   const isPublicCheckout = 
