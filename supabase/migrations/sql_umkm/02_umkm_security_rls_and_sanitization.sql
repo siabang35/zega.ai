@@ -14,18 +14,23 @@ ALTER TABLE public.umkm_customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_timeline_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.umkm_integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.umkm_knowledge_docs ENABLE ROW LEVEL SECURITY;
 
 -- ----------------------------------------------------------------------------
 -- 1. RLS POLICIES FOR STORES
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can view own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can view own store profile"
     ON public.umkm_stores FOR SELECT
     USING (auth.uid() = user_id OR user_id = '00000000-0000-0000-0000-000000000000'::uuid);
 
+DROP POLICY IF EXISTS "Users can update own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can update own store profile"
     ON public.umkm_stores FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can insert own store profile"
     ON public.umkm_stores FOR INSERT
     WITH CHECK (auth.uid() = user_id);
@@ -33,6 +38,7 @@ CREATE POLICY "Users can insert own store profile"
 -- ----------------------------------------------------------------------------
 -- 2. RLS POLICIES FOR DASHBOARD KPIS
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can view own store KPIs" ON public.umkm_dashboard_kpis;
 CREATE POLICY "Users can view own store KPIs"
     ON public.umkm_dashboard_kpis FOR SELECT
     USING (EXISTS (
@@ -41,6 +47,7 @@ CREATE POLICY "Users can view own store KPIs"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can update own store KPIs" ON public.umkm_dashboard_kpis;
 CREATE POLICY "Users can update own store KPIs"
     ON public.umkm_dashboard_kpis FOR UPDATE
     USING (EXISTS (
@@ -49,8 +56,9 @@ CREATE POLICY "Users can update own store KPIs"
     ));
 
 -- ----------------------------------------------------------------------------
--- 3. RLS POLICIES FOR AI EMPLOYEES
+-- 3. RLS POLICIES FOR AI EMPLOYEES & WORKFLOWS
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can view own AI employees" ON public.umkm_ai_employees;
 CREATE POLICY "Users can view own AI employees"
     ON public.umkm_ai_employees FOR SELECT
     USING (EXISTS (
@@ -59,6 +67,7 @@ CREATE POLICY "Users can view own AI employees"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can manage own AI employees" ON public.umkm_ai_employees;
 CREATE POLICY "Users can manage own AI employees"
     ON public.umkm_ai_employees FOR ALL
     USING (EXISTS (
@@ -69,6 +78,7 @@ CREATE POLICY "Users can manage own AI employees"
 -- ----------------------------------------------------------------------------
 -- 4. RLS POLICIES FOR AUTOMATIONS
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can view own automations" ON public.umkm_automations;
 CREATE POLICY "Users can view own automations"
     ON public.umkm_automations FOR SELECT
     USING (EXISTS (
@@ -77,6 +87,7 @@ CREATE POLICY "Users can view own automations"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can manage own automations" ON public.umkm_automations;
 CREATE POLICY "Users can manage own automations"
     ON public.umkm_automations FOR ALL
     USING (EXISTS (
@@ -85,8 +96,9 @@ CREATE POLICY "Users can manage own automations"
     ));
 
 -- ----------------------------------------------------------------------------
--- 5. RLS POLICIES FOR PRODUCTS, CUSTOMERS, INVOICES, TRANSACTIONS & TIMELINE
+-- 5. RLS POLICIES FOR PRODUCTS, CUSTOMERS, INVOICES, TRANSACTIONS, TIMELINE & INTEGRATIONS
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can access own store products" ON public.umkm_products;
 CREATE POLICY "Users can access own store products"
     ON public.umkm_products FOR ALL
     USING (EXISTS (
@@ -95,6 +107,7 @@ CREATE POLICY "Users can access own store products"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can access own store customers" ON public.umkm_customers;
 CREATE POLICY "Users can access own store customers"
     ON public.umkm_customers FOR ALL
     USING (EXISTS (
@@ -103,6 +116,7 @@ CREATE POLICY "Users can access own store customers"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can access own store invoices" ON public.umkm_invoices;
 CREATE POLICY "Users can access own store invoices"
     ON public.umkm_invoices FOR ALL
     USING (EXISTS (
@@ -111,6 +125,7 @@ CREATE POLICY "Users can access own store invoices"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can access own store transactions" ON public.umkm_transactions;
 CREATE POLICY "Users can access own store transactions"
     ON public.umkm_transactions FOR ALL
     USING (EXISTS (
@@ -119,11 +134,30 @@ CREATE POLICY "Users can access own store transactions"
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
+DROP POLICY IF EXISTS "Users can access own store timeline" ON public.umkm_timeline_events;
 CREATE POLICY "Users can access own store timeline"
     ON public.umkm_timeline_events FOR ALL
     USING (EXISTS (
         SELECT 1 FROM public.umkm_stores s
         WHERE s.id = umkm_timeline_events.store_id
+        AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
+    ));
+
+DROP POLICY IF EXISTS "Users can access own store integrations" ON public.umkm_integrations;
+CREATE POLICY "Users can access own store integrations"
+    ON public.umkm_integrations FOR ALL
+    USING (EXISTS (
+        SELECT 1 FROM public.umkm_stores s
+        WHERE s.id = umkm_integrations.store_id
+        AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
+    ));
+
+DROP POLICY IF EXISTS "Users can access own store knowledge" ON public.umkm_knowledge_docs;
+CREATE POLICY "Users can access own store knowledge"
+    ON public.umkm_knowledge_docs FOR ALL
+    USING (EXISTS (
+        SELECT 1 FROM public.umkm_stores s
+        WHERE s.id = umkm_knowledge_docs.store_id
         AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)
     ));
 
@@ -157,3 +191,9 @@ CREATE TRIGGER trg_umkm_automations_updated BEFORE UPDATE ON public.umkm_automat
 
 DROP TRIGGER IF EXISTS trg_umkm_products_updated ON public.umkm_products;
 CREATE TRIGGER trg_umkm_products_updated BEFORE UPDATE ON public.umkm_products FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();
+
+DROP TRIGGER IF EXISTS trg_umkm_integrations_updated ON public.umkm_integrations;
+CREATE TRIGGER trg_umkm_integrations_updated BEFORE UPDATE ON public.umkm_integrations FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();
+
+DROP TRIGGER IF EXISTS trg_umkm_knowledge_updated ON public.umkm_knowledge_docs;
+CREATE TRIGGER trg_umkm_knowledge_updated BEFORE UPDATE ON public.umkm_knowledge_docs FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();

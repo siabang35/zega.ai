@@ -44,8 +44,8 @@ BEGIN
         'guest@zegaai.site',
         '+6281234567890',
         'Starter',
-        '/assets/logo/zegalogo.png',
-        '/assets/visualization/ai-avatar.png'
+        'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+        'https://cdn.zegaai.site/assets/visualization/ai-avatar.png'
     )
     ON CONFLICT (id) DO UPDATE SET
         store_name = EXCLUDED.store_name,
@@ -87,13 +87,13 @@ BEGIN
     -- 3. SEED 7 AI EMPLOYEES
     INSERT INTO public.umkm_ai_employees (store_id, agent_code, agent_name, role_title, status, avatar_path, chats_today, chats_solved, posts_count, leads_count, invoices_generated, invoices_overdue, products_managed, inventory_alerts, deals_closed)
     VALUES
-        (v_store_id, 'cs_agent', 'Customer Service AI', 'Customer Service AI', 'working', '/assets/logo/ai-agents.png', 125, 118, 0, 0, 0, 0, 0, 0, 0),
-        (v_store_id, 'mkt_agent', 'Marketing AI', 'Marketing AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 12, 18, 0, 0, 0, 0, 0),
-        (v_store_id, 'fin_agent', 'Finance AI', 'Finance AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 43, 0, 0, 0, 0),
-        (v_store_id, 'store_agent', 'Store AI', 'Store AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 25, 2, 0),
-        (v_store_id, 'sales_agent', 'Sales AI', 'Sales AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 7),
-        (v_store_id, 'copy_agent', 'Copywriting AI', 'Content Creator', 'idle', '/assets/logo/ai-agents.png', 0, 0, 5, 0, 0, 0, 0, 0, 0),
-        (v_store_id, 'data_agent', 'Analytics AI', 'Business Intelligence', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        (v_store_id, 'cs_agent', 'Customer Service AI', 'Customer Service AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 125, 118, 0, 0, 0, 0, 0, 0, 0),
+        (v_store_id, 'mkt_agent', 'Marketing AI', 'Marketing AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 12, 18, 0, 0, 0, 0, 0),
+        (v_store_id, 'fin_agent', 'Finance AI', 'Finance AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 43, 0, 0, 0, 0),
+        (v_store_id, 'store_agent', 'Store AI', 'Store AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 25, 2, 0),
+        (v_store_id, 'sales_agent', 'Sales AI', 'Sales AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 7),
+        (v_store_id, 'copy_agent', 'Copywriting AI', 'Content Creator', 'idle', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 5, 0, 0, 0, 0, 0, 0),
+        (v_store_id, 'data_agent', 'Analytics AI', 'Business Intelligence', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 0)
     ON CONFLICT (store_id, agent_code) DO UPDATE SET
         status = EXCLUDED.status,
         chats_today = EXCLUDED.chats_today,
@@ -115,5 +115,22 @@ BEGIN
         (v_store_id, '08.03', 'FileText', 'Invoice generated', NOW() - INTERVAL '32 mins'),
         (v_store_id, '08.04', 'CheckCircle', 'Payment confirmed', NOW() - INTERVAL '31 mins'),
         (v_store_id, '08.05', 'Send', 'WhatsApp thank you sent', NOW() - INTERVAL '30 mins');
+
+    -- 6. SEED MARKETPLACE INTEGRATIONS
+    INSERT INTO public.umkm_integrations (store_id, integration_code, name, category, is_connected, icon_url, config)
+    VALUES
+        (v_store_id, 'whatsapp', 'WhatsApp Business API', 'Messaging', TRUE, 'https://cdn.zegaai.site/assets/logo/whatsapp.svg', '{"phone":"+6281234567890"}'::jsonb),
+        (v_store_id, 'shopee', 'Shopee Store Sync', 'E-Commerce', TRUE, 'https://cdn.zegaai.site/assets/logo/shopee.svg', '{"store_name":"Toko Official"}'::jsonb),
+        (v_store_id, 'instagram', 'Instagram Direct Bot', 'Social Media', TRUE, 'https://cdn.zegaai.site/assets/logo/instagram.svg', '{"handle":"@tokoumkm"}'::jsonb),
+        (v_store_id, 'qris', 'QRIS Payment Gateway', 'Payments', TRUE, 'https://cdn.zegaai.site/assets/logo/qris.svg', '{"merchant_id":"QRIS-1283"}'::jsonb)
+    ON CONFLICT (store_id, integration_code) DO UPDATE SET
+        is_connected = EXCLUDED.is_connected,
+        updated_at = NOW();
+
+    -- 7. SEED KNOWLEDGE DOCUMENTS
+    INSERT INTO public.umkm_knowledge_docs (store_id, title, category, content, is_trained)
+    VALUES
+        (v_store_id, 'Daftar Harga & Katalog Produk 2026', 'Katalog', 'Katalog lengkap produk UMKM beserta harga IDR dan diskon grosir.', TRUE),
+        (v_store_id, 'Kebijakan Pengiriman & Garansi Retur', 'Kebijakan', 'Garansi retur 7 hari kerja untuk produk cacat manufaktur.', TRUE);
 
 END $$;

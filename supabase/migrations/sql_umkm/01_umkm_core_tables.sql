@@ -1,6 +1,6 @@
 -- ============================================================================
 -- ZEGA AI PLATFORM - UMKM / INDIVIDUAL REALTIME CORE SCHEMA
--- Module 01: Core Database Tables & Indexes
+-- Module 01: Core Database Tables & High-Performance Indexes
 -- Path: supabase/migrations/sql_umkm/01_umkm_core_tables.sql
 -- ============================================================================
 
@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS public.umkm_stores (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(32),
     plan VARCHAR(32) NOT NULL DEFAULT 'Starter' CHECK (plan IN ('Starter', 'PRO', 'Enterprise')),
-    logo_path TEXT DEFAULT '/assets/logo/zegalogo.png',
-    avatar_path TEXT DEFAULT '/assets/visualization/ai-avatar.png',
+    logo_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+    avatar_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_ai_employees (
     agent_name VARCHAR(128) NOT NULL,
     role_title VARCHAR(128) NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'idle', 'paused', 'error')),
-    avatar_path TEXT DEFAULT '/assets/logo/ai-agents.png',
+    avatar_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/ai-agents.png',
     chats_today INT DEFAULT 125,
     chats_solved INT DEFAULT 118,
     posts_count INT DEFAULT 12,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_ai_employees (
     CONSTRAINT umkm_ai_emp_store_code_unique UNIQUE (store_id, agent_code)
 );
 
--- 4. UMKM AUTOMATIONS
+-- 4. UMKM AUTOMATIONS & WORKFLOWS
 CREATE TABLE IF NOT EXISTS public.umkm_automations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -85,13 +85,13 @@ CREATE TABLE IF NOT EXISTS public.umkm_products (
     price_idr NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (price_idr >= 0),
     stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
     status VARCHAR(32) NOT NULL DEFAULT 'in_stock' CHECK (status IN ('in_stock', 'low_stock', 'out_of_stock')),
-    image_path TEXT DEFAULT '/assets/products/default.webp',
+    image_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/products/default.webp',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT umkm_product_sku_store_unique UNIQUE (store_id, sku)
 );
 
--- 6. UMKM CUSTOMERS
+-- 6. UMKM CUSTOMERS & LEADS
 CREATE TABLE IF NOT EXISTS public.umkm_customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_customers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. UMKM INVOICES & PAYMENTS
+-- 7. UMKM INVOICES & BILLING
 CREATE TABLE IF NOT EXISTS public.umkm_invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -139,9 +139,38 @@ CREATE TABLE IF NOT EXISTS public.umkm_timeline_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
     event_time VARCHAR(16) NOT NULL,
-    icon_symbol VARCHAR(16) NOT NULL DEFAULT '✅',
+    icon_symbol VARCHAR(32) NOT NULL DEFAULT 'CheckCircle',
     event_text VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 10. UMKM MARKETPLACE / INTEGRATIONS
+CREATE TABLE IF NOT EXISTS public.umkm_integrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
+    integration_code VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    category VARCHAR(64) NOT NULL DEFAULT 'Messaging',
+    is_connected BOOLEAN NOT NULL DEFAULT FALSE,
+    icon_url TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+    config JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT umkm_integration_store_code_unique UNIQUE (store_id, integration_code)
+);
+
+-- 11. UMKM KNOWLEDGE BASE DOCUMENTS
+CREATE TABLE IF NOT EXISTS public.umkm_knowledge_docs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(64) NOT NULL DEFAULT 'FAQ',
+    content TEXT NOT NULL,
+    file_path TEXT,
+    file_cdn_url TEXT,
+    is_trained BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- HIGH PERFORMANCE INDEXES FOR REALTIME SCALABILITY
@@ -152,3 +181,5 @@ CREATE INDEX IF NOT EXISTS idx_umkm_products_store_status ON public.umkm_product
 CREATE INDEX IF NOT EXISTS idx_umkm_invoices_store_status ON public.umkm_invoices(store_id, status);
 CREATE INDEX IF NOT EXISTS idx_umkm_transactions_store_created ON public.umkm_transactions(store_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_umkm_timeline_store_created ON public.umkm_timeline_events(store_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_umkm_integrations_store_connected ON public.umkm_integrations(store_id, is_connected);
+CREATE INDEX IF NOT EXISTS idx_umkm_knowledge_store_created ON public.umkm_knowledge_docs(store_id, created_at DESC);

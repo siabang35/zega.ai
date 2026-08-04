@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS public.umkm_stores (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(32),
     plan VARCHAR(32) NOT NULL DEFAULT 'Starter' CHECK (plan IN ('Starter', 'PRO', 'Enterprise')),
-    logo_path TEXT DEFAULT '/assets/logo/zegalogo.png',
-    avatar_path TEXT DEFAULT '/assets/visualization/ai-avatar.png',
+    logo_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+    avatar_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_ai_employees (
     agent_name VARCHAR(128) NOT NULL,
     role_title VARCHAR(128) NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'idle', 'paused', 'error')),
-    avatar_path TEXT DEFAULT '/assets/logo/ai-agents.png',
+    avatar_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/ai-agents.png',
     chats_today INT DEFAULT 125,
     chats_solved INT DEFAULT 118,
     posts_count INT DEFAULT 12,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_products (
     price_idr NUMERIC(14,2) NOT NULL DEFAULT 0.00 CHECK (price_idr >= 0),
     stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
     status VARCHAR(32) NOT NULL DEFAULT 'in_stock' CHECK (status IN ('in_stock', 'low_stock', 'out_of_stock')),
-    image_path TEXT DEFAULT '/assets/products/default.webp',
+    image_path TEXT DEFAULT 'https://cdn.zegaai.site/assets/products/default.webp',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT umkm_product_sku_store_unique UNIQUE (store_id, sku)
@@ -135,9 +135,36 @@ CREATE TABLE IF NOT EXISTS public.umkm_timeline_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
     event_time VARCHAR(16) NOT NULL,
-    icon_symbol VARCHAR(16) NOT NULL DEFAULT '✅',
+    icon_symbol VARCHAR(32) NOT NULL DEFAULT 'CheckCircle',
     event_text VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.umkm_integrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
+    integration_code VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    category VARCHAR(64) NOT NULL DEFAULT 'Messaging',
+    is_connected BOOLEAN NOT NULL DEFAULT FALSE,
+    icon_url TEXT DEFAULT 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+    config JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT umkm_integration_store_code_unique UNIQUE (store_id, integration_code)
+);
+
+CREATE TABLE IF NOT EXISTS public.umkm_knowledge_docs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(64) NOT NULL DEFAULT 'FAQ',
+    content TEXT NOT NULL,
+    file_path TEXT,
+    file_cdn_url TEXT,
+    is_trained BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_umkm_stores_user_id ON public.umkm_stores(user_id);
@@ -147,6 +174,8 @@ CREATE INDEX IF NOT EXISTS idx_umkm_products_store_status ON public.umkm_product
 CREATE INDEX IF NOT EXISTS idx_umkm_invoices_store_status ON public.umkm_invoices(store_id, status);
 CREATE INDEX IF NOT EXISTS idx_umkm_transactions_store_created ON public.umkm_transactions(store_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_umkm_timeline_store_created ON public.umkm_timeline_events(store_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_umkm_integrations_store_connected ON public.umkm_integrations(store_id, is_connected);
+CREATE INDEX IF NOT EXISTS idx_umkm_knowledge_store_created ON public.umkm_knowledge_docs(store_id, created_at DESC);
 
 -- ----------------------------------------------------------------------------
 -- MODULE 02: ROW LEVEL SECURITY & SANITIZATION
@@ -160,25 +189,45 @@ ALTER TABLE public.umkm_customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.umkm_timeline_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.umkm_integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.umkm_knowledge_docs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can view own store profile" ON public.umkm_stores FOR SELECT USING (auth.uid() = user_id OR user_id = '00000000-0000-0000-0000-000000000000'::uuid);
+DROP POLICY IF EXISTS "Users can update own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can update own store profile" ON public.umkm_stores FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own store profile" ON public.umkm_stores;
 CREATE POLICY "Users can insert own store profile" ON public.umkm_stores FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own store KPIs" ON public.umkm_dashboard_kpis;
 CREATE POLICY "Users can view own store KPIs" ON public.umkm_dashboard_kpis FOR SELECT USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_dashboard_kpis.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can update own store KPIs" ON public.umkm_dashboard_kpis;
 CREATE POLICY "Users can update own store KPIs" ON public.umkm_dashboard_kpis FOR UPDATE USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_dashboard_kpis.store_id AND s.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can view own AI employees" ON public.umkm_ai_employees;
 CREATE POLICY "Users can view own AI employees" ON public.umkm_ai_employees FOR SELECT USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_ai_employees.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can manage own AI employees" ON public.umkm_ai_employees;
 CREATE POLICY "Users can manage own AI employees" ON public.umkm_ai_employees FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_ai_employees.store_id AND s.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can view own automations" ON public.umkm_automations;
 CREATE POLICY "Users can view own automations" ON public.umkm_automations FOR SELECT USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_automations.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can manage own automations" ON public.umkm_automations;
 CREATE POLICY "Users can manage own automations" ON public.umkm_automations FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_automations.store_id AND s.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can access own store products" ON public.umkm_products;
 CREATE POLICY "Users can access own store products" ON public.umkm_products FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_products.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store customers" ON public.umkm_customers;
 CREATE POLICY "Users can access own store customers" ON public.umkm_customers FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_customers.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store invoices" ON public.umkm_invoices;
 CREATE POLICY "Users can access own store invoices" ON public.umkm_invoices FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_invoices.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store transactions" ON public.umkm_transactions;
 CREATE POLICY "Users can access own store transactions" ON public.umkm_transactions FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_transactions.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store timeline" ON public.umkm_timeline_events;
 CREATE POLICY "Users can access own store timeline" ON public.umkm_timeline_events FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_timeline_events.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store integrations" ON public.umkm_integrations;
+CREATE POLICY "Users can access own store integrations" ON public.umkm_integrations FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_integrations.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
+DROP POLICY IF EXISTS "Users can access own store knowledge" ON public.umkm_knowledge_docs;
+CREATE POLICY "Users can access own store knowledge" ON public.umkm_knowledge_docs FOR ALL USING (EXISTS (SELECT 1 FROM public.umkm_stores s WHERE s.id = umkm_knowledge_docs.store_id AND (s.user_id = auth.uid() OR s.user_id = '00000000-0000-0000-0000-000000000000'::uuid)));
 
 CREATE OR REPLACE FUNCTION public.fn_sanitize_and_update_timestamp()
 RETURNS TRIGGER
@@ -206,6 +255,12 @@ CREATE TRIGGER trg_umkm_automations_updated BEFORE UPDATE ON public.umkm_automat
 
 DROP TRIGGER IF EXISTS trg_umkm_products_updated ON public.umkm_products;
 CREATE TRIGGER trg_umkm_products_updated BEFORE UPDATE ON public.umkm_products FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();
+
+DROP TRIGGER IF EXISTS trg_umkm_integrations_updated ON public.umkm_integrations;
+CREATE TRIGGER trg_umkm_integrations_updated BEFORE UPDATE ON public.umkm_integrations FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();
+
+DROP TRIGGER IF EXISTS trg_umkm_knowledge_updated ON public.umkm_knowledge_docs;
+CREATE TRIGGER trg_umkm_knowledge_updated BEFORE UPDATE ON public.umkm_knowledge_docs FOR EACH ROW EXECUTE FUNCTION public.fn_sanitize_and_update_timestamp();
 
 -- ----------------------------------------------------------------------------
 -- MODULE 03: RATE LIMITER & ANTI-THROTTLING
@@ -309,6 +364,54 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.fn_auto_recalculate_umkm_kpis()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_store_id UUID;
+    v_new_today_rev NUMERIC(14,2);
+    v_new_orders INT;
+BEGIN
+    v_store_id := NEW.store_id;
+
+    SELECT 
+        COALESCE(SUM(amount_idr), 0),
+        COUNT(*)
+    INTO v_new_today_rev, v_new_orders
+    FROM public.umkm_transactions
+    WHERE store_id = v_store_id
+      AND status = 'confirmed'
+      AND created_at >= DATE_TRUNC('day', NOW());
+
+    INSERT INTO public.umkm_dashboard_kpis (
+        store_id, 
+        revenue_generated_today, 
+        orders_today_count, 
+        updated_at
+    )
+    VALUES (
+        v_store_id, 
+        v_new_today_rev, 
+        v_new_orders, 
+        NOW()
+    )
+    ON CONFLICT (store_id) DO UPDATE SET
+        revenue_generated_today = EXCLUDED.revenue_generated_today,
+        orders_today_count = EXCLUDED.orders_today_count,
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_recalc_kpi_on_tx ON public.umkm_transactions;
+CREATE TRIGGER trg_recalc_kpi_on_tx
+    AFTER INSERT OR UPDATE ON public.umkm_transactions
+    FOR EACH ROW EXECUTE FUNCTION public.fn_auto_recalculate_umkm_kpis();
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -317,9 +420,12 @@ BEGIN
             public.umkm_ai_employees,
             public.umkm_automations,
             public.umkm_products,
+            public.umkm_customers,
             public.umkm_invoices,
             public.umkm_transactions,
-            public.umkm_timeline_events;
+            public.umkm_timeline_events,
+            public.umkm_integrations,
+            public.umkm_knowledge_docs;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -334,7 +440,6 @@ DECLARE
     v_demo_user_id UUID := '00000000-0000-0000-0000-000000000000'::uuid;
     v_store_id UUID := '11111111-1111-1111-1111-111111111111'::uuid;
 BEGIN
-    -- Ensure demo user exists in auth.users
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
         INSERT INTO auth.users (
             id, instance_id, email, encrypted_password, email_confirmed_at, 
@@ -357,7 +462,7 @@ BEGIN
     END IF;
 
     INSERT INTO public.umkm_stores (id, user_id, store_id_code, store_name, owner_name, email, phone, plan, logo_path, avatar_path)
-    VALUES (v_store_id, v_demo_user_id, 'STORE-DEMO-1283', 'Guest Store', 'Guest Explorer', 'guest@zegaai.site', '+6281234567890', 'Starter', '/assets/logo/zegalogo.png', '/assets/visualization/ai-avatar.png')
+    VALUES (v_store_id, v_demo_user_id, 'STORE-DEMO-1283', 'Guest Store', 'Guest Explorer', 'guest@zegaai.site', '+6281234567890', 'Starter', 'https://cdn.zegaai.site/assets/logo/zegalogo.png', 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png')
     ON CONFLICT (id) DO UPDATE SET store_name = EXCLUDED.store_name, plan = EXCLUDED.plan, updated_at = NOW();
 
     INSERT INTO public.umkm_dashboard_kpis (store_id, tasks_completed_today, hours_saved_weekly, revenue_generated_today, today_revenue_trend, orders_today_count, new_customers_today_count, whatsapp_response_rate, estimated_ai_salary_saved, usage_percentage, updated_at)
@@ -366,13 +471,13 @@ BEGIN
 
     INSERT INTO public.umkm_ai_employees (store_id, agent_code, agent_name, role_title, status, avatar_path, chats_today, chats_solved, posts_count, leads_count, invoices_generated, invoices_overdue, products_managed, inventory_alerts, deals_closed)
     VALUES
-        (v_store_id, 'cs_agent', 'Customer Service AI', 'Customer Service AI', 'working', '/assets/logo/ai-agents.png', 125, 118, 0, 0, 0, 0, 0, 0, 0),
-        (v_store_id, 'mkt_agent', 'Marketing AI', 'Marketing AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 12, 18, 0, 0, 0, 0, 0),
-        (v_store_id, 'fin_agent', 'Finance AI', 'Finance AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 43, 0, 0, 0, 0),
-        (v_store_id, 'store_agent', 'Store AI', 'Store AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 25, 2, 0),
-        (v_store_id, 'sales_agent', 'Sales AI', 'Sales AI', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 7),
-        (v_store_id, 'copy_agent', 'Copywriting AI', 'Content Creator', 'idle', '/assets/logo/ai-agents.png', 0, 0, 5, 0, 0, 0, 0, 0, 0),
-        (v_store_id, 'data_agent', 'Analytics AI', 'Business Intelligence', 'working', '/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        (v_store_id, 'cs_agent', 'Customer Service AI', 'Customer Service AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 125, 118, 0, 0, 0, 0, 0, 0, 0),
+        (v_store_id, 'mkt_agent', 'Marketing AI', 'Marketing AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 12, 18, 0, 0, 0, 0, 0),
+        (v_store_id, 'fin_agent', 'Finance AI', 'Finance AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 43, 0, 0, 0, 0),
+        (v_store_id, 'store_agent', 'Store AI', 'Store AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 25, 2, 0),
+        (v_store_id, 'sales_agent', 'Sales AI', 'Sales AI', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 7),
+        (v_store_id, 'copy_agent', 'Copywriting AI', 'Content Creator', 'idle', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 5, 0, 0, 0, 0, 0, 0),
+        (v_store_id, 'data_agent', 'Analytics AI', 'Business Intelligence', 'working', 'https://cdn.zegaai.site/assets/logo/ai-agents.png', 0, 0, 0, 0, 0, 0, 0, 0, 0)
     ON CONFLICT (store_id, agent_code) DO UPDATE SET status = EXCLUDED.status, chats_today = EXCLUDED.chats_today, updated_at = NOW();
 
     INSERT INTO public.umkm_automations (store_id, name, trigger_event, action_chain, status, total_runs, last_run_at)
@@ -389,5 +494,18 @@ BEGIN
         (v_store_id, '08.03', 'FileText', 'Invoice generated', NOW() - INTERVAL '32 mins'),
         (v_store_id, '08.04', 'CheckCircle', 'Payment confirmed', NOW() - INTERVAL '31 mins'),
         (v_store_id, '08.05', 'Send', 'WhatsApp thank you sent', NOW() - INTERVAL '30 mins');
+
+    INSERT INTO public.umkm_integrations (store_id, integration_code, name, category, is_connected, icon_url, config)
+    VALUES
+        (v_store_id, 'whatsapp', 'WhatsApp Business API', 'Messaging', TRUE, 'https://cdn.zegaai.site/assets/logo/whatsapp.svg', '{"phone":"+6281234567890"}'::jsonb),
+        (v_store_id, 'shopee', 'Shopee Store Sync', 'E-Commerce', TRUE, 'https://cdn.zegaai.site/assets/logo/shopee.svg', '{"store_name":"Toko Official"}'::jsonb),
+        (v_store_id, 'instagram', 'Instagram Direct Bot', 'Social Media', TRUE, 'https://cdn.zegaai.site/assets/logo/instagram.svg', '{"handle":"@tokoumkm"}'::jsonb),
+        (v_store_id, 'qris', 'QRIS Payment Gateway', 'Payments', TRUE, 'https://cdn.zegaai.site/assets/logo/qris.svg', '{"merchant_id":"QRIS-1283"}'::jsonb)
+    ON CONFLICT (store_id, integration_code) DO UPDATE SET is_connected = EXCLUDED.is_connected, updated_at = NOW();
+
+    INSERT INTO public.umkm_knowledge_docs (store_id, title, category, content, is_trained)
+    VALUES
+        (v_store_id, 'Daftar Harga & Katalog Produk 2026', 'Katalog', 'Katalog lengkap produk UMKM beserta harga IDR dan diskon grosir.', TRUE),
+        (v_store_id, 'Kebijakan Pengiriman & Garansi Retur', 'Kebijakan', 'Garansi retur 7 hari kerja untuk produk cacat manufaktur.', TRUE);
 
 END $$;

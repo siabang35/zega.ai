@@ -86,7 +86,7 @@ CREATE TRIGGER trg_recalc_kpi_on_tx
     AFTER INSERT OR UPDATE ON public.umkm_transactions
     FOR EACH ROW EXECUTE FUNCTION public.fn_auto_recalculate_umkm_kpis();
 
--- 3. REGISTER UMKM TABLES IN SUPABASE REALTIME PUBLICATION
+-- 3. REGISTER ALL UMKM TABLES IN SUPABASE REALTIME PUBLICATION
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -95,9 +95,12 @@ BEGIN
             public.umkm_ai_employees,
             public.umkm_automations,
             public.umkm_products,
+            public.umkm_customers,
             public.umkm_invoices,
             public.umkm_transactions,
-            public.umkm_timeline_events;
+            public.umkm_timeline_events,
+            public.umkm_integrations,
+            public.umkm_knowledge_docs;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN

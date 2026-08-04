@@ -14,6 +14,7 @@ import { KnowledgeView } from './views/KnowledgeView';
 import { MarketplaceView } from './views/MarketplaceView';
 import { BillingView } from './views/BillingView';
 import { SettingsView } from './views/SettingsView';
+import { HelpView } from './views/HelpView';
 
 export interface UmkmDashboardProps {
   activeTab?: string;
@@ -46,6 +47,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
     if (externalTab === 'marketplace' || externalTab === 'integrations') return 'marketplace';
     if (externalTab === 'billing') return 'billing';
     if (externalTab === 'settings') return 'settings';
+    if (externalTab === 'help' || externalTab === 'bantuan') return 'help';
     return internalTab;
   }, [externalTab, internalTab]);
 
@@ -89,6 +91,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} />}
       {currentTab === 'billing' && <BillingView triggerToast={triggerToast} />}
       {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} />}
+      {currentTab === 'help' && <HelpView />}
 
       {/* FLOATING ZEGA COPILOT WIDGET */}
       <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">

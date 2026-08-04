@@ -32,6 +32,7 @@
 | 27 | [ZeroClaw Solana Bounty Production Suite](./27-ZEROCLAW-SOLANA-BOUNTY-PRODUCTION-SUITE-SPEC.md) | `27-ZEROCLAW-SOLANA-BOUNTY-PRODUCTION-SUITE-SPEC.md` | Complete specification of ZeroClaw upstream features integrated into ZEGA AI: SOP engine, Skills, MCP client, Relationship Memory graph, HMAC Webhook verification, Blinks/Solana Actions, and DeFi Guardian |
 | 29 | [Solana RPC Failover Manager](./29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) | `29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md` | Enterprise Solana RPC Manager with multi-provider failover pool, circuit breaker cooldowns, token bucket rate limiting, in-flight request deduplication, OWASP method whitelisting, and IPv4 forced resolution |
 | 31 | [Zero-Trust Anti-Fraud & Resilient Queue](./31-ZERO-TRUST-ANTI-FRAUD-MESSAGING-QUEUE-SPEC.md) | `31-ZERO-TRUST-ANTI-FRAUD-MESSAGING-QUEUE-SPEC.md` | Zero-Trust 5-layer on-chain validation pipeline, zero-amount transfer rejection, merchant/reference matching, Indonesian comma decimal normalization, single-flight handle lock, and exponential backoff retry queue |
+| 32 | [ZEGA Copilot Enterprise Security & Multi-LLM](./32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md) | `32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md` | 6-layer OWASP Top 10 for LLM guardrails, 5-stage multi-LLM real-time failover engine, dynamic temporal anchor (2026), mobile UX bottom sheet, real-time dynamic calendar popover, and seamless profile icon pill bar |
 
 ---
 

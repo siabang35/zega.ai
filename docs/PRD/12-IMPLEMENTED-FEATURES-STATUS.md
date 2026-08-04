@@ -161,4 +161,5 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Multi-Tenant Realtime & CDN PRD Spec | `docs/PRD/21-ENTERPRISE-SQL-MIGRATION-CDN-R2-SUPABASE-REALTIME-SPEC.md` | Documented & Verified |
 | ZeroClaw Multi-LLM Agent Spec | `docs/PRD/22-ZEROCLAW-SOLANA-MULTI-LLM-AGENT-SPEC.md` | Documented & Verified |
 | ZeroClaw Terminal Redesign & Real Finance Spec | `docs/PRD/25-ZEROCLAW-TERMINAL-REDESIGN-AND-REAL-FINANCE-RECONCILIATION-SPEC.md` | Documented & Verified |
+| ZEGA Copilot Enterprise Security & Multi-LLM Spec | `docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md` | Documented & Verified |
 

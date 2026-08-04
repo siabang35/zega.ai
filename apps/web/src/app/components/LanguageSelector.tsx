@@ -6,12 +6,14 @@ interface LanguageSelectorProps {
   compact?: boolean;
   dropUp?: boolean;
   align?: 'left' | 'right';
+  className?: string;
 }
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ 
   compact = false, 
   dropUp = false,
-  align = 'right' 
+  align = 'right',
+  className = ''
 }) => {
   const { language, setLanguage } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -34,12 +36,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     : `top-full mt-1.5 ${align === 'left' ? 'left-0 origin-top-left' : 'right-0 origin-top-right'}`;
 
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className="relative inline-block text-left w-full" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer ${
           compact ? 'px-2 py-1 text-[11px]' : ''
-        }`}
+        } ${className}`}
         aria-label="Select language"
       >
         <Globe size={13} className="text-slate-400 dark:text-slate-400" />
