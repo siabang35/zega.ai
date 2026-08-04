@@ -541,18 +541,18 @@ export class ZeroClawSignatureMonitorService {
       // 3. Dispatch automated receipt notification via Telegram Bot with Exponential Backoff Retry & Single-Flight Chat Resolution
       const tgToken = process.env.TELEGRAM_BOT_TOKEN;
       if (monitored.customerTarget && tgToken && tgToken.trim().length > 10) {
-        const text =
-          `⚡ <b>ZEROCLAW ON-CHAIN REALTIME RECEIPT</b> ⚡\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `• <b>Amount Paid:</b> <code>${tx.amountUsdc.toFixed(2)} USDC</code>\n` +
-          `• <b>Status:</b> <code>${settlementStatus.toUpperCase()}</code>\n` +
-          `• <b>Tx Signature:</b> <code>${tx.signature.slice(0, 18)}...</code>\n` +
-          `• <b>Devnet Slot:</b> <code>${tx.slot}</code>\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `✅ Payment reconciled automatically via ZeroClaw Real-Time Signature Monitor.`;
-
-        const { sendTelegramMessageWithRetry } = await import('../routes/v1/zeroclaw.routes.js');
-        await sendTelegramMessageWithRetry(tgToken, monitored.customerTarget, text);
+        const { dispatchTelegramReceipt } = await import('../routes/v1/zeroclaw.routes.js');
+        await dispatchTelegramReceipt({
+          botToken: tgToken,
+          chatIdOrTarget: monitored.customerTarget,
+          recAmt: tx.amountUsdc,
+          expectedAmt: monitored.expectedAmountUsdc || tx.amountUsdc,
+          statusMode: settlementStatus,
+          txSignature: tx.signature,
+          slot: tx.slot,
+          referenceKey: monitored.address,
+          memo: tx.memo || `On-Chain Real-Time Verified (${tx.amountUsdc.toFixed(2)} USDC)`,
+        });
       }
     } catch (err) {
       logger.error({ err }, 'Error persisting ZeroClaw monitored settlement');
