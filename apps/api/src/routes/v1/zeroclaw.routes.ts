@@ -1437,12 +1437,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     let dbMerchantPubkey: string | null = null;
     let dbUserId: string | null = null;
+    let dbCustomerTarget: string | null = null;
 
     // STAGE 0: INVOICE DB LOOKUP — Query dedicated zeroclaw_invoices table
     // tx_signature is NULL until a REAL on-chain signature is verified and claimed
     if (supabaseUrl && supabaseKey && effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL')) {
       try {
-        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status,merchant_pubkey,user_id`, {
+        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status,merchant_pubkey,user_id,customer_target,channel_type`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
@@ -1454,6 +1455,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             const invoice = invoiceRows[0];
             dbMerchantPubkey = invoice.merchant_pubkey || null;
             dbUserId = invoice.user_id || null;
+            dbCustomerTarget = invoice.customer_target || null;
 
             // If invoice already has a REAL tx_signature (not gen_inv_ and passes Base58 validation)
             if (invoice.status === 'paid' && invoice.tx_signature && BASE58_SIG_REGEX.test(invoice.tx_signature)) {
@@ -1534,7 +1536,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
           const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
           const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-          const rawTarget = (telegramChannel && telegramChannel.trim()) || (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+          const rawTarget = (telegramChannel && telegramChannel.trim()) ||
+            (dbCustomerTarget && dbCustomerTarget.trim()) ||
+            (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
           const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
 
           Promise.resolve().then(async () => {
@@ -1637,7 +1641,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
               const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
               const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-              const rawTarget = (telegramChannel && telegramChannel.trim()) || (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+              const rawTarget = (telegramChannel && telegramChannel.trim()) ||
+                (dbCustomerTarget && dbCustomerTarget.trim()) ||
+                (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
               const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
 
               Promise.resolve().then(async () => {
@@ -1779,8 +1785,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   } catch {}
                 }
 
-                // Match Condition: explicit refKey match OR (fresh + amount + recipient + unclaimed)
-                if (!isAlreadyClaimed && (refMatches || (isFreshShort && amountMatches && matchesRecipient))) {
+                // 🛡️ Strict On-Chain Reconciliation Anti-Fraud Rule:
+                // If an explicit referenceKey exists (e.g. Base58 >= 32 chars and not REF-GENERAL), refMatches MUST BE true!
+                // Loose fallback matching by amount alone is ONLY allowed when no specific referenceKey is provided (REF-GENERAL).
+                const hasExplicitRefKey = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL'));
+                const isMatchValid = hasExplicitRefKey
+                  ? refMatches
+                  : (refMatches || (isFreshShort && amountMatches && matchesRecipient));
+
+                if (!isAlreadyClaimed && isMatchValid) {
                   let settlementStatus = 'settled_exact';
                   let modeStr = 'EXACT';
                   let statusLabel = '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)';
@@ -1813,7 +1826,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   const supabaseUrl2 = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
                   const supabaseKey2 = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
                   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-                  const rawTarget = (telegramChannel && telegramChannel.trim()) || (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+                  const rawTarget = (telegramChannel && telegramChannel.trim()) ||
+                    (dbCustomerTarget && dbCustomerTarget.trim()) ||
+                    (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
                   const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
 
                   Promise.resolve().then(async () => {
