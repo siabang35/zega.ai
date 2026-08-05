@@ -129,30 +129,48 @@ export function deriveUsdcAta(ownerAddress: string): string | null {
 // Global Telegram Username -> Numeric Chat ID Dynamic In-Memory Cache (0% Hardcoded)
 const telegramChatRegistry = new Map<string, string>();
 
-// 🛡️ Global Telegram Dispatch Deduplication Lock (30-Second Sliding Window)
-const globalTelegramDispatchDeduplicationMap = new Map<string, number>();
+// 🛡️ Global Telegram Dispatch Deduplication Lock (60-Second Sliding Window & Reference Key Lock)
+const globalTelegramDispatchDeduplicationMap = new Map<string, number | string>();
 
 function isDuplicateTelegramDispatch(target: string, amount: number, refOrDesc: string): boolean {
   if (!target) return false;
-  const cleanTarget = String(target).toLowerCase().trim();
+
+  // 1. Normalize target: remove leading @, convert to lower case and trim
+  const cleanTarget = String(target).toLowerCase().trim().replace(/^@/, '');
   const cleanAmt = Number(amount || 0).toFixed(2);
-  const cleanRef = String(refOrDesc || '').trim().slice(0, 30);
-  const key = `${cleanTarget}_${cleanAmt}_${cleanRef}`;
+  const rawRef = String(refOrDesc || '').trim();
+
+  // 2. Generate normalized deduplication keys
+  const targetKey = `target_${cleanTarget}_${cleanAmt}`;
+  const refKey = rawRef.length >= 20 ? `ref_${rawRef}` : `ref_${cleanTarget}_${rawRef.slice(0, 30)}`;
 
   const now = Date.now();
-  const lastSentTime = globalTelegramDispatchDeduplicationMap.get(key);
+  const DEDUP_WINDOW_MS = 60000; // 60 seconds
 
-  if (lastSentTime && (now - lastSentTime < 30000)) {
-    logger.info({ key, elapsedMs: now - lastSentTime }, '🛡️ Anti-Duplicate Guard: Skipping duplicate Telegram dispatch within 30s window');
+  const lastRefTime = globalTelegramDispatchDeduplicationMap.get(refKey);
+  if (typeof lastRefTime === 'number' && (now - lastRefTime < DEDUP_WINDOW_MS)) {
+    logger.info({ refKey, elapsedMs: now - lastRefTime }, '🛡️ Anti-Duplicate Guard: Skipped duplicate Telegram dispatch (matched Reference Key)');
     return true;
   }
 
-  globalTelegramDispatchDeduplicationMap.set(key, now);
+  const lastTargetTime = globalTelegramDispatchDeduplicationMap.get(targetKey);
+  const lastTargetRef = globalTelegramDispatchDeduplicationMap.get(`${targetKey}_last_ref`);
+  if (typeof lastTargetTime === 'number' && (now - lastTargetTime < DEDUP_WINDOW_MS) && (lastTargetRef === rawRef || rawRef.includes(String(lastTargetRef)))) {
+    logger.info({ targetKey, elapsedMs: now - lastTargetTime }, '🛡️ Anti-Duplicate Guard: Skipped duplicate Telegram dispatch (matched Target Key & Memo)');
+    return true;
+  }
 
-  // Auto-clean stale entries older than 60s
-  if (globalTelegramDispatchDeduplicationMap.size > 500) {
+  // Record dispatch lock timestamps
+  globalTelegramDispatchDeduplicationMap.set(refKey, now);
+  globalTelegramDispatchDeduplicationMap.set(targetKey, now);
+  globalTelegramDispatchDeduplicationMap.set(`${targetKey}_last_ref`, rawRef);
+
+  // Auto-clean stale entries older than 120s
+  if (globalTelegramDispatchDeduplicationMap.size > 1000) {
     for (const [k, ts] of globalTelegramDispatchDeduplicationMap.entries()) {
-      if (now - ts > 60000) globalTelegramDispatchDeduplicationMap.delete(k);
+      if (typeof ts === 'number' && now - ts > 120000) {
+        globalTelegramDispatchDeduplicationMap.delete(k);
+      }
     }
   }
 
