@@ -427,11 +427,44 @@ export class ZeroClawSignatureMonitorService {
             continue;
           }
 
-          // 🛡️ Invoice Protection: If reference key invoice is already settled as EXACT or OVERPAID, do not process older underpaid signatures
-          if (item.type === 'reference' && supabaseUrl && supabaseKey) {
+          // 🛡️ Merchant Wallet Guard: If monitoring a merchant pubkey (type === 'merchant'), ONLY process if transaction includes a valid invoice referenceKey or active invoice
+          if (item.type === 'merchant') {
+            let matchesActiveInvoice = false;
+            if (supabaseUrl && supabaseKey) {
+              try {
+                const checkInv = await fetch(
+                  `${supabaseUrl}/rest/v1/zeroclaw_invoices?merchant_pubkey=eq.${encodeURIComponent(item.address)}&status=eq.active&select=reference_key,created_at`,
+                  {
+                    headers: {
+                      apikey: supabaseKey,
+                      Authorization: `Bearer ${supabaseKey}`,
+                    },
+                  }
+                );
+                if (checkInv.ok) {
+                  const activeInvs = (await checkInv.json()) as any[];
+                  if (Array.isArray(activeInvs) && activeInvs.length > 0) {
+                    // Check if signature contains any active reference key
+                    const activeRefKeys = new Set(activeInvs.map(i => i.reference_key).filter(Boolean));
+                    if (txDetails.referenceKeys && txDetails.referenceKeys.some(rk => activeRefKeys.has(rk))) {
+                      matchesActiveInvoice = true;
+                    }
+                  }
+                }
+              } catch { }
+            }
+            if (!matchesActiveInvoice) {
+              logger.info({ sig, merchantAddress: item.address }, '🛡️ Monitor Guard: Skipping merchant wallet transaction with no matching active invoice referenceKey');
+              this.processedSignatures.add(sig);
+              continue;
+            }
+          }
+
+          // 🛡️ Invoice Protection: Check if invoice is already settled or active in DB
+          if (supabaseUrl && supabaseKey) {
             try {
               const invRes = await fetch(
-                `${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(item.address)}&select=status,settlement_status,paid_amount_usdc,tx_signature`,
+                `${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(item.address)}&select=status,settlement_status,paid_amount_usdc,tx_signature,created_at`,
                 {
                   headers: {
                     apikey: supabaseKey,
@@ -444,13 +477,17 @@ export class ZeroClawSignatureMonitorService {
                 if (Array.isArray(invData) && invData.length > 0) {
                   const inv = invData[0];
                   if (inv.status === 'confirmed' || inv.settlement_status === 'settled_exact' || inv.settlement_status === 'settled_overpaid') {
-                    // Invoice is already settled. Only allow processing if this signature matches the settled signature or has a higher/equal amount.
                     if (inv.tx_signature && inv.tx_signature !== sig && txDetails.amountUsdc < (item.expectedAmountUsdc || 0) - 0.001) {
                       logger.info({ sig, referenceKey: item.address }, '🛡️ Monitor Guard: Skipping older underpaid signature on an already settled invoice');
                       this.processedSignatures.add(sig);
                       continue;
                     }
                   }
+                } else if (item.type === 'reference') {
+                  // No invoice record found in DB for this reference key -> Skip sending receipt for phantom reference
+                  logger.warn({ sig, referenceKey: item.address }, '🛡️ Monitor Guard: No DB invoice record found for reference key; skipping false positive receipt');
+                  this.processedSignatures.add(sig);
+                  continue;
                 }
               }
             } catch {

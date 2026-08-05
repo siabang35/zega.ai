@@ -2189,9 +2189,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       if (resolvedTarget && resolvedTarget.trim().length > 0) {
         const botToken = envConfig.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
         if (botToken && botToken.trim().length > 10) {
-          if (isDuplicateTelegramDispatch(resolvedTarget, amountUsdc, referenceKey)) {
-            logger.info({ resolvedTarget, referenceKey }, '🛡️ Anti-Duplicate Guard: Skipped auto-dispatch in /invoice/create (already dispatched)');
+          const cleanTarget = String(resolvedTarget).toLowerCase().trim().replace(/^@/, '');
+          const dedupKey = `inv_created_${cleanTarget}_${referenceKey}`;
+
+          if (globalTelegramDispatchDeduplicationMap.has(dedupKey)) {
+            logger.info({ resolvedTarget, referenceKey }, '🛡️ Anti-Duplicate Guard: Skipped auto-dispatch in /invoice/create (already dispatched for this exact referenceKey)');
           } else {
+            // Lock deduplication for this exact referenceKey
+            globalTelegramDispatchDeduplicationMap.set(dedupKey, Date.now());
+            globalTelegramDispatchDeduplicationMap.set(`ref_${referenceKey}`, Date.now());
+
             const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
             const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
             const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;

@@ -857,19 +857,12 @@ export function ZeroClawTerminalView({
       };
       setGeneratedInvoicesHistory(prev => [newHistItem, ...prev]);
 
-      // Stream AI generated invoice directly to Supabase Master DB and Cloudflare R2 CDN
+      // Stream AI generated invoice directly to Supabase Master DB and Cloudflare R2 CDN (auto-dispatches invoice to target channel)
       recordInvoiceToDatabaseAndR2(newHistItem);
       setRightPanelTab('invoices');
 
-      // Auto-dispatch invoice to WhatsApp / Telegram if target channel is available
       if (targetToDispatch && targetToDispatch.trim().length > 0) {
-        dispatchInvoiceToChannel(
-          channelToDispatch,
-          targetToDispatch,
-          extractedAmount,
-          memoText,
-          validBase58Ref
-        );
+        onTriggerToast(`⚡ Tagihan AI (${extractedAmount} USDC) Berhasil Dibuat & Terkirim ke ${targetToDispatch}!`);
       } else {
         onTriggerToast(`⚡ Tagihan AI (${extractedAmount} USDC) Berhasil Dibuat & Tersimpan di Vault!`);
       }
@@ -1274,16 +1267,16 @@ export function ZeroClawTerminalView({
   };
 
   const recordInvoiceToDatabaseAndR2 = async (inv: GeneratedInvoice) => {
-    // 🛡️ Strict DB Persistence Guard: ONLY store to Supabase DB & Cloudflare R2 for authenticated Privy accounts
-    if (isGuestSession || !userEmail || userEmail.includes('guest') || inv.isDemo) {
-      return;
-    }
     try {
+      const effectiveUserEmail = (userEmail && userEmail.trim().length > 0 && !userEmail.includes('guest'))
+        ? userEmail
+        : 'user@zegaai.site';
+
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userEmail || '',
+          userId: effectiveUserEmail,
           merchantPubkey: inv.merchantWallet,
           amount: inv.amount,
           memo: inv.memo,
