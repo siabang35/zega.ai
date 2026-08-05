@@ -36,6 +36,7 @@
 | 33 | [2026 Flagship AI Models & Security](./33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md) | `33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md` | 2026 flagship AI models (DeepSeek V4, Groq Llama 3.3, Gemini 3.6 Flash), 9Router Layer 5 Engine daemon, OWASP 5-layer LLM security architecture, and zero-trust auth |
 | 34 | [ZEGA AI 6-Layer Architecture Spec](./34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md) | `34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md` | Comprehensive 6-layer enterprise swarm architecture (Event Sources, Integrations, Jatevo Orchestrator, Autonomous AI Agents, 9Router Engine, Model Swarm & OWASP Guardrails) |
 | 35 | [RPC URL Sanitization & Strict Env Security](./35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md) | `35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md` | RPC URL API key log sanitization engine, Pino redaction serializers, Zod 25+ env schema validation, and complete hardcoded fallback string purge |
+| 36 | [Hardened Invoice Delivery & Realtime Vault](./36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md) | `36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md` | Single-flight invoice delivery engine, Cloudflare R2 CDN audit certificates, 5-layer OWASP anti-hacking guard, and Supabase Realtime WebSocket sync |
 
 ---
 
