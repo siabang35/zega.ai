@@ -37,6 +37,7 @@ import {
   Phone,
   Search,
   Settings,
+  Rocket,
   ShieldCheck,
   Sliders,
   Sparkles,
@@ -2426,13 +2427,9 @@ function AppContent() {
               className="group relative hidden sm:inline-flex items-center justify-center gap-2 h-9 px-4.5 text-[12.5px] font-semibold tracking-wide text-white whitespace-nowrap shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff4500] bg-[length:200%_100%] border border-white/25 shadow-md shadow-[#ff6b35]/25 transition-all duration-300 hover:bg-right hover:shadow-lg hover:shadow-[#ff6b35]/40 hover:scale-[1.03] active:scale-95 cursor-pointer select-none"
             >
               <span className="relative z-10 flex items-center gap-2 whitespace-nowrap shrink-0">
-                <img
-                  src="https://cdn.zegaai.site/assets/logo/rockets_upgrade.png"
-                  alt="Rocket"
-                  className="w-4.5 h-4.5 shrink-0 object-contain transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]"
-                  onError={(e) => {
-                    e.currentTarget.src = '/assets/logo/rockets_upgrade.png';
-                  }}
+                <Rocket
+                  size={15}
+                  className="shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
                 />
                 <span className="whitespace-nowrap shrink-0 font-semibold tracking-wide leading-none">{t.nav.tryNow}</span>
               </span>
@@ -2511,13 +2508,9 @@ function AppContent() {
                     }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
-                      <img
-                        src="https://cdn.zegaai.site/assets/logo/rockets_upgrade.png"
-                        alt="Rocket"
-                        className="w-4 h-4 object-contain transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 drop-shadow-xs"
-                        onError={(e) => {
-                          e.currentTarget.src = '/assets/logo/rockets_upgrade.png';
-                        }}
+                      <Rocket
+                        size={15}
+                        className="shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:scale-110 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
                       />
                       <span className="font-semibold tracking-wide">{t.nav.tryNow}</span>
                     </span>
@@ -2552,11 +2545,11 @@ function AppContent() {
           <div className="absolute -top-10 right-1/4 h-[320px] w-[320px] rounded-full dark:bg-[#0ea5e9]/15 bg-[#0ea5e9]/05 blur-[90px]" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-3xl">
+        <div className="relative z-10 mx-auto max-w-4xl text-center flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
           {/* Seamless Enterprise Announcement Pill */}
           <div
             onClick={() => handleOpenAuth('enterprise')}
-            className="hero-text-reveal mx-auto mb-6 max-w-[96vw] sm:max-w-none inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3 sm:px-4 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group select-none"
+            className="hero-text-reveal mx-auto mb-6 inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border dark:border-white/12 border-slate-200/90 dark:bg-white/[0.04] bg-slate-900/[0.03] px-3.5 sm:px-4.5 py-1.5 backdrop-blur-xl transition-all duration-300 hover:border-orange-500/40 dark:hover:border-orange-400/40 cursor-pointer shadow-2xs group select-none"
           >
             <div className="flex items-center gap-1.5 shrink-0">
               <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all" alt="Jatevo" />
@@ -2575,21 +2568,21 @@ function AppContent() {
           </div>
 
           <h1
-            className="hero-text-reveal text-[clamp(2.2rem,5vw,3.9rem)] font-light leading-[1.08] tracking-[-0.035em] text-slate-900 dark:text-white"
+            className="hero-text-reveal text-[clamp(2.3rem,5.5vw,4.1rem)] font-light leading-[1.08] tracking-[-0.035em] text-slate-900 dark:text-white max-w-3xl"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
             {t.hero.title}
           </h1>
           <p
-            className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-[640px] text-[14px] sm:text-[15px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal [text-wrap:balance]"
+            className="hero-text-reveal hero-text-reveal-delay-1 mx-auto mt-4.5 max-w-[640px] text-[14px] sm:text-[15.5px] leading-relaxed text-slate-600 dark:text-muted-foreground font-normal [text-wrap:balance]"
             style={{ textWrap: 'balance' }}
           >
             {t.hero.subtitle}
           </p>
 
-          {/* Clean Enterprise Email Input Pill */}
-          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-8 sm:mt-10 flex w-full max-w-[420px] items-center overflow-hidden rounded-full border border-slate-300 dark:border-white/12 bg-white dark:bg-[#0f111a]/90 p-1.5 backdrop-blur-xl shadow-none transition-all duration-200 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-400/10 dark:focus-within:ring-white/5">
-            <Mail size={15} strokeWidth={1.75} className="ml-3.5 flex-shrink-0 text-slate-400 dark:text-slate-400 transition-colors" />
+          {/* Clean Enterprise Email Input Pill — Ultra Responsive for Mobile & Desktop */}
+          <div className="hero-text-reveal hero-text-reveal-delay-2 mx-auto mt-5 sm:mt-7 flex w-full max-w-[92vw] sm:max-w-[420px] items-center overflow-hidden rounded-full border border-slate-300 dark:border-white/12 bg-white dark:bg-[#0f111a]/90 p-1 sm:p-1.5 backdrop-blur-xl shadow-none transition-all duration-200 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-400/10 dark:focus-within:ring-white/5">
+            <Mail size={14} strokeWidth={1.75} className="ml-2.5 sm:ml-3.5 flex-shrink-0 text-slate-400 dark:text-slate-400 transition-colors" />
             <input
               type="email"
               value={email}
@@ -2598,18 +2591,53 @@ function AppContent() {
                 if (e.key === "Enter") handleNewsletterSubscribe(email);
               }}
               placeholder={t.hero.enterEmail}
-              className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[12.5px] font-medium text-slate-900 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground/60 border-none outline-none ring-0 focus:ring-0 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 text-[11.5px] sm:text-[12.5px] font-medium text-slate-900 dark:text-foreground placeholder:text-slate-400 dark:placeholder:text-muted-foreground/60 border-none outline-none ring-0 focus:ring-0 focus:outline-none"
               autoComplete="email"
             />
             <button
               onClick={() => handleNewsletterSubscribe(email)}
-              className="group relative flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-5 py-2.5 text-[11.5px] font-bold text-white shadow-xs transition-all duration-300 hover:bg-right hover:opacity-95 active:scale-95 cursor-pointer"
+              className="group relative flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-3.5 sm:px-5 py-2 sm:py-2.5 text-[10.5px] sm:text-[11.5px] font-bold text-white shadow-xs transition-all duration-300 hover:bg-right hover:opacity-95 active:scale-95 cursor-pointer"
             >
-              <span className="relative z-10 flex items-center gap-1.5">
-                Subscribe <ArrowRight size={13} />
+              <span className="relative z-10 flex items-center gap-1">
+                Subscribe <ArrowRight size={12} className="hidden sm:inline" />
               </span>
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
+          </div>
+
+          {/* Interactive 3D Robotic Swarm Video Showcase — Centered High Definition Widescreen Canvas */}
+          <div className="hero-text-reveal hero-text-reveal-delay-2 relative mx-auto mt-6 sm:mt-10 w-full max-w-[94vw] sm:max-w-[780px] lg:max-w-[840px] group select-none overflow-visible">
+            {/* Multi-Layer Ambient Glow Backdrop Aura — Mobile Safe Inset */}
+            <div className="absolute -inset-2 sm:-inset-6 rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-r from-[#ff6b35]/25 via-[#e8295a]/20 to-[#0ea5e9]/25 blur-2xl sm:blur-3xl opacity-70 sm:opacity-80 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            
+            <div className="relative overflow-hidden rounded-xl sm:rounded-3xl border border-slate-200/90 dark:border-white/12 bg-slate-950/80 shadow-[0_20px_50px_-15px_rgba(255,107,53,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-all duration-500 hover:scale-[1.01]">
+              {/* Top Glass Highlight Edge */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent z-20" />
+
+              {/* High-Performance Smooth Looping Video */}
+              <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                  poster={getR2CdnUrl('/assets/3D/zega_robotic.png')}
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+                >
+                  <source src={getR2CdnUrl('/assets/3D/zega_animate.mp4')} type="video/mp4" />
+                  <img
+                    src={getR2CdnUrl('/assets/3D/zega_robotic.png')}
+                    alt="ZEGA Robotic Autonomous Swarm"
+                    className="w-full h-full object-cover object-center"
+                  />
+                </video>
+
+                {/* Soft Edge Ambient Overlay */}
+                <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10 rounded-2xl sm:rounded-3xl bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(10,14,26,0.4)_100%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent opacity-30" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3821,12 +3849,15 @@ function AppContent() {
           <p className="mt-3.5 text-[12px] sm:text-[13px] text-white/80 font-medium max-w-[280px] sm:max-w-none mx-auto leading-relaxed">
             {t.cta.subtitle}
           </p>
-          <button
-            onClick={() => handleOpenAuth("self-serve")}
-            className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-[12px] font-bold text-[#0a0b10] shadow-xl transition-all duration-300 hover:opacity-95 hover:scale-105 active:scale-95 cursor-pointer"
-          >
-            {t.cta.tryFree}
-          </button>
+          
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={() => handleOpenAuth("self-serve")}
+              className="inline-flex items-center justify-center rounded-full bg-white px-7 py-3 text-[12px] font-bold text-[#0a0b10] shadow-xl transition-all duration-300 hover:opacity-95 hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              {t.cta.tryFree}
+            </button>
+          </div>
         </div>
       </section>
 
