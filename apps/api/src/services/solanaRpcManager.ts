@@ -3,6 +3,7 @@ import http from 'http';
 import { URL } from 'url';
 import { Connection } from '@solana/web3.js';
 import { logger } from '../utils/logger.js';
+import { sanitizeRpcUrl } from '../utils/urlSanitizer.js';
 
 export interface RpcProviderConfig {
   name: string;
@@ -147,7 +148,7 @@ export class SolanaRpcManager {
         });
         this.connections.set(url, conn);
       } catch (err: any) {
-        logger.warn({ url, err: err.message }, 'Failed to pre-initialize Connection object for RPC provider');
+        logger.warn({ url: sanitizeRpcUrl(url), err: err.message }, 'Failed to pre-initialize Connection object for RPC provider');
       }
 
       // Initialize Token Bucket (Capacity = rateLimitRps)
@@ -160,7 +161,7 @@ export class SolanaRpcManager {
     logger.info(
       {
         providerCount: this.providers.size,
-        providers: Array.from(this.providers.values()).map((p) => ({ name: p.name, url: p.url })),
+        providers: Array.from(this.providers.values()).map((p) => ({ name: p.name, url: sanitizeRpcUrl(p.url) })),
       },
       '⚡ Solana RPC Pool Initialized Successfully'
     );
@@ -323,7 +324,7 @@ export class SolanaRpcManager {
         logger.error(
           {
             provider: provider.name,
-            url: provider.url,
+            url: sanitizeRpcUrl(provider.url),
             method,
             attempt,
             latencyMs,
@@ -432,7 +433,7 @@ export class SolanaRpcManager {
           // Cooldown expired — recover to degraded state for probe testing
           p.status = 'degraded';
           p.lastStatusChange = new Date().toISOString();
-          logger.info({ provider: p.name, url: p.url }, '🟢 RPC Provider Cooldown Expired. Status updated to DEGRADED.');
+          logger.info({ provider: p.name, url: sanitizeRpcUrl(p.url) }, '🟢 RPC Provider Cooldown Expired. Status updated to DEGRADED.');
         } else {
           continue; // Still in cooldown
         }
@@ -509,7 +510,7 @@ export class SolanaRpcManager {
     logger.warn(
       {
         provider: p.name,
-        url: p.url,
+        url: sanitizeRpcUrl(p.url),
         error: errorMsg,
         consecutiveFailures: p.consecutiveFailures,
         cooldownDurationSeconds: cooldownDurationMs / 1000,
@@ -611,7 +612,10 @@ export class SolanaRpcManager {
       inCooldownCount: Array.from(this.providers.values()).filter((p) => p.status === 'cooldown').length,
       cachedItemsCount: this.rpcCacheMap.size,
       inFlightRequestsCount: this.inFlightRequests.size,
-      providers: Array.from(this.providers.values()),
+      providers: Array.from(this.providers.values()).map((p) => ({
+        ...p,
+        url: sanitizeRpcUrl(p.url),
+      })),
     };
   }
 

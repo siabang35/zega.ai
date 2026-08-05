@@ -40,7 +40,7 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().default('sk_test_placeholder'),
   STRIPE_WEBHOOK_SECRET: z.string().default('whsec_placeholder'),
 
-  // AI Providers
+  // Multi-LLM AI Providers
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
   GOOGLE_AI_API_KEY: z.string().default(''),
@@ -48,11 +48,44 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().default(''),
   OPENROUTER_API_KEY: z.string().default(''),
   HUGGINGFACE_API_KEY: z.string().default(''),
+  JATEVO_API_KEY: z.string().default(''),
+  NINE_ROUTER_API_KEY: z.string().default(''),
 
-  // Security
+  // Solana RPC Pool & Network Endpoints
+  SOLANA_RPC_PRIMARY: z.string().default(''),
+  SOLANA_RPC_SECONDARY: z.string().default(''),
+  SOLANA_RPC_TERTIARY: z.string().default(''),
+  SOLANA_RPC_FALLBACK: z.string().default('https://api.devnet.solana.com'),
+  SOLANA_RPC_OFFICIAL: z.string().default('https://api.devnet.solana.com'),
+  SOLANA_RPC_URL: z.string().default('https://api.devnet.solana.com'),
+  SOLANA_RPC_1: z.string().default(''),
+  SOLANA_RPC_2: z.string().default(''),
+  SOLANA_RPC_3: z.string().default(''),
+  SOLANA_RPC_4: z.string().default(''),
+
+  // ZeroClaw Bridge & Telegram Bot
+  ZEROCLAW_GATEWAY_URL: z.string().default('http://127.0.0.1:4242'),
+  ZEROCLAW_BEARER_TOKEN: z.string().default(''),
+  TELEGRAM_BOT_TOKEN: z.string().default(''),
+
+  // Privy Keyless Embedded Wallet & Social OAuth
+  PRIVY_APP_ID: z.string().default(''),
+  PRIVY_APP_SECRET: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
+  GITHUB_OAUTH_CLIENT_ID: z.string().default(''),
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().default(''),
+  OAUTH_REDIRECT_URI: z.string().default('http://localhost:5173/auth/callback'),
+
+  // Security & Encryption
   JWT_SECRET: z.string().min(32).default('zega-ai-dev-jwt-secret-change-in-production-32chars'),
   COOKIE_SECRET: z.string().min(32).default('zega-ai-dev-cookie-secret-change-in-production-32ch'),
+  ENCRYPTION_KEY: z.string().default(''),
+  SUPABASE_JWT_SECRET: z.string().default(''),
+  DATABASE_URL: z.string().default(''),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().default(100),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().default(60000),
 
   // Cloudflare Turnstile & Brevo Email Service
   CLOUDFLARE_TURNSTILE_SECRET_KEY: z.string().default(''),
@@ -60,6 +93,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().default(587),
   SMTP_USER: z.string().default(''),
   SMTP_KEY: z.string().default(''),
+  BREVO_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default('no-reply@zegaai.site'),
 
   // Cloudflare R2 Storage

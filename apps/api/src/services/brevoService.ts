@@ -20,7 +20,7 @@ export class BrevoService {
   }
 
   private static getSmtpUser(): string {
-    return process.env.SMTP_USER || 'a0d5cf001@smtp-brevo.com';
+    return envConfig.SMTP_USER || process.env.SMTP_USER || '';
   }
 
   private static getSenderEmail(): string {

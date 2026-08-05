@@ -35,6 +35,7 @@
 | 32 | [ZEGA Copilot Enterprise Security & Multi-LLM](./32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md) | `32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md` | 6-layer OWASP Top 10 for LLM guardrails, 5-stage multi-LLM real-time failover engine, dynamic temporal anchor (2026), mobile UX bottom sheet, real-time dynamic calendar popover, and seamless profile icon pill bar |
 | 33 | [2026 Flagship AI Models & Security](./33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md) | `33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md` | 2026 flagship AI models (DeepSeek V4, Groq Llama 3.3, Gemini 3.6 Flash), 9Router Layer 5 Engine daemon, OWASP 5-layer LLM security architecture, and zero-trust auth |
 | 34 | [ZEGA AI 6-Layer Architecture Spec](./34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md) | `34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md` | Comprehensive 6-layer enterprise swarm architecture (Event Sources, Integrations, Jatevo Orchestrator, Autonomous AI Agents, 9Router Engine, Model Swarm & OWASP Guardrails) |
+| 35 | [RPC URL Sanitization & Strict Env Security](./35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md) | `35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md` | RPC URL API key log sanitization engine, Pino redaction serializers, Zod 25+ env schema validation, and complete hardcoded fallback string purge |
 
 ---
 

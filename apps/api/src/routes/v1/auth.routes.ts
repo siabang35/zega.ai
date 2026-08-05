@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { envConfig } from '../../config/env.js';
 import { BrevoService } from '../../services/brevoService.js';
 import { TurnstileService } from '../../services/turnstileService.js';
 import { OtpStore } from '../../services/otpStore.js';
@@ -295,8 +296,8 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    const privyAppId = process.env.PRIVY_APP_ID || 'cms9cnybp002k0bl7ts2nm8ra';
-    const privyAppSecret = process.env.PRIVY_APP_SECRET || '';
+    const privyAppId = envConfig.PRIVY_APP_ID || process.env.PRIVY_APP_ID || '';
+    const privyAppSecret = envConfig.PRIVY_APP_SECRET || process.env.PRIVY_APP_SECRET || '';
 
     let privyCloudUser: any = null;
 

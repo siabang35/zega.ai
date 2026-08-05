@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { envConfig } from '../config/env.js';
+import { sanitizeRpcUrl } from './urlSanitizer.js';
 
 /**
  * ZEGA AI — Structured JSON Logger (Pino)
@@ -10,6 +11,7 @@ import { envConfig } from '../config/env.js';
  * - Service name
  * - Message
  * - Optional context (request_id, agent_id, tenant_id, etc.)
+ * - Automatic sanitization of URLs and secrets
  */
 export const logger = pino({
   name: 'zega-api',
@@ -19,6 +21,10 @@ export const logger = pino({
     level(label) {
       return { level: label };
     },
+  },
+  serializers: {
+    url: (val) => (typeof val === 'string' ? sanitizeRpcUrl(val) : val),
+    rpcUrl: (val) => (typeof val === 'string' ? sanitizeRpcUrl(val) : val),
   },
   redact: {
     paths: [
@@ -35,3 +41,4 @@ export const logger = pino({
     remove: true,
   },
 });
+
