@@ -648,6 +648,73 @@ export const SupabaseDashboardService = {
     }
   },
 
+  // 9b. Fetch Enterprise Overview Telemetry & Realtime Data (Timeframe & OWASP Hardened)
+  async getEnterpriseOverviewRealtimeData(orgId: string = '99999999-9999-9999-9999-999999999999', timeRange: string = 'Last 24 hours') {
+    try {
+      const [kpiRes, pipelineRes, teamsRes, activitiesRes, routerRes, systemRes] = await Promise.all([
+        safeQuery<any>(supabase.from('enterprise_overview_kpis').select('*').eq('org_id', orgId).eq('time_range', timeRange).maybeSingle(), null),
+        safeQuery<any>(supabase.from('enterprise_pipeline_telemetry').select('*').eq('org_id', orgId).maybeSingle(), null),
+        safeQuery<any[]>(supabase.from('enterprise_agent_teams').select('*').eq('org_id', orgId).order('agent_count', { ascending: false }), []),
+        safeQuery<any[]>(supabase.from('enterprise_live_activities').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(10), []),
+        safeQuery<any>(supabase.from('enterprise_ai_router_stats').select('*').eq('org_id', orgId).maybeSingle(), null),
+        safeQuery<any[]>(supabase.from('enterprise_system_components').select('*').eq('org_id', orgId).order('created_at', { ascending: true }), []),
+      ]);
+
+      return {
+        kpis: kpiRes || null,
+        pipeline: pipelineRes || null,
+        agentTeams: teamsRes || [],
+        activities: activitiesRes || [],
+        routerStats: routerRes || null,
+        systemComponents: systemRes || [],
+        error: null
+      };
+    } catch (err: any) {
+      return { kpis: null, pipeline: null, agentTeams: [], activities: [], routerStats: null, systemComponents: [], error: err.message };
+    }
+  },
+
+  // 9c. Subscribe to Realtime Overview Telemetry (OWASP Anti-Throttling & Anti-Chunking Guard)
+  subscribeToEnterpriseOverviewRealtime(orgId: string = '99999999-9999-9999-9999-999999999999', onUpdate: (payload: any) => void) {
+    try {
+      let lastCall = 0;
+      const THROTTLE_MS = 150; // OWASP Anti-throttling: Max 6.6 updates per second to prevent UI re-render storms
+
+      const throttledUpdate = (payload: any) => {
+        const now = Date.now();
+        // OWASP Anti-chunking check: Verify payload structure size
+        if (payload?.new && typeof payload.new === 'object') {
+          const payloadBytes = JSON.stringify(payload.new).length;
+          if (payloadBytes > 1000000) { // Reject corrupt/over-large payload chunks > 1MB
+            console.warn('[OWASP Security] Rejected oversized realtime telemetry payload chunk:', payloadBytes);
+            return;
+          }
+        }
+
+        if (now - lastCall >= THROTTLE_MS) {
+          lastCall = now;
+          onUpdate(payload);
+        }
+      };
+
+      const channel = supabase
+        .channel(`enterprise-overview-realtime-${orgId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_overview_kpis', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_pipeline_telemetry', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_agent_teams', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_live_activities', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_ai_router_stats', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_system_components', filter: `org_id=eq.${orgId}` }, throttledUpdate)
+        .subscribe();
+
+      return () => {
+        try { supabase.removeChannel(channel); } catch (e) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
+  },
+
   // 10. Fetch Realtime SuperAdmin Platform Data from indexed Supabase tables
   async getSuperAdminRealtimeData() {
     try {
@@ -2713,6 +2780,132 @@ export const SupabaseDashboardService = {
     return () => {
       try { supabase.removeChannel(channel); } catch (e) {}
     };
+  },
+
+  /**
+   * Enterprise My Agents Workforce Realtime & Telemetry Methods
+   */
+  async getMyAgentsWorkforce() {
+    try {
+      const { data, error } = await supabase
+        .from('enterprise_my_agents_workforce')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error || !data) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async getEnterpriseTeams() {
+    try {
+      const { data, error } = await supabase
+        .from('enterprise_agent_teams')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error || !data) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async getEnterpriseTemplates() {
+    try {
+      const { data, error } = await supabase
+        .from('enterprise_agent_templates')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error || !data) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  async getEnterpriseWorkflowDetails() {
+    try {
+      const { data, error } = await supabase
+        .from('enterprise_workflow_instances')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !data) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  subscribeToEnterpriseWorkflowRealtime(onUpdate: (payload: any) => void) {
+    try {
+      let lastCall = 0;
+      const THROTTLE_MS = 150;
+
+      const throttledUpdate = (payload: any) => {
+        const now = Date.now();
+        if (now - lastCall >= THROTTLE_MS) {
+          lastCall = now;
+          onUpdate(payload);
+        }
+      };
+
+      const channel = supabase
+        .channel('public:enterprise_workflow_instances')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'enterprise_workflow_instances' },
+          throttledUpdate
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (e) {
+      return () => {};
+    }
+  },
+
+  subscribeToMyAgentsWorkforceRealtime(onUpdate: (payload: any) => void) {
+    try {
+      let lastCall = 0;
+      const THROTTLE_MS = 150; // OWASP Anti-Throttling Guard: 150ms throttle
+
+      const throttledUpdate = (payload: any) => {
+        const now = Date.now();
+        if (payload?.new && typeof payload.new === 'object') {
+          const payloadBytes = JSON.stringify(payload.new).length;
+          if (payloadBytes > 1000000) { // OWASP Anti-Chunking Guard: 1MB payload size check
+            console.warn('[OWASP Security] Rejected oversized payload chunk:', payloadBytes);
+            return;
+          }
+        }
+        if (now - lastCall >= THROTTLE_MS) {
+          lastCall = now;
+          onUpdate(payload);
+        }
+      };
+
+      const channel = supabase
+        .channel('enterprise-my-agents-workforce-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_my_agents_workforce' }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_agent_teams' }, throttledUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_agent_templates' }, throttledUpdate)
+        .subscribe();
+
+      return () => {
+        try { supabase.removeChannel(channel); } catch (e) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Play, Send, Check, Settings, Plus, Sparkles, Sliders, 
   Code2, ArrowRight, RefreshCw, ZoomIn, ZoomOut, Maximize2, 
@@ -8,6 +8,7 @@ import {
   Activity, SlidersHorizontal, LayoutGrid, RotateCcw, Brain
 } from 'lucide-react';
 
+import { SupabaseDashboardService } from '../services/supabaseService';
 import { getR2CdnUrl } from '../../utils/cdn';
 
 interface SandboxWorkflowViewProps {
@@ -35,6 +36,142 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
   const [inspectorTab, setInspectorTab] = useState<'overview' | 'configuration' | 'prompt' | 'tools'>('overview');
   const [consoleTab, setConsoleTab] = useState<'console' | 'logs' | 'executions' | 'metrics' | 'tracing' | 'variables'>('console');
   const [selectedRun, setSelectedRun] = useState<string>('#8921');
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  // Workflow Selection State
+  const [activeWorkflowId, setActiveWorkflowId] = useState<string>('customer_support');
+  const [activeVersion, setActiveVersion] = useState<string>('v3.4');
+  const [activeEnvironment, setActiveEnvironment] = useState<string>('Production');
+
+  const workflowsList = [
+    { id: 'customer_support', name: 'Customer Support Escalation v3.4', description: 'Intelligent triage and escalation workflow for customer support tickets', version: 'v3.4', status: 'Published' },
+    { id: 'sales_outreach', name: 'Autonomous Sales Lead Enrichment v2.1', description: 'End-to-end CRM synchronization and cold lead qualification swarm', version: 'v2.1', status: 'Published' },
+    { id: 'financial_audit', name: 'Financial Reconciliation Pipeline v1.8', description: 'Real-time accounting ledger verification and fraud detection', version: 'v1.8', status: 'Draft' },
+    { id: 'devops_triage', name: 'DevOps Incident Escalation v4.0', description: 'Autonomous P0/P1 infrastructure triage and PagerDuty routing', version: 'v4.0', status: 'Published' },
+  ];
+
+  const currentWorkflow = workflowsList.find(w => w.id === activeWorkflowId) || workflowsList[0];
+
+  // Inspector Form State (Dynamic per node)
+  const nodeMetadataMap: Record<string, { name: string; type: string; model: string; temp: number; tokens: number; prompt: string; desc: string }> = {
+    webhook: { name: 'Webhook Trigger', type: 'Business Node', model: 'HTTP POST', temp: 0.0, tokens: 1024, prompt: 'Listen to incoming webhook payloads at /api/v1/webhooks/support-tickets', desc: 'Ingests new customer support tickets in real-time at 12 req/min.' },
+    ai_planner: { name: 'AI Planner', type: 'AI Node', model: 'GPT-5', temp: 0.3, tokens: 2048, prompt: 'You are an AI planner that analyzes customer support tickets and creates execution plans.', desc: 'Analyzes incoming ticket and creates execution plan with intent classification.' },
+    classify_intent: { name: 'Classify Intent', type: 'AI Node', model: 'Claude 3.5 Sonnet', temp: 0.2, tokens: 1536, prompt: 'Categorize ticket intent into billing, support, escalation, or general inquiry.', desc: 'AI Reasoner node for zero-shot intent categorization.' },
+    support_agent: { name: 'Support Agent', type: 'Agent Node', model: 'Claude 3.5 Sonnet', temp: 0.4, tokens: 4096, prompt: 'Assist customer with Tier 1 and Tier 2 technical support queries.', desc: 'Primary support handling agent operating with 95% online availability.' },
+    escalation_agent: { name: 'Escalation Agent', type: 'Agent Node', model: 'GPT-5', temp: 0.1, tokens: 4096, prompt: 'Evaluate urgent escalation cases and request manager review when required.', desc: 'Complex escalation management agent operating with 92% online availability.' },
+    refund_agent: { name: 'Refund Agent', type: 'Agent Node', model: 'Gemini 1.5 Pro', temp: 0.0, tokens: 2048, prompt: 'Verify transaction signatures and trigger automated refund processing.', desc: 'Payments and transaction processing agent operating with 93% online availability.' },
+    knowledge_retr: { name: 'Knowledge Retrieval', type: 'MCP Node', model: 'Qdrant Vector DB', temp: 0.0, tokens: 2048, prompt: 'Query embedding database for relevant product documentation chunks.', desc: 'Vector search knowledge retrieval node operating with 145ms response time.' },
+    slack_mcp: { name: 'Slack MCP', type: 'MCP Node', model: 'Slack Web API', temp: 0.0, tokens: 1024, prompt: 'Send notification alert to #support channel.', desc: 'Slack connector dispatching real-time notifications to #support.' },
+    human_approval: { name: 'Human Approval', type: 'Business Node', model: 'Interactive Gate', temp: 0.0, tokens: 512, prompt: 'Pause workflow execution until manager approves refund request.', desc: 'Manager review approval gate with pending approval state.' },
+    stripe_mcp: { name: 'Stripe MCP', type: 'MCP Node', model: 'Stripe API v2', temp: 0.0, tokens: 2048, prompt: 'Execute payment refund via Stripe API endpoint.', desc: 'Financial transaction connector for Stripe API integration.' },
+    zendesk_mcp: { name: 'Zendesk MCP', type: 'MCP Node', model: 'Zendesk REST API', temp: 0.0, tokens: 1024, prompt: 'Update ticket status and append agent resolution notes.', desc: 'ITSM ticket management connector for Zendesk.' },
+    supabase_mcp: { name: 'Supabase MCP', type: 'MCP Node', model: 'PostgreSQL Realtime', temp: 0.0, tokens: 1024, prompt: 'Store updated execution state in enterprise_workflow_executions table.', desc: 'Database connector persisting state to Supabase.' },
+  };
+
+  const currentNodeMeta = nodeMetadataMap[selectedNodeId] || nodeMetadataMap.ai_planner;
+
+  const [selectedModel, setSelectedModel] = useState<string>(currentNodeMeta.model);
+  const [temperature, setTemperature] = useState<number>(currentNodeMeta.temp);
+  const [maxTokens, setMaxTokens] = useState<number>(currentNodeMeta.tokens);
+  const [systemPrompt, setSystemPrompt] = useState<string>(currentNodeMeta.prompt);
+
+  // Sync Form State when selectedNodeId changes
+  useEffect(() => {
+    const meta = nodeMetadataMap[selectedNodeId] || nodeMetadataMap.ai_planner;
+    setSelectedModel(meta.model);
+    setTemperature(meta.temp);
+    setMaxTokens(meta.tokens);
+    setSystemPrompt(meta.prompt);
+  }, [selectedNodeId]);
+
+  // Workflow Environment Variables State
+  const [envVars, setEnvVars] = useState<Array<{ key: string; value: string; secret: boolean }>>([
+    { key: 'SUPABASE_URL', value: 'https://zega-enterprise.supabase.co', secret: false },
+    { key: 'OPENAI_API_KEY', value: 'sk-proj-**********************', secret: true },
+    { key: 'SLACK_WEBHOOK_URL', value: 'https://hooks.slack.com/services/T00/B00/X00', secret: true },
+    { key: 'STRIPE_SECRET_KEY', value: 'sk_live_**********************', secret: true },
+  ]);
+  const [newVarKey, setNewVarKey] = useState('');
+  const [newVarVal, setNewVarVal] = useState('');
+
+  // Workflow YAML/JSON Code Representation
+  const workflowCodeText = `{
+  "workflow_id": "${currentWorkflow.id}",
+  "name": "${currentWorkflow.name}",
+  "version": "${activeVersion}",
+  "environment": "${activeEnvironment}",
+  "nodes": [
+    { "id": "webhook", "type": "trigger", "endpoint": "/api/v1/webhooks/support-tickets" },
+    { "id": "ai_planner", "type": "llm", "model": "${selectedModel}", "temp": ${temperature} },
+    { "id": "classify_intent", "type": "reasoner", "model": "Claude 3.5 Sonnet" },
+    { "id": "support_agent", "type": "agent", "handler": "primary_support" },
+    { "id": "slack_mcp", "type": "mcp", "channel": "#support" },
+    { "id": "supabase_mcp", "type": "mcp", "action": "save_state" }
+  ]
+}`;
+
+  // Realtime Telemetry State
+  const [telemetry, setTelemetry] = useState<any>({
+    live_requests_per_min: 42,
+    success_rate_pct: 99.23,
+    avg_latency_sec: 2.41,
+    total_cost_today: 18.32,
+    tokens_today: '1.24M',
+    system_health: 'Healthy',
+    health_description: 'All systems operational',
+    last_deployed_by: 'Wildan A.',
+    last_deployed_at: '2 hours ago',
+  });
+
+  // Fetch telemetry from API
+  const fetchWorkflowTelemetry = async () => {
+    try {
+      const res = await fetch('/api/v1/enterprise/workflow/telemetry');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setTelemetry((prev: any) => ({ ...prev, ...json.data }));
+        }
+      }
+    } catch (e) {
+      console.warn('Workflow telemetry fetch fallback:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkflowTelemetry();
+    const unsubscribe = SupabaseDashboardService.subscribeToEnterpriseWorkflowRealtime(() => {
+      fetchWorkflowTelemetry();
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Action Dispatcher for Run, Test, Publish
+  const handleWorkflowAction = async (actionId: string, actionLabel: string) => {
+    if (onTriggerToast) {
+      onTriggerToast(`Executing Workflow Action: ${actionLabel}...`);
+    }
+
+    try {
+      await fetch('/api/v1/enterprise/workflow/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: actionId, node: selectedNodeId }),
+      });
+    } catch (err) {
+      console.warn('Workflow action API error:', err);
+    }
+
+    if (actionId === 'run') {
+      if (onTriggerToast) onTriggerToast(`SUCCESS: Workflow '${currentWorkflow.name}' run completed! (Run #8922)`);
+    } else if (actionId === 'test') {
+      if (onTriggerToast) onTriggerToast(`SUCCESS: Simulation & unit test passed with 100% assertion score!`);
+    } else if (actionId === 'publish') {
+      if (onTriggerToast) onTriggerToast(`SUCCESS: Published ${activeVersion} update to ${activeEnvironment}!`);
+    }
+  };
 
   const runs = [
     { id: '#8921', status: 'Completed', time: '2m ago', color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
@@ -102,40 +239,65 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-1">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-400">Workflow Studio /</span>
-            <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">
-              Customer Support Escalation v3.4
-            </h1>
+            <button onClick={() => setActiveModal('workflow_selector_modal')} className="text-xs font-semibold text-slate-400 hover:text-indigo-600 cursor-pointer">Workflow Studio /</button>
+            
+            {/* WORKFLOW SELECTOR DROPDOWN */}
+            <div className="relative">
+              <button 
+                onClick={() => setActiveModal('workflow_selector_modal')}
+                className="flex items-center gap-1.5 text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 hover:text-indigo-600 cursor-pointer"
+              >
+                <span>{currentWorkflow.name}</span>
+                <ChevronDown size={16} className="text-slate-400" />
+              </button>
+            </div>
+
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-              <Check size={11} /> Published
+              <Check size={11} /> {currentWorkflow.status}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Intelligent triage and escalation workflow for customer support tickets
+            {currentWorkflow.description}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <span className="text-slate-400 text-[10px]">Version</span>
-            <span className="font-bold">v3.4</span>
-            <ChevronDown size={12} className="text-slate-400" />
-          </div>
+          {/* VERSION SELECTOR */}
+          <select
+            value={activeVersion}
+            onChange={(e) => {
+              setActiveVersion(e.target.value);
+              if (onTriggerToast) onTriggerToast(`Switched to version ${e.target.value}`);
+            }}
+            className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+          >
+            <option value="v3.4">Version v3.4</option>
+            <option value="v3.3">Version v3.3</option>
+            <option value="v3.0">Version v3.0</option>
+          </select>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Production</span>
-            <ChevronDown size={12} className="text-slate-400" />
-          </div>
+          {/* ENVIRONMENT SELECTOR */}
+          <select
+            value={activeEnvironment}
+            onChange={(e) => {
+              setActiveEnvironment(e.target.value);
+              if (onTriggerToast) onTriggerToast(`Switched environment to ${e.target.value}`);
+            }}
+            className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+          >
+            <option value="Production">Production</option>
+            <option value="Staging">Staging</option>
+            <option value="Development">Development</option>
+          </select>
 
           <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-800 pr-2">
-            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><Share2 size={14} /></button>
-            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><History size={14} /></button>
-            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><Settings size={14} /></button>
+            <button onClick={() => setActiveModal('share_modal')} title="Share Workflow" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><Share2 size={14} /></button>
+            <button onClick={() => setActiveModal('history_modal')} title="Version History" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><History size={14} /></button>
+            <button onClick={() => setActiveTab('settings')} title="Workflow Settings" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"><Settings size={14} /></button>
           </div>
 
           <button 
-            onClick={() => onTriggerToast && onTriggerToast('Running Customer Support Escalation workflow...')}
+            onClick={() => handleWorkflowAction('run', 'Run Workflow')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 shadow-2xs cursor-pointer"
           >
             <Play size={13} className="text-emerald-500 fill-emerald-500" />
@@ -143,7 +305,7 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
           </button>
 
           <button 
-            onClick={() => onTriggerToast && onTriggerToast('Testing workflow logic...')}
+            onClick={() => handleWorkflowAction('test', 'Test Workflow Logic')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 shadow-2xs cursor-pointer"
           >
             <span>🧪</span>
@@ -151,7 +313,7 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
           </button>
 
           <button 
-            onClick={() => onTriggerToast && onTriggerToast('Publishing workflow update to Production...')}
+            onClick={() => handleWorkflowAction('publish', 'Publish to Production')}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 cursor-pointer"
           >
             <Sparkles size={13} />
@@ -256,8 +418,9 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
       </div>
 
       {/* 4. MAIN CANVAS WORKFLOW SECTION (PROPORTIONAL 100% SEAMLESS FIT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 h-[560px]">
-        {/* LEFT PALETTE (2 COLS) */}
+      {activeTab === 'canvas' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 h-[560px]">
+          {/* LEFT PALETTE (2 COLS) */}
         <div className="lg:col-span-3 xl:col-span-2.5 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex flex-col justify-between overflow-y-auto space-y-3">
           <div className="space-y-2.5">
             <div className="relative">
@@ -399,7 +562,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </svg>
 
             {/* STAGE 1: WEBHOOK (col 1: left-[2%], width 12%) */}
-            <div className="absolute left-[2%] top-[50%] -translate-y-1/2 w-[12%] p-2 rounded-2xl border border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900 shadow-2xs space-y-1 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('webhook'); if (onTriggerToast) onTriggerToast('Selected Webhook Trigger Node'); }}
+              className={`absolute left-[2%] top-[50%] -translate-y-1/2 w-[12%] p-2 rounded-2xl border transition-all cursor-pointer space-y-1 z-10 ${
+                selectedNodeId === 'webhook'
+                  ? 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/20 ring-2 ring-purple-500/30 shadow-md'
+                  : 'border-purple-200 dark:border-purple-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1 font-bold text-[10px] text-slate-900 dark:text-slate-100">
                 <img 
                   src={getR2CdnUrl('/assets/logo/webhook.webp')} 
@@ -418,7 +588,7 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
 
             {/* STAGE 2: AI PLANNER (col 2: left-[18%], width 14%) */}
             <div 
-              onClick={() => setSelectedNodeId('ai_planner')}
+              onClick={() => { setSelectedNodeId('ai_planner'); if (onTriggerToast) onTriggerToast('Selected AI Planner Node'); }}
               className={`absolute left-[18%] top-[50%] -translate-y-1/2 w-[14%] p-2 rounded-2xl border transition-all cursor-pointer space-y-1 z-10 ${
                 selectedNodeId === 'ai_planner'
                   ? 'border-indigo-600 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-md ring-2 ring-indigo-500/30'
@@ -445,7 +615,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* STAGE 3: CLASSIFY INTENT (col 3: left-[35%], width 14%) */}
-            <div className="absolute left-[35%] top-[50%] -translate-y-1/2 w-[14%] p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('classify_intent'); if (onTriggerToast) onTriggerToast('Selected Classify Intent Node'); }}
+              className={`absolute left-[35%] top-[50%] -translate-y-1/2 w-[14%] p-2 rounded-2xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'classify_intent'
+                  ? 'border-indigo-600 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-md ring-2 ring-indigo-500/30'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1 font-bold text-[10px] text-slate-900 dark:text-slate-100">
                 <img 
                   src={getR2CdnUrl('/assets/visualization/claude.webp')} 
@@ -464,7 +641,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
 
             {/* STAGE 4: 3 AGENTS (col 4: left-[52%], width 14%) */}
             {/* Top Agent */}
-            <div className="absolute left-[52%] top-[12%] w-[14%] p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('support_agent'); if (onTriggerToast) onTriggerToast('Selected Support Agent Node'); }}
+              className={`absolute left-[52%] top-[12%] w-[14%] p-2 rounded-2xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'support_agent'
+                  ? 'border-indigo-600 bg-indigo-50/20 dark:bg-indigo-950/20 ring-2 ring-indigo-500/30 shadow-md'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center justify-between font-bold text-[10px] text-slate-900 dark:text-slate-100">
                 <span className="flex items-center gap-1 truncate"><MessageSquare size={11} className="text-indigo-600 shrink-0" /> Support Agent</span>
               </div>
@@ -476,7 +660,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* Mid Agent */}
-            <div className="absolute left-[52%] top-[44%] w-[14%] p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('escalation_agent'); if (onTriggerToast) onTriggerToast('Selected Escalation Agent Node'); }}
+              className={`absolute left-[52%] top-[44%] w-[14%] p-2 rounded-2xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'escalation_agent'
+                  ? 'border-amber-600 bg-amber-50/20 dark:bg-amber-950/20 ring-2 ring-amber-500/30 shadow-md'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center justify-between font-bold text-[10px] text-slate-900 dark:text-slate-100">
                 <span className="flex items-center gap-1 truncate"><ShieldCheck size={11} className="text-amber-500 shrink-0" /> Escalation Agent</span>
               </div>
@@ -488,7 +679,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* Bot Agent */}
-            <div className="absolute left-[52%] top-[76%] w-[14%] p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('refund_agent'); if (onTriggerToast) onTriggerToast('Selected Refund Agent Node'); }}
+              className={`absolute left-[52%] top-[76%] w-[14%] p-2 rounded-2xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'refund_agent'
+                  ? 'border-pink-600 bg-pink-50/20 dark:bg-pink-950/20 ring-2 ring-pink-500/30 shadow-md'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center justify-between font-bold text-[10px] text-slate-900 dark:text-slate-100">
                 <span className="flex items-center gap-1 truncate"><FileText size={11} className="text-pink-500 shrink-0" /> Refund Agent</span>
               </div>
@@ -499,16 +697,30 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
               </div>
             </div>
 
-            {/* STAGE 5: DOWNSTREAM MCPs (col 5: left-[69%], width 14%; col 6: left-[86%], width 9%) */}
+            {/* STAGE 5: DOWNSTREAM MCPs */}
             {/* Knowledge Retrieval */}
-            <div className="absolute left-[69%] top-[12%] w-[14%] p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('knowledge_retr'); if (onTriggerToast) onTriggerToast('Selected Knowledge Retrieval Node'); }}
+              className={`absolute left-[69%] top-[12%] w-[14%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'knowledge_retr'
+                  ? 'border-emerald-600 bg-emerald-50/20 ring-2 ring-emerald-500/30 shadow-md'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <span className="font-bold text-slate-900 dark:text-slate-100 block text-[9.5px] truncate">Knowledge Retr.</span>
               <span className="text-[8px] text-slate-400 block truncate">Vector Search</span>
               <span className="text-[7.5px] font-mono text-slate-400 block border-t border-slate-100 dark:border-slate-800 pt-0.5">145ms</span>
             </div>
 
             {/* Slack MCP */}
-            <div className="absolute left-[86%] top-[12%] w-[9%] p-1.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('slack_mcp'); if (onTriggerToast) onTriggerToast('Selected Slack MCP Node'); }}
+              className={`absolute left-[86%] top-[12%] w-[9%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'slack_mcp'
+                  ? 'border-amber-600 bg-amber-50/40 ring-2 ring-amber-500/30 shadow-md'
+                  : 'border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1">
                 <img 
                   src={getR2CdnUrl('/assets/visualization/slack.webp')} 
@@ -523,14 +735,28 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* Human Approval */}
-            <div className="absolute left-[69%] top-[44%] w-[14%] p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('human_approval'); if (onTriggerToast) onTriggerToast('Selected Human Approval Gate Node'); }}
+              className={`absolute left-[69%] top-[44%] w-[14%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'human_approval'
+                  ? 'border-purple-600 bg-purple-50/20 ring-2 ring-purple-500/30 shadow-md'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs'
+              }`}
+            >
               <span className="font-bold text-slate-900 dark:text-slate-100 block text-[9.5px] truncate">Human Approval</span>
               <span className="text-[8px] text-slate-400 block truncate">Manager Review</span>
               <span className="text-[7.5px] font-mono text-amber-500 block border-t border-slate-100 dark:border-slate-800 pt-0.5">Pending</span>
             </div>
 
             {/* Stripe MCP */}
-            <div className="absolute left-[86%] top-[44%] w-[9%] p-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('stripe_mcp'); if (onTriggerToast) onTriggerToast('Selected Stripe MCP Node'); }}
+              className={`absolute left-[86%] top-[44%] w-[9%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'stripe_mcp'
+                  ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/30 shadow-md'
+                  : 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1">
                 <img 
                   src={getR2CdnUrl('/assets/visualization/stripe.webp')} 
@@ -545,7 +771,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* Zendesk MCP */}
-            <div className="absolute left-[69%] top-[76%] w-[14%] p-1.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/20 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('zendesk_mcp'); if (onTriggerToast) onTriggerToast('Selected Zendesk MCP Node'); }}
+              className={`absolute left-[69%] top-[76%] w-[14%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'zendesk_mcp'
+                  ? 'border-sky-600 bg-sky-50/40 ring-2 ring-sky-500/30 shadow-md'
+                  : 'border-sky-200 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/20 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1">
                 <img 
                   src={getR2CdnUrl('/assets/logo/zendesk.webp')} 
@@ -560,7 +793,14 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
             </div>
 
             {/* Supabase MCP */}
-            <div className="absolute left-[86%] top-[76%] w-[9%] p-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-2xs space-y-0.5 z-10">
+            <div 
+              onClick={() => { setSelectedNodeId('supabase_mcp'); if (onTriggerToast) onTriggerToast('Selected Supabase MCP Node'); }}
+              className={`absolute left-[86%] top-[76%] w-[9%] p-1.5 rounded-xl border transition-all cursor-pointer space-y-0.5 z-10 ${
+                selectedNodeId === 'supabase_mcp'
+                  ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/30 shadow-md'
+                  : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 shadow-2xs'
+              }`}
+            >
               <div className="flex items-center gap-1">
                 <img 
                   src={getR2CdnUrl('/assets/logo/supabase.png')} 
@@ -637,35 +877,60 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
 
             <div>
               <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">MODEL</label>
-              <select className="w-full px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold focus:outline-none">
+              <select 
+                value={selectedModel}
+                onChange={(e) => {
+                  setSelectedModel(e.target.value);
+                  if (onTriggerToast) onTriggerToast(`Model updated to ${e.target.value}`);
+                }}
+                className="w-full px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold focus:outline-none"
+              >
                 <option>GPT-5</option>
                 <option>Claude 3.5 Sonnet</option>
                 <option>Gemini 1.5 Pro</option>
+                <option>DeepSeek R1</option>
               </select>
             </div>
 
             <div>
               <div className="flex items-center justify-between text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                 <span>TEMPERATURE</span>
-                <span className="font-mono text-slate-800 dark:text-slate-200">0.3</span>
+                <span className="font-mono text-slate-800 dark:text-slate-200">{temperature}</span>
               </div>
-              <input type="range" min="0" max="1" step="0.1" defaultValue="0.3" className="w-full accent-indigo-600 cursor-pointer" />
+              <input 
+                type="range" 
+                min="0" 
+                max="1" 
+                step="0.1" 
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full accent-indigo-600 cursor-pointer" 
+              />
             </div>
 
             <div>
               <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">MAX TOKENS</label>
-              <input type="number" defaultValue={2048} className="w-full px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-bold" />
+              <input 
+                type="number" 
+                value={maxTokens}
+                onChange={(e) => setMaxTokens(parseInt(e.target.value) || 2048)}
+                className="w-full px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-bold" 
+              />
             </div>
 
             <div>
               <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">SYSTEM PROMPT</label>
-              <div className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-mono text-[10px] text-slate-700 dark:text-slate-300 leading-relaxed">
-                You are an AI planner that analyzes customer support tickets and creates execution plans.
-              </div>
+              <textarea 
+                rows={3}
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-mono text-[10px] text-slate-700 dark:text-slate-300 leading-relaxed focus:outline-none focus:border-indigo-500" 
+              />
             </div>
           </div>
         </div>
       </div>
+    )}
 
       {/* 5. BOTTOM EXECUTION DOCK */}
       <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
@@ -779,7 +1044,6 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
                   <path strokeDasharray="10 100" strokeDashoffset="-90" className="text-purple-500" strokeWidth="6" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
               </div>
-
               <div className="space-y-0.5 text-[9px] font-semibold text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-indigo-600" /> GPT-5 58%</div>
                 <div className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-500" /> Claude 3.5 21%</div>
@@ -790,6 +1054,242 @@ export function SandboxWorkflowView({ onTriggerToast }: SandboxWorkflowViewProps
           </div>
         </div>
       </div>
+
+      {activeTab !== 'canvas' && (
+        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+          {activeTab === 'flow' && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Layers size={16} className="text-indigo-600" />
+                Execution Flow DAG Sequence ({currentWorkflow.name})
+              </h3>
+              <div className="space-y-2 font-mono text-xs">
+                {[
+                  { step: '01', name: 'Webhook Trigger', type: 'Ingress Webhook', status: 'Active', latency: '12ms' },
+                  { step: '02', name: 'AI Planner (GPT-5)', type: 'LLM Orchestrator', status: 'Completed', latency: '2.10s' },
+                  { step: '03', name: 'Classify Intent (Claude 3.5)', type: 'Intent Classifier', status: 'Completed', latency: '1.20s' },
+                  { step: '04', name: 'Support Agent Swarm', type: 'Agent Delegation', status: 'Running', latency: '3.60s' },
+                  { step: '05', name: 'Zendesk & Supabase MCP', type: 'Persistence Gate', status: 'Queued', latency: '200ms' },
+                ].map((st) => (
+                  <div key={st.step} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-black text-indigo-600">{st.step}</span>
+                      <div>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">{st.name}</span>
+                        <span className="text-[10px] text-slate-400">{st.type}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-400 text-xs">{st.latency}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">{st.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'code' && (
+            <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 font-mono space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <Code2 size={15} className="text-indigo-400" />
+                  <span>workflow_spec.json</span>
+                  <span className="text-[10px] text-emerald-400 font-sans px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800">Valid Spec</span>
+                </div>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(workflowCodeText);
+                    if (onTriggerToast) onTriggerToast('Copied JSON specification to clipboard!');
+                  }} 
+                  className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-sans font-bold cursor-pointer"
+                >
+                  Copy JSON
+                </button>
+              </div>
+              <pre className="text-xs leading-relaxed overflow-x-auto text-indigo-300">
+                {workflowCodeText}
+              </pre>
+            </div>
+          )}
+
+          {activeTab === 'variables' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Sliders size={16} className="text-indigo-600" />
+                  Workflow Environment Variables
+                </h3>
+                <button 
+                  onClick={() => {
+                    const k = prompt('Variable Key (e.g. CUSTOM_API_KEY):');
+                    const v = prompt('Variable Value:');
+                    if (k && v) {
+                      setEnvVars([...envVars, { key: k.toUpperCase(), value: v, secret: true }]);
+                      if (onTriggerToast) onTriggerToast(`Added environment variable ${k.toUpperCase()}`);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold cursor-pointer"
+                >
+                  + Add Variable
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {envVars.map((v, i) => (
+                  <div key={i} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between font-mono text-xs">
+                    <span className="font-bold text-indigo-600">{v.key}</span>
+                    <span className="text-slate-500 truncate max-w-xs">{v.value}</span>
+                    <button 
+                      onClick={() => {
+                        setEnvVars(envVars.filter((_, idx) => idx !== i));
+                        if (onTriggerToast) onTriggerToast(`Removed variable ${v.key}`);
+                      }}
+                      className="text-rose-500 text-xs font-sans font-bold hover:underline cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-4 max-w-2xl">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Settings size={16} className="text-indigo-600" />
+                Workflow Settings & OWASP Security Guardrails
+              </h3>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-400 uppercase block mb-1">Workflow Name</label>
+                  <input type="text" defaultValue={currentWorkflow.name} className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-400 uppercase block mb-1">Max Execution Timeout (ms)</label>
+                  <input type="number" defaultValue={30000} className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-400 uppercase block mb-1">OWASP Anti-Throttling Rate Limit</label>
+                  <select className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold">
+                    <option>Token-Bucket (100 req/min limit)</option>
+                    <option>Strict Burst Guard (20 req/sec limit)</option>
+                  </select>
+                </div>
+                <button 
+                  onClick={() => onTriggerToast && onTriggerToast('Workflow settings saved successfully!')}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs cursor-pointer shadow-md"
+                >
+                  Save Workflow Settings
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* OVERLAY MODAL 1: WORKFLOW SELECTOR MODAL */}
+      {activeModal === 'workflow_selector_modal' && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Select Enterprise AI Workflow</h3>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
+            </div>
+            <div className="space-y-2">
+              {workflowsList.map((wf) => (
+                <div 
+                  key={wf.id}
+                  onClick={() => {
+                    setActiveWorkflowId(wf.id);
+                    setActiveModal(null);
+                    if (onTriggerToast) onTriggerToast(`Switched active workflow to ${wf.name}`);
+                  }}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer space-y-1 ${
+                    activeWorkflowId === wf.id
+                      ? 'border-indigo-600 bg-indigo-50/20 dark:bg-indigo-950/20 ring-2 ring-indigo-500/30'
+                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-bold text-xs">
+                    <span className="text-slate-900 dark:text-slate-100">{wf.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">{wf.status}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{wf.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY MODAL 2: SHARE WORKFLOW MODAL */}
+      {activeModal === 'share_modal' && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Share Workflow Link</h3>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
+            </div>
+            <div className="space-y-2 text-xs">
+              <span className="text-slate-400 font-bold uppercase block">Production Canvas URL</span>
+              <input type="text" readOnly value={`https://app.zega.ai/workflow/studio/${activeWorkflowId}?v=${activeVersion}`} className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-mono text-indigo-600" />
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://app.zega.ai/workflow/studio/${activeWorkflowId}?v=${activeVersion}`);
+                  setActiveModal(null);
+                  if (onTriggerToast) onTriggerToast('Copied workflow link to clipboard!');
+                }}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold cursor-pointer"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY MODAL 3: VERSION HISTORY MODAL */}
+      {activeModal === 'history_modal' && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Workflow Version Snapshots</h3>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
+            </div>
+            <div className="space-y-2 text-xs">
+              {[
+                { v: 'v3.4', date: '2 hours ago', by: 'Wildan A.', active: true },
+                { v: 'v3.3', date: 'Yesterday at 14:20', by: 'Danz A.', active: false },
+                { v: 'v3.0', date: '3 days ago', by: 'System Auto-Backup', active: false },
+              ].map((h, i) => (
+                <div key={i} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-slate-100 block">{h.v}</span>
+                    <span className="text-[10px] text-slate-400">{h.date} by {h.by}</span>
+                  </div>
+                  {h.active ? (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Current</span>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setActiveVersion(h.v);
+                        setActiveModal(null);
+                        if (onTriggerToast) onTriggerToast(`Rolled back workflow to ${h.v}`);
+                      }}
+                      className="text-indigo-600 font-bold text-[11px] hover:underline cursor-pointer"
+                    >
+                      Rollback
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};

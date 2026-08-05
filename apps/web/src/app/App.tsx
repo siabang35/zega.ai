@@ -2190,17 +2190,19 @@ function AppContent() {
   }
 
   const isPublicCheckout =
-    currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
-    currentPath === '/payment' || currentPath.startsWith('/payment') ||
-    currentPath === '/pay' || currentPath.startsWith('/pay') ||
-    currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
-    (typeof window !== 'undefined' && (
-      window.location.pathname.includes('/checkout') ||
-      window.location.pathname.includes('/payment') ||
-      window.location.pathname.includes('/pay') ||
-      window.location.search.includes('reference=') ||
-      window.location.search.includes('ref=')
-    ));
+    !currentPath.startsWith('/console') && (
+      currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
+      currentPath === '/payment' || currentPath.startsWith('/payment') ||
+      currentPath === '/pay' || currentPath.startsWith('/pay') ||
+      currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
+      (typeof window !== 'undefined' && (
+        window.location.pathname.includes('/checkout') ||
+        (window.location.pathname.includes('/payment') && !window.location.pathname.startsWith('/console')) ||
+        (window.location.pathname.includes('/pay') && !window.location.pathname.startsWith('/console')) ||
+        window.location.search.includes('reference=') ||
+        window.location.search.includes('ref=')
+      ))
+    );
 
   if (isPublicCheckout) {
     return (

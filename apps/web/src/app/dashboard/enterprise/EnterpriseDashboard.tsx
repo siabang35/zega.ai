@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Workflow, Target, Layers, Settings, 
-  Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronDown, Menu,
+  Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronLeft, ChevronDown, Menu,
   ShieldCheck, Bot, Key, CreditCard, UserCheck, Zap, Activity,
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
   Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Cpu,
-  Code, Building, Globe
+  Code, Building, Globe, HelpCircle
 } from 'lucide-react';
 
 import { OverviewView } from '../views/OverviewView';
 import { SandboxWorkflowView } from '../views/SandboxWorkflowView';
 import { M2mPaymentsView } from '../views/M2mPaymentsView';
+import { HelpView } from '../umkm/views/HelpView';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { ZegaLogo } from '../../components/ZegaLogo';
 import { SupabaseDashboardService } from '../services/supabaseService';
@@ -38,6 +39,7 @@ import { DeveloperLogsView } from './views/DeveloperLogsView';
 import { OrganizationView } from './views/OrganizationView';
 import { TeamRolesView } from './views/TeamRolesView';
 import { SettingsView } from './views/SettingsView';
+import { EnterpriseHeaderWidgets } from '../views/overview/EnterpriseHeaderWidgets';
 
 interface EnterpriseDashboardProps {
   onClose: () => void;
@@ -63,7 +65,7 @@ export function EnterpriseDashboardView({
     knowledge_brain: 'rag',
     mcp_connectors: 'mcp',
     agent_evals: 'evals',
-    payments_bills: 'payments',
+    payments_bills: 'payments-billing',
     zeroclaw_terminal: 'zeroclaw',
     infrastructure: 'infra',
     usage_billing: 'billing',
@@ -74,6 +76,7 @@ export function EnterpriseDashboardView({
     webhooks: 'webhooks',
     system_logs: 'logs',
     rbac_sso: 'sso',
+    help: 'bantuan',
   };
 
   const slugToTabMap: Record<string, string> = {
@@ -84,6 +87,7 @@ export function EnterpriseDashboardView({
     rag: 'knowledge_brain',
     mcp: 'mcp_connectors',
     evals: 'agent_evals',
+    'payments-billing': 'payments_bills',
     payments: 'payments_bills',
     zeroclaw: 'zeroclaw_terminal',
     infra: 'infrastructure',
@@ -95,6 +99,7 @@ export function EnterpriseDashboardView({
     webhooks: 'webhooks',
     logs: 'system_logs',
     sso: 'rbac_sso',
+    bantuan: 'help',
   };
 
   const getInitialTab = () => {
@@ -138,6 +143,8 @@ export function EnterpriseDashboardView({
   }, []);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
@@ -160,6 +167,7 @@ export function EnterpriseDashboardView({
         { id: 'knowledge_brain', label: 'Knowledge Hub', icon: Brain, badge: 'Qdrant' },
         { id: 'mcp_connectors', label: 'MCP Hub', icon: Database, badge: '14 Active' },
         { id: 'integrations', label: 'Integrations', icon: Layers, badge: 'Cloud' },
+        { id: 'help', label: 'Pusat Bantuan', icon: HelpCircle, badge: 'Support 24/7' },
       ],
     },
     {
@@ -248,6 +256,15 @@ export function EnterpriseDashboardView({
     }));
   };
 
+  const toggleAllCategories = () => {
+    const isAnyExpanded = Object.values(expandedCategories).some(Boolean);
+    const newState: Record<string, boolean> = {};
+    enterpriseMenuCategories.forEach(cat => {
+      newState[cat.category] = !isAnyExpanded;
+    });
+    setExpandedCategories(newState);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-sm">
       {/* Toast Banner */}
@@ -258,54 +275,97 @@ export function EnterpriseDashboardView({
         </div>
       )}
 
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex">
-        <div className="p-4 space-y-4 overflow-y-auto">
-          {/* Workspace Title & Badge */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              <ZegaLogo size={32} showText={false} />
-              <div>
-                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">ZEGA Enterprise</span>
-                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block font-mono font-bold">
-                  ORCHESTRATOR HUB
-                </span>
+      {/* SIDEBAR NAVIGATION (Collapsible Desktop w-64 vs w-20) */}
+      <aside className={`relative ${isSidebarCollapsed ? 'w-20' : 'w-64'} border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex transition-all duration-300 select-none`}>
+        {/* Floating Chevron Collapse/Expand Button on Sidebar Right Border (High-Contrast Dark Indigo) */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          title={isSidebarCollapsed ? "Buka Sidebar (Expand)" : "Tutup Sidebar (Collapse)"}
+          className="absolute -right-3.5 top-[28px] -translate-y-1/2 z-50 size-7 rounded-full border border-slate-700 dark:border-indigo-400/60 bg-slate-900 dark:bg-indigo-600 text-white shadow-lg shadow-indigo-950/30 ring-2 ring-white dark:ring-slate-950 flex items-center justify-center cursor-pointer transition-all hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:scale-110 active:scale-95 group"
+        >
+          <ChevronRight size={14} className={`transition-transform duration-300 text-white ${isSidebarCollapsed ? '' : 'rotate-180'}`} />
+        </button>
+        <div className="p-3 space-y-4 overflow-y-auto">
+          {/* Workspace Title & Logo Header */}
+          <div className="pb-3 border-b border-slate-200 dark:border-slate-800 space-y-3">
+            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+              <div className="flex items-center gap-2.5">
+                <ZegaLogo size={32} showText={false} />
+                {!isSidebarCollapsed && (
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 block tracking-tight">ZEGA Enterprise</span>
+                    <span className="text-[9.5px] text-indigo-600 dark:text-indigo-400 block font-mono font-bold">
+                      ORCHESTRATOR HUB
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* User Profile Capsule */}
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-            <div className="truncate">
-              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-              <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail}</p>
+            {/* Top-Left Profile Photo Capsule (Directly Under Logo) */}
+            <div 
+              className={`p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/60 shadow-2xs ${isSidebarCollapsed ? 'flex justify-center' : 'space-y-2'}`}
+              title={`${userName || 'Danz A.'} (${userEmail || 'admin@zegaai.site'}) - ENTERPRISE ADMIN`}
+            >
+              <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+                <div className="flex items-center gap-2.5 truncate">
+                  <img 
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
+                    alt="Enterprise User Avatar"
+                    className="size-9 rounded-full object-cover border border-indigo-200 dark:border-indigo-800 shadow-xs shrink-0"
+                  />
+                  {!isSidebarCollapsed && (
+                    <div className="truncate text-left">
+                      <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName || 'Danz A.'}</p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail || 'admin@zegaai.site'}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {!isSidebarCollapsed && (
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50 text-[9px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full border bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 uppercase font-mono tracking-wider">
+                    ENTERPRISE ADMIN
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                  </span>
+                </div>
+              )}
             </div>
-            <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
-              ENTERPRISE
-            </span>
           </div>
 
-          {/* Render Categorized Menu Items */}
-          <nav className="space-y-3 pt-2">
+          {/* Render Categorized Menu Items (Buka-Tutup Accordion & Tooltip support) */}
+          <nav className="space-y-2.5 pt-1">
             {enterpriseMenuCategories.map((cat, idx) => {
               const isExpanded = expandedCategories[cat.category] ?? (idx === 0);
               const hasActiveChild = cat.items.some(item => item.id === activeTab);
               return (
-                <div key={idx} className="space-y-1 rounded-xl p-1 transition-all border border-slate-200/40 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/50">
-                  <button
-                    onClick={() => toggleCategory(cat.category)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer select-none"
-                  >
-                    <span className="flex items-center gap-1.5 truncate">
-                      {isExpanded ? <ChevronDown size={13} className="text-indigo-500" /> : <ChevronRight size={13} className="text-slate-400" />}
-                      <span className="truncate">{cat.category}</span>
-                    </span>
-                    {hasActiveChild && !isExpanded && (
-                      <span className="size-2 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
-                    )}
-                  </button>
+                <div key={idx} className={`space-y-1 rounded-2xl p-1 transition-all border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40 ${isSidebarCollapsed ? 'text-center' : ''}`}>
+                  {!isSidebarCollapsed ? (
+                    <button
+                      onClick={() => toggleCategory(cat.category)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer select-none"
+                      title={`Klik untuk ${isExpanded ? 'menutup' : 'membuka'} kategori ${cat.category}`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <ChevronRight 
+                          size={13} 
+                          className={`text-indigo-500 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-indigo-600' : 'text-slate-400'}`} 
+                        />
+                        <span className="truncate">{cat.category}</span>
+                      </span>
+                      {hasActiveChild && !isExpanded && (
+                        <span className="size-2 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
+                      )}
+                    </button>
+                  ) : (
+                    <div className="py-1 border-b border-slate-200/40 dark:border-slate-800/40 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest text-center truncate" title={cat.category}>
+                      {cat.category.substring(0, 3)}
+                    </div>
+                  )}
 
-                  {isExpanded && (
+                  {(isExpanded || isSidebarCollapsed) && (
                     <div className="space-y-1 pt-0.5">
                       {cat.items.map((item) => {
                         const Icon = item.icon;
@@ -314,19 +374,20 @@ export function EnterpriseDashboardView({
                           <button
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
-                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                            title={`${item.label} ${item.badge ? `(${item.badge})` : ''}`}
+                            className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-1.5'} rounded-xl text-xs transition-all cursor-pointer ${
                               isActive
-                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold shadow-none'
+                                ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20'
                                 : 'text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-200/70 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-slate-100'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 truncate">
-                              <Icon size={15} />
-                              <span className="truncate">{item.label}</span>
+                            <div className={`flex items-center gap-2.5 ${isSidebarCollapsed ? 'justify-center' : 'truncate'}`}>
+                              <Icon size={16} />
+                              {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                             </div>
-                            {item.badge && (
-                              <span className={`text-[9px] font-mono font-medium px-2 py-0.5 rounded-md flex-shrink-0 ml-1 ${
-                                isActive ? 'bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            {!isSidebarCollapsed && item.badge && (
+                              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex-shrink-0 ml-1 ${
+                                isActive ? 'bg-white/20 text-white' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                               }`}>
                                 {item.badge}
                               </span>
@@ -342,20 +403,20 @@ export function EnterpriseDashboardView({
           </nav>
         </div>
 
-        {/* Footer Profile & Sign Out */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 truncate">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
-                alt="Enterprise User"
-                className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-              />
-              <div className="truncate text-left">
-                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
-              </div>
-            </div>
+        {/* Bottom Left Footer: Pusat Bantuan and Sign Out Button */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className={`flex items-center ${isSidebarCollapsed ? 'flex-col gap-2' : 'justify-between gap-2'} text-xs font-bold`}>
+            {/* Pusat Bantuan Link */}
+            <button
+              onClick={() => setActiveTab('help')}
+              title="Buka Pusat Bantuan 24/7 & Support Ticket"
+              className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border border-indigo-200/60 dark:border-indigo-900/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-all cursor-pointer text-[11px] ${isSidebarCollapsed ? 'w-full' : 'flex-1'}`}
+            >
+              <HelpCircle size={15} />
+              {!isSidebarCollapsed && <span>Pusat Bantuan</span>}
+            </button>
+
+            {/* Sign Out Button in Bottom-Left Footer */}
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -363,8 +424,8 @@ export function EnterpriseDashboardView({
                 await SupabaseDashboardService.signOut();
                 onClose();
               }}
-              title="Sign Out"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Keluar dari Akun (Sign Out)"
+              className={`p-2 rounded-xl border border-red-200 dark:border-red-900/60 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-all cursor-pointer ${isSidebarCollapsed ? 'w-full flex justify-center' : ''}`}
             >
               <LogOut size={16} />
             </button>
@@ -381,9 +442,10 @@ export function EnterpriseDashboardView({
           <div className="flex items-center gap-4 flex-1 max-w-md">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden cursor-pointer"
+              title="Buka Navigation Drawer"
+              className="size-7 rounded-full border border-slate-700 dark:border-indigo-400/60 bg-slate-900 dark:bg-indigo-600 text-white shadow-md shadow-indigo-950/30 ring-2 ring-white dark:ring-slate-950 flex items-center justify-center cursor-pointer transition-all hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:scale-110 active:scale-95 md:hidden shrink-0"
             >
-              <Menu size={18} />
+              <ChevronRight size={14} className="text-white" />
             </button>
             <div className="relative w-full hidden sm:block">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -395,27 +457,36 @@ export function EnterpriseDashboardView({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
-              <Sparkles size={14} className="text-indigo-500" />
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap pt-2.5 pb-1 my-auto">
+            {/* Unified Enterprise Controls (Upgrade Scale, Calendar, Notifications & Profile) */}
+            <EnterpriseHeaderWidgets
+              userName={displayOrgName}
+              userEmail={userEmail || 'admin@zegaai.site'}
+              dark={dark}
+              setDark={setDark}
+              triggerToast={triggerToast}
+              timeRange="Last 24 hours"
+              setTimeRange={() => {}}
+            />
+
+            <button
+              onClick={() => setReleaseNotesOpen(true)}
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-extrabold hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+            >
+              <Sparkles size={14} className="text-indigo-500 animate-pulse" />
               <span>Release v2.4</span>
-              <span className="size-1.5 rounded-full bg-indigo-500" />
-            </button>
-            
-            <button className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
-              <Bell size={16} />
-              <span className="absolute top-1 right-1 size-2 rounded-full bg-indigo-500" />
             </button>
 
             <button
               onClick={() => setDark(!dark)}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
+              title="Toggle Theme"
             >
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <LanguageSelector />
-            
-
+            <div className="hidden sm:block">
+              <LanguageSelector />
+            </div>
           </div>
         </header>
 
@@ -431,7 +502,12 @@ export function EnterpriseDashboardView({
           )}
           {activeTab === 'ai_command' && <AiCommandCenterView onTriggerToast={triggerToast} />}
           {activeTab === 'sandbox' && <SandboxWorkflowView />}
-          {(activeTab === 'agent_swarms' || activeTab === 'multi_agents') && <AgentSwarmsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'agent_swarms' || activeTab === 'multi_agents') && (
+            <AgentSwarmsView 
+              onTriggerToast={triggerToast} 
+              onNavigateTab={(tab) => setActiveTab(tab)} 
+            />
+          )}
           {activeTab === 'knowledge_brain' && <KnowledgeBrainView onTriggerToast={triggerToast} />}
           {activeTab === 'integrations' && <IntegrationsView onTriggerToast={triggerToast} />}
           {activeTab === 'mcp_connectors' && <McpConnectorsView onTriggerToast={triggerToast} />}
@@ -449,48 +525,68 @@ export function EnterpriseDashboardView({
           {(activeTab === 'rbac_sso' || activeTab === 'organization') && <OrganizationView onTriggerToast={triggerToast} />}
           {activeTab === 'team_roles' && <TeamRolesView onTriggerToast={triggerToast} />}
           {activeTab === 'settings' && <SettingsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'help' || activeTab === 'bantuan') && <HelpView />}
         </div>
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}
-        <div className="md:hidden sticky bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-around text-[10px] font-bold text-slate-500">
+        <div className="md:hidden sticky bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-2 flex items-center justify-around text-[10px] font-bold text-slate-500 shadow-2xl">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex flex-col items-center gap-0.5 ${activeTab === 'overview' || activeTab === 'console' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+            className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'overview' || activeTab === 'console'
+                ? 'text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50/80 dark:bg-indigo-950/60 scale-105'
+                : 'hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
             <LayoutDashboard size={18} />
             <span>Overview</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('agent_swarms')}
-            className={`flex flex-col items-center gap-0.5 ${activeTab === 'agent_swarms' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+            onClick={() => setActiveTab('multi_agents')}
+            className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'multi_agents' || activeTab === 'agent_swarms'
+                ? 'text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50/80 dark:bg-indigo-950/60 scale-105'
+                : 'hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
             <Bot size={18} />
-            <span>Swarms</span>
+            <span>Agents</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('zeroclaw_terminal')}
-            className={`flex flex-col items-center gap-0.5 ${activeTab === 'zeroclaw_terminal' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+            onClick={() => setActiveTab('sandbox')}
+            className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'sandbox'
+                ? 'text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50/80 dark:bg-indigo-950/60 scale-105'
+                : 'hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
-            <Zap size={18} />
-            <span>ZeroClaw</span>
+            <Workflow size={18} />
+            <span>Studio</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('dev_portal')}
-            className={`flex flex-col items-center gap-0.5 ${activeTab === 'dev_portal' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''}`}
+            onClick={() => setActiveTab('help')}
+            className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'help' || activeTab === 'bantuan'
+                ? 'text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50/80 dark:bg-indigo-950/60 scale-105'
+                : 'hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
           >
-            <Code size={18} />
-            <span>Dev Portal</span>
+            <HelpCircle size={18} />
+            <span>Bantuan</span>
           </button>
 
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="flex flex-col items-center gap-0.5 text-slate-700 dark:text-slate-300"
+            className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer relative"
           >
-            <Menu size={18} />
+            <div className="size-6 rounded-full bg-slate-900 dark:bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+              <ChevronRight size={13} className="text-white" />
+            </div>
             <span>Menu</span>
+            <span className="absolute top-1 right-2 size-2 rounded-full bg-indigo-500 animate-pulse" />
           </button>
         </div>
       </main>
@@ -500,47 +596,75 @@ export function EnterpriseDashboardView({
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity animate-fadeIn"
           />
 
-          <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 z-10 shadow-2xl border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
-            <div className="space-y-4">
+          <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 z-10 shadow-2xl border-r border-slate-200 dark:border-slate-800 animate-slideInLeft select-none">
+            {/* Floating Chevron Close Button on Mobile Drawer Border (Unclipped) */}
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              title="Tutup Menu Mobile"
+              className="absolute -right-3.5 top-[28px] -translate-y-1/2 z-50 size-7 rounded-full border border-slate-700 dark:border-indigo-400/60 bg-slate-900 dark:bg-indigo-600 text-white shadow-lg shadow-indigo-950/30 ring-2 ring-white dark:ring-slate-950 flex items-center justify-center cursor-pointer transition-all hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:scale-110 active:scale-95 group"
+            >
+              <ChevronLeft size={14} className="text-white" />
+            </button>
+
+            <div className="space-y-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none] pr-1">
+              {/* Header Mobile Drawer */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <ZegaLogo size={28} showText={false} />
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">ZEGA Enterprise</span>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 block tracking-tight">ZEGA Enterprise</span>
+                    <span className="text-[9px] text-indigo-600 dark:text-indigo-400 block font-mono font-bold">MOBILE STUDIO</span>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
-                >
-                  <X size={16} />
-                </button>
               </div>
 
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-                <div className="truncate">
-                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                  <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail}</p>
+              {/* Mobile Profile Photo Capsule (Top-Left under Logo Header) */}
+              <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/60 shadow-2xs space-y-2">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
+                    alt="Enterprise User Avatar"
+                    className="size-9 rounded-full object-cover border border-indigo-200 dark:border-indigo-800 shadow-xs shrink-0"
+                  />
+                  <div className="truncate">
+                    <p className="text-xs font-extrabold text-slate-900 dark:text-slate-100 truncate">{userName || 'Danz A.'}</p>
+                    <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail || 'admin@zegaai.site'}</p>
+                  </div>
                 </div>
-                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
-                  ENTERPRISE
-                </span>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50 text-[9px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full border bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 uppercase font-mono tracking-wider">
+                    ENTERPRISE ADMIN
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                  </span>
+                </div>
               </div>
 
-              <nav className="space-y-3">
+              {/* Mobile Navigation Accordions */}
+              <nav className="space-y-2.5 pt-1">
                 {enterpriseMenuCategories.map((cat, idx) => {
                   const isExpanded = expandedCategories[cat.category] ?? (idx === 0);
+                  const hasActiveChild = cat.items.some(item => item.id === activeTab);
                   return (
-                    <div key={idx} className="space-y-1 rounded-xl p-1 border border-slate-200/40 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div key={idx} className="space-y-1 rounded-2xl p-1 border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
                       <button
                         onClick={() => toggleCategory(cat.category)}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer select-none"
                       >
-                        <span className="flex items-center gap-1.5">
-                          {isExpanded ? <ChevronDown size={13} className="text-indigo-500" /> : <ChevronRight size={13} className="text-slate-400" />}
-                          <span>{cat.category}</span>
+                        <span className="flex items-center gap-1.5 truncate">
+                          <ChevronRight 
+                            size={13} 
+                            className={`text-indigo-500 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-indigo-600' : 'text-slate-400'}`} 
+                          />
+                          <span className="truncate">{cat.category}</span>
                         </span>
+                        {hasActiveChild && !isExpanded && (
+                          <span className="size-2 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
+                        )}
                       </button>
 
                       {isExpanded && (
@@ -555,16 +679,23 @@ export function EnterpriseDashboardView({
                                   setActiveTab(item.id);
                                   setMobileMenuOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                                   isActive
-                                    ? 'bg-indigo-600 text-white shadow-xs'
-                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800/70'
                                 }`}
                               >
-                                <div className="flex items-center gap-2.5">
-                                  <Icon size={16} />
-                                  <span>{item.label}</span>
+                                <div className="flex items-center gap-2.5 truncate">
+                                  <Icon size={15} />
+                                  <span className="truncate">{item.label}</span>
                                 </div>
+                                {item.badge && (
+                                  <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex-shrink-0 ml-1 ${
+                                    isActive ? 'bg-white/20 text-white' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                                  }`}>
+                                    {item.badge}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
@@ -576,16 +707,126 @@ export function EnterpriseDashboardView({
               </nav>
             </div>
 
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+            {/* Bottom Footer Mobile Drawer */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-white dark:bg-slate-900">
+              <button
+                onClick={() => {
+                  setActiveTab('help');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full py-2 px-3 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <HelpCircle size={15} />
+                <span>Pusat Bantuan 24/7</span>
+              </button>
+
               <button
                 onClick={async () => {
                   await SupabaseDashboardService.signOut();
                   onClose();
                 }}
-                className="w-full py-2.5 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center gap-2"
+                className="w-full py-2 px-3 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <LogOut size={15} />
                 <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RELEASE NOTES V2.4 MODAL (DESKTOP & MOBILE RESPONSIVE) */}
+      {releaseNotesOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-2xl max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-indigo-900 via-slate-900 to-purple-900 text-white flex items-center justify-between border-b border-indigo-500/30">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/40 p-2 flex items-center justify-center shrink-0">
+                  <Sparkles className="text-indigo-400" size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black tracking-tight">ZEGA Enterprise v2.4 Release</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black uppercase">
+                      Official Flagship
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-medium">9Router Engine • OWASP Level 3 Telemetry • Multi-LLM Swarm</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReleaseNotesOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-slate-800 dark:text-slate-200 text-xs leading-relaxed">
+              <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 flex items-start gap-3">
+                <Zap className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" size={18} />
+                <div>
+                  <h4 className="font-extrabold text-xs text-indigo-950 dark:text-indigo-200">Release v2.4 Feature Highlights</h4>
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">
+                    Versi 2.4 membawa arsitektur AI kluster enterprise tingkat lanjut dengan integrasi 9Router Layer 5 Engine, OWASP Level 3 Security Telemetry, serta latensi inferensi sub-detik.
+                  </p>
+                </div>
+              </div>
+
+              {/* Grid Features */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    <Cpu className="text-indigo-500" size={15} />
+                    <span>Multi-LLM 9Router Failover</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Dukungan multi-model paralel: DeepSeek V4/V3, Gemini 3.6/3.5 Flash, Groq 70B LPU, dan OpenRouter dengan failover latensi sub-detik.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    <ShieldCheck className="text-emerald-500" size={15} />
+                    <span>5-Layer OWASP Guardrails</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Perlindungan OWASP LLM01 Prompt Injection, OWASP LLM07 Data Leakage Redaction, Anti-Throttling 150ms, dan 1MB packet chunk limit.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    <Database className="text-purple-500" size={15} />
+                    <span>Supabase Realtime Telemetry</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Sinkronisasi WebSocket real-time untuk 8 node infrastruktur enterprise, RLS policies, dan audit trail live activity.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    <Zap className="text-amber-500" size={15} />
+                    <span>ZeroClaw Keyless Terminal</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Orkestrasi terminal ZeroClaw v0.8.3 dengan dompet terenkripsi Privy Solana Devnet & penyelesaian transaksi otomatis.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-[10px] font-mono text-slate-400">ZEGA Enterprise AI • Build 2026.08.05</span>
+              <button
+                onClick={() => setReleaseNotesOpen(false)}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all active:scale-95"
+              >
+                Close Release Notes
               </button>
             </div>
           </div>

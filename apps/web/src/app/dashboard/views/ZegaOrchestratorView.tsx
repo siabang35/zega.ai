@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Activity, Zap, CheckCircle2, ArrowUpRight, 
-  ChevronRight, Plus, X, Search, Check, Layers, Sparkles,
-  Globe, Clock, Network, Bot, Workflow, ShieldCheck, Database,
-  Cpu, Lock, Server, BarChart3, ChevronDown, RefreshCw, Send,
-  SlidersHorizontal, AlertTriangle, FileText, Mail, MessageSquare,
-  HelpCircle, Settings, Bell, TrendingUp, Sparkle, UserCheck, ArrowRight,
-  Building, DollarSign, ShieldAlert, CpuIcon, Layers3, Users, ChevronUp
+  Activity, Zap, CheckCircle2, 
+  Plus, Clock, ShieldCheck, Database,
+  Cpu, SlidersHorizontal, Users,
+  Bot, Building, DollarSign, ShieldAlert
 } from 'lucide-react';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { getR2CdnUrl } from '../../utils/cdn';
+import { SupabaseDashboardService } from '../services/supabaseService';
+import { OverviewModals } from './overview/OverviewModals';
+import { EnterpriseHeaderWidgets } from './overview/EnterpriseHeaderWidgets';
+import { EnterpriseCopilot } from './overview/EnterpriseCopilot';
 
 export interface ZegaOrchestratorViewProps {
   userRole?: 'individual' | 'enterprise';
@@ -30,29 +31,67 @@ export function ZegaOrchestratorView({
   onNavigateToSandbox,
   onSwitchWorkspace
 }: ZegaOrchestratorViewProps) {
-  // Determine displayed organization name based on auth state
-  const isGuestUser = false;
   const displayOrgName = userName || 'Enterprise';
 
-  // Time Range State
+  // Realtime & Dashboard States
   const [timeRange, setTimeRange] = useState('Last 24 hours');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [realtimeData, setRealtimeData] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Sparkline data generator for KPI cards
+  // Fetch Supabase Enterprise Overview Realtime Data
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOverviewData() {
+      setLoading(true);
+      const data = await SupabaseDashboardService.getEnterpriseOverviewRealtimeData('99999999-9999-9999-9999-999999999999', timeRange);
+      if (isMounted && data) {
+        setRealtimeData(data);
+        setLoading(false);
+      }
+    }
+
+    loadOverviewData();
+
+    // Subscribe to Realtime Postgres Changes (Anti-throttled & OWASP Anti-chunking protected)
+    const unsubscribe = SupabaseDashboardService.subscribeToEnterpriseOverviewRealtime('99999999-9999-9999-9999-999999999999', () => {
+      loadOverviewData();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [timeRange]);
+
+  // Dynamic KPI Extraction with database fallback
+  const kpis = realtimeData?.kpis || {};
+  const activeAgentsVal = kpis.active_agents ?? 638;
+  const businessUnitsVal = kpis.business_units ?? 14;
+  const automationHoursVal = kpis.automation_hours ? `${kpis.automation_hours.toLocaleString()} h` : '9,420 h';
+  const monthlySavingsVal = kpis.monthly_savings_usd ? `$${(kpis.monthly_savings_usd / 1000000).toFixed(2)}M` : '$2.61M';
+  const aiRequestsVal = kpis.ai_requests_per_min ? kpis.ai_requests_per_min.toLocaleString() : '18,732';
+  const systemHealthVal = kpis.system_health_pct ? `${kpis.system_health_pct}%` : '99.98%';
+  const avgLatencyVal = kpis.avg_latency_ms ? `${kpis.avg_latency_ms} ms` : '121 ms';
+
+  // Sparkline SVG Generator
   const generateSparklineSvg = (color: string, points: number[]) => {
-    const max = Math.max(...points);
-    const min = Math.min(...points);
+    const dataPoints = points && points.length ? points : [20, 25, 22, 30, 38, 45, 52, 60, 63];
+    const max = Math.max(...dataPoints);
+    const min = Math.min(...dataPoints);
     const range = max - min || 1;
     const width = 120;
     const height = 28;
     
-    const coords = points.map((p, idx) => {
-      const x = (idx / (points.length - 1)) * width;
+    const coords = dataPoints.map((p, idx) => {
+      const x = (idx / (dataPoints.length - 1)) * width;
       const y = height - ((p - min) / range) * (height - 6) - 3;
       return `${x},${y}`;
     }).join(' L ');
@@ -75,42 +114,10 @@ export function ZegaOrchestratorView({
   const costLineData = {
     labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
     datasets: [
-      {
-        label: 'OpenAI',
-        data: [12000, 19000, 35000, 58000, 72000, 85000, 94000],
-        borderColor: '#4f46e5',
-        backgroundColor: 'rgba(79, 70, 229, 0.05)',
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-      },
-      {
-        label: 'Anthropic',
-        data: [8000, 14000, 22000, 38000, 48000, 56000, 62000],
-        borderColor: '#f97316',
-        backgroundColor: 'transparent',
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-      },
-      {
-        label: 'Google',
-        data: [4000, 7000, 12000, 21000, 29000, 34000, 38000],
-        borderColor: '#06b6d4',
-        backgroundColor: 'transparent',
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-      },
-      {
-        label: 'Others',
-        data: [2000, 3500, 6000, 9000, 12000, 14000, 16000],
-        borderColor: '#a855f7',
-        backgroundColor: 'transparent',
-        tension: 0.4,
-        borderWidth: 2,
-        pointRadius: 0,
-      },
+      { label: 'OpenAI', data: [12000, 19000, 35000, 58000, 72000, 85000, 94000], borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.05)', tension: 0.4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Anthropic', data: [8000, 14000, 22000, 38000, 48000, 56000, 62000], borderColor: '#f97316', backgroundColor: 'transparent', tension: 0.4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Google', data: [4000, 7000, 12000, 21000, 29000, 34000, 38000], borderColor: '#06b6d4', backgroundColor: 'transparent', tension: 0.4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Others', data: [2000, 3500, 6000, 9000, 12000, 14000, 16000], borderColor: '#a855f7', backgroundColor: 'transparent', tension: 0.4, borderWidth: 2, pointRadius: 0 },
     ],
   };
 
@@ -144,6 +151,29 @@ export function ZegaOrchestratorView({
     plugins: { legend: { display: false }, tooltip: { enabled: true } },
   };
 
+  const agentTeamsList = realtimeData?.agentTeams?.length ? realtimeData.agentTeams : [
+    { team_name: 'Sales Team', agent_count: 42, badge_color: 'bg-blue-500' },
+    { team_name: 'Finance Team', agent_count: 36, badge_color: 'bg-emerald-500' },
+    { team_name: 'HR Team', agent_count: 29, badge_color: 'bg-purple-500' },
+    { team_name: 'Marketing Team', agent_count: 33, badge_color: 'bg-amber-500' },
+    { team_name: 'Legal Team', agent_count: 16, badge_color: 'bg-indigo-500' },
+    { team_name: 'DevOps Team', agent_count: 41, badge_color: 'bg-sky-500' },
+    { team_name: 'Research Team', agent_count: 22, badge_color: 'bg-teal-500' },
+    { team_name: 'Coding Team', agent_count: 65, badge_color: 'bg-rose-500' },
+  ];
+
+  const liveActivitiesList = realtimeData?.activities?.length ? realtimeData.activities : [
+    { event_timestamp: '09:41:22', workflow_title: 'Invoice Processing Workflow', agent_name: 'Finance Agent', status: 'Completed' },
+    { event_timestamp: '09:41:18', workflow_title: 'Lead Qualification', agent_name: 'Sales Agent', status: 'Running' },
+    { event_timestamp: '09:41:15', workflow_title: 'Support Ticket Resolution', agent_name: 'Support Agent', status: 'Completed' },
+    { event_timestamp: '09:41:10', workflow_title: 'Employee Onboarding', agent_name: 'HR Agent', status: 'Running' },
+    { event_timestamp: '09:41:05', workflow_title: 'Marketing Campaign Report', agent_name: 'Marketing Agent', status: 'Completed' },
+  ];
+
+  const systemComponentsList = realtimeData?.systemComponents?.length ? realtimeData.systemComponents : [
+    'API Gateway', 'Supabase', 'Vector Database', 'Redis Cache', 'ZeroClaw Node', 'MCP Server', 'Edge Network', 'Monitoring'
+  ];
+
   return (
     <div className="space-y-6 text-slate-800 dark:text-slate-100 font-sans animate-fadeIn">
       {/* Toast Notification */}
@@ -154,35 +184,61 @@ export function ZegaOrchestratorView({
         </div>
       )}
 
-      {/* TOP HEADER BAR (Reference Design) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 flex items-center gap-2">
-            Good Morning, {displayOrgName} 👋
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-            Enterprise AI Operating System
+      {/* TOP HEADER BAR (RESPONSIVE DESKTOP & MOBILE BEST PRACTICES) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="space-y-1.5">
+          {/* Header Title & Compact Robotic Video Badge Inline */}
+          <div className="flex items-center justify-between sm:justify-start gap-3">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50 truncate">
+              Good Morning, {displayOrgName} 👋
+            </h1>
+
+            {/* Executive Animated Robotic Video Showcase (Elevated Height & Cinematic Widescreen Proportion) */}
+            <div className="relative overflow-hidden rounded-2xl border-2 border-indigo-500/40 bg-slate-950 shadow-xl shrink-0 w-40 sm:w-64 md:w-80 h-20 sm:h-26 md:h-28 aspect-video transition-all hover:scale-105 hover:border-indigo-400">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls={false}
+                className="w-full h-full object-cover"
+                src="/design/design_enterprise/robotic_enterprise.mp4"
+              >
+                <source src="/design/design_enterprise/robotic_enterprise.mp4" type="video/mp4" />
+                <source src={getR2CdnUrl('/design/design_enterprise/robotic_enterprise.mp4', true)} type="video/mp4" />
+              </video>
+            </div>
+          </div>
+
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium flex flex-wrap items-center gap-2">
+            <span>Enterprise AI Operating System</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 text-[9px] sm:text-[9.5px] font-bold border border-emerald-200 dark:border-emerald-800">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Supabase Realtime Active
+            </span>
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Time Filter & Customize Actions */}
+        <div className="flex items-center gap-2 shrink-0 pt-1 lg:pt-0">
+
           {/* Time Picker Dropdown */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs">
-            <Clock size={14} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs shrink-0">
+            <Clock size={13} className="text-slate-400 shrink-0" />
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="bg-transparent focus:outline-none text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
+              className="bg-transparent focus:outline-none text-[11px] sm:text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
               <option>Last 24 hours</option>
               <option>Last 7 days</option>
               <option>Last 30 days</option>
+              <option>Last 90 days</option>
             </select>
           </div>
 
-          {/* Customize Button */}
+          {/* Customize Button (Active Modal Trigger) */}
           <button 
-            onClick={() => triggerToast('Customizing overview widgets layout')}
+            onClick={() => setActiveModal('customize')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
           >
             <SlidersHorizontal size={14} className="text-slate-400" />
@@ -191,8 +247,8 @@ export function ZegaOrchestratorView({
         </div>
       </div>
 
-      {/* TOP KPI CARDS STRIP (7 Cards with Sparklines & Clean Icons) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      {/* TOP KPI CARDS STRIP (7 Cards with Live Realtime Data - 2 cols on mobile for best practice UI) */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 sm:gap-3">
         {/* Card 1: Active AI Agents */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 flex flex-col justify-between shadow-2xs">
           <div>
@@ -203,14 +259,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">638</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{activeAgentsVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▲ 18.2%
+                ▲ {kpis.active_agents_change_pct ?? 18.2}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#3b82f6', [20, 25, 22, 30, 38, 45, 52, 60, 63])}
+            {generateSparklineSvg('#3b82f6', kpis.active_agents_sparkline)}
           </div>
         </div>
 
@@ -224,14 +280,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">14</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{businessUnitsVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▲ 7.1%
+                ▲ {kpis.business_units_change_pct ?? 7.1}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#8b5cf6', [10, 11, 11, 12, 12, 13, 13, 14, 14])}
+            {generateSparklineSvg('#8b5cf6', kpis.business_units_sparkline)}
           </div>
         </div>
 
@@ -245,14 +301,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">9,420 h</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{automationHoursVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▲ 24.5%
+                ▲ {kpis.automation_hours_change_pct ?? 24.5}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#10b981', [5000, 5800, 6200, 7100, 7800, 8400, 9420])}
+            {generateSparklineSvg('#10b981', kpis.automation_hours_sparkline)}
           </div>
         </div>
 
@@ -266,14 +322,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">$2.61M</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{monthlySavingsVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▲ 32.6%
+                ▲ {kpis.monthly_savings_change_pct ?? 32.6}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#f59e0b', [1.2, 1.4, 1.6, 1.9, 2.1, 2.4, 2.61])}
+            {generateSparklineSvg('#f59e0b', kpis.monthly_savings_sparkline)}
           </div>
         </div>
 
@@ -287,14 +343,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">18,732</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{aiRequestsVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▲ 28.4%
+                ▲ {kpis.ai_requests_change_pct ?? 28.4}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#0284c7', [11000, 12500, 14000, 15800, 17200, 18732])}
+            {generateSparklineSvg('#0284c7', kpis.ai_requests_sparkline)}
           </div>
         </div>
 
@@ -308,14 +364,14 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">99.98%</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{systemHealthVal}</span>
               <span className="text-[9.5px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">
-                Excellent
+                {kpis.system_health_status || 'Excellent'}
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#10b981', [99.9, 99.92, 99.95, 99.98, 99.98, 99.98])}
+            {generateSparklineSvg('#10b981', kpis.system_health_sparkline)}
           </div>
         </div>
 
@@ -329,21 +385,21 @@ export function ZegaOrchestratorView({
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">121 ms</span>
+              <span className="text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight font-mono">{avgLatencyVal}</span>
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                ▼ 8.2%
+                ▼ {Math.abs(kpis.avg_latency_change_pct ?? 8.2)}%
               </span>
             </div>
           </div>
           <div className="mt-2 pt-1">
-            {generateSparklineSvg('#6366f1', [145, 140, 136, 130, 126, 123, 121])}
+            {generateSparklineSvg('#6366f1', kpis.avg_latency_sparkline)}
           </div>
         </div>
       </div>
 
-      {/* MIDDLE GRID ROW (3 Component Cards) */}
+      {/* MIDDLE GRID ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Component 1: AI Orchestration Pipeline (Left ~45% width) */}
+        {/* Component 1: AI Orchestration Pipeline */}
         <div className="lg:col-span-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-between shadow-2xs">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -355,28 +411,29 @@ export function ZegaOrchestratorView({
                   <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => triggerToast('Opening Pipeline Details')} className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">
-                  View Details
-                </button>
-              </div>
+              <button 
+                onClick={() => setActiveModal('pipeline')} 
+                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                View Details &gt;
+              </button>
             </div>
 
-            {/* Visual Horizontal Pipeline Nodes (8 Stages) */}
+            {/* Visual Horizontal Pipeline Nodes */}
             <div className="mt-6 py-2 overflow-x-auto no-scrollbar">
               <div className="min-w-[680px] flex items-center justify-between gap-2 text-center">
                 {[
                   { name: 'Trigger', sub: 'Event / API', icon: Zap, done: true },
-                  { name: 'Planner', sub: 'Goal Decomp.', icon: Layers, done: true },
-                  { name: 'Reasoning', sub: 'Multi-step Think', icon: Sparkles, done: true },
+                  { name: 'Planner', sub: 'Goal Decomp.', icon: Bot, done: true },
+                  { name: 'Reasoning', sub: 'Multi-step Think', icon: Activity, done: true },
                   { name: 'Memory', sub: 'Vector Store', icon: Database, done: true },
                   { name: 'Tool Calling', sub: 'APIs & MCP', icon: Cpu, done: true },
                   { name: 'Validation', sub: 'Guardrails', icon: ShieldCheck, done: true },
                   { name: 'Execution', sub: 'Run & Act', icon: PlayIcon, done: true },
-                  { name: 'Human Approval', sub: 'Review', icon: UserCheck, done: false, amber: true },
+                  { name: 'Human Approval', sub: 'Review', icon: Users, done: false, amber: true },
                 ].map((node, idx, arr) => (
                   <React.Fragment key={idx}>
-                    <div className="flex flex-col items-center group cursor-pointer">
+                    <div className="flex flex-col items-center group cursor-pointer" onClick={() => setActiveModal('pipeline')}>
                       <div className={`size-11 rounded-2xl flex items-center justify-center border transition-all ${
                         node.amber 
                           ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
@@ -412,72 +469,70 @@ export function ZegaOrchestratorView({
             <div>
               <div className="text-[10px] text-slate-400 font-semibold">Running Workflows</div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">27</span>
+                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">{realtimeData?.pipeline?.running_workflows ?? 27}</span>
                 <span className="text-[9.5px] font-bold text-emerald-600">▲ 15.3%</span>
               </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-400 font-semibold">Queued</div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">12</span>
+                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">{realtimeData?.pipeline?.queued_workflows ?? 12}</span>
                 <span className="text-[9.5px] font-bold text-emerald-600">▲ 4.2%</span>
               </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-400 font-semibold">Completed</div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">1,892</span>
+                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">{(realtimeData?.pipeline?.completed_workflows ?? 1892).toLocaleString()}</span>
                 <span className="text-[9.5px] font-bold text-emerald-600">▲ 22.1%</span>
               </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-400 font-semibold">Failed</div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">3</span>
+                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">{realtimeData?.pipeline?.failed_workflows ?? 3}</span>
                 <span className="text-[9.5px] font-bold text-emerald-600">▼ 25.0%</span>
               </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-400 font-semibold">Avg Exec Time</div>
               <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">2.43s</span>
+                <span className="font-extrabold font-mono text-slate-900 dark:text-slate-100 text-base">{realtimeData?.pipeline?.avg_exec_time_sec ?? 2.43}s</span>
                 <span className="text-[9.5px] font-bold text-emerald-600">▼ 18.4%</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Component 2: Agent Teams (Middle ~35% width) */}
+        {/* Component 2: Agent Teams */}
         <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-between shadow-2xs">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Agent Teams
               </h3>
-              <button onClick={() => triggerToast('Viewing all Agent Teams')} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+              <button 
+                onClick={() => setActiveModal('agentTeams')} 
+                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
                 View All &gt;
               </button>
             </div>
 
             <div className="mt-3 space-y-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
-              {[
-                { name: 'Sales Team', count: '42 Agents', badgeColor: 'bg-blue-500' },
-                { name: 'Finance Team', count: '36 Agents', badgeColor: 'bg-emerald-500' },
-                { name: 'HR Team', count: '29 Agents', badgeColor: 'bg-purple-500' },
-                { name: 'Marketing Team', count: '33 Agents', badgeColor: 'bg-amber-500' },
-                { name: 'Legal Team', count: '16 Agents', badgeColor: 'bg-indigo-500' },
-                { name: 'DevOps Team', count: '41 Agents', badgeColor: 'bg-sky-500' },
-                { name: 'Research Team', count: '22 Agents', badgeColor: 'bg-teal-500' },
-                { name: 'Coding Team', count: '65 Agents', badgeColor: 'bg-rose-500' },
-              ].map((team, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs">
+              {agentTeamsList.map((team: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  onClick={() => setActiveModal('agentTeams')}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs cursor-pointer"
+                >
                   <div className="flex items-center gap-2.5">
-                    <div className={`size-7 rounded-lg ${team.badgeColor}/10 text-slate-900 dark:text-slate-100 flex items-center justify-center font-bold text-[10px]`}>
+                    <div className={`size-7 rounded-lg ${team.badge_color || 'bg-blue-500'}/10 text-slate-900 dark:text-slate-100 flex items-center justify-center font-bold text-[10px]`}>
                       <Users size={13} className="text-slate-700 dark:text-slate-300" />
                     </div>
                     <div>
-                      <div className="font-bold text-slate-900 dark:text-slate-100">{team.name}</div>
-                      <div className="text-[10px] text-slate-400">{team.count}</div>
+                      <div className="font-bold text-slate-900 dark:text-slate-100">{team.team_name}</div>
+                      <div className="text-[10px] text-slate-400">{team.agent_count} Agents</div>
                     </div>
                   </div>
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -489,14 +544,17 @@ export function ZegaOrchestratorView({
           </div>
         </div>
 
-        {/* Component 3: Top Integrations (Right ~20% width) */}
+        {/* Component 3: Top Integrations */}
         <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-between shadow-2xs">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Top Integrations
               </h3>
-              <button onClick={() => triggerToast('Managing Integrations')} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+              <button 
+                onClick={() => setActiveModal('integrations')} 
+                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
                 Manage All
               </button>
             </div>
@@ -515,13 +573,17 @@ export function ZegaOrchestratorView({
                 { name: 'Snowflake', logo: getR2CdnUrl('/assets/logo/snowflake.png') },
                 { name: 'Google Workspace', logo: getR2CdnUrl('/assets/logo/google_drive.png') },
               ].map((item, idx) => (
-                <div key={idx} className="p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col items-center justify-center text-center hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer">
+                <div 
+                  key={idx} 
+                  onClick={() => setActiveModal('integrations')}
+                  className="p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col items-center justify-center text-center hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                >
                   <img src={item.logo} alt={item.name} className="size-6 object-contain rounded-xs" />
                   <span className="text-[9px] font-semibold text-slate-700 dark:text-slate-300 mt-1 truncate max-w-[50px]">{item.name}</span>
                 </div>
               ))}
               <div 
-                onClick={() => triggerToast('Opening Add Integration Modal')}
+                onClick={() => setActiveModal('integrations')}
                 className="p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 flex flex-col items-center justify-center text-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <Plus size={16} className="text-slate-400" />
@@ -532,31 +594,30 @@ export function ZegaOrchestratorView({
         </div>
       </div>
 
-      {/* BOTTOM GRID ROW (5 Panels) */}
+      {/* BOTTOM GRID ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Panel 1: Live Workflow Activity */}
         <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Live Workflow Activity</h3>
-            <button onClick={() => triggerToast('Viewing Activity Logs')} className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">View All</button>
+            <button 
+              onClick={() => setActiveModal('liveActivity')} 
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              View All
+            </button>
           </div>
 
           <div className="mt-3 space-y-3 text-xs">
-            {[
-              { time: '09:41:22', title: 'Invoice Processing Workflow', agent: 'Finance Agent', status: 'Completed' },
-              { time: '09:41:18', title: 'Lead Qualification', agent: 'Sales Agent', status: 'Running' },
-              { time: '09:41:15', title: 'Support Ticket Resolution', agent: 'Support Agent', status: 'Completed' },
-              { time: '09:41:10', title: 'Employee Onboarding', agent: 'HR Agent', status: 'Running' },
-              { time: '09:41:05', title: 'Marketing Campaign Report', agent: 'Marketing Agent', status: 'Completed' },
-            ].map((log, idx) => (
-              <div key={idx} className="flex items-start justify-between">
+            {liveActivitiesList.map((log: any, idx: number) => (
+              <div key={idx} className="flex items-start justify-between cursor-pointer" onClick={() => setActiveModal('liveActivity')}>
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                    <span>{log.time}</span>
+                    <span>{log.event_timestamp || log.time}</span>
                     <span>•</span>
-                    <span className="font-semibold text-slate-600 dark:text-slate-300">{log.agent}</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">{log.agent_name || log.agent}</span>
                   </div>
-                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 text-xs truncate max-w-[150px]">{log.title}</div>
+                  <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 text-xs truncate max-w-[150px]">{log.workflow_title || log.title}</div>
                 </div>
                 <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md ${
                   log.status === 'Completed' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
@@ -572,7 +633,12 @@ export function ZegaOrchestratorView({
         <div className="lg:col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Cost Analytics</h3>
-            <button onClick={() => triggerToast('Opening Cost Report')} className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">View Report</button>
+            <button 
+              onClick={() => setActiveModal('costReport')} 
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              View Report
+            </button>
           </div>
 
           <div className="mt-3">
@@ -583,7 +649,7 @@ export function ZegaOrchestratorView({
             </div>
           </div>
 
-          <div className="mt-3 h-28 w-full">
+          <div className="mt-3 h-28 w-full cursor-pointer" onClick={() => setActiveModal('costReport')}>
             <Line data={costLineData} options={lineOptions} />
           </div>
 
@@ -599,10 +665,15 @@ export function ZegaOrchestratorView({
         <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Token Usage</h3>
-            <button onClick={() => triggerToast('Viewing Token Details')} className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">View Details</button>
+            <button 
+              onClick={() => setActiveModal('tokenDetails')} 
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              View Details
+            </button>
           </div>
 
-          <div className="mt-2 flex items-center justify-between">
+          <div className="mt-2 flex items-center justify-between cursor-pointer" onClick={() => setActiveModal('tokenDetails')}>
             <div className="relative size-24 shrink-0 flex items-center justify-center">
               <Doughnut data={donutData} options={donutOptions} />
               <div className="absolute flex flex-col items-center text-center">
@@ -624,10 +695,15 @@ export function ZegaOrchestratorView({
         <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Security Events</h3>
-            <button onClick={() => triggerToast('Opening Security Center')} className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">View All</button>
+            <button 
+              onClick={() => setActiveModal('securityEvents')} 
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              View All
+            </button>
           </div>
 
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex items-center gap-3 cursor-pointer" onClick={() => setActiveModal('securityEvents')}>
             <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <ShieldAlert size={24} />
             </div>
@@ -644,17 +720,22 @@ export function ZegaOrchestratorView({
           </div>
         </div>
 
-        {/* Panel 5: AI Router (Right ~20% width) */}
+        {/* Panel 5: AI Router */}
         <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-1.5">
               <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">AI Router</h3>
               <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Live</span>
             </div>
-            <button onClick={() => triggerToast('Opening AI Router Configuration')} className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">View Router</button>
+            <button 
+              onClick={() => setActiveModal('aiRouter')} 
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              View Router
+            </button>
           </div>
 
-          <div className="mt-2.5 space-y-2 text-xs">
+          <div className="mt-2.5 space-y-2 text-xs cursor-pointer" onClick={() => setActiveModal('aiRouter')}>
             {[
               { name: 'GPT-5', pct: 32, tok: '1.2M', color: 'bg-emerald-500' },
               { name: 'Claude 3.5', pct: 24, tok: '920K', color: 'bg-orange-500' },
@@ -682,20 +763,17 @@ export function ZegaOrchestratorView({
         </div>
       </div>
 
-      {/* SYSTEM STATUS FOOTER BAR (Reference Design) */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
+      {/* SYSTEM STATUS FOOTER BAR */}
+      <div 
+        onClick={() => setActiveModal('systemStatus')}
+        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+      >
         <div className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">System Status</div>
         <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-          {[
-            'API Gateway',
-            'Supabase',
-            'Vector Database',
-            'Redis Cache',
-            'ZeroClaw Node',
-            'MCP Server',
-            'Edge Network',
-            'Monitoring',
-          ].map((sys, idx) => (
+          {(typeof systemComponentsList[0] === 'string' 
+            ? systemComponentsList 
+            : systemComponentsList.map((c: any) => c.component_name)
+          ).map((sys: string, idx: number) => (
             <div key={idx} className="flex items-center gap-1.5">
               <div className="size-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold">✓</div>
               <span>{sys}</span>
@@ -704,6 +782,23 @@ export function ZegaOrchestratorView({
           ))}
         </div>
       </div>
+
+      {/* OVERVIEW MODALS CONTAINER */}
+      <OverviewModals
+        activeModal={activeModal}
+        onClose={() => setActiveModal(null)}
+        triggerToast={triggerToast}
+        timeRange={timeRange}
+        realtimeData={realtimeData}
+      />
+
+      {/* DEDICATED ENTERPRISE ZEGA COPILOT AI ASSISTANT */}
+      <EnterpriseCopilot
+        dark={dark}
+        userName={userName}
+        userEmail={userEmail}
+        triggerToast={triggerToast}
+      />
     </div>
   );
 }

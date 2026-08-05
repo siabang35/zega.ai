@@ -55,6 +55,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const { newsletterRoutes } = await import('./v1/newsletter.routes.js');
       const { zeroclawRoutes } = await import('./v1/zeroclaw.routes.js');
       const { umkmRoutes } = await import('./v1/umkm.routes.js');
+      const { enterpriseRoutes } = await import('./v1/enterprise.routes.js');
 
       v1.register(authRoutes, { prefix: '/auth' });
       v1.register(agentRoutes, { prefix: '/agents' });
@@ -64,6 +65,7 @@ export async function registerRoutes(app: FastifyInstance) {
       v1.register(newsletterRoutes, { prefix: '/newsletter' });
       v1.register(zeroclawRoutes, { prefix: '/zeroclaw' });
       v1.register(umkmRoutes, { prefix: '/umkm' });
+      v1.register(enterpriseRoutes, { prefix: '/enterprise' });
     },
     { prefix: '/v1' },
   );
