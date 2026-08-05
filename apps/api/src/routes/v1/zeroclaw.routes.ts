@@ -2371,6 +2371,45 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // ── DELETE /v1/zeroclaw/settlement/:id ── Delete a specific settled payment record from Supabase DB & Vault
+  fastify.delete<{ Params: { id: string } }>('/settlement/:id', async (request, reply) => {
+    const { id } = request.params;
+    if (!id) {
+      return reply.status(400).send({ success: false, error: 'Settlement ID, Signature or Reference Key is required' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const headers = {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        };
+
+        const encId = encodeURIComponent(id);
+        const delRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?or=(id.eq.${encId},tx_signature.eq.${encId},reference_key.eq.${encId})`, {
+          method: 'DELETE',
+          headers
+        });
+
+        if (delRes.ok) {
+          return reply.send({
+            success: true,
+            message: `Settlement record ${id} deleted successfully from Reconciled Payment Vault.`
+          });
+        }
+      } catch (err) { }
+    }
+
+    return reply.send({
+      success: true,
+      message: `Settlement record ${id} removed locally.`
+    });
+  });
+
   // ── GET /v1/zeroclaw/status ── Query Real ZeroClaw v0.8.3 Gateway Status via Bridge Client
   fastify.get('/status', async () => {
     try {

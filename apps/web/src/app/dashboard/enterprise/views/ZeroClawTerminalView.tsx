@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
 import { supabase } from '../../../../lib/supabase';
@@ -245,6 +245,7 @@ export function ZeroClawTerminalView({
 
   const [rightPanelTab, setRightPanelTab] = useState<'settlements' | 'invoices'>('settlements');
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const lastInvoiceFingerprintRef = useRef<string>('');
 
   // Customer In-Chat Channel Registration & Auto-Dispatch State
   const [customerChannelTarget, setCustomerChannelTarget] = useState<string>('');
@@ -453,6 +454,18 @@ export function ZeroClawTerminalView({
       const res = await fetch(`${API_BASE}/v1/zeroclaw/invoice/list?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.invoices)) {
+        const serverInvoices = json.invoices.filter((i: any) =>
+          !i.isDemo && !i.is_demo &&
+          (i.merchantWallet === activeMerchantWallet || (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet)))
+        );
+
+        // 🛡️ State Diffing Guard: Calculate fingerprint of fetched invoices
+        const newFingerprint = JSON.stringify(serverInvoices.map((i: any) => `${i.id}_${i.status}_${i.settlement_status}_${i.tx_signature || ''}_${i.amount}`));
+        if (newFingerprint === lastInvoiceFingerprintRef.current) {
+          return; // Skip re-render if data has not changed
+        }
+        lastInvoiceFingerprintRef.current = newFingerprint;
+
         setGeneratedInvoicesHistory((prev) => {
           const map = new Map<string, GeneratedInvoice>();
           // Purge demo/mock entries and entries from other merchant wallets
@@ -464,11 +477,6 @@ export function ZeroClawTerminalView({
             });
 
           // Union merge server-side DB invoices for active merchant wallet only
-          const serverInvoices = json.invoices.filter((i: any) =>
-            !i.isDemo && !i.is_demo &&
-            (i.merchantWallet === activeMerchantWallet || (i.solanaPayUrl && i.solanaPayUrl.includes(activeMerchantWallet)))
-          );
-
           serverInvoices.forEach((i: any) => {
             const key = i.referenceKey || i.id;
             if (key) {
@@ -501,7 +509,6 @@ export function ZeroClawTerminalView({
         method: 'DELETE'
       });
 
-      onTriggerToast(`🗑️ Tagihan #${targetId.slice(-6)} Berhasil Dihapus!`);
     } catch (e) {
       onTriggerToast('⚠️ Gagal menghapus tagihan');
     }
@@ -544,15 +551,37 @@ export function ZeroClawTerminalView({
     }
   };
 
+  // Supabase Realtime WebSocket subscription for instant zero-lag updates on invoices & settlements
   useEffect(() => {
     fetchDbInvoices();
-    if (rightPanelTab === 'invoices') {
-      const interval = setInterval(() => {
-        fetchDbInvoices();
-      }, 4000);
-      return () => clearInterval(interval);
-    }
-  }, [userEmail, activeMerchantWallet, isGuestSession, rightPanelTab]);
+
+    const channel = supabase
+      .channel('realtime_zeroclaw_vault')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'zeroclaw_invoices' },
+        () => {
+          fetchDbInvoices();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'zeroclaw_solana_settlements' },
+        () => {
+          fetchDbInvoices();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(() => {
+      fetchDbInvoices();
+    }, 6000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [userEmail, activeMerchantWallet, isGuestSession]);
 
   // Auto-initialize default QR Code & Solana Pay URL if generatedUrl is null
   useEffect(() => {
@@ -2686,8 +2715,8 @@ export function ZeroClawTerminalView({
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                   >
-                    <Terminal size={14} className="text-teal-500" />
-                    <span>LIVE RECONCILIATION</span>
+                    <CheckCircle2 size={14} className="text-teal-500" />
+                    <span>VAULT PAYMENT LUNAS</span>
                     <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 font-mono text-[9.5px]">
                       {events.length}
                     </span>
@@ -2735,13 +2764,13 @@ export function ZeroClawTerminalView({
                 </div>
               </div>
 
-              {/* TAB CONTENT 1: LIVE SETTLEMENT STREAM */}
+              {/* TAB CONTENT 1: VAULT PAYMENT LUNAS (SETTLED) */}
               {rightPanelTab === 'settlements' ? (
                 <div className="space-y-4 text-xs">
                   {/* Live Stream List */}
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                     <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider pb-1">
-                      <span>Recent On-Chain Events ({events.length})</span>
+                      <span>Vault Payment Lunas ({events.length})</span>
                       <span className="text-[10px] text-teal-600 dark:text-teal-400 font-mono">Devnet Cluster</span>
                     </div>
 
@@ -2750,7 +2779,7 @@ export function ZeroClawTerminalView({
                         <div className="size-8 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center font-bold">
                           <CheckCircle2 size={16} />
                         </div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Monitoring Solana Devnet...</h4>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Vault Payment Lunas Kosong</h4>
                         <p className="text-[10.5px] text-slate-400 font-mono">
                           Wallet: <span className="font-bold text-teal-600 dark:text-teal-400">{activeMerchantWallet ? `${activeMerchantWallet.slice(0, 8)}...${activeMerchantWallet.slice(-8)}` : 'Devnet'}</span>
                         </p>
