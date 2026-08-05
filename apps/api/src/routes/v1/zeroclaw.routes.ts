@@ -2195,19 +2195,25 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
             const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
             const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;
-            const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}`;
+            const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}&description=${encodeURIComponent(memo || 'Solana Pay Invoice')}`;
+            const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const captionText =
               `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `• <b>Merchant:</b> ZEGA AI Enterprise Terminal\n` +
+              `• <b>Detail Pesanan:</b> ${escHtml(memo || 'Solana Pay Invoice')}\n` +
               `• <b>Tagihan:</b> <code>${amountUsdc.toFixed(2)} USDC</code>\n` +
-              `• <b>Memo:</b> ${memo || 'Solana Pay Invoice'}\n` +
               `• <b>Ref Key:</b> <code>${referenceKey}</code>\n` +
               `💳 <b>Copy Merchant Wallet:</b>\n<code>${effectiveWallet}</code>\n` +
               `🛡️ <b>OWASP Checksum:</b> <code>${checksumBadge}</code>\n` +
               `• <b>R2 CDN Audit:</b> <a href="${r2CdnUrl}">Audit Certificate</a>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
               `📱 <b>Solana Pay URI:</b>\n<code>${solanaPayUrl}</code>\n\n` +
-              `⚡ <b>Scan QR Code / Tap link di atas untuk menyelesaikan pembayaran.</b>`;
+              `📌 <b>PETUNJUK PEMBAYARAN:</b>\n` +
+              `1. <b>Scan QR Code:</b> Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
+              `2. <b>Copy Wallet / URI:</b> Copy wallet atau URI di atas &amp; paste ke Phantom App.\n` +
+              `3. <b>Web Checkout:</b> Tap tombol di bawah untuk membayar via Web Checkout.\n\n` +
+              `⚡ <b>Status:</b> <code>PENGIRIMAN DANA DITUNGGU (PENDING)</code>`;
 
             sendTelegramInvoiceWithFallback({
               botToken,
@@ -2215,7 +2221,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               qrImageUrl,
               captionHtml: captionText,
               checkoutUrl,
-              checkoutButtonText: `⚡ Web Checkout (${amountUsdc.toFixed(2)} USDC)`
+              checkoutButtonText: `⚡ Bayar ${amountUsdc.toFixed(2)} USDC (Web Checkout)`
             }).then((dispatchRes) => {
               logger.info({ resolvedTarget, referenceKey, deliveryType: dispatchRes.deliveryType, ok: dispatchRes.ok }, '⚡ Resilient Telegram invoice dispatch executed in /invoice/create');
             }).catch((err) => {
@@ -3976,22 +3982,23 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       // Use HTML parse_mode to avoid underscore issues in usernames like @Soft_yee
-      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checksumBadge = `${recipient.slice(0, 4)}...${recipient.slice(-4)}`;
-      const formattedCaption = `🧾 <b>ZEGA PAY — INVOICE TAGIHAN RESMI (QRIS WEB3)</b>\n` +
+      const formattedCaption =
+        `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `• <b>Merchant:</b> ZEGA AI Enterprise Terminal\n` +
         `• <b>Detail Pesanan:</b> ${escHtml(description || 'Pesanan Produk')}\n` +
-        `• <b>Nominal Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
-        `• <b>Referensi Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
+        `• <b>Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
+        `• <b>Ref Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
         `💳 <b>Copy Merchant Wallet:</b>\n<code>${escHtml(recipient)}</code>\n` +
         `🛡️ <b>OWASP Checksum:</b> <code>${checksumBadge}</code>\n` +
-        `• <b>Solana Pay URI:</b> <code>${escHtml(solanaPayUrl)}</code>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📱 <b>Solana Pay URI:</b>\n<code>${escHtml(solanaPayUrl)}</code>\n\n` +
         `📌 <b>PETUNJUK PEMBAYARAN:</b>\n` +
         `1. <b>Scan QR Code:</b> Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
         `2. <b>Copy Wallet / URI:</b> Copy wallet atau URI di atas &amp; paste ke Phantom App.\n` +
-        `3. <b>Web Checkout (Tanpa Login):</b>\n${zegaCheckoutUrl}\n\n` +
+        `3. <b>Web Checkout:</b> Tap tombol di bawah untuk membayar via Web Checkout.\n\n` +
         `⚡ <b>Status:</b> <code>PENGIRIMAN DANA DITUNGGU (PENDING)</code>`;
 
       if (telegramBotToken) {
