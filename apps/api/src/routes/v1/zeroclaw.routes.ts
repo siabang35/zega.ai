@@ -377,6 +377,85 @@ async function resolveTelegramChatId(target: string, token?: string): Promise<st
 }
 
 /**
+ * ⚡ Resilient Enterprise Telegram Invoice Dispatcher
+ * Guarantees dynamic delivery across any target recipient (@handle, numeric chat ID, or phone)
+ * with automatic fallback:
+ * 1. Resolves target dynamically via resolveTelegramChatId (handles @username, numeric CID, DB lookup, getUpdates polling)
+ * 2. Tries sendPhoto with QuickChart QR code image
+ * 3. If sendPhoto fails (e.g. photo URL fetch timeout or bot error), automatically falls back to sendMessage HTML text payload & inline Web Checkout button
+ */
+export async function sendTelegramInvoiceWithFallback(params: {
+  botToken: string;
+  target: string;
+  qrImageUrl: string;
+  captionHtml: string;
+  checkoutUrl?: string;
+  checkoutButtonText?: string;
+}): Promise<{ ok: boolean; messageId?: number; deliveryType: 'photo_qr' | 'text_fallback' | 'failed'; error?: string }> {
+  const { botToken, target, qrImageUrl, captionHtml, checkoutUrl, checkoutButtonText } = params;
+  if (!botToken || botToken.trim().length < 10 || !target) {
+    return { ok: false, deliveryType: 'failed', error: 'Missing Telegram bot token or target recipient' };
+  }
+
+  const cleanToken = botToken.trim();
+  const chatIdParam = await resolveTelegramChatId(target, cleanToken);
+
+  const inlineKeyboard = checkoutUrl ? [
+    [{ text: checkoutButtonText || '⚡ Bayar / Web Checkout', url: checkoutUrl }]
+  ] : undefined;
+
+  // Attempt 1: sendPhoto with QR Code Image
+  try {
+    const photoRes = await fetch(`https://api.telegram.org/bot${cleanToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatIdParam,
+        photo: qrImageUrl,
+        caption: captionHtml,
+        parse_mode: 'HTML',
+        reply_markup: inlineKeyboard ? { inline_keyboard: inlineKeyboard } : undefined,
+      })
+    });
+
+    if (photoRes.ok) {
+      const photoJson: any = await photoRes.json();
+      return { ok: true, messageId: photoJson.result?.message_id, deliveryType: 'photo_qr' };
+    }
+
+    const photoErrJson: any = await photoRes.json().catch(() => ({}));
+    logger.warn({ target: chatIdParam, err: photoErrJson.description }, '⚠️ Telegram sendPhoto failed, executing resilient fallback to sendMessage text payload');
+  } catch (err: any) {
+    logger.warn({ target: chatIdParam, err: err.message }, '⚠️ Telegram sendPhoto network exception, executing resilient fallback to sendMessage text payload');
+  }
+
+  // Attempt 2: Resilient Fallback to sendMessage (Rich HTML Text Payload & Web Checkout Button)
+  try {
+    const msgRes = await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatIdParam,
+        text: captionHtml,
+        parse_mode: 'HTML',
+        disable_web_page_preview: false,
+        reply_markup: inlineKeyboard ? { inline_keyboard: inlineKeyboard } : undefined,
+      })
+    });
+
+    if (msgRes.ok) {
+      const msgJson: any = await msgRes.json();
+      return { ok: true, messageId: msgJson.result?.message_id, deliveryType: 'text_fallback' };
+    }
+
+    const msgErrJson: any = await msgRes.json().catch(() => ({}));
+    return { ok: false, deliveryType: 'failed', error: msgErrJson.description || 'sendMessage failed' };
+  } catch (err: any) {
+    return { ok: false, deliveryType: 'failed', error: err.message || 'sendMessage network error' };
+  }
+}
+
+/**
  * ⚡ High-Fidelity Enterprise Telegram Receipt Template Generator
  * Matches the web dashboard modal structure exactly:
  * • Header Badge & Status Title
@@ -2087,18 +2166,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         }).catch(() => {});
       }
 
-      // 4. Auto-dispatch Telegram Photo QR Code to target recipient if Telegram handle provided
+      // 4. Auto-dispatch Telegram Photo QR Code (with text fallback) to target recipient
       const resolvedTarget = customerTarget || telegramChannel;
-      if (resolvedTarget && resolvedTarget.trim().startsWith('@')) {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (resolvedTarget && resolvedTarget.trim().length > 0) {
+        const botToken = envConfig.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
         if (botToken && botToken.trim().length > 10) {
           if (isDuplicateTelegramDispatch(resolvedTarget, amountUsdc, referenceKey)) {
             logger.info({ resolvedTarget, referenceKey }, '🛡️ Anti-Duplicate Guard: Skipped auto-dispatch in /invoice/create (already dispatched)');
           } else {
-            resolveTelegramChatId(resolvedTarget, botToken).then(async (targetChatId) => {
-              const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
-              const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
-              const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;
+            const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
+            const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
+            const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;
+            const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}`;
             const captionText =
               `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -2112,24 +2191,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               `📱 <b>Solana Pay URI:</b>\n<code>${solanaPayUrl}</code>\n\n` +
               `⚡ <b>Scan QR Code / Tap link di atas untuk menyelesaikan pembayaran.</b>`;
 
-            await fetch(`https://api.telegram.org/bot${botToken.trim()}/sendPhoto`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: targetChatId,
-                photo: qrImageUrl,
-                caption: captionText,
-                parse_mode: 'HTML',
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      { text: `⚡ Web Checkout (${amountUsdc.toFixed(2)} USDC)`, url: `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}` }
-                    ]
-                  ]
-                }
-              })
+            sendTelegramInvoiceWithFallback({
+              botToken,
+              target: resolvedTarget,
+              qrImageUrl,
+              captionHtml: captionText,
+              checkoutUrl,
+              checkoutButtonText: `⚡ Web Checkout (${amountUsdc.toFixed(2)} USDC)`
+            }).then((dispatchRes) => {
+              logger.info({ resolvedTarget, referenceKey, deliveryType: dispatchRes.deliveryType, ok: dispatchRes.ok }, '⚡ Resilient Telegram invoice dispatch executed in /invoice/create');
+            }).catch((err) => {
+              logger.error({ err: err.message, resolvedTarget }, 'Failed to dispatch resilient Telegram invoice');
             });
-          }).catch(() => {});
           }
         }
       }
@@ -3914,44 +3987,29 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               notice: 'Invoice Telegram sudah terkirim baru-baru ini (Anti-Duplicate Guard).'
             });
           }
-          const chatIdParam = await resolveTelegramChatId(target, telegramBotToken);
 
-          // 🛡️ Single-Dispatch Telegram Photo QR Delivery (Anti-Duplicate Guard)
-          const tgRes = await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendPhoto`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatIdParam,
-              photo: qrImageUrl,
-              caption: formattedCaption,
-              parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: `⚡ Bayar / Web Checkout`, url: zegaCheckoutUrl }
-                  ]
-                ]
-              }
-            })
+          const dispatchResult = await sendTelegramInvoiceWithFallback({
+            botToken: telegramBotToken,
+            target,
+            qrImageUrl,
+            captionHtml: formattedCaption,
+            checkoutUrl: zegaCheckoutUrl,
+            checkoutButtonText: `⚡ Bayar ${numericAmount.toFixed(2)} USDC (Web Checkout)`
           });
 
-          if (tgRes.ok) {
-            const tgJson: any = await tgRes.json();
+          if (dispatchResult.ok) {
             deliveryType = 'live_api';
-            externalResponse = { messageId: tgJson.result?.message_id, chat: tgJson.result?.chat, type: 'photo_qr' };
-            fastify.log.info({ target, messageId: tgJson.result?.message_id }, 'Live Telegram QR Code photo invoice dispatched successfully');
+            externalResponse = { messageId: dispatchResult.messageId, target, type: dispatchResult.deliveryType };
+            fastify.log.info({ target, messageId: dispatchResult.messageId, type: dispatchResult.deliveryType }, 'Live Telegram invoice dispatched successfully via fallback engine');
           } else {
-            const tgErrJson: any = await tgRes.json().catch(() => ({}));
-            // Target buyer has not started Telegram bot yet or chat invalid.
-            // DO NOT forward to an unrelated account — keep invoice 100% active via Checkout Link.
             deliveryType = 'dispatched_simulated';
             externalResponse = {
               status: 'pending_bot_start',
-              target: chatIdParam,
-              telegramError: tgErrJson.description || 'chat not found',
-              note: `Pembeli (${chatIdParam}) belum menekan /start di Telegram Bot. Tagihan 100% aktif di DB & dapat dibayar via Link Checkout.`
+              target,
+              telegramError: dispatchResult.error || 'chat not found',
+              note: `Pembeli (${target}) belum menekan /start di Telegram Bot. Tagihan 100% aktif di DB & dapat dibayar via Link Checkout.`
             };
-            fastify.log.info({ target: chatIdParam, err: tgErrJson.description }, 'Target buyer has not started Telegram bot yet; invoice active via checkout link');
+            fastify.log.info({ target, err: dispatchResult.error }, 'Target buyer notification pending bot start; invoice active via checkout link');
           }
         } catch (err) {
           fastify.log.error({ error: (err as Error).message }, 'Failed to dispatch live Telegram QR photo/message');
