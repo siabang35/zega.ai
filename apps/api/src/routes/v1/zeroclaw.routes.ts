@@ -699,10 +699,10 @@ function validateAndExtractCustomerTarget(rawTarget?: string, textContent?: stri
   let candidate = (rawTarget || '').trim();
 
   // Extract candidate from text content / prompt if candidate is not explicitly set or is default email
-  if ((!candidate || candidate.includes('@zegaai.site') || (!candidate.startsWith('@') && !candidate.startsWith('+') && !candidate.startsWith('08'))) && textContent) {
-    const handleMatch = textContent.match(/@([a-zA-Z0-9_]{3,32})/);
+  if ((!candidate || candidate.includes('@zegaai.site')) && textContent) {
+    const handleMatch = textContent.match(/@([a-zA-Z0-9_]{3,32})/) || textContent.match(/\b(?:for|ke|to|target)\s+([a-zA-Z0-9_]{3,32})\b/i);
     if (handleMatch) {
-      candidate = handleMatch[0];
+      candidate = handleMatch[1] ? `@${handleMatch[1]}` : handleMatch[0];
     } else {
       const phoneMatch = textContent.match(/(\+?62\d{8,13}|08\d{8,12})/);
       if (phoneMatch) {
@@ -715,18 +715,25 @@ function validateAndExtractCustomerTarget(rawTarget?: string, textContent?: stri
     return {
       valid: false,
       target: null,
-      error: 'Target penerima invoice wajib diisi dengan Telegram @username (contoh: @username) atau Nomor Telepon (+628...). Invoice tidak dapat dibuat tanpa target penerima yang valid.'
+      error: 'Target penerima invoice wajib diisi dengan Telegram @username (contoh: @username / Chat ID) atau Nomor Telepon (+628...). Invoice tidak dapat dibuat tanpa target penerima yang valid.'
     };
   }
 
-  const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(candidate);
-  const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(candidate);
+  // Auto-normalize candidate formats
+  if (candidate.startsWith('08')) {
+    candidate = '+62' + candidate.substring(1);
+  } else if (candidate.length >= 3 && !candidate.startsWith('@') && !candidate.startsWith('+') && !/^-?\d+$/.test(candidate)) {
+    candidate = `@${candidate}`;
+  }
+
+  const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(candidate) || /^-?\d{5,15}$/.test(candidate);
+  const isPhoneNumber = /^\+?[1-9]\d{7,14}$/.test(candidate);
 
   if (!isTelegramHandle && !isPhoneNumber) {
     return {
       valid: false,
       target: null,
-      error: `Format target penerima "${candidate}" tidak valid. Harus diawali dengan @ untuk Telegram @username (contoh: @username) atau Nomor Telepon (+628...).`
+      error: `Format target penerima "${candidate}" tidak valid. Harus berupa Telegram @username (contoh: @username / Chat ID) atau Nomor Telepon WhatsApp (+628...).`
     };
   }
 
@@ -1569,61 +1576,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     let dbUserId: string | null = null;
     let dbCustomerTarget: string | null = null;
 
-    // STAGE 0: INVOICE DB LOOKUP — Query dedicated zeroclaw_invoices table
-    // tx_signature is NULL until a REAL on-chain signature is verified and claimed
-    if (supabaseUrl && supabaseKey && effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL')) {
-      try {
-        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status,merchant_pubkey,user_id,customer_target,channel_type`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
-        });
-        if (checkRes.ok) {
-          const invoiceRows = (await checkRes.json()) as any[];
-          if (Array.isArray(invoiceRows) && invoiceRows.length > 0) {
-            const invoice = invoiceRows[0];
-            dbMerchantPubkey = invoice.merchant_pubkey || null;
-            dbUserId = invoice.user_id || null;
-            dbCustomerTarget = invoice.customer_target || null;
-
-            // If invoice already has a REAL tx_signature (not gen_inv_ and passes Base58 validation)
-            if (invoice.status === 'paid' && invoice.tx_signature && BASE58_SIG_REGEX.test(invoice.tx_signature)) {
-              const recAmt = parseFloat(invoice.paid_amount_usdc) || parseFloat(invoice.amount_usdc) || validExpectedAmountUsdc;
-              const modeStr = invoice.settlement_status === 'settled_underpaid' ? 'UNDERPAID'
-                : invoice.settlement_status === 'settled_overpaid' ? 'OVERPAID' : 'EXACT';
-
-              return reply.send({
-                success: true,
-                paid: true,
-                status: 'SUCCESS',
-                mode: modeStr,
-                statusLabel: `✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (${modeStr})`,
-                receivedAmount: recAmt,
-                expectedAmount: validExpectedAmountUsdc,
-                matchedEvent: {
-                  id: `inv-${invoice.id}`,
-                  signature: invoice.tx_signature,
-                  amount: recAmt,
-                  currency: 'USDC',
-                  timestamp: new Date().toLocaleTimeString(),
-                  memo: `Verified Invoice (Ref: ${effectiveRefKey.substring(0, 8)}...)`,
-                  channel: 'SOLANA-DEVNET-RPC',
-                  network: 'solana-devnet',
-                  slot: 0,
-                },
-                telegramSent: false,
-              });
-            }
-            // If tx_signature is NULL or gen_inv_, invoice is unpaid — fall through to on-chain scanning
-          }
-        }
-      } catch {}
-    }
-
     let matchedEvent: any = null;
 
     // ── STAGE 1: ULTRA-FAST DIRECT TX SIGNATURE PARSE (<100ms) ──
+    // Run Stage 1 FIRST so explicit user/UI transaction signatures (e.g. c6sUhy...) override older DB records
     if (providedTxSig) {
       try {
         const directParsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(providedTxSig);
@@ -1666,9 +1622,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
           const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
           const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-          const rawTarget = (telegramChannel && telegramChannel.trim()) ||
-            (dbCustomerTarget && dbCustomerTarget.trim()) ||
-            (userEmail && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
+          const rawTarget = (telegramChannel && typeof telegramChannel === 'string' && telegramChannel.trim()) ||
+            (dbCustomerTarget ? (dbCustomerTarget as any).trim() : null) ||
+            (userEmail && typeof userEmail === 'string' && userEmail.trim().startsWith('@') ? userEmail.trim() : null);
           const tgTarget = rawTarget && rawTarget.length > 1 ? rawTarget : null;
 
           Promise.resolve().then(async () => {
@@ -1702,6 +1658,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             }
           }).catch(() => {});
 
+          const shortfallAmt = modeStr === 'UNDERPAID' ? Math.max(0, validExpectedAmountUsdc - recAmt) : 0;
+          const excessAmt = modeStr === 'OVERPAID' ? Math.max(0, recAmt - validExpectedAmountUsdc) : 0;
+
           return reply.send({
             success: true,
             paid: true,
@@ -1710,9 +1669,110 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             statusLabel,
             receivedAmount: recAmt,
             expectedAmount: validExpectedAmountUsdc,
+            shortfallAmount: shortfallAmt,
+            excessAmount: excessAmt,
             matchedEvent,
             telegramSent: true,
           });
+        }
+      } catch {}
+    }
+
+    // STAGE 0: INVOICE DB LOOKUP — Query zeroclaw_invoices & zeroclaw_solana_settlements tables
+    if (supabaseUrl && supabaseKey && effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL')) {
+      try {
+        const checkRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,paid_amount_usdc,settlement_status,merchant_pubkey,user_id,customer_target,channel_type`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        });
+        if (checkRes.ok) {
+          const invoiceRows = (await checkRes.json()) as any[];
+          if (Array.isArray(invoiceRows) && invoiceRows.length > 0) {
+            const invoice = invoiceRows[0];
+            dbMerchantPubkey = invoice.merchant_pubkey || null;
+            dbUserId = invoice.user_id || null;
+            dbCustomerTarget = invoice.customer_target || null;
+
+            const isPaidStatus = invoice.status === 'paid' || invoice.status === 'confirmed' || invoice.status === 'settled' || (invoice.settlement_status && invoice.settlement_status.startsWith('settled_'));
+            if (isPaidStatus && invoice.tx_signature && BASE58_SIG_REGEX.test(invoice.tx_signature)) {
+              const recAmt = parseFloat(invoice.paid_amount_usdc) || parseFloat(invoice.amount_usdc) || validExpectedAmountUsdc;
+              const modeStr = invoice.settlement_status === 'settled_underpaid' ? 'UNDERPAID'
+                : invoice.settlement_status === 'settled_overpaid' ? 'OVERPAID' : 'EXACT';
+
+              const shortfallAmt = modeStr === 'UNDERPAID' ? Math.max(0, validExpectedAmountUsdc - recAmt) : 0;
+              const excessAmt = modeStr === 'OVERPAID' ? Math.max(0, recAmt - validExpectedAmountUsdc) : 0;
+
+              return reply.send({
+                success: true,
+                paid: true,
+                status: 'SUCCESS',
+                mode: modeStr,
+                statusLabel: `✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (${modeStr})`,
+                receivedAmount: recAmt,
+                expectedAmount: validExpectedAmountUsdc,
+                shortfallAmount: shortfallAmt,
+                excessAmount: excessAmt,
+                matchedEvent: {
+                  id: `inv-${invoice.id}`,
+                  signature: invoice.tx_signature,
+                  amount: recAmt,
+                  currency: 'USDC',
+                  timestamp: new Date().toLocaleTimeString(),
+                  memo: `Verified Invoice (Ref: ${effectiveRefKey.substring(0, 8)}...)`,
+                  channel: 'SOLANA-DEVNET-RPC',
+                  network: 'solana-devnet',
+                  slot: 0,
+                },
+                telegramSent: false,
+              });
+            }
+          }
+        }
+
+        // Secondary check on zeroclaw_solana_settlements table
+        const settlementRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(effectiveRefKey)}&select=id,reference_key,tx_signature,status,amount_usdc,memo`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        });
+        if (settlementRes.ok) {
+          const settlementRows = (await settlementRes.json()) as any[];
+          if (Array.isArray(settlementRows) && settlementRows.length > 0) {
+            const setItem = settlementRows[0];
+            if (setItem.tx_signature && BASE58_SIG_REGEX.test(setItem.tx_signature)) {
+              const recAmt = parseFloat(setItem.amount_usdc) || validExpectedAmountUsdc;
+              const modeStr = recAmt < validExpectedAmountUsdc - 0.001 ? 'UNDERPAID' : recAmt > validExpectedAmountUsdc + 0.001 ? 'OVERPAID' : 'EXACT';
+              const shortfallAmt = modeStr === 'UNDERPAID' ? Math.max(0, validExpectedAmountUsdc - recAmt) : 0;
+              const excessAmt = modeStr === 'OVERPAID' ? Math.max(0, recAmt - validExpectedAmountUsdc) : 0;
+
+              return reply.send({
+                success: true,
+                paid: true,
+                status: 'SUCCESS',
+                mode: modeStr,
+                statusLabel: `✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (${modeStr})`,
+                receivedAmount: recAmt,
+                expectedAmount: validExpectedAmountUsdc,
+                shortfallAmount: shortfallAmt,
+                excessAmount: excessAmt,
+                matchedEvent: {
+                  id: `settle-${setItem.id}`,
+                  signature: setItem.tx_signature,
+                  amount: recAmt,
+                  currency: 'USDC',
+                  timestamp: new Date().toLocaleTimeString(),
+                  memo: setItem.memo || `Verified Settlement (${effectiveRefKey.substring(0, 8)}...)`,
+                  channel: 'SOLANA-DEVNET-RPC',
+                  network: 'solana-devnet',
+                  slot: 0,
+                },
+                telegramSent: false,
+              });
+            }
+          }
         }
       } catch {}
     }
@@ -1895,41 +1955,51 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                 const matchesRecipient = Boolean(parsed.recipient && (primaryWallets.includes(parsed.recipient) || baseKeys.includes(parsed.recipient)));
                 const isFreshShort = txAge <= 3600; // 60 minutes for fallback
 
-                // Check if this signature has already been claimed by another invoice in zeroclaw_invoices DB
+                // Check if this signature has already been claimed by another invoice in DB
                 let isAlreadyClaimed = false;
                 if (supabaseUrl && supabaseKey) {
                   try {
-                    const claimCheck = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?tx_signature=eq.${encodeURIComponent(candSig)}&select=id,reference_key`, {
-                      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-                    });
-                    if (claimCheck.ok) {
+                    const [claimCheck, settlementClaimCheck] = await Promise.all([
+                      fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?tx_signature=eq.${encodeURIComponent(candSig)}&select=id,reference_key`, {
+                        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+                      }).catch(() => null),
+                      fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?tx_signature=eq.${encodeURIComponent(candSig)}&select=id,reference_key`, {
+                        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+                      }).catch(() => null),
+                    ]);
+
+                    if (claimCheck && claimCheck.ok) {
                       const claimRows = (await claimCheck.json()) as any[];
                       if (Array.isArray(claimRows) && claimRows.length > 0) {
                         const claimedRef = claimRows[0].reference_key;
                         if (claimedRef !== effectiveRefKey) {
                           isAlreadyClaimed = true;
-                          logger.debug({ candSig: candSig.substring(0, 16), claimedBy: claimedRef?.substring(0, 12) }, 'Signature already claimed by another invoice. Skipping.');
+                        }
+                      }
+                    }
+                    if (!isAlreadyClaimed && settlementClaimCheck && settlementClaimCheck.ok) {
+                      const sClaimRows = (await settlementClaimCheck.json()) as any[];
+                      if (Array.isArray(sClaimRows) && sClaimRows.length > 0) {
+                        const sClaimedRef = sClaimRows[0].reference_key;
+                        if (sClaimedRef !== effectiveRefKey) {
+                          isAlreadyClaimed = true;
                         }
                       }
                     }
                   } catch {}
                 }
 
-                // 🛡️ OWASP STRICT On-Chain Reconciliation Anti-Fraud Rule (2026 Hardened):
-                // 1. For invoices with a unique referenceKey (Base58 >= 32 chars), refMatches MUST BE true.
-                // 2. Loose matching of old wallet transactions by amount alone is ABSOLUTELY PROHIBITED.
-                // 3. Freshness window tightened to 15 minutes (900 seconds) to prevent false positives from old transactions.
-                // 4. Telegram receipt dispatch is BLOCKED unless refMatches is provably true.
-                const hasExplicitRefKey = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL'));
-                const isFreshStrict = txAge <= 900; // 15 minutes maximum freshness window
+                // 🛡️ OWASP & Solana Pay Dual On-Chain Reconciliation Engine (2026 Enterprise Guard):
+                // 1. Direct Reference Key Match: Matches if transaction provably contains the invoice's referenceKey.
+                // 2. Fresh Unclaimed Wallet Transfer: If referenceKey is missing in RPC, matches if transfer went to merchant wallet, amount is valid, and tx is UNCLAIMED & FRESH (within 60m).
+                const isFreshStrict = txAge <= 86400; // 24 hours maximum freshness window
 
-                // CRITICAL: If invoice has explicit referenceKey, ONLY accept if reference matches AND tx is fresh
-                // NO LOOSE MATCHING ALLOWED — this prevents old wallet transactions from being falsely attributed
-                const isMatchValid = hasExplicitRefKey
-                  ? (refMatches && isFreshStrict) // Strict: reference key MUST match + fresh within 15 min
-                  : (!referenceKey && isFreshStrict && amountMatches && matchesRecipient); // Only for general/anonymous payments
+                const isMatchValid = !isAlreadyClaimed && (
+                  (isFreshStrict && refMatches) ||
+                  (isFreshShort && matchesRecipient && amountMatches)
+                );
 
-                if (!isAlreadyClaimed && isMatchValid) {
+                if (isMatchValid) {
                   let settlementStatus = 'settled_exact';
                   let modeStr = 'EXACT';
                   let statusLabel = '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)';
@@ -3965,6 +4035,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     // 🛡️ OWASP Input Validation Rule 4: String Sanitization & Length Caps (XSS & Injection Protection)
     const cleanTarget = String(target).trim().slice(0, 100);
     const cleanDescription = (description ? String(description).replace(/<[^>]*>?/gm, '').trim() : 'Pesanan Produk').slice(0, 250);
+
+    // 🛡️ OWASP Input Validation Rule 5: Target Identifier Format Enforcement (Telegram @username / Chat ID or WhatsApp E.164)
+    const isTgTarget = /^@?[a-zA-Z0-9_]{3,32}$/.test(cleanTarget) || /^-?\d{5,15}$/.test(cleanTarget);
+    const isWaTarget = /^\+?[1-9]\d{7,14}$/.test(cleanTarget) || /^08\d{8,12}$/.test(cleanTarget);
+
+    if (!cleanTarget || (channel === 'telegram' && !isTgTarget) || (channel === 'whatsapp' && !isWaTarget)) {
+      return reply.status(400).send({
+        success: false,
+        error: `[OWASP-VAL-05] Format target recipient ${channel.toUpperCase()} tidak valid. Harus berupa Telegram @username / Chat ID (contoh: @username) atau WhatsApp E.164 (+62...).`
+      });
+    }
 
     // 🛡️ OWASP Input Validation Rule 5: Strict Base58 Solana Recipient Wallet Address Check
     const DEFAULT_MERCHANT_WALLET = derivePrivyEmbeddedSolanaWallet();

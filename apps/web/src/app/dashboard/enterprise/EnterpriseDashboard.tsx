@@ -10,8 +10,9 @@ import {
 
 import { OverviewView } from '../views/OverviewView';
 import { SandboxWorkflowView } from '../views/SandboxWorkflowView';
+import { WorkflowHubView } from '../views/WorkflowHubView';
 import { M2mPaymentsView } from '../views/M2mPaymentsView';
-import { HelpView } from '../umkm/views/HelpView';
+import { HelpView } from './views/HelpView';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { ZegaLogo } from '../../components/ZegaLogo';
 import { SupabaseDashboardService } from '../services/supabaseService';
@@ -30,6 +31,7 @@ import { ZeroClawTerminalView } from './views/ZeroClawTerminalView';
 import { IntegrationsView } from './views/IntegrationsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { CostIntelligenceView } from './views/CostIntelligenceView';
+import { PaymentsBillingView } from './views/PaymentsBillingView';
 import { ReportsView } from './views/ReportsView';
 import { InfrastructureView } from './views/InfrastructureView';
 import { DevPortalView } from './views/DevPortalView';
@@ -59,61 +61,108 @@ export function EnterpriseDashboardView({
   const tabToSlugMap: Record<string, string> = {
     console: 'overview',
     overview: 'overview',
+    ai_command: 'ai-command',
     multi_agents: 'agents',
-    sandbox: 'automation',
-    agent_swarms: 'swarms',
-    knowledge_brain: 'rag',
-    mcp_connectors: 'mcp',
-    agent_evals: 'evals',
-    payments_bills: 'payments-billing',
+    sandbox: 'workflow-studio',
+    knowledge_brain: 'knowledge-hub',
+    mcp_connectors: 'mcp-hub',
+    integrations: 'integrations',
+    help: 'bantuan',
+    agent_evals: 'analytics',
+    usage_billing: 'cost-intelligence',
+    reports: 'reports',
+    audit_logs: 'audit-logs',
+    payments_bills: 'billing',
     zeroclaw_terminal: 'zeroclaw',
-    infrastructure: 'infra',
-    usage_billing: 'billing',
-    ai_safety: 'safety',
-    audit_logs: 'audit',
+    ai_safety: 'security',
+    infrastructure: 'infrastructure',
+    audit_logs_platform: 'audit-logs',
     dev_portal: 'developer',
     api_sdk: 'api-sdk',
     webhooks: 'webhooks',
     system_logs: 'logs',
-    rbac_sso: 'sso',
-    help: 'bantuan',
+    rbac_sso: 'organization',
+    team_roles: 'teams',
+    settings: 'settings',
   };
 
   const slugToTabMap: Record<string, string> = {
     overview: 'console',
+    'ai-command': 'ai_command',
     agents: 'multi_agents',
-    automation: 'sandbox',
-    swarms: 'agent_swarms',
+    'workflow-studio': 'sandbox',
+    sandbox: 'sandbox',
+    'knowledge-hub': 'knowledge_brain',
     rag: 'knowledge_brain',
+    'mcp-hub': 'mcp_connectors',
     mcp: 'mcp_connectors',
+    integrations: 'integrations',
+    bantuan: 'help',
+    help: 'help',
+    analytics: 'agent_evals',
     evals: 'agent_evals',
+    'cost-intelligence': 'usage_billing',
+    billing: 'payments_bills',
     'payments-billing': 'payments_bills',
-    payments: 'payments_bills',
-    zeroclaw: 'zeroclaw_terminal',
-    infra: 'infrastructure',
-    billing: 'usage_billing',
-    safety: 'ai_safety',
+    reports: 'reports',
+    'audit-logs': 'audit_logs',
     audit: 'audit_logs',
+    zeroclaw: 'zeroclaw_terminal',
+    security: 'ai_safety',
+    safety: 'ai_safety',
+    infrastructure: 'infrastructure',
+    infra: 'infrastructure',
     developer: 'dev_portal',
+    dev: 'dev_portal',
     'api-sdk': 'api_sdk',
     webhooks: 'webhooks',
     logs: 'system_logs',
+    organization: 'rbac_sso',
     sso: 'rbac_sso',
-    bantuan: 'help',
+    teams: 'team_roles',
+    settings: 'settings',
   };
 
   const getInitialTab = () => {
     if (typeof window !== 'undefined') {
       const parts = window.location.pathname.split('/').filter(Boolean);
-      if (parts.length >= 2) {
+      if (parts.length >= 2 && parts[0] === 'console') {
         const slug = parts[1];
         if (slugToTabMap[slug]) return slugToTabMap[slug];
+        if (tabToSlugMap[slug]) return slug;
       }
     }
     return 'console';
   };
 
   const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
+
+  const tabTitleMap: Record<string, string> = {
+    console: 'Overview | ZEGA Enterprise',
+    overview: 'Overview | ZEGA Enterprise',
+    ai_command: 'AI Command Center | ZEGA Enterprise',
+    multi_agents: 'AI Agents Fleet | ZEGA Enterprise',
+    sandbox: 'Workflow Studio | ZEGA Enterprise',
+    knowledge_brain: 'Knowledge Hub | ZEGA Enterprise',
+    mcp_connectors: 'MCP Hub | ZEGA Enterprise',
+    integrations: 'Integrations Gateway | ZEGA Enterprise',
+    agent_evals: 'Analytics & Telemetry | ZEGA Enterprise',
+    usage_billing: 'Cost Intelligence | ZEGA Enterprise',
+    reports: 'Reports | ZEGA Enterprise',
+    audit_logs: 'Audit Logs | ZEGA Enterprise',
+    payments_bills: 'Payments & Billing | ZEGA Enterprise',
+    zeroclaw_terminal: 'ZeroClaw Solana Terminal | ZEGA Enterprise',
+    ai_safety: 'Security Center | ZEGA Enterprise',
+    infrastructure: 'System Infrastructure | ZEGA Enterprise',
+    dev_portal: 'Developer Portal | ZEGA Enterprise',
+    api_sdk: 'API & SDK Vault | ZEGA Enterprise',
+    webhooks: 'Webhooks Gateway | ZEGA Enterprise',
+    system_logs: 'System Execution Logs | ZEGA Enterprise',
+    rbac_sso: 'Organization Governance | ZEGA Enterprise',
+    team_roles: 'Team & Roles | ZEGA Enterprise',
+    settings: 'Console Settings | ZEGA Enterprise',
+    help: 'Pusat Bantuan 24/7 | ZEGA Enterprise',
+  };
 
   const setActiveTab = (tabId: string) => {
     setActiveTabState(tabId);
@@ -123,18 +172,29 @@ export function EnterpriseDashboardView({
       if (window.location.pathname !== newPath) {
         window.history.pushState({}, '', newPath);
       }
+      if (tabTitleMap[tabId]) {
+        document.title = tabTitleMap[tabId];
+      }
     }
   };
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && tabTitleMap[activeTab]) {
+      document.title = tabTitleMap[activeTab];
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const handlePopState = () => {
       if (typeof window !== 'undefined') {
         const parts = window.location.pathname.split('/').filter(Boolean);
-        if (parts.length >= 2) {
+        if (parts.length >= 2 && parts[0] === 'console') {
           const slug = parts[1];
           if (slugToTabMap[slug]) {
             setActiveTabState(slugToTabMap[slug]);
           }
+        } else if (parts.length === 1 && parts[0] === 'console') {
+          setActiveTabState('console');
         }
       }
     };
@@ -146,6 +206,8 @@ export function EnterpriseDashboardView({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [workflowStudioMode, setWorkflowStudioMode] = useState<'catalog' | 'canvas'>('catalog');
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('customer_support');
 
   const triggerToast = (msg: string) => {
     setToastMsg(msg);
@@ -175,17 +237,17 @@ export function EnterpriseDashboardView({
       items: [
         { id: 'agent_evals', label: 'Analytics', icon: BarChart3, badge: '98.6%' },
         { id: 'usage_billing', label: 'Cost Intelligence', icon: DollarSign, badge: 'Savings' },
-        { id: 'audit_logs', label: 'Reports', icon: FileText },
+        { id: 'reports', label: 'Reports', icon: FileText },
       ],
     },
     {
       category: 'PLATFORM',
       items: [
-        { id: 'payments_bills', label: 'Payments & Billing', icon: CreditCard, badge: 'Solana' },
+        { id: 'payments_bills', label: 'Payments & Billing', icon: CreditCard },
         { id: 'zeroclaw_terminal', label: 'ZeroClaw Solana Terminal', icon: Cpu, badge: 'Keyless Tier 1' },
         { id: 'ai_safety', label: 'Security Center', icon: ShieldCheck, badge: 'Firewall' },
         { id: 'infrastructure', label: 'Infrastructure', icon: Server },
-        { id: 'audit_logs_platform', label: 'Audit Logs', icon: ShieldAlert, badge: 'SHA-256' },
+        { id: 'audit_logs', label: 'Audit Logs', icon: ShieldAlert, badge: '54k-256' },
       ],
     },
     {
@@ -501,7 +563,23 @@ export function EnterpriseDashboardView({
             />
           )}
           {activeTab === 'ai_command' && <AiCommandCenterView onTriggerToast={triggerToast} />}
-          {activeTab === 'sandbox' && <SandboxWorkflowView />}
+          {activeTab === 'sandbox' && (
+            workflowStudioMode === 'catalog' ? (
+              <WorkflowHubView 
+                onOpenCanvas={(wfId) => {
+                  setSelectedWorkflowId(wfId);
+                  setWorkflowStudioMode('canvas');
+                }}
+                onTriggerToast={triggerToast}
+              />
+            ) : (
+              <SandboxWorkflowView 
+                initialWorkflowId={selectedWorkflowId}
+                onBackToCatalog={() => setWorkflowStudioMode('catalog')}
+                onTriggerToast={triggerToast}
+              />
+            )
+          )}
           {(activeTab === 'agent_swarms' || activeTab === 'multi_agents') && (
             <AgentSwarmsView 
               onTriggerToast={triggerToast} 
@@ -518,14 +596,25 @@ export function EnterpriseDashboardView({
           {activeTab === 'system_logs' && <DeveloperLogsView onTriggerToast={triggerToast} />}
           {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} isGuest={false} userEmail={userEmail} userName={userName} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
-          {(activeTab === 'usage_billing' || activeTab === 'payments_bills') && <UsageBillingView onTriggerToast={triggerToast} />}
+          {(activeTab === 'usage_billing' || activeTab === 'cost_intelligence' || activeTab === 'cost-intelligence') && (
+            <CostIntelligenceView onTriggerToast={triggerToast} />
+          )}
+          {(activeTab === 'payments_bills' || activeTab === 'billing' || activeTab === 'payments-billing') && (
+            <PaymentsBillingView mode="payments_billing" onTriggerToast={triggerToast} />
+          )}
           {(activeTab === 'ai_safety' || activeTab === 'security_center') && <AiSafetyView onTriggerToast={triggerToast} />}
-          {activeTab === 'infrastructure' && <InfrastructureView onTriggerToast={triggerToast} />}
-          {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform') && <AuditLogsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'infrastructure' || activeTab === 'infrastructure_cluster' || activeTab === 'infra') && <InfrastructureView onTriggerToast={triggerToast} />}
+          {activeTab === 'reports' && <ReportsView onTriggerToast={triggerToast} />}
+          {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform' || activeTab === 'audit-logs') && <AuditLogsView onTriggerToast={triggerToast} />}
           {(activeTab === 'rbac_sso' || activeTab === 'organization') && <OrganizationView onTriggerToast={triggerToast} />}
           {activeTab === 'team_roles' && <TeamRolesView onTriggerToast={triggerToast} />}
           {activeTab === 'settings' && <SettingsView onTriggerToast={triggerToast} />}
-          {(activeTab === 'help' || activeTab === 'bantuan') && <HelpView />}
+          {(activeTab === 'help' || activeTab === 'bantuan') && (
+            <HelpView 
+              onTriggerToast={triggerToast} 
+              onNavigateTab={(tab) => setActiveTab(tab)} 
+            />
+          )}
         </div>
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}

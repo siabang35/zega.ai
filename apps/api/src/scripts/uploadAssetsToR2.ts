@@ -17,9 +17,43 @@ try {
   } catch (err) {}
 }
 
-const PUBLIC_ASSETS_DIR = path.resolve(__dirname, '../../../web/public/assets');
+const PUBLIC_DIR = path.resolve(__dirname, '../../../web/public');
 
-async function uploadDirectory(dir: string, baseFolder = 'assets') {
+async function uploadFileToR2(filePath: string) {
+  if (!fs.existsSync(filePath)) {
+    logger.error(`[R2BatchUploader] File not found: ${filePath}`);
+    return;
+  }
+
+  const relativePath = path.relative(PUBLIC_DIR, filePath);
+  const r2Key = relativePath.replace(/\\/g, '/');
+  const fileBuffer = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+
+  let contentType = 'application/octet-stream';
+  if (ext === '.png') contentType = 'image/png';
+  else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+  else if (ext === '.webp') contentType = 'image/webp';
+  else if (ext === '.svg') contentType = 'image/svg+xml';
+  else if (ext === '.json') contentType = 'application/json';
+  else if (ext === '.mp4') contentType = 'video/mp4';
+  else if (ext === '.webm') contentType = 'video/webm';
+
+  logger.info(`[R2BatchUploader] Uploading ${path.basename(filePath)} -> Key: ${r2Key}`);
+  const result = await R2StorageService.uploadFile({
+    key: r2Key,
+    content: fileBuffer,
+    contentType,
+  });
+
+  if (result.success) {
+    logger.info(`[R2BatchUploader] ✅ Success: ${result.url}`);
+  } else {
+    logger.error(`[R2BatchUploader] ❌ Failed: ${r2Key}`);
+  }
+}
+
+async function uploadDirectory(dir: string) {
   if (!fs.existsSync(dir)) {
     logger.error(`[R2BatchUploader] Directory not found: ${dir}`);
     return;
@@ -29,53 +63,30 @@ async function uploadDirectory(dir: string, baseFolder = 'assets') {
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
-    const relativePath = path.relative(PUBLIC_ASSETS_DIR, fullPath);
-    const r2Key = `${baseFolder}/${relativePath.replace(/\\/g, '/')}`;
-
     if (entry.isDirectory()) {
-      await uploadDirectory(fullPath, baseFolder);
+      await uploadDirectory(fullPath);
     } else if (entry.isFile()) {
-      const fileBuffer = fs.readFileSync(fullPath);
-      const ext = path.extname(entry.name).toLowerCase();
-
-      let contentType = 'application/octet-stream';
-      if (ext === '.png') contentType = 'image/png';
-      else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
-      else if (ext === '.webp') contentType = 'image/webp';
-      else if (ext === '.svg') contentType = 'image/svg+xml';
-      else if (ext === '.json') contentType = 'application/json';
-      else if (ext === '.mp4') contentType = 'video/mp4';
-      else if (ext === '.webm') contentType = 'video/webm';
-
-      const forceUpload = process.env.FORCE_UPLOAD === 'true' || process.argv.includes('--force');
-      if (!forceUpload) {
-        const exists = await R2StorageService.checkObjectExists(r2Key);
-        if (exists) {
-          logger.info(`[R2BatchUploader] ⏭️ Skipped (Already on CDN): ${r2Key}`);
-          continue;
-        }
-      }
-
-      logger.info(`[R2BatchUploader] Uploading ${entry.name} -> Key: ${r2Key}`);
-      const result = await R2StorageService.uploadFile({
-        key: r2Key,
-        content: fileBuffer,
-        contentType,
-      });
-
-      if (result.success) {
-        logger.info(`[R2BatchUploader] ✅ Success: ${result.url}`);
-      } else {
-        logger.error(`[R2BatchUploader] ❌ Failed: ${r2Key}`);
-      }
+      await uploadFileToR2(fullPath);
     }
   }
 }
 
 async function run() {
-  logger.info('[R2BatchUploader] Starting batch upload of all public assets to Cloudflare R2 CDN...');
-  await uploadDirectory(PUBLIC_ASSETS_DIR, 'assets');
-  logger.info('[R2BatchUploader] 🎉 Batch asset upload to Cloudflare R2 CDN completed successfully!');
+  logger.info('[R2BatchUploader] Starting batch upload of public assets to Cloudflare R2 CDN...');
+  
+  const targetArg = process.argv[2];
+  if (targetArg && fs.existsSync(targetArg)) {
+    logger.info(`[R2BatchUploader] Target file upload specified: ${targetArg}`);
+    await uploadFileToR2(targetArg);
+  } else {
+    const assetsDir = path.join(PUBLIC_DIR, 'assets');
+    const designDir = path.join(PUBLIC_DIR, 'design');
+    
+    if (fs.existsSync(assetsDir)) await uploadDirectory(assetsDir);
+    if (fs.existsSync(designDir)) await uploadDirectory(designDir);
+  }
+  
+  logger.info('[R2BatchUploader] 🎉 Asset upload to Cloudflare R2 CDN completed successfully!');
 }
 
 run().catch((err) => {

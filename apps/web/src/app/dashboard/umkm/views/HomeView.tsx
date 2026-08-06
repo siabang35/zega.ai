@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag, 
-  UserPlus, MessageSquare, Sparkles, Bot, Megaphone, FileText, Store, 
+import {
+  Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
+  UserPlus, MessageSquare, Sparkles, Bot, Megaphone, FileText, Store,
   Users, ArrowRight, Plus, BarChart2, ShieldCheck, Zap, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line 
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
 } from 'recharts';
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
@@ -23,8 +23,8 @@ const sales7Days = [
   { date: '29 May', revenue: 2800000, orders: 21 },
   { date: '30 May', revenue: 3900000, orders: 32 },
   { date: '31 May', revenue: 5200000, orders: 43 },
-  { date: '1 Jun',  revenue: 4100000, orders: 35 },
-  { date: '2 Jun',  revenue: 4850000, orders: 40 },
+  { date: '1 Jun', revenue: 4100000, orders: 35 },
+  { date: '2 Jun', revenue: 4850000, orders: 40 },
 ];
 
 const sales30Days = [
@@ -36,10 +36,10 @@ const sales30Days = [
 
 // Sparkline Mini Data
 const sparkRevenue = [{ v: 2.1 }, { v: 2.8 }, { v: 3.5 }, { v: 4.2 }, { v: 5.2 }];
-const sparkOrders  = [{ v: 20 },  { v: 28 },  { v: 31 },  { v: 38 },  { v: 43 }];
-const sparkUsers   = [{ v: 4 },   { v: 6 },   { v: 9 },   { v: 10 },  { v: 12 }];
-const sparkWa      = [{ v: 92 },  { v: 94 },  { v: 95 },  { v: 97 },  { v: 98 }];
-const sparkHours   = [{ v: 4.0 }, { v: 5.5 }, { v: 6.8 }, { v: 8.0 }, { v: 9.2 }];
+const sparkOrders = [{ v: 20 }, { v: 28 }, { v: 31 }, { v: 38 }, { v: 43 }];
+const sparkUsers = [{ v: 4 }, { v: 6 }, { v: 9 }, { v: 10 }, { v: 12 }];
+const sparkWa = [{ v: 92 }, { v: 94 }, { v: 95 }, { v: 97 }, { v: 98 }];
+const sparkHours = [{ v: 4.0 }, { v: 5.5 }, { v: 6.8 }, { v: 8.0 }, { v: 9.2 }];
 
 // Custom Tooltip for Recharts Sales Summary
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -214,12 +214,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
   return (
     <div className="space-y-4 font-sans text-slate-900 dark:text-slate-100 max-w-[1600px] mx-auto">
-      
+
       {/* ========================================================================= */}
       {/* ROW 1: WELCOME BANNER + REALTIME SYSTEM & AI STATUS */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-        
+
         {/* BANNER CARD (LG: 8 COLS) */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs relative overflow-hidden">
           <div className="flex flex-row items-center justify-between gap-4">
@@ -254,7 +254,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 </div>
               )}
 
-              <div 
+              <div
                 onClick={() => setIsGreetingVisible(!isGreetingVisible)}
                 className="relative size-20 sm:size-24 rounded-2xl bg-slate-950 border-2 border-orange-400/50 p-1 shadow-sm overflow-hidden group-hover/robot:scale-105 group-hover/robot:border-orange-500 transition-all duration-300 flex items-center justify-center"
               >
@@ -319,10 +319,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">{u.realtimeStatus}</h3>
               </div>
-              
+
               <div className="flex items-center gap-1.5">
-                <button 
-                  onClick={handleManualRefresh} 
+                <button
+                  onClick={handleManualRefresh}
                   className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-500 cursor-pointer transition-all"
                   title="Refresh Database"
                 >
@@ -367,7 +367,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               <span className="text-[10px] text-slate-400 font-medium">{u.plan}:</span>
               <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-black text-[10px]">Starter</span>
             </div>
-            <button 
+            <button
               onClick={() => onNavigateTab('billing')}
               className="text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
             >
@@ -382,9 +382,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       {/* ROW 2: 5 METRIC CARDS WITH RECHARTS SPARKLINE CURVES */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        
+
         {/* PENDAPATAN */}
-        <div 
+        <div
           onClick={() => onNavigateTab('sales')}
           className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
         >
@@ -412,7 +412,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         </div>
 
         {/* PESANAN BARU */}
-        <div 
+        <div
           onClick={() => onNavigateTab('store')}
           className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
         >
@@ -440,7 +440,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         </div>
 
         {/* PELANGGAN BARU */}
-        <div 
+        <div
           onClick={() => onNavigateTab('customers')}
           className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
         >
@@ -468,7 +468,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         </div>
 
         {/* RESPONSE RATE WA */}
-        <div 
+        <div
           onClick={() => onNavigateTab('inbox')}
           className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
         >
@@ -496,7 +496,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         </div>
 
         {/* JAM TERSIMPAN */}
-        <div 
+        <div
           onClick={() => onNavigateTab('reports')}
           className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
         >
@@ -536,7 +536,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               {aiEmployees.length || 5} {u.active}
             </span>
           </div>
-          <button 
+          <button
             onClick={() => onNavigateTab('my_agents')}
             className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
@@ -558,25 +558,25 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
             return list.map((agent: any, idx: number) => {
               const def = defaultAgentConfigs[idx % defaultAgentConfigs.length];
-              const agentName = (agent.name && agent.name !== 'AI Employee') 
-                ? agent.name 
+              const agentName = (agent.name && agent.name !== 'AI Employee')
+                ? agent.name
                 : (agent.agent_name && agent.agent_name !== 'AI Employee' ? agent.agent_name : def.name);
               const agentRole = agent.role || agent.category || def.role;
               const isAgentActive = agent.status === 'active' || agent.status === 'working' || !agent.status;
               const isWarning = agent.status === 'warning';
               const tasksDone = agent.tasks_completed_today || agent.chats_today || (120 + idx * 15);
               const resolvedVal = agent.resolution_rate ? `${agent.resolution_rate}%` : `${94 + idx * 1.2}%`;
-              
+
               return (
-                <div 
+                <div
                   key={agent.id || agent.agent_code || idx}
                   className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-2.5 hover:border-orange-400/50 transition-all duration-200"
                 >
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="size-8 rounded-lg bg-slate-900 border border-slate-700/80 overflow-hidden flex-shrink-0 p-0.5">
-                        <img 
-                          src={SupabaseDashboardService.getCdnUrl(agent.avatar_path || 'assets/visualization/ai-avatar.png')} 
+                        <img
+                          src={SupabaseDashboardService.getCdnUrl(agent.avatar_path || 'assets/visualization/ai-avatar.png')}
                           alt={agentName}
                           className="w-full h-full object-cover rounded-md"
                           onError={(e) => {
@@ -588,13 +588,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate" title={agentName}>
                           {agentName}
                         </h4>
-                        <span className={`text-[8.5px] font-bold ${
-                          isAgentActive 
-                            ? 'text-emerald-600 dark:text-emerald-400' 
-                            : isWarning 
-                            ? 'text-amber-600 dark:text-amber-400' 
-                            : 'text-slate-400'
-                        }`}>
+                        <span className={`text-[8.5px] font-bold ${isAgentActive
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : isWarning
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-400'
+                          }`}>
                           • {isAgentActive ? u.active : (isWarning ? 'Attention' : 'Paused')}
                         </span>
                       </div>
@@ -611,8 +610,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                       </div>
                     </div>
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       setSelectedAgentModal({
                         ...agent,
@@ -622,7 +621,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         tasksDone,
                         resolvedVal
                       });
-                    }} 
+                    }}
                     className="w-full py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all cursor-pointer"
                   >
                     {u.open}
@@ -633,7 +632,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           })()}
 
           {/* TAMBAH AI */}
-          <div 
+          <div
             onClick={() => setShowDeployModal(true)}
             className="p-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-1 hover:border-orange-500 transition-all cursor-pointer group min-h-[110px]"
           >
@@ -656,12 +655,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
         {/* LEFT 8 COLS: RINGKASAN PENJUALAN + (OTOMASI & TUGAS AI) */}
         <div className="lg:col-span-8 space-y-4">
-          
+
           {/* RINGKASAN PENJUALAN RECHARTS AREA CHART */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.salesSummary}</h3>
-              <select 
+              <select
                 value={salesTimeframe}
                 onChange={(e) => setSalesTimeframe(e.target.value as any)}
                 className="text-[11px] font-semibold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
@@ -677,31 +676,31 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <AreaChart data={salesTimeframe === '7d' ? sales7Days : sales30Days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                  <XAxis 
-                    dataKey="date" 
-                    tickLine={false} 
-                    axisLine={false} 
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
                     tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }}
                   />
-                  <YAxis 
-                    tickLine={false} 
-                    axisLine={false} 
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
                     tickFormatter={(val) => `Rp${(val / 1000000).toFixed(1)}M`}
                   />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#f97316" 
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#f97316"
                     strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorRevenue)" 
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
                     activeDot={{ r: 6, fill: '#f97316', stroke: '#ffffff', strokeWidth: 3 }}
                   />
                 </AreaChart>
@@ -711,7 +710,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
           {/* SUB-GRID: OTOMASI BERJALAN & TUGAS AI HARI INI */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
+
             {/* OTOMASI BERJALAN */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
@@ -721,8 +720,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
               <div className="space-y-2">
                 {automations.map((item, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => {
                       triggerToast(`Opening automation: ${item.name}`);
                       onNavigateTab('automation');
@@ -760,8 +759,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   { task: 'Verified 5 transactions', agent: 'Finance AI', time: '30m ago' },
                   { task: 'Updated stock for 3 items', agent: 'Store AI', time: '45m ago' },
                 ].map((item, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => {
                       triggerToast(`Viewing AI task: ${item.task}`);
                       onNavigateTab('my_agents');
@@ -788,7 +787,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
         {/* RIGHT 4 COLS: AKTIVITAS TERBARU, AKSI CEPAT & INSTAGRAM */}
         <div className="lg:col-span-4 space-y-4">
-          
+
           {/* AKTIVITAS TERBARU */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
@@ -800,8 +799,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               {recentActivities.map((act, i) => {
                 const Icon = act.icon || FileText;
                 return (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => {
                       triggerToast(`Activity detail: ${act.title}`);
                       onNavigateTab('reports');
@@ -827,43 +826,43 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           {/* AKSI CEPAT */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.quickActions}</h3>
-            
+
             <div className="grid grid-cols-4 gap-1.5 text-center">
-              <button 
+              <button
                 onClick={() => {
                   setModalForm({ title: 'Customer PT Maju Jaya', detail: 'INV-2026-009', amount: 'Rp1.500.000' });
                   setActiveModal('invoice');
-                }} 
+                }}
                 className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
               >
                 <FileText size={16} className="text-emerald-500" />
                 <span className="text-[9.5px] font-bold">{u.createInvoice}</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => {
                   setModalForm({ title: 'Promo Flash Sale 8.8 Diskon 50%', detail: 'All Active Customers', amount: 'WhatsApp & IG' });
                   setActiveModal('broadcast');
-                }} 
+                }}
                 className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
               >
                 <Megaphone size={16} className="text-orange-500" />
                 <span className="text-[9.5px] font-bold">{u.sendBroadcast}</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => {
                   setModalForm({ title: 'Kopi Arabika Premium 250g', detail: 'Minuman / Kopi', amount: 'Rp85.000' });
                   setActiveModal('product');
-                }} 
+                }}
                 className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
               >
                 <Store size={16} className="text-pink-500" />
                 <span className="text-[9.5px] font-bold">{u.addProduct}</span>
               </button>
 
-              <button 
-                onClick={() => onNavigateTab('sales')} 
+              <button
+                onClick={() => onNavigateTab('sales')}
                 className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
               >
                 <BarChart2 size={16} className="text-purple-500" />
@@ -871,7 +870,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               </button>
             </div>
 
-            <button 
+            <button
               onClick={() => triggerToast('Opening ZEGA AI Copilot Assistant...')}
               className="w-full py-2.5 rounded-xl border-2 border-orange-500/80 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-extrabold text-[11px] shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
             >
@@ -892,8 +891,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">
               {u.instagramDesc}
             </p>
-            <button 
-              onClick={() => onNavigateTab('marketplace')} 
+            <button
+              onClick={() => onNavigateTab('marketplace')}
               className="w-full py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-[11px] shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <span>{u.manageInstagram}</span> <ArrowRight size={11} />
@@ -926,11 +925,11 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <label className="block text-slate-500 font-bold mb-1">
                   {activeModal === 'invoice' ? 'Customer Name' : activeModal === 'broadcast' ? 'Broadcast Title' : 'Product Name'}
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={modalForm.title}
                   onChange={(e) => setModalForm(prev => ({ ...prev, title: e.target.value }))}
-                  required 
+                  required
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-semibold"
                 />
               </div>
@@ -939,8 +938,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <label className="block text-slate-500 font-bold mb-1">
                   {activeModal === 'invoice' ? 'Invoice Number / Note' : activeModal === 'broadcast' ? 'Target Audience' : 'Category'}
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={modalForm.detail}
                   onChange={(e) => setModalForm(prev => ({ ...prev, detail: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800"
@@ -951,8 +950,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <label className="block text-slate-500 font-bold mb-1">
                   {activeModal === 'invoice' ? 'Total Amount' : activeModal === 'broadcast' ? 'Channels' : 'Price (Rp)'}
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={modalForm.amount}
                   onChange={(e) => setModalForm(prev => ({ ...prev, amount: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-semibold"
@@ -1037,11 +1036,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   setSelectedAgentModal({ ...selectedAgentModal, status: newStatus });
                   triggerToast(`Updated ${selectedAgentModal.name} status to ${newStatus.toUpperCase()}`);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-colors border ${
-                  selectedAgentModal.status === 'active'
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-colors border ${selectedAgentModal.status === 'active'
                     ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                     : 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                }`}
+                  }`}
               >
                 {selectedAgentModal.status === 'active' ? '• Status: Active' : '• Status: Paused'}
               </button>

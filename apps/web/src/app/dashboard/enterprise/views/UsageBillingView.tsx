@@ -259,46 +259,27 @@ export function UsageBillingView({ onTriggerToast }: UsageBillingViewProps) {
             Top Cost Drivers
           </h3>
 
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100">GPT-4o (OpenAI)</p>
-                <p className="text-[10px] text-slate-400 font-mono">5.2M requests</p>
+          <div className="space-y-2 text-xs">
+            {[
+              { name: 'GPT-4o (OpenAI)', reqs: '5.2M requests', cost: '$9,432.10', logo: getR2CdnUrl('/assets/logo/gpt.webp') },
+              { name: 'Claude 3.5', reqs: '4.2M requests', cost: '$3,210.80', logo: getR2CdnUrl('/assets/logo/claude.webp') },
+              { name: 'Vector Search', reqs: '15.2M queries', cost: '$4,120.50', logo: getR2CdnUrl('/assets/logo/ai-agents.png') },
+              { name: 'Supabase DB', reqs: '2.34 TB storage', cost: '$3,230.90', logo: getR2CdnUrl('/assets/logo/supabase.png') },
+              { name: 'Stripe MCP', reqs: '1.8M calls', cost: '$2,110.30', logo: getR2CdnUrl('/assets/visualization/stripe.webp') }
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="size-6 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-0.5 overflow-hidden shrink-0">
+                    <img src={item.logo} alt={item.name} className="size-full object-contain" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{item.name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{item.reqs}</p>
+                  </div>
+                </div>
+                <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{item.cost}</span>
               </div>
-              <span className="font-mono font-bold text-slate-900 dark:text-slate-100">$9,432.10</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100">Claude 3.5</p>
-                <p className="text-[10px] text-slate-400 font-mono">4.2M requests</p>
-              </div>
-              <span className="font-mono font-bold text-slate-900 dark:text-slate-100">$3,210.80</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100">Vector Search</p>
-                <p className="text-[10px] text-slate-400 font-mono">15.2M queries</p>
-              </div>
-              <span className="font-mono font-bold text-slate-900 dark:text-slate-100">$4,120.50</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100">Supabase DB</p>
-                <p className="text-[10px] text-slate-400 font-mono">2.34 TB storage</p>
-              </div>
-              <span className="font-mono font-bold text-slate-900 dark:text-slate-100">$3,230.90</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100">Stripe MCP</p>
-                <p className="text-[10px] text-slate-400 font-mono">1.8M calls</p>
-              </div>
-              <span className="font-mono font-bold text-slate-900 dark:text-slate-100">$2,110.30</span>
-            </div>
+            ))}
           </div>
         </div>
       </div>

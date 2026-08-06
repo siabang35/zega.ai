@@ -12,23 +12,36 @@ export const R2_PUBLIC_CDN_DOMAIN = import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'ht
 export function getR2CdnUrl(assetPath: string, preferRemote = false): string {
   if (!assetPath) return `${R2_PUBLIC_CDN_DOMAIN}/assets/logo/zegalogo.png`;
 
-  // If already pointing to an absolute http/https domain
-  if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
-    return assetPath;
+  let cleanPath = assetPath;
+  // If legacy R2 direct bucket URL is stored in database, strip protocol and domain
+  if (cleanPath.includes('.r2.dev') || cleanPath.includes('pub-')) {
+    cleanPath = cleanPath.replace(/^https?:\/\/[^\/]+/, '');
+  }
+
+  // If already pointing to an external absolute http/https domain
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+    return cleanPath;
   }
 
   // Ensure clean leading slash
-  const cleanPath = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+  cleanPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
 
-  // Ensure path starts with /assets/
-  const normalizedPath = cleanPath.startsWith('/assets/') ? cleanPath : `/assets${cleanPath}`;
+  // If path doesn't start with /assets/ or /design/ or /videos/ or /images/, prefix /assets/
+  if (
+    !cleanPath.startsWith('/assets/') &&
+    !cleanPath.startsWith('/design/') &&
+    !cleanPath.startsWith('/videos/') &&
+    !cleanPath.startsWith('/images/')
+  ) {
+    cleanPath = `/assets${cleanPath}`;
+  }
 
   // In production builds, or when preferRemote is requested, or when VITE_USE_REMOTE_CDN is enabled
   if (preferRemote || import.meta.env.PROD || import.meta.env.VITE_USE_REMOTE_CDN === 'true') {
-    return `${R2_PUBLIC_CDN_DOMAIN}${normalizedPath}`;
+    return `${R2_PUBLIC_CDN_DOMAIN}${cleanPath}`;
   }
 
-  return normalizedPath;
+  return cleanPath;
 }
 
 /**

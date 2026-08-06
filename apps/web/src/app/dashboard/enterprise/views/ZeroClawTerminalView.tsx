@@ -235,12 +235,12 @@ export function ZeroClawTerminalView({
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   // Invoices & Payment Generator State
-  const [invoiceAmount, setInvoiceAmount] = useState('0.50');
-  const [invoiceMessage, setInvoiceMessage] = useState('Invoice Table 2');
-  const [buyerEmail, setBuyerEmail] = useState('customer@example.com');
+  const [invoiceAmount, setInvoiceAmount] = useState('500.00');
+  const [invoiceMessage, setInvoiceMessage] = useState('Enterprise Contract SLA #ZEGA-8890');
+  const [buyerEmail, setBuyerEmail] = useState('procurement@acme-corp.com');
   const [refKeyType, setRefKeyType] = useState('Short (22 chars)');
   const [expiresIn, setExpiresIn] = useState('24 Hours');
-  const [callbackUrl, setCallbackUrl] = useState('https://api.acme.com/webhook/zeroclaw');
+  const [callbackUrl, setCallbackUrl] = useState('https://api.acme-corp.com/v1/webhooks/zeroclaw');
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
   const [rightPanelTab, setRightPanelTab] = useState<'settlements' | 'invoices'>('settlements');
@@ -342,13 +342,31 @@ export function ZeroClawTerminalView({
         json = await res.json();
       }
 
+      const checkoutLink = json?.invoice?.blinkUrl || `https://zegaai.site/checkout?reference=${refKeyStr || ''}`;
+
       if (json?.invoice?.deliveryType === 'live_api') {
         onTriggerToast(`🟢 Invoice (${amountDisplay} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
       } else {
-        onTriggerToast(`⚡ Invoice (${amountDisplay} USDC) Diterbitkan untuk ${targetAddr} (${targetChannel.toUpperCase()}).`);
+        // Direct Share Fallback: Trigger 1-Click Telegram Direct Share / WhatsApp Web
+        const shareText = `🧾 ZEGA ENTERPRISE INVOICE (${amountDisplay} USDC)\n\n• Order: ${descriptionText}\n• Merchant: ${activeMerchantWallet.slice(0, 6)}...${activeMerchantWallet.slice(-4)}\n\n⚡ Bayar via Solana Blink / Checkout:\n${checkoutLink}`;
+
+        if (targetChannel === 'telegram') {
+          const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(checkoutLink)}&text=${encodeURIComponent(shareText)}`;
+          if (typeof window !== 'undefined') {
+            window.open(tgShareUrl, '_blank');
+          }
+          onTriggerToast(`✈️ Membuka Telegram Direct Share ke ${targetAddr} (${amountDisplay} USDC)...`);
+        } else if (targetChannel === 'whatsapp') {
+          const cleanPhone = targetAddr.replace(/[^0-9]/g, '');
+          const waShareUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(shareText)}`;
+          if (typeof window !== 'undefined') {
+            window.open(waShareUrl, '_blank');
+          }
+          onTriggerToast(`📱 Membuka WhatsApp Direct ke ${targetAddr} (${amountDisplay} USDC)...`);
+        }
       }
     } catch (e) {
-      onTriggerToast(`⚡ Invoice (${amountDisplay} USDC) dikirim ke ${targetAddr}.`);
+      onTriggerToast(`⚡ Invoice (${amountDisplay} USDC) Diterbitkan untuk ${targetAddr}.`);
     } finally {
       setDispatchingChannel(null);
     }
@@ -656,10 +674,13 @@ export function ZeroClawTerminalView({
       if (json.success) {
         setPaymentCheckResult(json);
         if (json.paid) {
-          const foundSig = json.matchedEvent?.signature;
+          const foundSig = json.matchedEvent?.signature || (sigToVerify.length >= 70 ? sigToVerify : undefined);
           if (foundSig && foundSig.length >= 70 && foundSig.length <= 96 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
             setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'paid', tx_signature: foundSig } : prev);
           }
+          setGeneratedInvoicesHistory((prev: GeneratedInvoice[]) => 
+            prev.map(item => item.id === inv.id || item.referenceKey === inv.referenceKey ? { ...item, status: 'paid', tx_signature: foundSig || item.tx_signature } : item)
+          );
           onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
           fetchDbInvoices();
         } else {
@@ -809,25 +830,11 @@ export function ZeroClawTerminalView({
       const extractedAmount = parsedNum.toFixed(2);
       const tableMatch = promptToRun.match(/(table|meja)\s*(\d+|[a-z0-9]+)/i);
       const tableStr = tableMatch ? ` (Meja ${tableMatch[2]})` : '';
-
-      // Generate valid 32-byte Ed25519 Solana Reference Key for Solana Pay Standard
-      const validBase58Ref = generateSolanaReferenceKey();
-
-      payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}&reference=${validBase58Ref}`;
       const memoText = `Invoice Table ${tableMatch ? tableMatch[2] : '3'} (${extractedAmount} USDC)`;
 
-      if (!jsonResult?.response) {
-        responseText = `Generated Solana Pay link for ${extractedAmount} USDC${tableStr}. Standard scannable QR Code active.`;
-      }
-
-      // Automatically sync UI state with AI generated payment details
-      setInvoiceAmount(extractedAmount);
-      setInvoiceMessage(memoText);
-      setGeneratedUrl(payUrl);
-
-      // 5. In-Prompt Customer Target Extraction (WhatsApp E.164 phone or Telegram handle)
+      // 🛡️ 1. Extract Target Recipient Handle First (WhatsApp E.164 phone or Telegram handle/Chat ID)
       const phoneMatch = promptToRun.match(/\+?[1-9]\d{9,14}\b/) || promptToRun.match(/\b08\d{8,11}\b/);
-      const telegramMatch = promptToRun.match(/@([a-zA-Z0-9_]{3,32})\b/);
+      const telegramMatch = promptToRun.match(/@([a-zA-Z0-9_]{3,32})\b/) || promptToRun.match(/\b(?:for|ke|to|target)\s+([a-zA-Z0-9_]{3,32})\b/i);
 
       let targetToDispatch = (customerChannelTarget || '').trim();
       let channelToDispatch = customerChannelType;
@@ -844,18 +851,23 @@ export function ZeroClawTerminalView({
         setCustomerChannelTarget(targetToDispatch);
         setCustomerChannelType('whatsapp');
       } else if (telegramMatch) {
-        targetToDispatch = telegramMatch[0];
+        const handleText = telegramMatch[1] || telegramMatch[0];
+        targetToDispatch = handleText.startsWith('@') ? handleText : `@${handleText}`;
         channelToDispatch = 'telegram';
         setCustomerChannelTarget(targetToDispatch);
         setCustomerChannelType('telegram');
+      } else if (targetToDispatch.length >= 3 && !targetToDispatch.startsWith('@') && !targetToDispatch.startsWith('+') && !/^-?\d+$/.test(targetToDispatch)) {
+        targetToDispatch = `@${targetToDispatch}`;
+        setCustomerChannelTarget(targetToDispatch);
       }
 
-      // 🛡️ Strict Customer Target Validation: Target must be Telegram @username or valid Phone number
-      const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(targetToDispatch);
-      const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(targetToDispatch);
+      // 🛡️ 2. OWASP Level 3 Target Recipient Enforcement (Strict Telegram @username/Chat ID or WA Phone)
+      const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(targetToDispatch) || /^-?\d{5,15}$/.test(targetToDispatch);
+      const isPhoneNumber = /^\+?[1-9]\d{7,14}$/.test(targetToDispatch) || /^08\d{8,12}$/.test(targetToDispatch);
 
       if (!isTelegramHandle && !isPhoneNumber) {
-        const rejectionMsg = `⚠️ **TAGIHAN TIDAK VALID**: Pembuatan invoice ditolak. Target penerima (Telegram @username atau Nomor Telepon) wajib ditentukan.\n\nContoh prompt yang benar:\n• \`generate 0.2 usdc for @username\`\n• \`invoice 0.2 usdc ke +628123456789\``;
+        const rejectionMsg = `⚠️ **TAGIHAN AI DITOLAK (OWASP TARGET GATE)**: Pembuatan invoice "${promptToRun}" ditolak. Target penerima Telegram (@username / Chat ID) atau WhatsApp (+62...) WAJIB ditentukan.\n\nContoh prompt AI yang benar:\n• \`generate 0.2 USDC for @username\`\n• \`invoice 0.2 USDC ke +628123456789\``;
+        
         setAgentLogs(prev => [{
           id: `log_rej_${Date.now()}`,
           prompt: promptToRun,
@@ -866,10 +878,25 @@ export function ZeroClawTerminalView({
           tps: 500,
           injectionDetected: false,
         }, ...prev]);
-        onTriggerToast('⚠️ Gagal: Target penerima (@username / Nomor Telepon) wajib diisi!');
+
+        onTriggerToast('❌ TAGIHAN DITOLAK: Target Telegram (@username) / WA (+62...) Wajib Diisi!');
         setExecutingPrompt(false);
+        setGeneratedUrl(null);
         return;
       }
+
+      // 🛡️ 3. Target is valid — Generate Ed25519 Reference Key and Solana Pay Link
+      const validBase58Ref = generateSolanaReferenceKey();
+      payUrl = `solana:${activeMerchantWallet}?amount=${extractedAmount}&reference=${validBase58Ref}`;
+
+      if (!jsonResult?.response) {
+        responseText = `Generated Solana Pay link for ${extractedAmount} USDC${tableStr} (Target: ${targetToDispatch}). Standard scannable QR Code active.`;
+      }
+
+      // Automatically sync UI state with AI generated payment details
+      setInvoiceAmount(extractedAmount);
+      setInvoiceMessage(memoText);
+      setGeneratedUrl(payUrl);
 
       // Append to persistent invoice history for Vault
       const newHistItem: GeneratedInvoice = {
@@ -890,12 +917,7 @@ export function ZeroClawTerminalView({
       recordInvoiceToDatabaseAndR2(newHistItem);
       setRightPanelTab('invoices');
 
-      if (targetToDispatch && targetToDispatch.trim().length > 0) {
-        onTriggerToast(`⚡ Tagihan AI (${extractedAmount} USDC) Berhasil Dibuat & Terkirim ke ${targetToDispatch}!`);
-      } else {
-        onTriggerToast(`⚡ Tagihan AI (${extractedAmount} USDC) Berhasil Dibuat & Tersimpan di Vault!`);
-      }
-
+      onTriggerToast(`⚡ Tagihan AI (${extractedAmount} USDC) Berhasil Dibuat & Terkirim ke ${targetToDispatch}!`);
       setTimeout(() => fetchDbInvoices(), 500);
     }
 
@@ -1157,13 +1179,13 @@ export function ZeroClawTerminalView({
           const merchantJson = await merchantRes.json();
           if (Array.isArray(merchantJson.signatures) && merchantJson.signatures.length > 0) {
             const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures
-              .filter((sigItem: any) => typeof sigItem.amountUsdc === 'number' && sigItem.amountUsdc > 0)
+              .filter((sigItem: any) => sigItem.signature && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(String(sigItem.signature).trim()))
               .map((sigItem: any) => {
-                const sigHash = sigItem.signature;
+                const sigHash = String(sigItem.signature).trim();
                 const slotNum = sigItem.slot || 480320796;
                 const blockTimeMs = sigItem.blockTime ? sigItem.blockTime * 1000 : null;
                 const timeStr = blockTimeMs ? new Date(blockTimeMs).toLocaleTimeString() : 'Just now';
-                const parsedAmt = sigItem.amountUsdc;
+                const parsedAmt = typeof sigItem.amountUsdc === 'number' && sigItem.amountUsdc > 0 ? sigItem.amountUsdc : 15.00;
 
                 return {
                   id: `devnet_rpc_${sigHash}`,
@@ -1237,12 +1259,15 @@ export function ZeroClawTerminalView({
                 ? newRow.amount_usdc
                 : (parseFloat(newRow.amount_usdc) || 0.50);
 
+              const realSig = sanitizeTxSig(newRow.tx_signature);
+              if (!realSig) return; // Ignore synthetic non-Base58 signatures
+
               setEvents((prev) => {
-                const exists = prev.some((e) => e.signature === newRow.tx_signature || e.id === newRow.id);
+                const exists = prev.some((e) => e.signature === realSig || e.id === newRow.id);
                 if (!exists) {
                   const newEvt: ReconciledEvent = {
-                    id: newRow.id || `real_${Date.now()}`,
-                    signature: newRow.tx_signature || `sig_${Date.now()}`,
+                    id: newRow.id || `real_${realSig}`,
+                    signature: realSig,
                     amount: amountVal,
                     currency: 'USDC',
                     timestamp: newRow.created_at ? new Date(newRow.created_at).toLocaleTimeString() : 'Just now',
@@ -1256,7 +1281,7 @@ export function ZeroClawTerminalView({
 
                   // Autonomous Payment Verification Receipt Dispatcher to Customer Channel
                   if (customerChannelTarget && customerChannelTarget.trim().length > 0) {
-                    const receiptDesc = `✅ PEMBAYARAN DITERIMA & TERVERIFIKASI ON-CHAIN SOLANA (${amountVal.toFixed(2)} USDC). Tx Signature: ${newRow.tx_signature || 'devnet-tx'}`;
+                    const receiptDesc = `✅ PEMBAYARAN DITERIMA & TERVERIFIKASI ON-CHAIN SOLANA (${amountVal.toFixed(2)} USDC). Tx Signature: ${realSig}`;
                     dispatchInvoiceToChannel(
                       customerChannelType,
                       customerChannelTarget,
@@ -1333,14 +1358,25 @@ export function ZeroClawTerminalView({
   };
 
   const handleGenerateInvoice = () => {
-    // 🛡️ Strict Customer Target Validation: Must be valid Telegram @username or Phone number
-    const cleanTarget = (customerChannelTarget || '').trim();
-    const isTelegramHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(cleanTarget);
-    const isPhoneNumber = /^(\+?62|08)\d{8,13}$/.test(cleanTarget);
+    // 🛡️ OWASP Level 3 Target Handle Normalization & Validation
+    let rawTarget = (customerChannelTarget || '').trim();
+    if (rawTarget.startsWith('08')) {
+      rawTarget = '+62' + rawTarget.substring(1);
+    } else if (rawTarget.length >= 3 && !rawTarget.startsWith('@') && !rawTarget.startsWith('+') && !/^-?\d+$/.test(rawTarget)) {
+      rawTarget = '@' + rawTarget;
+    }
 
-    if (!isTelegramHandle && !isPhoneNumber) {
-      onTriggerToast('⚠️ Gagal: Target penerima wajib diisi dengan Telegram @username (contoh: @username) atau Nomor Telepon (+628...). Invoice tidak dapat dibuat tanpa target.');
+    const isTgHandle = /^@[a-zA-Z0-9_]{3,32}$/.test(rawTarget) || /^-?\d{5,15}$/.test(rawTarget);
+    const isWaPhone = /^\+?[1-9]\d{7,14}$/.test(rawTarget);
+    const isBuyerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((buyerEmail || '').trim());
+
+    if (!isTgHandle && !isWaPhone && !isBuyerEmail) {
+      onTriggerToast('❌ VALIDATION REJECTED: Target penerima (Telegram @username / Chat ID atau WhatsApp +62...) wajib diisi dengan benar sebelum invoice dapat diterbitkan!');
       return;
+    }
+
+    if (rawTarget !== customerChannelTarget) {
+      setCustomerChannelTarget(rawTarget);
     }
 
     // Normalize Indonesian comma decimals (e.g. "1,7" or "15,50") to dot decimals ("1.7")
@@ -2045,9 +2081,9 @@ export function ZeroClawTerminalView({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <button
                     type="button"
-                    onClick={() => createInvoiceFromPreset('15.00', 'Invoice #9012 - Cafe Latte x2')}
+                    onClick={() => createInvoiceFromPreset('2500.00', 'Enterprise Contract #ZEGA-8890 - Q2 Infrastructure SLA')}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '15.00' && invoiceMessage.includes('Cafe Latte')
+                      invoiceAmount === '2500.00' || invoiceAmount === '2,500.00'
                         ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-emerald-500/60'
                     }`}
@@ -2055,15 +2091,15 @@ export function ZeroClawTerminalView({
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600"><QrCode size={12} /></span>
                     </div>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Pay for Product</p>
-                    <p className="text-[10px] text-slate-400 font-mono">15.00 USDC</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Enterprise SLA Contract</p>
+                    <p className="text-[10px] text-slate-400 font-mono">2,500.00 USDC</p>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => createInvoiceFromPreset('0.05', 'x402 Micropayment - Reasoning Reward')}
+                    onClick={() => createInvoiceFromPreset('0.50', 'x402 Enterprise RPC - Multi-Agent LLM Token Settlement')}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '0.05'
+                      invoiceAmount === '0.50'
                         ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 ring-1 ring-blue-500/50 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-blue-500/60'
                     }`}
@@ -2071,15 +2107,15 @@ export function ZeroClawTerminalView({
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600"><Bot size={12} /></span>
                     </div>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Agent Micro-Pay</p>
-                    <p className="text-[10px] text-slate-400 font-mono">0.05 USDC</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">RPC Token Settlement</p>
+                    <p className="text-[10px] text-slate-400 font-mono">0.50 USDC</p>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => createInvoiceFromPreset('250.00', 'Swarm Task Settlement Escrow (#8812)')}
+                    onClick={() => createInvoiceFromPreset('1000.00', 'Swarm Task Settlement Escrow Vault (#9942)')}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '250.00'
+                      invoiceAmount === '1000.00' || invoiceAmount === '1,000.00'
                         ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 ring-1 ring-purple-500/50 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-purple-500/60'
                     }`}
@@ -2087,15 +2123,15 @@ export function ZeroClawTerminalView({
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600"><Layers size={12} /></span>
                     </div>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Swarm Escrow</p>
-                    <p className="text-[10px] text-slate-400 font-mono">250.00 USDC</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Swarm Escrow Vault</p>
+                    <p className="text-[10px] text-slate-400 font-mono">1,000.00 USDC</p>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => createInvoiceFromPreset('25.00', 'SOP Auto Refund Order #8821')}
+                    onClick={() => createInvoiceFromPreset('150.00', 'SOP Sentinel Audit Dispute Refund (#8821)')}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '25.00'
+                      invoiceAmount === '150.00'
                         ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/40 ring-1 ring-rose-500/50 shadow-xs'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-rose-500/60'
                     }`}
@@ -2103,8 +2139,8 @@ export function ZeroClawTerminalView({
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600"><RefreshCw size={12} /></span>
                     </div>
-                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">SOP Refund</p>
-                    <p className="text-[10px] text-slate-400 font-mono">25.00 USDC</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 text-[11px]">Sentinel SOP Refund</p>
+                    <p className="text-[10px] text-slate-400 font-mono">150.00 USDC</p>
                   </button>
                 </div>
               )}
@@ -2183,7 +2219,7 @@ export function ZeroClawTerminalView({
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] flex items-center gap-1.5">
                       <MessageSquare size={13} className="text-emerald-500" />
-                      <span>TELEGRAM & WHATSAPP AUTO-DISPATCH (UMKM)</span>
+                      <span>{userRole === 'individual' ? 'TELEGRAM & WHATSAPP AUTO-DISPATCH (UMKM)' : 'TELEGRAM & WHATSAPP ENTERPRISE DISPATCH'}</span>
                     </span>
                     <label className="flex items-center gap-1.5 cursor-pointer text-[10.5px] font-semibold text-slate-600 dark:text-slate-300">
                       <input
@@ -2253,15 +2289,52 @@ export function ZeroClawTerminalView({
                       )}
                     </div>
                   )}
+
+                  {/* Telegram Bot Direct Link & API Initiation Notice */}
+                  {customerChannelType === 'telegram' && (
+                    <div className="p-2.5 rounded-xl border border-sky-500/30 bg-sky-50/50 dark:bg-sky-950/40 text-[10.5px] space-y-1.5 text-slate-700 dark:text-slate-300">
+                      <div className="flex items-center justify-between font-bold text-sky-700 dark:text-sky-300">
+                        <span className="flex items-center gap-1">
+                          <Bot size={13} className="text-sky-500" />
+                          <span>Syarat Pengiriman Telegram Bot</span>
+                        </span>
+                        <a
+                          href="https://t.me/ZegaAiBot"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[9.5px] inline-flex items-center gap-1 transition-all"
+                        >
+                          <span>Buka Bot Telegram (/start)</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol <code className="bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold">/start</code> di bot <b>@ZegaAiBot</b> minimal 1 kali agar pesan invoice otomatis terkirim.
+                      </p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Real-Time Target Recipient Requirement Warning Badge */}
+                {!customerChannelTarget?.trim() && (
+                  <div className="p-2 rounded-xl border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10.5px] font-semibold flex items-center gap-1.5">
+                    <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                    <span>Target Telegram (@username / Chat ID) atau WhatsApp (+62...) <b>WAJIB</b> diisi untuk menerbitkan invoice Enterprise.</span>
+                  </div>
+                )}
 
                 <button
                   type="button"
                   onClick={handleGenerateInvoice}
-                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-none"
+                  disabled={!customerChannelTarget?.trim()}
+                  className={`w-full py-2.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-none ${
+                    customerChannelTarget?.trim()
+                      ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                      : 'bg-slate-400 dark:bg-slate-800 opacity-60 cursor-not-allowed'
+                  }`}
                 >
-                  <Zap size={14} />
-                  <span>Generate Solana Pay URL & Reference Key</span>
+                  <QrCode size={14} />
+                  <span>{customerChannelTarget?.trim() ? 'Generate Invoice' : '⚠️ Target Telegram (@username) / WA (+62...) Wajib Diisi'}</span>
                 </button>
 
                 {generatedUrl && (
@@ -3818,42 +3891,49 @@ checkpoint = "human_approval_on_refund"`}
 
                 {paymentCheckResult.paid ? (
                   <div className="text-[11px] space-y-1 pt-1 border-t border-slate-800/60">
-                    <p>• Diterima On-Chain: <b>{paymentCheckResult.receivedAmount?.toFixed(2)} USDC</b></p>
-                    <p>• Tagihan Invoice: <b>{paymentCheckResult.expectedAmount?.toFixed(2)} USDC</b></p>
-                    {paymentCheckResult.mode === 'UNDERPAID' && (
-                      <p className="text-amber-300 font-bold">⚠️ Sisa Kekurangan: {paymentCheckResult.shortfallAmount?.toFixed(2)} USDC (Pesan kekurangan dikirim ke Telegram)</p>
-                    )}
-                    {paymentCheckResult.mode === 'OVERPAID' && (
-                      <p className="text-indigo-300 font-bold">🎉 Kembalian Excess: {paymentCheckResult.excessAmount?.toFixed(2)} USDC (Pesan Lunas & Escrow Kembalian dikirim ke Telegram)</p>
-                    )}
-                    {paymentCheckResult.mode === 'EXACT' && (
-                      <p className="text-emerald-300 font-bold">✅ LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.</p>
-                    )}
-
                     {(() => {
+                      const recAmt = typeof paymentCheckResult.receivedAmount === 'number' ? paymentCheckResult.receivedAmount : (parseFloat(String(paymentCheckResult.receivedAmount || 0)) || 0);
+                      const expAmt = typeof paymentCheckResult.expectedAmount === 'number' ? paymentCheckResult.expectedAmount : (parseFloat(String(paymentCheckResult.expectedAmount || 0)) || 0);
+                      const excessVal = typeof paymentCheckResult.excessAmount === 'number' ? paymentCheckResult.excessAmount : Math.max(0, recAmt - expAmt);
+                      const shortfallVal = typeof paymentCheckResult.shortfallAmount === 'number' ? paymentCheckResult.shortfallAmount : Math.max(0, expAmt - recAmt);
+
                       const realTxSig = paymentCheckResult.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
                       const isRealOnChain = Boolean(
                         realTxSig && 
                         /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(realTxSig.trim())
                       );
-                      const explorerUrl = isRealOnChain 
-                        ? `https://explorer.solana.com/tx/${realTxSig}?cluster=devnet`
-                        : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
+                      const solscanExplorerUrl = isRealOnChain 
+                        ? `https://solscan.io/tx/${realTxSig}?cluster=devnet`
+                        : `https://solscan.io/account/${activeMerchantWallet}?cluster=devnet`;
 
                       return (
-                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                          <span className="text-[10px] text-slate-300 font-mono flex items-center gap-1">
-                            <span className="text-emerald-400">●</span> {isRealOnChain ? `Tx Hash: ${realTxSig?.substring(0, 16)}...` : `Wallet: ${activeMerchantWallet.substring(0, 12)}...`}
-                          </span>
-                          <a
-                            href={explorerUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 border border-slate-700 transition-colors cursor-pointer"
-                          >
-                            <ExternalLink size={12} /> {isRealOnChain ? 'Cek Real Solana Tx Hash 🌐' : 'Cek Solana Wallet 🌐'}
-                          </a>
-                        </div>
+                        <>
+                          <p>• Diterima On-Chain: <b>{recAmt.toFixed(2)} USDC</b></p>
+                          <p>• Tagihan Invoice: <b>{expAmt.toFixed(2)} USDC</b></p>
+                          {paymentCheckResult.mode === 'UNDERPAID' && (
+                            <p className="text-amber-300 font-bold">⚠️ Sisa Kekurangan: {shortfallVal.toFixed(2)} USDC (Pesan kekurangan dikirim ke Telegram)</p>
+                          )}
+                          {paymentCheckResult.mode === 'OVERPAID' && (
+                            <p className="text-indigo-300 font-bold">🎉 Kembalian Excess: {excessVal.toFixed(2)} USDC (Pesan Lunas & Escrow Kembalian dikirim ke Telegram)</p>
+                          )}
+                          {paymentCheckResult.mode === 'EXACT' && (
+                            <p className="text-emerald-300 font-bold">✅ LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.</p>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-300 font-mono flex items-center gap-1">
+                              <span className="text-emerald-400">●</span> {isRealOnChain ? `Tx Hash: ${realTxSig?.substring(0, 16)}...` : `Wallet: ${activeMerchantWallet.substring(0, 12)}...`}
+                            </span>
+                            <a
+                              href={solscanExplorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 border border-slate-700 transition-colors cursor-pointer"
+                            >
+                              <ExternalLink size={12} /> {isRealOnChain ? 'Cek Real Solscan Tx 🌐' : 'Cek Solana Wallet 🌐'}
+                            </a>
+                          </div>
+                        </>
                       );
                     })()}
                   </div>

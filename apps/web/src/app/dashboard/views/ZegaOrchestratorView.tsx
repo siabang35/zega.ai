@@ -33,7 +33,7 @@ export function ZegaOrchestratorView({
 }: ZegaOrchestratorViewProps) {
   const displayOrgName = userName || 'Enterprise';
 
-  // Realtime & Dashboard States
+  const [hasVideoError, setHasVideoError] = useState<boolean>(false);
   const [timeRange, setTimeRange] = useState('Last 24 hours');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -185,37 +185,48 @@ export function ZegaOrchestratorView({
       )}
 
       {/* TOP HEADER BAR (RESPONSIVE DESKTOP & MOBILE BEST PRACTICES) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="space-y-1.5">
-          {/* Header Title & Compact Robotic Video Badge Inline */}
-          <div className="flex items-center justify-between sm:justify-start gap-3">
-            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50 truncate">
-              Good Morning, {displayOrgName} 👋
-            </h1>
-
-            {/* Executive Animated Robotic Video Showcase (Elevated Height & Cinematic Widescreen Proportion) */}
-            <div className="relative overflow-hidden rounded-2xl border-2 border-indigo-500/40 bg-slate-950 shadow-xl shrink-0 w-40 sm:w-64 md:w-80 h-20 sm:h-26 md:h-28 aspect-video transition-all hover:scale-105 hover:border-indigo-400">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+          {/* Executive Animated Robotic Video Showcase Card (Proportional Desktop & Mobile) */}
+          <div className="relative overflow-hidden rounded-2xl border-2 border-indigo-500/40 bg-slate-950 shadow-xl shrink-0 w-24 sm:w-32 md:w-40 aspect-video transition-all hover:scale-[1.02] hover:border-indigo-400 group">
+            {!hasVideoError ? (
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
+                preload="metadata"
                 controls={false}
+                poster={getR2CdnUrl('/assets/3D/robotic.webp', true)}
+                onError={() => setHasVideoError(true)}
                 className="w-full h-full object-cover"
-                src="/design/design_enterprise/robotic_enterprise.mp4"
               >
-                <source src="/design/design_enterprise/robotic_enterprise.mp4" type="video/mp4" />
                 <source src={getR2CdnUrl('/design/design_enterprise/robotic_enterprise.mp4', true)} type="video/mp4" />
+                <source src="/design/design_enterprise/robotic_enterprise.mp4" type="video/mp4" />
+                <source src={getR2CdnUrl('/assets/3D/robotic.mp4', true)} type="video/mp4" />
+                <img
+                  src={getR2CdnUrl('/assets/3D/robotic.webp', true)}
+                  alt="ZEGA Robotic Enterprise AI"
+                  className="w-full h-full object-cover"
+                />
               </video>
-            </div>
+            ) : (
+              <img
+                src={getR2CdnUrl('/assets/3D/robotic.webp', true)}
+                alt="ZEGA Robotic Enterprise AI"
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
 
-          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium flex flex-wrap items-center gap-2">
-            <span>Enterprise AI Operating System</span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 text-[9px] sm:text-[9.5px] font-bold border border-emerald-200 dark:border-emerald-800">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Supabase Realtime Active
-            </span>
-          </p>
+          <div className="space-y-1 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50 truncate">
+              Good Morning, {displayOrgName} 👋
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Enterprise AI Operating System
+            </p>
+          </div>
         </div>
 
         {/* Time Filter & Customize Actions */}

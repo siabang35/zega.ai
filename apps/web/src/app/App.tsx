@@ -1698,7 +1698,23 @@ function AppContent() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"self-serve" | "enterprise">("self-serve");
   const [authPrefillEmail, setAuthPrefillEmail] = useState("");
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [showDashboard, setShowDashboard] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const path = window.location.pathname.toLowerCase();
+    const isDashPath = path === "/console" || path.startsWith("/console/") ||
+      path === "/dashboard" || path.startsWith("/dashboard/") ||
+      path === "/admin" || path.startsWith("/admin/");
+    if (isDashPath) {
+      try {
+        const mockStr = localStorage.getItem('zega_mock_session');
+        if (mockStr) {
+          const parsed = JSON.parse(mockStr);
+          if (parsed && parsed.email && !parsed.isGuest) return true;
+        }
+      } catch (e) { }
+    }
+    return false;
+  });
   const [activePage, setActivePage] = useState<'home' | 'terms' | 'privacy'>('home');
 
   const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
