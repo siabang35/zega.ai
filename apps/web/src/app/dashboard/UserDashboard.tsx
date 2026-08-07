@@ -9,6 +9,7 @@ interface UserDashboardProps {
   userRole?: 'individual' | 'enterprise' | 'superadmin';
   userEmail?: string;
   userName?: string;
+  userAvatar?: string;
   isGuest?: boolean;
   onSwitchToAdminMode?: () => void;
 }
@@ -20,6 +21,7 @@ export function UserDashboard({
   userRole = 'individual',
   userEmail = '',
   userName = '',
+  userAvatar = '',
 }: UserDashboardProps) {
   if (userRole === 'enterprise') {
     return (
@@ -29,6 +31,7 @@ export function UserDashboard({
         setDark={setDark}
         userEmail={userEmail}
         userName={userName}
+        userAvatar={userAvatar}
       />
     );
   }
@@ -40,6 +43,7 @@ export function UserDashboard({
       setDark={setDark}
       userEmail={userEmail}
       userName={userName}
+      userAvatar={userAvatar}
     />
   );
 }

@@ -3,10 +3,11 @@ import {
   Copy, Check, ChevronRight, ShieldCheck, Key, Globe, Clock, 
   DollarSign, Calendar, Sliders, ExternalLink, Plus, Eye, EyeOff, Edit3,
   Users, Sparkles, Bell, Shield, CreditCard, Settings, ChevronDown, Info,
-  Camera, Lock, Laptop, Trash2, Smartphone, Monitor, CheckCircle2, UserCheck, Briefcase
+  Camera, Lock, Laptop, Trash2, Smartphone, Monitor, CheckCircle2, UserCheck, Briefcase, X, Upload, CheckCircle
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { umkmSupabaseService } from '../../../services/umkmSupabaseService';
 
 interface ProfileTabProps {
   profileData: any;
@@ -16,6 +17,7 @@ interface ProfileTabProps {
   triggerToast: (msg: string) => void;
   onRefresh: () => void;
   onNavigateTab: (tab: string) => void;
+  onUpdateAvatar?: (avatarUrl: string) => void;
 }
 
 export function ProfileTab({
@@ -25,7 +27,8 @@ export function ProfileTab({
   activitiesList,
   triggerToast,
   onRefresh,
-  onNavigateTab
+  onNavigateTab,
+  onUpdateAvatar
 }: ProfileTabProps) {
   // Form input states
   const [fullname, setFullname] = useState(profileData?.fullname || 'Cik Beriuk');
@@ -34,23 +37,59 @@ export function ProfileTab({
   const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Owner');
   const [storeName, setStoreName] = useState(profileData?.store_name || 'Toko CikCik Beriuk');
   const [description, setDescription] = useState(profileData?.description || 'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.');
+  const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || '/assets/avatars/user-avatar.jpg');
   const [isSaving, setIsSaving] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [customAvatarInput, setCustomAvatarInput] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const PRESET_AVATARS = [
+    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces',
+    'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&h=150&fit=crop&crop=faces',
+    'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=faces',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
+  ];
+
+  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        triggerToast('⚠️ Ukuran berkas maksimal 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const dataUrl = event.target.result as string;
+          setAvatarUrl(dataUrl);
+          if (onUpdateAvatar) onUpdateAvatar(dataUrl);
+          triggerToast('✓ Foto profil berhasil dimuat dari perangkat local!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      await SupabaseDashboardService.updateUmkmUserProfile({
+      await umkmSupabaseService.updateUmkmUserProfile({
         fullname,
         email,
         phone,
         job_title: jobTitle,
         store_name: storeName,
-        description
+        description,
+        avatar_url: avatarUrl
       });
-      triggerToast('✓ Informasi profil berhasil diperbarui!');
+      if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+      triggerToast('✓ Profile & Foto Profil CDN Berhasil Diperbarui & Disimpan ke Database!');
       onRefresh();
-    } catch (err) {
-      triggerToast('✓ Informasi profil tersimpan secara lokal!');
+    } catch (err: any) {
+      if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+      triggerToast('✓ Profile disimpan secara lokal!');
     } finally {
       setIsSaving(false);
     }
@@ -74,15 +113,19 @@ export function ProfileTab({
 
           <div className="flex gap-4 items-start">
             {/* Avatar with Camera Icon */}
-            <div className="relative group flex-shrink-0 cursor-pointer" onClick={() => triggerToast('Fitur ganti foto profil terhubung CDN')}>
+            <div 
+              className="relative group flex-shrink-0 cursor-pointer" 
+              onClick={() => setShowAvatarModal(true)}
+              title="Klik untuk memilih atau mengubah foto profil CDN"
+            >
               <img 
-                src={getR2CdnUrl(profileData?.avatar_url || '/assets/logo/zega.png')} 
-                onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/zega.png'; }}
+                src={getR2CdnUrl(avatarUrl || '/assets/avatars/user-avatar.jpg')} 
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
                 alt="Avatar" 
-                className="size-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-700 shadow-xs"
+                className="size-16 rounded-full object-cover border-2 border-orange-500 shadow-md group-hover:opacity-90 transition-opacity"
               />
-              <div className="absolute bottom-0 right-0 size-5 bg-orange-500 rounded-full flex items-center justify-center text-white border border-white dark:border-slate-900 shadow-xs">
-                <Camera size={10} />
+              <div className="absolute bottom-0 right-0 size-6 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center text-white border-2 border-white dark:border-slate-900 shadow-sm transition-transform group-hover:scale-110">
+                <Camera size={12} />
               </div>
             </div>
 
@@ -570,9 +613,134 @@ export function ProfileTab({
 
           </div>
         </div>
-
       </div>
 
+      {/* AVATAR CDN SELECTION MODAL */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs font-sans">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Ganti Foto Profil CDN</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Pilih avatar preset HD atau masukkan URL CDN gambar custom</p>
+              </div>
+              <button onClick={() => setShowAvatarModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Current Active Preview */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-orange-50/60 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-900/40">
+              <img 
+                src={getR2CdnUrl(avatarUrl || '/assets/avatars/user-avatar.jpg')}
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                alt="Active Preview" 
+                className="size-12 rounded-full object-cover border-2 border-orange-500 shadow-sm shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider block">Avatar Aktif</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">
+                  {avatarUrl.startsWith('data:') ? 'Foto dari Perangkat Lokal (Real Image)' : avatarUrl}
+                </span>
+              </div>
+            </div>
+
+            {/* Hidden File Input for Device Storage Upload */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleLocalFileUpload}
+            />
+
+            {/* Upload From Device Button */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100 block text-xs">Pilih Dari Perangkat Saya</span>
+                <span className="text-[10px] text-slate-400 block">Ambil gambar asli dari galeri/penyimpanan komputer</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0"
+              >
+                <Upload size={13} /> <span>Browse Berkas</span>
+              </button>
+            </div>
+
+            {/* Preset Avatars Grid */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Pilih Avatar High-Resolution Preset</label>
+              <div className="grid grid-cols-6 gap-2">
+                {PRESET_AVATARS.map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setAvatarUrl(url);
+                      if (onUpdateAvatar) onUpdateAvatar(url);
+                    }}
+                    className={`relative rounded-full overflow-hidden border-2 transition-all cursor-pointer aspect-square ${
+                      avatarUrl === url ? 'border-orange-500 ring-2 ring-orange-500/30 scale-105' : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                    }`}
+                  >
+                    <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
+                    {avatarUrl === url && (
+                      <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                        <CheckCircle size={14} className="text-orange-600 fill-white" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom CDN URL Input */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Atau Input URL CDN Avatar Custom</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="https://cdn.zega.ai/avatars/user.jpg"
+                  value={customAvatarInput}
+                  onChange={(e) => setCustomAvatarInput(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-slate-100 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customAvatarInput.trim()) {
+                      const url = customAvatarInput.trim();
+                      setAvatarUrl(url);
+                      if (onUpdateAvatar) onUpdateAvatar(url);
+                      setCustomAvatarInput('');
+                      triggerToast('✓ URL Avatar Custom diterapkan!');
+                    }
+                  }}
+                  className="px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer"
+                >
+                  Terapkan
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+                  setShowAvatarModal(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
+              >
+                Gunakan Avatar Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

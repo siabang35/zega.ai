@@ -50,6 +50,7 @@ interface EnterpriseDashboardProps {
   setDark: (val: boolean) => void;
   userEmail?: string;
   userName?: string;
+  userAvatar?: string;
 }
 
 export function EnterpriseDashboardView({
@@ -58,7 +59,25 @@ export function EnterpriseDashboardView({
   setDark,
   userEmail = '',
   userName = '',
+  userAvatar = '',
 }: EnterpriseDashboardProps) {
+  const [currentAvatar, setCurrentAvatar] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_user_avatar');
+      if (saved) return saved;
+    }
+    return userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces';
+  });
+
+  useEffect(() => {
+    if (userAvatar) {
+      setCurrentAvatar(userAvatar);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zega_user_avatar', userAvatar);
+      }
+    }
+  }, [userAvatar]);
+
   const { t, language } = useLanguage();
   const nav = t?.enterpriseNav || {
     categories: {
@@ -432,7 +451,8 @@ export function EnterpriseDashboardView({
               <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
                 <div className="flex items-center gap-2.5 truncate">
                   <img 
-                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces"
+                    src={SupabaseDashboardService.getCdnUrl(currentAvatar || '/assets/avatars/enterprise_admin.png')}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
                     alt="Enterprise User Avatar"
                     className="size-9 rounded-full object-cover border border-indigo-200 dark:border-indigo-800 shadow-xs shrink-0"
                   />
@@ -584,6 +604,7 @@ export function EnterpriseDashboardView({
             <EnterpriseHeaderWidgets
               userName={displayOrgName}
               userEmail={userEmail || 'admin@zegaai.site'}
+              userAvatar={currentAvatar}
               dark={dark}
               setDark={setDark}
               triggerToast={triggerToast}
@@ -668,7 +689,17 @@ export function EnterpriseDashboardView({
           {(activeTab === 'audit_logs' || activeTab === 'audit_logs_platform' || activeTab === 'audit-logs') && <AuditLogsView onTriggerToast={triggerToast} />}
           {(activeTab === 'rbac_sso' || activeTab === 'organization') && <OrganizationView onTriggerToast={triggerToast} />}
           {activeTab === 'team_roles' && <TeamRolesView onTriggerToast={triggerToast} />}
-          {activeTab === 'settings' && <SettingsView onTriggerToast={triggerToast} />}
+          {activeTab === 'settings' && (
+            <SettingsView 
+              onTriggerToast={triggerToast} 
+              onUpdateAvatar={(newAvatar) => {
+                setCurrentAvatar(newAvatar);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('zega_user_avatar', newAvatar);
+                }
+              }}
+            />
+          )}
           {(activeTab === 'help' || activeTab === 'bantuan') && (
             <HelpView 
               onTriggerToast={triggerToast} 

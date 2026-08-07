@@ -26,9 +26,10 @@ import { AdvancedTab } from './settings/AdvancedTab';
 
 interface SettingsViewProps {
   onTriggerToast?: (msg: string) => void;
+  onUpdateAvatar?: (avatarUrl: string) => void;
 }
 
-export function SettingsView({ onTriggerToast }: SettingsViewProps) {
+export function SettingsView({ onTriggerToast, onUpdateAvatar }: SettingsViewProps) {
   const { t } = useLanguage();
   const v = t?.enterpriseViews?.settings || {
     title: 'System & Security Settings',
@@ -59,6 +60,14 @@ export function SettingsView({ onTriggerToast }: SettingsViewProps) {
     organization_size: '1001+ employees',
     session_timeout_minutes: 30
   });
+
+  const handleUpdateSettings = (newSettings: any) => {
+    setSettings(newSettings);
+    const newAvatar = newSettings.user_avatar || newSettings.logo_cdn_url;
+    if (newAvatar && onUpdateAvatar) {
+      onUpdateAvatar(newAvatar);
+    }
+  };
 
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [billingInvoices, setBillingInvoices] = useState<any[]>([]);
@@ -117,7 +126,12 @@ export function SettingsView({ onTriggerToast }: SettingsViewProps) {
 
   // Realtime Subscriptions
   useEffect(() => {
-    const unsubGen = enterpriseSupabaseService.getGeneralSettingsRealtime((d) => setSettings(d));
+    const unsubGen = enterpriseSupabaseService.getGeneralSettingsRealtime((d) => {
+      setSettings(d);
+      if (d?.user_avatar || d?.logo_cdn_url) {
+        if (onUpdateAvatar) onUpdateAvatar(d.user_avatar || d.logo_cdn_url);
+      }
+    });
     const unsubKeys = enterpriseSupabaseService.getSettingsApiKeysRealtime((k) => setApiKeys(k));
     const unsubInv = enterpriseSupabaseService.getBillingInvoicesRealtime((i) => setBillingInvoices(i));
     const unsubSec = enterpriseSupabaseService.getSecurityEventsRealtime((s) => setSecurityEvents(s));
@@ -139,7 +153,13 @@ export function SettingsView({ onTriggerToast }: SettingsViewProps) {
       await enterpriseSupabaseService.updateOrganizationProfileRealtime(settings);
       await enterpriseSupabaseService.updateDataPrivacySettingsRealtime(dataPrivacy);
       await enterpriseSupabaseService.updateAdvancedConfigRealtime(advancedConfig);
-      if (onTriggerToast) onTriggerToast('Pengaturan Berhasil Disimpan & Terintegrasi Realtime!');
+      
+      const newAvatar = settings.user_avatar || settings.logo_cdn_url;
+      if (newAvatar && onUpdateAvatar) {
+        onUpdateAvatar(newAvatar);
+      }
+
+      if (onTriggerToast) onTriggerToast('Pengaturan & Profil Avatar Berhasil Disimpan Realtime!');
     } catch (e: any) {
       if (onTriggerToast) onTriggerToast('Gagal Menyimpan: ' + e.message);
     } finally {
@@ -303,7 +323,14 @@ export function SettingsView({ onTriggerToast }: SettingsViewProps) {
 
         {/* RIGHT MAIN CONTENT AREA */}
         <div className="lg:col-span-9">
-          {activeTab === 'general' && <GeneralTab settings={settings} setSettings={setSettings} onTriggerToast={onTriggerToast} />}
+          {activeTab === 'general' && (
+            <GeneralTab 
+              settings={settings} 
+              setSettings={handleUpdateSettings} 
+              onTriggerToast={onTriggerToast} 
+              onUpdateAvatar={onUpdateAvatar}
+            />
+          )}
           {activeTab === 'security' && <SecurityTab securityEvents={securityEvents} onTriggerToast={onTriggerToast} />}
           {activeTab === 'api_access' && <ApiAccessTab apiKeys={apiKeys} setShowApiKeyModal={setShowApiKeyModal} onTriggerToast={onTriggerToast} />}
           {activeTab === 'billing' && <BillingTab billingInvoices={billingInvoices} onTriggerToast={onTriggerToast} />}

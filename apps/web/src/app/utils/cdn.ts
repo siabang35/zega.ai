@@ -18,8 +18,13 @@ export function getR2CdnUrl(assetPath: string, preferRemote = false): string {
     cleanPath = cleanPath.replace(/^https?:\/\/[^\/]+/, '');
   }
 
-  // If already pointing to an external absolute http/https domain
-  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+  // If already pointing to an external absolute http/https domain or inline data/blob URI
+  if (
+    cleanPath.startsWith('http://') ||
+    cleanPath.startsWith('https://') ||
+    cleanPath.startsWith('data:') ||
+    cleanPath.startsWith('blob:')
+  ) {
     return cleanPath;
   }
 

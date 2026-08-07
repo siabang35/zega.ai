@@ -14,7 +14,12 @@ export const umkmSupabaseService = {
   // Helper: Resolve CDN URLs for assets
   getCdnUrl(path?: string): string {
     if (!path) return '/assets/logo/zegalogo.png';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (
+      path.startsWith('http://') ||
+      path.startsWith('https://') ||
+      path.startsWith('data:') ||
+      path.startsWith('blob:')
+    ) return path;
     if (path.startsWith('/design/') || path.startsWith('/assets/')) return path;
     const baseCdn = (import.meta.env.VITE_CDN_URL || '').replace(/\/$/, '');
     return baseCdn ? `${baseCdn}${path.startsWith('/') ? '' : '/'}${path}` : path;
@@ -348,6 +353,42 @@ export const umkmSupabaseService = {
       return { data, error };
     } catch (err: any) {
       return { data: null, error: err };
+    }
+  },
+
+  // 11. Update UMKM Store & Profile Metadata with CDN Avatar
+  async updateUmkmUserProfile(payload: any, storeId: string = '11111111-1111-1111-1111-111111111111') {
+    try {
+      const avatarPath = payload.avatar_url || payload.avatar_path;
+      const { data, error } = await supabase
+        .from('umkm_stores')
+        .update({
+          store_name: payload.store_name,
+          description: payload.description,
+          avatar_path: avatarPath,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', storeId)
+        .select()
+        .maybeSingle();
+
+      if (typeof window !== 'undefined') {
+        try {
+          const session = JSON.parse(localStorage.getItem('zega_mock_session') || '{}');
+          if (session?.user) {
+            session.user.user_metadata = {
+              ...session.user?.user_metadata,
+              avatar_url: avatarPath,
+              full_name: payload.fullname
+            };
+            localStorage.setItem('zega_mock_session', JSON.stringify(session));
+          }
+        } catch (e) {}
+      }
+
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err.message };
     }
   }
 };

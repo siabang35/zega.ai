@@ -13,9 +13,10 @@ import { SystemTab } from './settings/SystemTab';
 
 interface SettingsViewProps {
   triggerToast: (msg: string) => void;
+  onUpdateAvatar?: (avatarUrl: string) => void;
 }
 
-export function SettingsView({ triggerToast }: SettingsViewProps) {
+export function SettingsView({ triggerToast, onUpdateAvatar }: SettingsViewProps) {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Profil & Akun');
   
@@ -133,6 +134,7 @@ export function SettingsView({ triggerToast }: SettingsViewProps) {
           triggerToast={triggerToast}
           onRefresh={loadSettingsData}
           onNavigateTab={(tab) => setActiveTab(tab)}
+          onUpdateAvatar={onUpdateAvatar}
         />
       )}
 

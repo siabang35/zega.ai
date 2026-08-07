@@ -20,6 +20,7 @@ interface UmkmDashboardContainerProps {
   setDark: (val: boolean) => void;
   userEmail?: string;
   userName?: string;
+  userAvatar?: string;
   isGuest?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function UmkmDashboardContainer({
   setDark,
   userEmail = 'cikberiuk@gmail.com',
   userName = 'Cik Beriuk',
+  userAvatar = '',
   isGuest = false,
 }: UmkmDashboardContainerProps) {
   const { t, language, setLanguage } = useLanguage();
@@ -138,6 +140,23 @@ export function UmkmDashboardContainer({
   }, []);
 
   const [umkmData, setUmkmData] = useState<any>(null);
+  const [currentAvatar, setCurrentAvatar] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_user_avatar');
+      if (saved) return saved;
+    }
+    return userAvatar || '';
+  });
+
+  useEffect(() => {
+    if (userAvatar) {
+      setCurrentAvatar(userAvatar);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zega_user_avatar', userAvatar);
+      }
+    }
+  }, [userAvatar]);
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [whatsNewList, setWhatsNewList] = useState<any[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -553,8 +572,9 @@ export function UmkmDashboardContainer({
           }`}>
             <div className="flex items-center gap-2.5 truncate">
               <img
-                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                alt="Profile"
+                src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                alt="Profile Avatar"
                 className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
               />
               {!isCollapsed && (
@@ -974,8 +994,9 @@ export function UmkmDashboardContainer({
                 className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-orange-400 transition-colors"
               >
                 <img
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                  alt="Profile"
+                  src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                  alt="Profile Avatar"
                   className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                 />
                 <div className="text-left hidden sm:block">
@@ -995,9 +1016,10 @@ export function UmkmDashboardContainer({
                     {/* User Info Header */}
                     <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
                       <img
-                        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                        alt="Profile"
-                        className="size-9 rounded-full object-cover border border-orange-400"
+                        src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                        alt="Profile Avatar"
+                        className="size-9 rounded-full object-cover border border-orange-400 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
@@ -1094,7 +1116,18 @@ export function UmkmDashboardContainer({
 
         {/* View Renderer */}
         <div className="p-3 sm:p-4 md:p-6 flex-1 pb-24 md:pb-6">
-          <UmkmDashboardView activeTab={activeTab} userName={userName} userEmail={userEmail} isGuest={isGuest} />
+          <UmkmDashboardView 
+            activeTab={activeTab} 
+            userName={userName} 
+            userEmail={userEmail} 
+            isGuest={isGuest}
+            onUpdateAvatar={(newUrl) => {
+              setCurrentAvatar(newUrl);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('zega_user_avatar', newUrl);
+              }
+            }} 
+          />
         </div>
 
         {/* MOBILE BOTTOM NAVIGATION DOCK (App-like Mobile UX) */}

@@ -22,9 +22,10 @@ export interface UmkmDashboardProps {
   userEmail?: string;
   isGuest?: boolean;
   onNavigateTab?: (tab: string) => void;
+  onUpdateAvatar?: (avatarUrl: string) => void;
 }
 
-export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab }: UmkmDashboardProps) {
+export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab, onUpdateAvatar }: UmkmDashboardProps) {
   const [internalTab, setInternalTab] = useState('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -90,7 +91,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} />}
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} />}
       {currentTab === 'billing' && <BillingView triggerToast={triggerToast} />}
-      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} />}
+      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} />}
       {currentTab === 'help' && <HelpView />}
 
       {/* FLOATING ZEGA COPILOT WIDGET */}

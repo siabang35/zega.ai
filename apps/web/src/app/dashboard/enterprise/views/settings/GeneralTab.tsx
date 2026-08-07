@@ -6,9 +6,10 @@ interface GeneralTabProps {
   settings: any;
   setSettings: (s: any) => void;
   onTriggerToast?: (msg: string) => void;
+  onUpdateAvatar?: (avatarUrl: string) => void;
 }
 
-export function GeneralTab({ settings, setSettings, onTriggerToast }: GeneralTabProps) {
+export function GeneralTab({ settings, setSettings, onTriggerToast, onUpdateAvatar }: GeneralTabProps) {
   // Modals state
   const [showLogoModal, setShowLogoModal] = useState(false);
   const [cdnLogoInput, setCdnLogoInput] = useState(settings.logo_cdn_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop');
@@ -29,6 +30,28 @@ export function GeneralTab({ settings, setSettings, onTriggerToast }: GeneralTab
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const logoFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleLocalLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        if (onTriggerToast) onTriggerToast('⚠️ Ukuran berkas maksimal 5MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const dataUrl = event.target.result as string;
+          setCdnLogoInput(dataUrl);
+          setSettings({ ...settings, logo_cdn_url: dataUrl, user_avatar: dataUrl });
+          if (onUpdateAvatar) onUpdateAvatar(dataUrl);
+          if (onTriggerToast) onTriggerToast('✓ Foto profil dari perangkat lokal berhasil dimuat!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // 1. Copy Org ID
   const copyOrgId = () => {
@@ -42,8 +65,9 @@ export function GeneralTab({ settings, setSettings, onTriggerToast }: GeneralTab
     if (!cdnLogoInput.trim()) return;
     const res = await enterpriseSupabaseService.uploadOrganizationLogoCDNRealtime(cdnLogoInput);
     if (res.success) {
-      setSettings({ ...settings, logo_cdn_url: cdnLogoInput });
-      if (onTriggerToast) onTriggerToast('Logo Organization CDN Berhasil Diperbarui & Terintegrasi Realtime!');
+      setSettings({ ...settings, logo_cdn_url: cdnLogoInput, user_avatar: cdnLogoInput });
+      if (onUpdateAvatar) onUpdateAvatar(cdnLogoInput);
+      if (onTriggerToast) onTriggerToast('Logo & Foto Profil CDN Berhasil Diperbarui & Disinkronkan Realtime!');
       setShowLogoModal(false);
     } else {
       if (onTriggerToast) onTriggerToast('Gagal update Logo: ' + res.error);
@@ -141,29 +165,34 @@ export function GeneralTab({ settings, setSettings, onTriggerToast }: GeneralTab
             </div>
           </div>
 
-          {/* Top Row / Right: Organization Logo Avatar */}
-          <div className="lg:col-span-4 flex items-center gap-3">
-            <div>
-              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Organization Logo</label>
+          {/* Top Row / Right: Organization Logo & Profile Avatar */}
+          <div className="lg:col-span-4 flex items-center justify-end">
+            <div className="w-full p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-xs overflow-hidden">
-                  {settings.logo_cdn_url ? (
-                    <img src={settings.logo_cdn_url} alt="Logo" className="w-full h-full object-cover" />
+                <div className="relative group size-12 rounded-2xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md overflow-hidden shrink-0 border-2 border-indigo-500">
+                  {settings.user_avatar || settings.logo_cdn_url ? (
+                    <img
+                      src={settings.user_avatar || settings.logo_cdn_url}
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                      alt="Avatar Logo"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     'A'
                   )}
                 </div>
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold text-xs hover:bg-slate-50 cursor-pointer shadow-2xs"
-                  >
-                    <Upload size={13} /> <span>Upload New Logo</span>
-                  </button>
-                  <span className="text-[10px] text-slate-400 block">PNG, JPG or SVG. Max 2MB</span>
+                <div>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 block text-xs">Profile Avatar & Logo</span>
+                  <span className="text-[10px] text-slate-400 block truncate max-w-[140px]">Realtime DB & CDN Sync</span>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowLogoModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0 transition-all active:scale-95"
+              >
+                <Upload size={13} /> <span>Ganti Foto</span>
+              </button>
             </div>
           </div>
 
@@ -588,40 +617,99 @@ export function GeneralTab({ settings, setSettings, onTriggerToast }: GeneralTab
         </button>
       </div>
 
-      {/* MODAL 1: UPLOAD LOGO CDN */}
+      {/* MODAL 1: UPLOAD LOGO & AVATAR CDN */}
       {showLogoModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 w-full max-w-md space-y-4 shadow-xl text-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Upload / Update Organization Logo CDN</h3>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Upload / Update Logo & Avatar CDN</h3>
+                <p className="text-[10px] text-slate-400">Terhubung langsung ke Supabase DB & Cloudflare R2 CDN</p>
+              </div>
               <button onClick={() => setShowLogoModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleUploadLogo} className="space-y-3">
+
+            {/* Hidden File Input for Device Storage Upload */}
+            <input
+              type="file"
+              ref={logoFileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleLocalLogoFileUpload}
+            />
+
+            {/* Upload From Device Button */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-500 block mb-1">Logo CDN Image URL</label>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100 block text-xs">Pilih Dari Perangkat Saya</span>
+                <span className="text-[10px] text-slate-400 block">Ambil berkas gambar asli dari galeri / penyimpanan komputer</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => logoFileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0"
+              >
+                <Upload size={13} /> <span>Browse Berkas</span>
+              </button>
+            </div>
+
+            {/* Preset Admin Avatars */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Atau Pilih Avatar Enterprise Admin Preset</label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces',
+                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces',
+                  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&h=150&fit=crop&crop=faces',
+                  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=faces',
+                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces'
+                ].map((url, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setCdnLogoInput(url);
+                      setSettings({ ...settings, user_avatar: url, logo_cdn_url: url });
+                    }}
+                    className={`rounded-full overflow-hidden border-2 transition-all cursor-pointer aspect-square ${
+                      cdnLogoInput === url ? 'border-indigo-600 ring-2 ring-indigo-600/30 scale-105' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                    }`}
+                  >
+                    <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleUploadLogo} className="space-y-3 pt-1">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 block mb-1">Or Custom Image / Logo CDN URL</label>
                 <input
                   type="text"
-                  placeholder="https://cdn.zega.ai/logo.png"
+                  placeholder="https://cdn.zega.ai/assets/avatar.png"
                   value={cdnLogoInput}
                   onChange={(e) => setCdnLogoInput(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-mono text-[11px]"
                 />
               </div>
 
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40">
-                <div className="size-10 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center overflow-hidden">
+              <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60">
+                <div className="size-11 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center overflow-hidden shrink-0 border border-indigo-300">
                   {cdnLogoInput ? <img src={cdnLogoInput} alt="Preview" className="w-full h-full object-cover" /> : 'A'}
                 </div>
-                <span className="text-[10px] text-slate-400">Live CDN Image Preview</span>
+                <div>
+                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase block">Live Preview</span>
+                  <span className="text-[10px] text-slate-500 font-mono block truncate max-w-[240px]">{cdnLogoInput || 'No URL set'}</span>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowLogoModal(false)} className="px-3.5 py-1.5 rounded-xl border text-slate-600 font-bold text-xs">
                   Batal
                 </button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs">
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs">
                   Simpan & Update CDN (Realtime DB)
                 </button>
               </div>

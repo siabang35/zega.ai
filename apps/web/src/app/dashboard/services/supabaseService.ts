@@ -403,7 +403,12 @@ export const SupabaseDashboardService = {
   // Utility: Resolve CDN URLs for assets
   getCdnUrl(path?: string): string {
     if (!path) return '/assets/logo/zegalogo.png';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (
+      path.startsWith('http://') ||
+      path.startsWith('https://') ||
+      path.startsWith('data:') ||
+      path.startsWith('blob:')
+    ) return path;
     if (path.startsWith('/design/') || path.startsWith('/assets/')) return path;
     const baseCdn = (import.meta.env.VITE_CDN_URL || '').replace(/\/$/, '');
     return baseCdn ? `${baseCdn}${path.startsWith('/') ? '' : '/'}${path}` : path;

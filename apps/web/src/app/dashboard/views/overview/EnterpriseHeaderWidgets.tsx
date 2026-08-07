@@ -12,6 +12,7 @@ import { SupabaseDashboardService } from '../../services/supabaseService';
 export interface EnterpriseHeaderWidgetsProps {
   userName?: string;
   userEmail?: string;
+  userAvatar?: string;
   dark?: boolean;
   setDark?: (val: boolean) => void;
   triggerToast: (msg: string) => void;
@@ -22,6 +23,7 @@ export interface EnterpriseHeaderWidgetsProps {
 export function EnterpriseHeaderWidgets({
   userName = 'Enterprise Admin',
   userEmail = 'admin@zegaai.site',
+  userAvatar = '/assets/avatars/enterprise_admin.png',
   dark = false,
   setDark,
   triggerToast,
@@ -257,8 +259,9 @@ export function EnterpriseHeaderWidgets({
           className="flex items-center gap-2 p-1 sm:pl-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-indigo-400 transition-colors"
         >
           <img
-            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-            alt="Profile"
+            src={getR2CdnUrl(userAvatar || '/assets/avatars/enterprise_admin.png')}
+            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+            alt="Profile Avatar"
             className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
           />
           <div className="text-left hidden md:block">
@@ -275,8 +278,9 @@ export function EnterpriseHeaderWidgets({
               {/* User Profile Card */}
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 flex items-center gap-2.5">
                 <img
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                  alt="Profile"
+                  src={getR2CdnUrl(userAvatar || '/assets/avatars/enterprise_admin.png')}
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                  alt="Profile Avatar"
                   className="size-9 rounded-full object-cover border-2 border-indigo-500 shadow-xs shrink-0"
                 />
                 <div className="min-w-0 flex-1">
