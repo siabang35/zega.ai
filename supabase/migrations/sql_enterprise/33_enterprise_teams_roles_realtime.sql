@@ -133,17 +133,29 @@ ALTER TABLE public.enterprise_permissions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read enterprise_team_members" ON public.enterprise_team_members;
 DROP POLICY IF EXISTS "Allow public insert enterprise_team_members" ON public.enterprise_team_members;
 DROP POLICY IF EXISTS "Allow public update enterprise_team_members" ON public.enterprise_team_members;
+DROP POLICY IF EXISTS "Allow public delete enterprise_team_members" ON public.enterprise_team_members;
 CREATE POLICY "Allow public read enterprise_team_members" ON public.enterprise_team_members FOR SELECT USING (true);
 CREATE POLICY "Allow public insert enterprise_team_members" ON public.enterprise_team_members FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update enterprise_team_members" ON public.enterprise_team_members FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete enterprise_team_members" ON public.enterprise_team_members FOR DELETE USING (true);
 
 DROP POLICY IF EXISTS "Allow public read enterprise_roles" ON public.enterprise_roles;
 DROP POLICY IF EXISTS "Allow public insert enterprise_roles" ON public.enterprise_roles;
+DROP POLICY IF EXISTS "Allow public update enterprise_roles" ON public.enterprise_roles;
+DROP POLICY IF EXISTS "Allow public delete enterprise_roles" ON public.enterprise_roles;
 CREATE POLICY "Allow public read enterprise_roles" ON public.enterprise_roles FOR SELECT USING (true);
 CREATE POLICY "Allow public insert enterprise_roles" ON public.enterprise_roles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update enterprise_roles" ON public.enterprise_roles FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete enterprise_roles" ON public.enterprise_roles FOR DELETE USING (true);
 
 DROP POLICY IF EXISTS "Allow public read enterprise_permissions" ON public.enterprise_permissions;
+DROP POLICY IF EXISTS "Allow public insert enterprise_permissions" ON public.enterprise_permissions;
+DROP POLICY IF EXISTS "Allow public update enterprise_permissions" ON public.enterprise_permissions;
+DROP POLICY IF EXISTS "Allow public delete enterprise_permissions" ON public.enterprise_permissions;
 CREATE POLICY "Allow public read enterprise_permissions" ON public.enterprise_permissions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert enterprise_permissions" ON public.enterprise_permissions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update enterprise_permissions" ON public.enterprise_permissions FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete enterprise_permissions" ON public.enterprise_permissions FOR DELETE USING (true);
 
 -- STORED PROCEDURE TO INVITE TEAM MEMBER
 CREATE OR REPLACE FUNCTION public.fn_invite_team_member(
@@ -173,6 +185,50 @@ BEGIN
 END;
 $$;
 
+-- STORED PROCEDURE TO UPDATE TEAM MEMBER
+CREATE OR REPLACE FUNCTION public.fn_update_team_member(
+  p_id UUID,
+  p_full_name VARCHAR,
+  p_email VARCHAR,
+  p_role_name VARCHAR,
+  p_department VARCHAR,
+  p_status VARCHAR,
+  p_mfa_enabled BOOLEAN DEFAULT TRUE,
+  p_avatar_url VARCHAR DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.enterprise_team_members
+  SET full_name = COALESCE(p_full_name, full_name),
+      email = COALESCE(p_email, email),
+      role_name = COALESCE(p_role_name, role_name),
+      department = COALESCE(p_department, department),
+      status = COALESCE(p_status, status),
+      mfa_enabled = COALESCE(p_mfa_enabled, mfa_enabled),
+      avatar_url = COALESCE(p_avatar_url, avatar_url),
+      updated_at = NOW()
+  WHERE id = p_id;
+  RETURN FOUND;
+END;
+$$;
+
+-- STORED PROCEDURE TO DELETE TEAM MEMBER
+CREATE OR REPLACE FUNCTION public.fn_delete_team_member(
+  p_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  DELETE FROM public.enterprise_team_members WHERE id = p_id;
+  RETURN FOUND;
+END;
+$$;
+
 -- STORED PROCEDURE TO CREATE CUSTOM ROLE
 CREATE OR REPLACE FUNCTION public.fn_create_custom_role(
   p_name VARCHAR,
@@ -192,6 +248,96 @@ BEGIN
   )
   VALUES (
     v_code, p_name, 'Custom', p_description, 0, '24', TO_CHAR(NOW(), 'Mon DD, YYYY'), TO_CHAR(NOW(), 'Mon DD, YYYY')
+  )
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+-- STORED PROCEDURE TO UPDATE CUSTOM ROLE
+CREATE OR REPLACE FUNCTION public.fn_update_custom_role(
+  p_id UUID,
+  p_name VARCHAR,
+  p_description TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.enterprise_roles
+  SET name = COALESCE(p_name, name),
+      description = COALESCE(p_description, description),
+      last_updated_label = TO_CHAR(NOW(), 'Mon DD, YYYY')
+  WHERE id = p_id;
+  RETURN FOUND;
+END;
+$$;
+
+-- STORED PROCEDURE TO DELETE CUSTOM ROLE
+CREATE OR REPLACE FUNCTION public.fn_delete_custom_role(
+  p_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  DELETE FROM public.enterprise_roles WHERE id = p_id AND role_type = 'Custom';
+  RETURN FOUND;
+END;
+$$;
+
+-- STORED PROCEDURE TO TOGGLE PERMISSION
+CREATE OR REPLACE FUNCTION public.fn_toggle_permission(
+  p_id UUID,
+  p_role_column VARCHAR,
+  p_value BOOLEAN
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF p_role_column = 'enterprise_admin' THEN
+    UPDATE public.enterprise_permissions SET allow_enterprise_admin = p_value WHERE id = p_id;
+  ELSIF p_role_column = 'admin' THEN
+    UPDATE public.enterprise_permissions SET allow_admin = p_value WHERE id = p_id;
+  ELSIF p_role_column = 'developer' THEN
+    UPDATE public.enterprise_permissions SET allow_developer = p_value WHERE id = p_id;
+  ELSIF p_role_column = 'analyst' THEN
+    UPDATE public.enterprise_permissions SET allow_analyst = p_value WHERE id = p_id;
+  ELSIF p_role_column = 'viewer' THEN
+    UPDATE public.enterprise_permissions SET allow_viewer = p_value WHERE id = p_id;
+  END IF;
+  RETURN FOUND;
+END;
+$$;
+
+-- STORED PROCEDURE TO CREATE PERMISSION
+CREATE OR REPLACE FUNCTION public.fn_create_permission(
+  p_permission_code VARCHAR,
+  p_category VARCHAR,
+  p_description TEXT,
+  p_allow_enterprise_admin BOOLEAN DEFAULT TRUE,
+  p_allow_admin BOOLEAN DEFAULT TRUE,
+  p_allow_developer BOOLEAN DEFAULT FALSE,
+  p_allow_analyst BOOLEAN DEFAULT FALSE,
+  p_allow_viewer BOOLEAN DEFAULT FALSE
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO public.enterprise_permissions (
+    permission_code, category, description, allow_enterprise_admin, allow_admin, allow_developer, allow_analyst, allow_viewer
+  )
+  VALUES (
+    p_permission_code, p_category, p_description, p_allow_enterprise_admin, p_allow_admin, p_allow_developer, p_allow_analyst, p_allow_viewer
   )
   RETURNING id INTO v_id;
 
@@ -305,3 +451,4 @@ BEGIN
       public.enterprise_permissions;
   END IF;
 END $$;
+

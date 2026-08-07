@@ -76,8 +76,14 @@ async function run() {
   
   const targetArg = process.argv[2];
   if (targetArg && fs.existsSync(targetArg)) {
-    logger.info(`[R2BatchUploader] Target file upload specified: ${targetArg}`);
-    await uploadFileToR2(targetArg);
+    const stat = fs.statSync(targetArg);
+    if (stat.isDirectory()) {
+      logger.info(`[R2BatchUploader] Target directory upload specified: ${targetArg}`);
+      await uploadDirectory(targetArg);
+    } else {
+      logger.info(`[R2BatchUploader] Target file upload specified: ${targetArg}`);
+      await uploadFileToR2(targetArg);
+    }
   } else {
     const assetsDir = path.join(PUBLIC_DIR, 'assets');
     const designDir = path.join(PUBLIC_DIR, 'design');

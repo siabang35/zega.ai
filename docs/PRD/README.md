@@ -38,6 +38,7 @@
 | 35 | [RPC URL Sanitization & Strict Env Security](./35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md) | `35-RPC-URL-SANITIZATION-AND-STRICT-ENV-SECURITY-SPEC.md` | RPC URL API key log sanitization engine, Pino redaction serializers, Zod 25+ env schema validation, and complete hardcoded fallback string purge |
 | 36 | [Hardened Invoice Delivery & Realtime Vault](./36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md) | `36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md` | Single-flight invoice delivery engine, Cloudflare R2 CDN audit certificates, 5-layer OWASP anti-hacking guard, and Supabase Realtime WebSocket sync |
 | 37 | [Enterprise Mobile Navigation & Routing Modernization](./37-ENTERPRISE-MOBILE-NAVIGATION-AND-ROUTING-MODERNIZATION-SPEC.md) | `37-ENTERPRISE-MOBILE-NAVIGATION-AND-ROUTING-MODERNIZATION-SPEC.md` | Unified Chevron design language across desktop & mobile, single border toggle, unclipped floating Chevron button, scrollbar line removal, and `/console/payments-billing` route isolation |
+| 38 | [Enterprise Settings & Mobile Realtime Governance Spec](./38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md) | `38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md` | Modernized AdvancedTab and sub-views design parity, Supabase Realtime synchronization, Cloudflare R2 CDN assets integration, mobile pill touch scroller and zero key leak security audit |
 
 ---
 

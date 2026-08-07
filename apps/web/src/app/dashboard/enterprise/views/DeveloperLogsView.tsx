@@ -158,8 +158,8 @@ export function DeveloperLogsView({ onTriggerToast }: DeveloperLogsViewProps) {
         </button>
       </div>
 
-      {/* SUB-NAVIGATION TABS */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 text-xs font-semibold">
+      {/* SUB-NAVIGATION TABS (TOUCH SCROLL RESPONSIVE) */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 text-xs font-semibold overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
         {[
           { id: 'api', label: 'API Logs' },
           { id: 'system', label: 'System Logs' },

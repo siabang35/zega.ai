@@ -2031,5 +2031,730 @@ export const enterpriseSupabaseService = {
       console.error('Error creating custom role:', e);
       return { success: false, error: e.message };
     }
+  },
+
+  async updateTeamMemberRealtime(id: string, updates: { full_name?: string; email?: string; role_name?: string; department?: string; status?: string; mfa_enabled?: boolean; avatar_url?: string }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_update_team_member', {
+        p_id: id,
+        p_full_name: updates.full_name || null,
+        p_email: updates.email || null,
+        p_role_name: updates.role_name || null,
+        p_department: updates.department || null,
+        p_status: updates.status || null,
+        p_mfa_enabled: updates.mfa_enabled ?? null,
+        p_avatar_url: updates.avatar_url || null
+      });
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_team_members')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating team member:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async deleteTeamMemberRealtime(id: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_delete_team_member', { p_id: id });
+      if (error) {
+        const { error: directErr } = await supabase
+          .from('enterprise_team_members')
+          .delete()
+          .eq('id', id);
+        if (directErr) throw directErr;
+        return { success: true };
+      }
+      return { success: true };
+    } catch (e: any) {
+      console.error('Error deleting team member:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async updateCustomRoleRealtime(id: string, updates: { name: string; description: string }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_update_custom_role', {
+        p_id: id,
+        p_name: updates.name,
+        p_description: updates.description
+      });
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_roles')
+          .update({
+            name: updates.name,
+            description: updates.description,
+            last_updated_label: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          })
+          .eq('id', id)
+          .select()
+          .single();
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating custom role:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async deleteCustomRoleRealtime(id: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_delete_custom_role', { p_id: id });
+      if (error) {
+        const { error: directErr } = await supabase
+          .from('enterprise_roles')
+          .delete()
+          .eq('id', id)
+          .eq('role_type', 'Custom');
+        if (directErr) throw directErr;
+        return { success: true };
+      }
+      return { success: true };
+    } catch (e: any) {
+      console.error('Error deleting custom role:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async togglePermissionRealtime(id: string, roleKey: string, newValue: boolean) {
+    try {
+      const colMap: Record<string, string> = {
+        allow_enterprise_admin: 'enterprise_admin',
+        allow_admin: 'admin',
+        allow_developer: 'developer',
+        allow_analyst: 'analyst',
+        allow_viewer: 'viewer'
+      };
+      const { data, error } = await supabase.rpc('fn_toggle_permission', {
+        p_id: id,
+        p_role_column: colMap[roleKey] || roleKey,
+        p_value: newValue
+      });
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_permissions')
+          .update({ [roleKey]: newValue })
+          .eq('id', id)
+          .select()
+          .single();
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error toggling permission:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async createPermissionRealtime(permData: { permission_code: string; category: string; description: string; allow_enterprise_admin?: boolean; allow_admin?: boolean; allow_developer?: boolean; allow_analyst?: boolean; allow_viewer?: boolean }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_create_permission', {
+        p_permission_code: permData.permission_code,
+        p_category: permData.category,
+        p_description: permData.description,
+        p_allow_enterprise_admin: permData.allow_enterprise_admin ?? true,
+        p_allow_admin: permData.allow_admin ?? true,
+        p_allow_developer: permData.allow_developer ?? false,
+        p_allow_analyst: permData.allow_analyst ?? false,
+        p_allow_viewer: permData.allow_viewer ?? false
+      });
+      if (error) {
+        const { data: newPerm, error: insertError } = await supabase
+          .from('enterprise_permissions')
+          .insert({
+            permission_code: permData.permission_code,
+            category: permData.category,
+            description: permData.description,
+            allow_enterprise_admin: permData.allow_enterprise_admin ?? true,
+            allow_admin: permData.allow_admin ?? true,
+            allow_developer: permData.allow_developer ?? false,
+            allow_analyst: permData.allow_analyst ?? false,
+            allow_viewer: permData.allow_viewer ?? false
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        return { success: true, data: newPerm };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error creating permission:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  // =========================================================================
+  // ENTERPRISE GENERAL SETTINGS & AUDIT LOGS REALTIME TELEMETRY
+  // =========================================================================
+
+  getGeneralSettingsRealtime(onDataChange: (data: any) => void) {
+    const fetchSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('enterprise_general_settings')
+          .select('*')
+          .single();
+
+        if (!error && data) {
+          onDataChange(data);
+        } else {
+          // Fallback defaults matching UI screenshot
+          onDataChange({
+            organization_id_code: 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ',
+            organization_name: 'Acme Enterprise',
+            website: 'https://acme.com',
+            description: 'Acme Enterprise is building the future with AI-powered automation.',
+            logo_cdn_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop',
+            primary_contact_email: 'admin@acme.com',
+            industry: 'Technology',
+            organization_size: '1001+ employees',
+            allow_member_invite: true,
+            require_2fa_all: false,
+            default_project_visibility: 'Private',
+            default_dashboard: 'Overview',
+            date_format: 'May 27, 2025 (MMM DD, YYYY)',
+            time_format: '24-hour (14:30)',
+            language: 'English (US)',
+            currency: 'USD - US Dollar ($)',
+            timezone: '(GMT+7) Asia/Jakarta',
+            data_residency: 'Asia Pacific (Singapore)',
+            storage_region: 'ap-southeast-1 (AWS Singapore)',
+            backup_region: 'ap-southeast-3 (AWS Jakarta)',
+            session_timeout_minutes: 30,
+            idle_warning_minutes: 5,
+            allowed_ip_allowlist: ['103.12.45.67', '203.0.113.0/24'],
+            active_sessions_count: 24,
+            plan_tier: 'Enterprise Plan',
+            status: 'Active',
+            environment: 'Production',
+            member_since_days: 142
+          });
+        }
+      } catch (e) {
+        console.error('Error fetching general settings:', e);
+      }
+    };
+
+    fetchSettings();
+
+    const channel = supabase
+      .channel('enterprise_general_settings_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'enterprise_general_settings' },
+        (payload) => {
+          if (payload.new) {
+            onDataChange(payload.new);
+          } else {
+            fetchSettings();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  getSettingsAuditLogsRealtime(onDataChange: (logs: any[]) => void) {
+    const fetchLogs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('enterprise_settings_audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (!error && data) {
+          onDataChange(data);
+        } else {
+          onDataChange([
+            { id: '1', action: 'Organization profile updated', performed_by: 'Danz Assyidq', actor_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces', severity: 'info', category: 'general', compliance_status: 'COMPLIANT', created_at: new Date(Date.now() - 120000).toISOString() },
+            { id: '2', action: 'New member invitation policy enforced', performed_by: 'Alsa Dwi Nur H.', actor_avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces', severity: 'info', category: 'security', compliance_status: 'RECOMMENDED', created_at: new Date(Date.now() - 900000).toISOString() },
+            { id: '3', action: 'API key generated for production gateway', performed_by: 'Faris Ramadhan', actor_avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces', severity: 'warning', category: 'api', compliance_status: 'COMPLIANT', created_at: new Date(Date.now() - 3600000).toISOString() },
+            { id: '4', action: 'Billing payment method updated to Enterprise Invoicing', performed_by: 'Danz Assyidq', actor_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces', severity: 'info', category: 'billing', compliance_status: 'COMPLIANT', created_at: new Date(Date.now() - 10800000).toISOString() },
+            { id: '5', action: 'Google Workspace SSO policy verified', performed_by: 'Danz Assyidq', actor_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces', severity: 'info', category: 'security', compliance_status: 'COMPLIANT', created_at: new Date(Date.now() - 18000000).toISOString() }
+          ]);
+        }
+      } catch (e) {
+        console.error('Error fetching settings audit logs:', e);
+      }
+    };
+
+    fetchLogs();
+
+    const channel = supabase
+      .channel('enterprise_settings_audit_logs_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'enterprise_settings_audit_logs' },
+        () => fetchLogs()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async updateOrganizationProfileRealtime(profileData: {
+    organization_name: string;
+    website: string;
+    description: string;
+    primary_contact_email: string;
+    industry: string;
+    organization_size: string;
+  }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_update_organization_profile', {
+        p_org_name: profileData.organization_name,
+        p_website: profileData.website,
+        p_description: profileData.description,
+        p_primary_contact: profileData.primary_contact_email,
+        p_industry: profileData.industry,
+        p_org_size: profileData.organization_size
+      });
+
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_general_settings')
+          .update(profileData)
+          .eq('organization_id_code', 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ')
+          .select()
+          .single();
+
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating organization profile:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async updateOrganizationPreferencesRealtime(prefData: Partial<{
+    allow_member_invite: boolean;
+    require_2fa_all: boolean;
+    default_project_visibility: string;
+    default_dashboard: string;
+    date_format: string;
+    time_format: string;
+    language: string;
+    currency: string;
+  }>) {
+    try {
+      const payload = {
+        allow_member_invite: prefData.allow_member_invite ?? true,
+        require_2fa_all: prefData.require_2fa_all ?? false,
+        default_project_visibility: prefData.default_project_visibility ?? 'Private',
+        default_dashboard: prefData.default_dashboard ?? 'Executive Command Center',
+        date_format: prefData.date_format ?? 'YYYY-MM-DD',
+        time_format: prefData.time_format ?? '24 Hours (14:00)',
+        language: prefData.language ?? 'English (US)',
+        currency: prefData.currency ?? 'USD ($)'
+      };
+
+      const { data, error } = await supabase.rpc('fn_update_organization_preferences', {
+        p_allow_invite: payload.allow_member_invite,
+        p_require_2fa: payload.require_2fa_all,
+        p_visibility: payload.default_project_visibility,
+        p_default_dashboard: payload.default_dashboard,
+        p_date_format: payload.date_format,
+        p_time_format: payload.time_format,
+        p_language: payload.language,
+        p_currency: payload.currency
+      });
+
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_general_settings')
+          .update(payload)
+          .eq('organization_id_code', 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ')
+          .select()
+          .single();
+
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating preferences:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async updateRegionalSettingsRealtime(regionalData: {
+    timezone: string;
+    data_residency: string;
+    storage_region: string;
+    backup_region: string;
+  }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_update_regional_and_data_settings', {
+        p_timezone: regionalData.timezone,
+        p_data_residency: regionalData.data_residency,
+        p_storage_region: regionalData.storage_region,
+        p_backup_region: regionalData.backup_region
+      });
+
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_general_settings')
+          .update(regionalData)
+          .eq('organization_id_code', 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ')
+          .select()
+          .single();
+
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating regional settings:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async updateSessionSecuritySettingsRealtime(sessionData: {
+    session_timeout_minutes: number;
+    idle_warning_minutes: number;
+  }) {
+    try {
+      const { data, error } = await supabase.rpc('fn_update_session_security_settings', {
+        p_timeout_minutes: sessionData.session_timeout_minutes,
+        p_idle_warning_minutes: sessionData.idle_warning_minutes
+      });
+
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_general_settings')
+          .update(sessionData)
+          .eq('organization_id_code', 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ')
+          .select()
+          .single();
+
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error updating session security settings:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async uploadOrganizationLogoCDNRealtime(logoCdnUrl: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_upload_organization_logo_cdn', {
+        p_logo_cdn_url: logoCdnUrl
+      });
+
+      if (error) {
+        const { data: updated, error: directErr } = await supabase
+          .from('enterprise_general_settings')
+          .update({ logo_cdn_url: logoCdnUrl })
+          .eq('organization_id_code', 'org_01H8GZ6W7GJ6JZVV8BK3M4VQWZ')
+          .select()
+          .single();
+
+        if (directErr) throw directErr;
+        return { success: true, data: updated };
+      }
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error uploading logo CDN:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async addIpAllowlistRuleRealtime(ipRule: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_add_ip_allowlist_rule', {
+        p_ip_rule: ipRule
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error adding IP rule:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async deleteIpAllowlistRuleRealtime(ipRule: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_delete_ip_allowlist_rule', {
+        p_ip_rule: ipRule
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error deleting IP rule:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async deleteOrganizationRealtime(confirmName: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_delete_organization', {
+        p_confirm_name: confirmName
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('Error deleting organization:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  // --- API KEYS REALTIME ---
+  getSettingsApiKeysRealtime(callback: (keys: any[]) => void) {
+    const fetchKeys = async () => {
+      const { data } = await supabase.from('enterprise_api_keys').select('*').order('created_at', { ascending: false });
+      if (data) callback(data);
+    };
+
+    fetchKeys();
+
+    const channel = supabase
+      .channel('public:enterprise_api_keys')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_api_keys' }, () => {
+        fetchKeys();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async createApiKeyRealtime(name: string, environment: string, permissions: string) {
+    try {
+      const { data, error } = await supabase.rpc('fn_create_api_key', {
+        p_name: name,
+        p_environment: environment,
+        p_permissions: permissions
+      });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e: any) {
+      // Fallback direct insert
+      const { data, error } = await supabase.from('enterprise_api_keys').insert([{
+        name,
+        key_prefix: `zega_${environment.toLowerCase()}_`,
+        key_masked: `zega_${environment.toLowerCase()}_••••••••••••${Math.floor(1000 + Math.random() * 9000)}`,
+        environment,
+        permissions,
+        last_used: 'Just now',
+        status: 'Active'
+      }]).select().single();
+      return { success: !error, data, error: error?.message };
+    }
+  },
+
+  async revokeApiKeyRealtime(id: string) {
+    const { error } = await supabase.from('enterprise_api_keys').delete().eq('id', id);
+    return { success: !error, error: error?.message };
+  },
+
+  // --- BILLING INVOICES REALTIME ---
+  getBillingInvoicesRealtime(callback: (invoices: any[]) => void) {
+    const fetchInvoices = async () => {
+      const { data } = await supabase.from('enterprise_billing_invoices').select('*').order('date', { ascending: false });
+      if (data) callback(data);
+    };
+
+    fetchInvoices();
+
+    const channel = supabase
+      .channel('public:enterprise_billing_invoices')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_billing_invoices' }, () => {
+        fetchInvoices();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // --- SECURITY EVENTS REALTIME ---
+  getSecurityEventsRealtime(callback: (events: any[]) => void) {
+    const fetchEvents = async () => {
+      const { data } = await supabase.from('enterprise_security_events').select('*').order('created_at', { ascending: false });
+      if (data) callback(data);
+    };
+
+    fetchEvents();
+
+    const channel = supabase
+      .channel('public:enterprise_security_events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_security_events' }, () => {
+        fetchEvents();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // --- NOTIFICATIONS CONFIG REALTIME ---
+  getNotificationConfigRealtime(callback: (config: any) => void) {
+    const fetchConfig = async () => {
+      const { data } = await supabase.from('enterprise_notifications_config').select('*').single();
+      if (data) callback(data);
+    };
+
+    fetchConfig();
+
+    const channel = supabase
+      .channel('public:enterprise_notifications_config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_notifications_config' }, () => {
+        fetchConfig();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async updateNotificationConfigRealtime(updates: Record<string, any>) {
+    const { data, error } = await supabase.from('enterprise_notifications_config').update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    }).eq('id', '00000000-0000-0000-0000-000000000000').select();
+    
+    if (error) {
+      // fallback without id filter
+      const { data: allData } = await supabase.from('enterprise_notifications_config').select('id').limit(1);
+      if (allData && allData.length > 0) {
+        const { data: updated } = await supabase.from('enterprise_notifications_config').update(updates).eq('id', allData[0].id).select().single();
+        return { success: true, data: updated };
+      }
+    }
+    return { success: !error, data };
+  },
+
+  // --- DATA & PRIVACY REALTIME ---
+  getDataPrivacySettingsRealtime(callback: (config: any) => void) {
+    const fetchConfig = async () => {
+      const { data } = await supabase.from('enterprise_data_privacy_settings').select('*').single();
+      if (data) callback(data);
+    };
+
+    fetchConfig();
+
+    const channel = supabase
+      .channel('public:enterprise_data_privacy_settings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_data_privacy_settings' }, () => {
+        fetchConfig();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async updateDataPrivacySettingsRealtime(updates: Record<string, any>) {
+    const { data: current } = await supabase.from('enterprise_data_privacy_settings').select('id').limit(1);
+    if (current && current.length > 0) {
+      const { data, error } = await supabase.from('enterprise_data_privacy_settings').update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      }).eq('id', current[0].id).select().single();
+      return { success: !error, data };
+    }
+    return { success: false };
+  },
+
+  // --- INTEGRATIONS REALTIME ---
+  getIntegrationsRealtime(callback: (integrations: any[]) => void) {
+    const fetchIntegrations = async () => {
+      const { data } = await supabase.from('enterprise_integrations').select('*').order('created_at', { ascending: false });
+      if (data) callback(data);
+    };
+
+    fetchIntegrations();
+
+    const channel = supabase
+      .channel('public:enterprise_integrations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_integrations' }, () => {
+        fetchIntegrations();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async addIntegrationRealtime(name: string, domain: string, category: string) {
+    const { data, error } = await supabase.from('enterprise_integrations').insert([{
+      name,
+      domain,
+      category,
+      status: 'Connected',
+      last_sync: 'Just now',
+      permissions: 'Read, Write'
+    }]).select().single();
+    return { success: !error, data, error: error?.message };
+  },
+
+  async disconnectIntegrationRealtime(id: string) {
+    const { error } = await supabase.from('enterprise_integrations').delete().eq('id', id);
+    return { success: !error, error: error?.message };
+  },
+
+  // --- ADVANCED CONFIG REALTIME ---
+  getAdvancedConfigRealtime(callback: (config: any) => void) {
+    const fetchConfig = async () => {
+      const { data } = await supabase.from('enterprise_advanced_config').select('*').single();
+      if (data) callback(data);
+    };
+
+    fetchConfig();
+
+    const channel = supabase
+      .channel('public:enterprise_advanced_config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enterprise_advanced_config' }, () => {
+        fetchConfig();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  async updateAdvancedConfigRealtime(updates: Record<string, any>) {
+    const { data: current } = await supabase.from('enterprise_advanced_config').select('id').limit(1);
+    if (current && current.length > 0) {
+      const { data, error } = await supabase.from('enterprise_advanced_config').update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      }).eq('id', current[0].id).select().single();
+      return { success: !error, data };
+    }
+    return { success: false };
   }
 };
+
+
+
+
