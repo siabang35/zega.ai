@@ -30,12 +30,24 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 
 interface TeamRolesViewProps {
   onTriggerToast?: (msg: string) => void;
 }
 
 export function TeamRolesView({ onTriggerToast }: TeamRolesViewProps) {
+  const { t } = useLanguage();
+  const tv = t?.enterpriseViews?.teams || {
+    title: 'Team & Roles Governance',
+    subtitle: 'Manage team members, RBAC permissions, role definitions, and access control.',
+    membersTab: 'Team Members',
+    rolesTab: 'Role Definitions',
+    permissionsTab: 'Permissions Matrix',
+    addMember: 'Add Team Member',
+    createRole: 'Create New Role',
+  };
+
   const [activeTab, setActiveTab] = useState<'members' | 'roles' | 'permissions'>('members');
 
   // Real-time State
@@ -349,10 +361,10 @@ export function TeamRolesView({ onTriggerToast }: TeamRolesViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            Teams & Roles
+            {tv.title}
           </h2>
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your team members, roles, and permissions.
+            {tv.subtitle}
           </p>
         </div>
 
@@ -373,7 +385,7 @@ export function TeamRolesView({ onTriggerToast }: TeamRolesViewProps) {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
           >
             <Plus size={15} />
-            <span>{activeTab === 'roles' ? 'Create Role' : 'Invite Member'}</span>
+            <span>{activeTab === 'roles' ? tv.createRole : tv.addMember}</span>
           </button>
         </div>
       </div>

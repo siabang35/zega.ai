@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
 import { supabase } from '../../../../lib/supabase';
+import { useLanguage } from '../../../../i18n/translations';
 import {
   Terminal,
   ShieldCheck,
@@ -208,6 +209,14 @@ export function ZeroClawTerminalView({
   userName: propUserName,
   userRole = 'enterprise'
 }: ZeroClawTerminalViewProps) {
+  const { t } = useLanguage();
+  const zv = t?.enterpriseViews?.zeroclaw || {
+    title: 'ZeroClaw Solana Bridge Terminal',
+    subtitle: 'Real-time telemetry, automated settlement, keyless vault transactions, and Telegram bot dispatches.',
+    botNotice: 'Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol /start di bot @zeg4ai_bot minimal 1 kali agar pesan invoice otomatis terkirim.',
+    openBotBtn: 'Buka Bot Telegram (@zeg4ai_bot)',
+  };
+
   const [network, setNetwork] = useState<'solana-devnet' | 'solana-mainnet'>('solana-devnet');
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'SOL' | 'IDR'>('USDC');
   const [loading, setLoading] = useState(false);
@@ -2304,12 +2313,12 @@ export function ZeroClawTerminalView({
                           rel="noopener noreferrer"
                           className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[9.5px] inline-flex items-center gap-1 transition-all"
                         >
-                          <span>Buka Bot Telegram (/start)</span>
+                          <span>{zv.openBotBtn}</span>
                           <ExternalLink size={10} />
                         </a>
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol <code className="bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold">/start</code> di bot <b>@zeg4ai_bot</b> minimal 1 kali agar pesan invoice otomatis terkirim.
+                        {zv.botNotice}
                       </p>
                     </div>
                   )}

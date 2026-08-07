@@ -14,6 +14,7 @@ import { WorkflowHubView } from '../views/WorkflowHubView';
 import { M2mPaymentsView } from '../views/M2mPaymentsView';
 import { HelpView } from './views/HelpView';
 import { LanguageSelector } from '../../components/LanguageSelector';
+import { useLanguage } from '../../../i18n/translations';
 import { ZegaLogo } from '../../components/ZegaLogo';
 import { SupabaseDashboardService } from '../services/supabaseService';
 
@@ -58,6 +59,65 @@ export function EnterpriseDashboardView({
   userEmail = '',
   userName = '',
 }: EnterpriseDashboardProps) {
+  const { t, language } = useLanguage();
+  const nav = t?.enterpriseNav || {
+    categories: {
+      mainMenu: 'MAIN MENU',
+      analytics: 'ANALYTICS',
+      platform: 'PLATFORM',
+      developers: 'DEVELOPERS',
+      governance: 'GOVERNANCE',
+    },
+    items: {
+      overview: 'Overview',
+      aiCommand: 'AI Command Center',
+      multiAgents: 'AI Agents',
+      sandbox: 'Workflow Studio',
+      knowledgeBrain: 'Knowledge Hub',
+      mcpConnectors: 'MCP Hub',
+      integrations: 'Integrations',
+      help: 'Pusat Bantuan',
+      agentEvals: 'Analytics',
+      usageBilling: 'Cost Intelligence',
+      reports: 'Reports',
+      paymentsBills: 'Payments & Billing',
+      zeroclawTerminal: 'ZeroClaw Solana Terminal',
+      aiSafety: 'Security Center',
+      infrastructure: 'Infrastructure',
+      auditLogs: 'Audit Logs',
+      devPortal: 'Developer Portal',
+      apiSdk: 'API & SDK',
+      webhooks: 'Webhooks',
+      systemLogs: 'Logs',
+      rbacSso: 'Organization',
+      teamRoles: 'Team & Roles',
+      settings: 'Settings',
+    },
+    badges: {
+      live: 'Live',
+      v24: 'v2.4',
+      active: '638 Active',
+      studio: 'Studio',
+      qdrant: 'Qdrant',
+      activeConnectors: '14 Active',
+      cloud: 'Cloud',
+      support247: 'Support 24/7',
+      evalsAccuracy: '98.6%',
+      savings: 'Savings',
+      keyless: 'Keyless Tier 1',
+      firewall: 'Firewall',
+      auditCount: '54k-256',
+    },
+    topbar: {
+      searchPlaceholder: 'Search console views, agents, tools, or enterprise docs (Ctrl+K)...',
+      releaseNotes: 'Release Notes v2.4',
+      systemStatus: '100% Realtime Active',
+      enterpriseTier: 'Enterprise Orchestration',
+      collapseSidebar: 'Collapse Sidebar',
+      expandSidebar: 'Expand Sidebar',
+    }
+  };
+
   const tabToSlugMap: Record<string, string> = {
     console: 'overview',
     overview: 'overview',
@@ -138,30 +198,30 @@ export function EnterpriseDashboardView({
   const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
 
   const tabTitleMap: Record<string, string> = {
-    console: 'Overview | ZEGA Enterprise',
-    overview: 'Overview | ZEGA Enterprise',
-    ai_command: 'AI Command Center | ZEGA Enterprise',
-    multi_agents: 'AI Agents Fleet | ZEGA Enterprise',
-    sandbox: 'Workflow Studio | ZEGA Enterprise',
-    knowledge_brain: 'Knowledge Hub | ZEGA Enterprise',
-    mcp_connectors: 'MCP Hub | ZEGA Enterprise',
-    integrations: 'Integrations Gateway | ZEGA Enterprise',
-    agent_evals: 'Analytics & Telemetry | ZEGA Enterprise',
-    usage_billing: 'Cost Intelligence | ZEGA Enterprise',
-    reports: 'Reports | ZEGA Enterprise',
-    audit_logs: 'Audit Logs | ZEGA Enterprise',
-    payments_bills: 'Payments & Billing | ZEGA Enterprise',
-    zeroclaw_terminal: 'ZeroClaw Solana Terminal | ZEGA Enterprise',
-    ai_safety: 'Security Center | ZEGA Enterprise',
-    infrastructure: 'System Infrastructure | ZEGA Enterprise',
-    dev_portal: 'Developer Portal | ZEGA Enterprise',
-    api_sdk: 'API & SDK Vault | ZEGA Enterprise',
-    webhooks: 'Webhooks Gateway | ZEGA Enterprise',
-    system_logs: 'System Execution Logs | ZEGA Enterprise',
-    rbac_sso: 'Organization Governance | ZEGA Enterprise',
-    team_roles: 'Team & Roles | ZEGA Enterprise',
-    settings: 'Console Settings | ZEGA Enterprise',
-    help: 'Pusat Bantuan 24/7 | ZEGA Enterprise',
+    console: `Overview | ZEGA Enterprise`,
+    overview: `Overview | ZEGA Enterprise`,
+    ai_command: `${nav.items.aiCommand} | ZEGA Enterprise`,
+    multi_agents: `${nav.items.multiAgents} | ZEGA Enterprise`,
+    sandbox: `${nav.items.sandbox} | ZEGA Enterprise`,
+    knowledge_brain: `${nav.items.knowledgeBrain} | ZEGA Enterprise`,
+    mcp_connectors: `${nav.items.mcpConnectors} | ZEGA Enterprise`,
+    integrations: `${nav.items.integrations} | ZEGA Enterprise`,
+    agent_evals: `${nav.items.agentEvals} | ZEGA Enterprise`,
+    usage_billing: `${nav.items.usageBilling} | ZEGA Enterprise`,
+    reports: `${nav.items.reports} | ZEGA Enterprise`,
+    audit_logs: `${nav.items.auditLogs} | ZEGA Enterprise`,
+    payments_bills: `${nav.items.paymentsBills} | ZEGA Enterprise`,
+    zeroclaw_terminal: `${nav.items.zeroclawTerminal} | ZEGA Enterprise`,
+    ai_safety: `${nav.items.aiSafety} | ZEGA Enterprise`,
+    infrastructure: `${nav.items.infrastructure} | ZEGA Enterprise`,
+    dev_portal: `${nav.items.devPortal} | ZEGA Enterprise`,
+    api_sdk: `${nav.items.apiSdk} | ZEGA Enterprise`,
+    webhooks: `${nav.items.webhooks} | ZEGA Enterprise`,
+    system_logs: `${nav.items.systemLogs} | ZEGA Enterprise`,
+    rbac_sso: `${nav.items.rbacSso} | ZEGA Enterprise`,
+    team_roles: `${nav.items.teamRoles} | ZEGA Enterprise`,
+    settings: `${nav.items.settings} | ZEGA Enterprise`,
+    help: `${nav.items.help} | ZEGA Enterprise`,
   };
 
   const setActiveTab = (tabId: string) => {
@@ -182,7 +242,7 @@ export function EnterpriseDashboardView({
     if (typeof document !== 'undefined' && tabTitleMap[activeTab]) {
       document.title = tabTitleMap[activeTab];
     }
-  }, [activeTab]);
+  }, [activeTab, language]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -220,51 +280,51 @@ export function EnterpriseDashboardView({
 
   const enterpriseMenuCategories = [
     {
-      category: 'MAIN MENU',
+      category: nav.categories.mainMenu,
       items: [
-        { id: 'console', label: 'Overview', icon: LayoutDashboard, badge: 'Live' },
-        { id: 'ai_command', label: 'AI Command Center', icon: Zap, badge: 'v2.4' },
-        { id: 'multi_agents', label: 'AI Agents', icon: Bot, badge: '638 Active' },
-        { id: 'sandbox', label: 'Workflow Studio', icon: Workflow, badge: 'Studio' },
-        { id: 'knowledge_brain', label: 'Knowledge Hub', icon: Brain, badge: 'Qdrant' },
-        { id: 'mcp_connectors', label: 'MCP Hub', icon: Database, badge: '14 Active' },
-        { id: 'integrations', label: 'Integrations', icon: Layers, badge: 'Cloud' },
-        { id: 'help', label: 'Pusat Bantuan', icon: HelpCircle, badge: 'Support 24/7' },
+        { id: 'console', label: nav.items.overview, icon: LayoutDashboard, badge: nav.badges.live },
+        { id: 'ai_command', label: nav.items.aiCommand, icon: Zap, badge: nav.badges.v24 },
+        { id: 'multi_agents', label: nav.items.multiAgents, icon: Bot, badge: nav.badges.active },
+        { id: 'sandbox', label: nav.items.sandbox, icon: Workflow, badge: nav.badges.studio },
+        { id: 'knowledge_brain', label: nav.items.knowledgeBrain, icon: Brain, badge: nav.badges.qdrant },
+        { id: 'mcp_connectors', label: nav.items.mcpConnectors, icon: Database, badge: nav.badges.activeConnectors },
+        { id: 'integrations', label: nav.items.integrations, icon: Layers, badge: nav.badges.cloud },
+        { id: 'help', label: nav.items.help, icon: HelpCircle, badge: nav.badges.support247 },
       ],
     },
     {
-      category: 'ANALYTICS',
+      category: nav.categories.analytics,
       items: [
-        { id: 'agent_evals', label: 'Analytics', icon: BarChart3, badge: '98.6%' },
-        { id: 'usage_billing', label: 'Cost Intelligence', icon: DollarSign, badge: 'Savings' },
-        { id: 'reports', label: 'Reports', icon: FileText },
+        { id: 'agent_evals', label: nav.items.agentEvals, icon: BarChart3, badge: nav.badges.evalsAccuracy },
+        { id: 'usage_billing', label: nav.items.usageBilling, icon: DollarSign, badge: nav.badges.savings },
+        { id: 'reports', label: nav.items.reports, icon: FileText },
       ],
     },
     {
-      category: 'PLATFORM',
+      category: nav.categories.platform,
       items: [
-        { id: 'payments_bills', label: 'Payments & Billing', icon: CreditCard },
-        { id: 'zeroclaw_terminal', label: 'ZeroClaw Solana Terminal', icon: Cpu, badge: 'Keyless Tier 1' },
-        { id: 'ai_safety', label: 'Security Center', icon: ShieldCheck, badge: 'Firewall' },
-        { id: 'infrastructure', label: 'Infrastructure', icon: Server },
-        { id: 'audit_logs', label: 'Audit Logs', icon: ShieldAlert, badge: '54k-256' },
+        { id: 'payments_bills', label: nav.items.paymentsBills, icon: CreditCard },
+        { id: 'zeroclaw_terminal', label: nav.items.zeroclawTerminal, icon: Cpu, badge: nav.badges.keyless },
+        { id: 'ai_safety', label: nav.items.aiSafety, icon: ShieldCheck, badge: nav.badges.firewall },
+        { id: 'infrastructure', label: nav.items.infrastructure, icon: Server },
+        { id: 'audit_logs', label: nav.items.auditLogs, icon: ShieldAlert, badge: nav.badges.auditCount },
       ],
     },
     {
-      category: 'DEVELOPERS',
+      category: nav.categories.developers,
       items: [
-        { id: 'dev_portal', label: 'Developer Portal', icon: Code },
-        { id: 'api_sdk', label: 'API & SDK', icon: Key },
-        { id: 'webhooks', label: 'Webhooks', icon: Globe },
-        { id: 'system_logs', label: 'Logs', icon: Activity },
+        { id: 'dev_portal', label: nav.items.devPortal, icon: Code },
+        { id: 'api_sdk', label: nav.items.apiSdk, icon: Key },
+        { id: 'webhooks', label: nav.items.webhooks, icon: Globe },
+        { id: 'system_logs', label: nav.items.systemLogs, icon: Activity },
       ],
     },
     {
-      category: 'GOVERNANCE',
+      category: nav.categories.governance,
       items: [
-        { id: 'rbac_sso', label: 'Organization', icon: Building },
-        { id: 'team_roles', label: 'Team & Roles', icon: Users },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'rbac_sso', label: nav.items.rbacSso, icon: Building },
+        { id: 'team_roles', label: nav.items.teamRoles, icon: Users },
+        { id: 'settings', label: nav.items.settings, icon: Settings },
       ],
     },
   ];
@@ -513,7 +573,7 @@ export function EnterpriseDashboardView({
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search telemetry, agents, vectors... (⌘K)"
+                placeholder={nav.topbar.searchPlaceholder}
                 className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
               />
             </div>

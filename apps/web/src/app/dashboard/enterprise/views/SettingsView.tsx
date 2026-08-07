@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
+import { useLanguage } from '../../../../i18n/translations';
 
 import { GeneralTab } from './settings/GeneralTab';
 import { SecurityTab } from './settings/SecurityTab';
@@ -28,6 +29,23 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ onTriggerToast }: SettingsViewProps) {
+  const { t } = useLanguage();
+  const v = t?.enterpriseViews?.settings || {
+    title: 'System & Security Settings',
+    subtitle: 'Manage your enterprise organization settings, security policies, API access, and integrations.',
+    generalTab: 'General Profile',
+    securityTab: 'Security & SSO',
+    apiAccessTab: 'API & Access',
+    billingTab: 'Billing & Plan',
+    notificationsTab: 'Notifications',
+    privacyTab: 'Data & Privacy',
+    integrationsTab: 'Integrations',
+    advancedTab: 'Advanced Config',
+    saveChanges: 'Save Changes',
+    saving: 'Saving...',
+    createApiKey: 'Create API Key',
+  };
+
   const [activeTab, setActiveTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -162,26 +180,26 @@ export function SettingsView({ onTriggerToast }: SettingsViewProps) {
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
-            Settings / {
-              activeTab === 'api_access' ? 'API & Access' :
-              activeTab === 'billing' ? 'Billing & Plan' :
-              activeTab === 'privacy' ? 'Data & Privacy' :
+            {v.title} / {
+              activeTab === 'api_access' ? v.apiAccessTab :
+              activeTab === 'billing' ? v.billingTab :
+              activeTab === 'privacy' ? v.privacyTab :
               activeTab.charAt(0).toUpperCase() + activeTab.slice(1)
             }
           </h2>
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your enterprise organization settings, security policies, API access, and integrations.
+            {v.subtitle}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {activeTab === 'api_access' && (
             <button onClick={() => setShowApiKeyModal(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer shadow-xs">
-              <Plus size={15} /> <span>Create API Key</span>
+              <Plus size={15} /> <span>{v.createApiKey}</span>
             </button>
           )}
           <button onClick={handleSaveAll} disabled={isSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white font-bold text-xs cursor-pointer shadow-xs">
-            <Save size={15} className={isSaving ? 'animate-spin' : ''} /> <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+            <Save size={15} className={isSaving ? 'animate-spin' : ''} /> <span>{isSaving ? v.saving : v.saveChanges}</span>
           </button>
         </div>
       </div>
