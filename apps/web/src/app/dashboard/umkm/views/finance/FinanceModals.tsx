@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   X, Check, DollarSign, FileText, Plus, Search, Calendar, Filter, 
-  CheckCircle2, RefreshCw, ShieldCheck, Zap, ArrowUpRight, ArrowDownRight 
+  CheckCircle2, RefreshCw, ShieldCheck, Zap, ArrowUpRight, ArrowDownRight,
+  Bot, ExternalLink
 } from 'lucide-react';
 
 interface ModalBaseProps {
@@ -63,10 +64,10 @@ export function CreateInvoiceModal({
     <ModalBase isOpen={isOpen} onClose={onClose} title="Buat Invoice Baru (USDC / IDR)">
       <div className="space-y-4 text-xs">
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Nama Pelanggan</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Nama / Handle Pelanggan (Telegram @username / WA)</label>
           <input 
             type="text"
-            placeholder="Contoh: Siti Aisyah"
+            placeholder="Contoh: @username atau Siti Aisyah"
             value={customer}
             onChange={(e) => setCustomer(e.target.value)}
             className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
@@ -96,6 +97,28 @@ export function CreateInvoiceModal({
             <option value="4 hari lagi">4 hari lagi</option>
             <option value="7 hari lagi">7 hari lagi</option>
           </select>
+        </div>
+
+        {/* Telegram Bot Direct Link & API Initiation Notice */}
+        <div className="p-3 rounded-2xl border border-sky-500/30 bg-sky-50/60 dark:bg-sky-950/40 text-[10.5px] space-y-1.5 text-slate-700 dark:text-slate-300">
+          <div className="flex items-center justify-between font-bold text-sky-700 dark:text-sky-300">
+            <span className="flex items-center gap-1.5">
+              <Bot size={14} className="text-sky-500" />
+              <span>Syarat Pengiriman Telegram Bot</span>
+            </span>
+            <a
+              href="https://t.me/zeg4ai_bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[9.5px] inline-flex items-center gap-1 transition-all"
+            >
+              <span>Buka Bot Telegram (/start)</span>
+              <ExternalLink size={10} />
+            </a>
+          </div>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
+            Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol <code className="bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold">/start</code> di bot <b>@zeg4ai_bot</b> minimal 1 kali agar pesan invoice otomatis terkirim.
+          </p>
         </div>
 
         <button

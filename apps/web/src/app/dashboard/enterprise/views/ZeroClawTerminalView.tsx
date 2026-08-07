@@ -2299,7 +2299,7 @@ export function ZeroClawTerminalView({
                           <span>Syarat Pengiriman Telegram Bot</span>
                         </span>
                         <a
-                          href="https://t.me/ZegaAiBot"
+                          href="https://t.me/zeg4ai_bot"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[9.5px] inline-flex items-center gap-1 transition-all"
@@ -2309,7 +2309,7 @@ export function ZeroClawTerminalView({
                         </a>
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol <code className="bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold">/start</code> di bot <b>@ZegaAiBot</b> minimal 1 kali agar pesan invoice otomatis terkirim.
+                        Sesuai aturan Telegram API, penerima/bot WAJIB telah menekan tombol <code className="bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-bold">/start</code> di bot <b>@zeg4ai_bot</b> minimal 1 kali agar pesan invoice otomatis terkirim.
                       </p>
                     </div>
                   )}
