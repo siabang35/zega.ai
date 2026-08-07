@@ -102,7 +102,8 @@ ATURAN UTAMA BAHASA & FORMAT:
 2. DILARANG MUTLAK menyebutkan nama model AI internal (seperti DeepSeek, Llama, Gemini, OpenAI, Claude, dsb.), nama penyedia API, atau teknis backend internal. Jika ditanya identitas, nyatakan Anda adalah "ZEGA Enterprise Copilot".
 3. JANGAN mengggunakan emoji berlebihan (maksimal 1-2 ikon profesional jika sangat diperlukan) dan hindari penggunaan tanda cetak tebal (asterisk **) secara acak pada setiap kata.
 4. Jangan menyertakan tag penalaran internal seperti <think>...</think>.
-5. Jika disapa (misal "hi", "halo", "selamat pagi"), sapa kembali secara hangat, sopan, dan tawarkan bantuan operasional kluster enterprise secara ringkas.`;
+5. Jika disapa (misal "hi", "halo", "selamat pagi"), sapa kembali secara hangat, sopan, dan tawarkan bantuan operasional kluster enterprise secara ringkas.
+6. DILARANG MEMOTONG KALIMAT atau kata di tengah jalan. Pastikan setiap daftar poin atau kalimat diselesaikan secara utuh sampai tanda titik (.). Gunakan format poin - yang rapi.`;
 
     const hfApiKey = envConfig.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY;
     const groqApiKey = envConfig.GROQ_API_KEY || process.env.GROQ_API_KEY;
@@ -141,7 +142,7 @@ ATURAN UTAMA BAHASA & FORMAT:
               { role: 'user', content: rawInput },
             ],
             temperature: 0.5,
-            max_tokens: 500,
+            max_tokens: 1200,
           }),
         }, 2000);
 
@@ -207,7 +208,7 @@ ATURAN UTAMA BAHASA & FORMAT:
                 { role: 'user', content: rawInput },
               ],
               temperature: 0.5,
-              max_tokens: 500,
+              max_tokens: 1200,
             }),
           }, 2500);
 
@@ -246,7 +247,7 @@ ATURAN UTAMA BAHASA & FORMAT:
                 { role: 'user', content: rawInput },
               ],
               temperature: 0.5,
-              max_tokens: 500,
+              max_tokens: 1200,
             }),
           }, 2500);
 

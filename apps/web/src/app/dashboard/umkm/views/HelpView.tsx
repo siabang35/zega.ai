@@ -1,13 +1,13 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, Search, BookOpen, MessageSquare, Ticket, 
   Send, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle,
-  Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X
+  Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X, Bot
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
+import { getApiBase } from '../../../../config/api';
+import { getR2CdnUrl } from '../../../utils/cdn';
 
 export const HelpView: React.FC = () => {
   const { t } = useLanguage();
@@ -18,9 +18,14 @@ export const HelpView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
 
-  // Ticket Modal & Form State
+  // Ticket Modal & Live Chat State
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState('');
+
   const [ticketForm, setTicketForm] = useState({
     subject: '',
     category: 'Otomatisasi',
@@ -32,6 +37,141 @@ export const HelpView: React.FC = () => {
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Clean Markdown Text Formatter
+  const renderFormattedChatMessage = (text: string) => {
+    if (!text) return null;
+    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    if (!cleanText) return null;
+    const lines = cleanText.split('\n');
+
+    return (
+      <div className="space-y-1.5 leading-relaxed text-xs">
+        {lines.map((rawLine, idx) => {
+          const trimmed = rawLine.trim();
+          if (!trimmed) return <div key={idx} className="h-1" />;
+
+          const isBullet = /^[•\-\*\+]\s+/.test(trimmed) || /^[•\-\*\+]$/.test(trimmed);
+          const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+
+          let contentLine = trimmed;
+          let bulletPrefix: React.ReactNode = null;
+
+          if (isBullet) {
+            contentLine = trimmed.replace(/^[•\-\*\+]\s*/, '');
+            bulletPrefix = <span className="text-orange-400 font-bold text-xs shrink-0 select-none">•</span>;
+          } else if (numMatch) {
+            contentLine = numMatch[2];
+            bulletPrefix = (
+              <span className="text-orange-400 font-mono font-bold text-[10px] shrink-0 bg-orange-500/10 px-1 py-0.2 rounded border border-orange-500/20">
+                {numMatch[1]}
+              </span>
+            );
+          }
+
+          const parts = contentLine.split(/(\*\*[^*]+\*\*)/g);
+          const formattedLine = parts.map((part, pIdx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return (
+                <strong key={pIdx} className="font-extrabold text-orange-600 dark:text-orange-300">
+                  {part.slice(2, -2)}
+                </strong>
+              );
+            }
+            return part;
+          });
+
+          if (bulletPrefix) {
+            return (
+              <div key={idx} className="flex items-start gap-2 pl-0.5">
+                {bulletPrefix}
+                <div className="flex-1 leading-snug">{formattedLine}</div>
+              </div>
+            );
+          }
+
+          return <p key={idx} className="leading-snug">{formattedLine}</p>;
+        })}
+      </div>
+    );
+  };
+
+  const handleOpenLiveChat = () => {
+    setIsLiveChatOpen(true);
+    if (chatMessages.length === 0) {
+      setChatMessages([
+        {
+          id: '1',
+          sender_type: 'ai_specialist',
+          sender_name: 'ZEGA UMKM Support Assistant',
+          message: 'Halo! Selamat datang di Pusat Bantuan UMKM ZEGA. Ada yang bisa saya bantu terkait WhatsApp API, Kasir Otomatis, atau AI Employees?',
+          created_at: new Date().toISOString()
+        }
+      ]);
+    }
+  };
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isAiThinking) return;
+
+    const userMsg = chatInput;
+    setChatInput('');
+
+    const newMsg = {
+      id: Date.now().toString(),
+      sender_type: 'user',
+      sender_name: 'Pengguna UMKM',
+      message: userMsg,
+      created_at: new Date().toISOString()
+    };
+
+    setChatMessages(prev => [...prev, newMsg]);
+    setIsAiThinking(true);
+
+    try {
+      const apiHost = getApiBase();
+      const res = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg })
+      });
+
+      let aiReply = '';
+      if (res.ok) {
+        const data = await res.json();
+        aiReply = data.data?.message || data.message;
+      }
+
+      if (!aiReply) {
+        aiReply = `Terima kasih atas pertanyaan Anda tentang "${userMsg}". Tim support ZEGA siap membantu bisnis Anda secara maksimal.`;
+      }
+
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender_type: 'ai_specialist',
+          sender_name: 'ZEGA UMKM Support Assistant',
+          message: aiReply,
+          created_at: new Date().toISOString()
+        }
+      ]);
+    } catch (err) {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender_type: 'ai_specialist',
+          sender_name: 'ZEGA UMKM Support Assistant',
+          message: `Terima kasih! Pesan Anda "${userMsg}" telah disinkronkan ke antrean support UMKM.`,
+          created_at: new Date().toISOString()
+        }
+      ]);
+    } finally {
+      setIsAiThinking(false);
+    }
   };
 
   const loadData = async () => {
@@ -96,7 +236,7 @@ export const HelpView: React.FC = () => {
   });
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl mx-auto pb-24 md:pb-8">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold shadow-2xl border border-slate-700 animate-bounce">
@@ -150,7 +290,7 @@ export const HelpView: React.FC = () => {
         </div>
 
         <div 
-          onClick={() => triggerToast('✓ Menghubungkan ke Live Chat Support (WhatsApp API)...')}
+          onClick={handleOpenLiveChat}
           className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all cursor-pointer shadow-xs hover:shadow-md group"
         >
           <div className="flex items-center gap-4">
@@ -259,21 +399,64 @@ export const HelpView: React.FC = () => {
 
       {/* Real-time Ticket Status Tracker */}
       <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Ticket size={18} className="text-orange-500" />
-            <span>Riwayat Tiket Bantuan Anda (Realtime)</span>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs sm:text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Ticket size={18} className="text-orange-500 shrink-0" />
+            <span>Riwayat Tiket Bantuan (Realtime)</span>
           </h3>
           <button
             onClick={() => setIsTicketModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3 sm:px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Send size={14} />
-            <span>Kirim Tiket Baru</span>
+            <span className="hidden sm:inline">Kirim Tiket Baru</span>
+            <span className="sm:hidden">Tiket Baru</span>
           </button>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+        {/* Mobile View: Stacked Ticket Cards */}
+        <div className="grid grid-cols-1 gap-3 md:hidden">
+          {tickets.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 font-medium rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
+              Belum ada tiket bantuan dikirim. Klik "Tiket Baru" untuk mengirim.
+            </div>
+          ) : (
+            tickets.map((t) => (
+              <div key={t.id} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{t.ticket_code}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                    <Clock size={11} className="animate-spin" />
+                    {t.status}
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">{t.subject}</h4>
+                <div className="flex items-center justify-between text-[10.5px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <span className="font-medium">Kategori: <strong>{t.category}</strong></span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                    t.priority === 'Tinggi' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                  }`}>
+                    {t.priority}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={handleOpenLiveChat}
+                    className="px-3 py-1 rounded-lg bg-orange-500 text-white font-bold text-[11px] hover:bg-orange-600 transition-colors"
+                  >
+                    Live Chat
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-800">
@@ -404,6 +587,79 @@ export const HelpView: React.FC = () => {
                   {submittingTicket ? 'Mengirim...' : 'Kirim Tiket'}
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* LIVE CHAT DRAWER */}
+      {isLiveChatOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md h-full flex flex-col border-l border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-right duration-250">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shadow-sm">
+                  <Bot size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">ZEGA AI Specialist Direct</h4>
+                  <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> 24/7 Live Agent Queue
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsLiveChatOpen(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Messages Body */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs">
+              {chatMessages.map((msg) => (
+                <div 
+                  key={msg.id}
+                  className={`flex flex-col ${msg.sender_type === 'user' ? 'items-end' : 'items-start'}`}
+                >
+                  <span className="text-[9.5px] font-mono text-slate-400 mb-1">{msg.sender_name}</span>
+                  <div className={`p-3 rounded-2xl max-w-[85%] font-medium ${
+                    msg.sender_type === 'user'
+                      ? 'bg-orange-500 text-white rounded-br-none'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none border border-slate-200/60 dark:border-slate-700/60'
+                  }`}>
+                    {msg.sender_type === 'user' ? msg.message : renderFormattedChatMessage(msg.message)}
+                  </div>
+                </div>
+              ))}
+
+              {isAiThinking && (
+                <div className="flex flex-col items-start">
+                  <span className="text-[9.5px] font-mono text-slate-400 mb-1">ZEGA AI Specialist Direct</span>
+                  <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-bl-none border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+                    <Sparkles size={14} className="animate-spin text-orange-500" />
+                    <span className="text-xs font-medium animate-pulse">Sedang memproses jawaban dengan AI model...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Message Input Footer */}
+            <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ketik pesan untuk AI Support..."
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+              />
+              <button
+                type="submit"
+                className="p-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white cursor-pointer transition-colors shadow-xs"
+              >
+                <Send size={16} />
+              </button>
             </form>
           </div>
         </div>

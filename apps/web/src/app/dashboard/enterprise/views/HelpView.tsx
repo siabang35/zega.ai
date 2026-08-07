@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, Search, BookOpen, MessageSquare, Ticket, 
@@ -8,6 +6,8 @@ import {
   Activity, ArrowUpRight, Bot, User, Check
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
+import { getApiBase } from '../../../../config/api';
+import { getR2CdnUrl } from '../../../utils/cdn';
 
 interface HelpViewProps {
   onTriggerToast?: (msg: string) => void;
@@ -27,6 +27,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
 
@@ -43,6 +44,64 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     if (onTriggerToast) onTriggerToast(msg);
     setLocalToast(msg);
     setTimeout(() => setLocalToast(null), 3500);
+  };
+
+  // Clean Markdown Text Formatter for Live Chat Messages
+  const renderFormattedChatMessage = (text: string) => {
+    if (!text) return null;
+    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    if (!cleanText) return null;
+    const lines = cleanText.split('\n');
+
+    return (
+      <div className="space-y-1.5 leading-relaxed text-xs">
+        {lines.map((rawLine, idx) => {
+          const trimmed = rawLine.trim();
+          if (!trimmed) return <div key={idx} className="h-1" />;
+
+          const isBullet = /^[•\-\*\+]\s+/.test(trimmed) || /^[•\-\*\+]$/.test(trimmed);
+          const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+
+          let contentLine = trimmed;
+          let bulletPrefix: React.ReactNode = null;
+
+          if (isBullet) {
+            contentLine = trimmed.replace(/^[•\-\*\+]\s*/, '');
+            bulletPrefix = <span className="text-orange-400 font-bold text-xs shrink-0 select-none">•</span>;
+          } else if (numMatch) {
+            contentLine = numMatch[2];
+            bulletPrefix = (
+              <span className="text-orange-400 font-mono font-bold text-[10px] shrink-0 bg-orange-500/10 px-1 py-0.2 rounded border border-orange-500/20">
+                {numMatch[1]}
+              </span>
+            );
+          }
+
+          const parts = contentLine.split(/(\*\*[^*]+\*\*)/g);
+          const formattedLine = parts.map((part, pIdx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return (
+                <strong key={pIdx} className="font-extrabold text-orange-600 dark:text-orange-300">
+                  {part.slice(2, -2)}
+                </strong>
+              );
+            }
+            return part;
+          });
+
+          if (bulletPrefix) {
+            return (
+              <div key={idx} className="flex items-start gap-2 pl-0.5">
+                {bulletPrefix}
+                <div className="flex-1 leading-snug">{formattedLine}</div>
+              </div>
+            );
+          }
+
+          return <p key={idx} className="leading-snug">{formattedLine}</p>;
+        })}
+      </div>
+    );
   };
 
   const loadData = async () => {
@@ -109,10 +168,10 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
       {
         id: '1',
         sender_type: 'ai_specialist',
-        sender_name: 'ZEGA AI Specialist',
+        sender_name: 'ZEGA AI Support Specialist',
         message: ticket 
-          ? `Halo! Saya AI Specialist ZEGA. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?` 
-          : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow atau API Anda hari ini?',
+          ? `Halo! Saya AI Specialist ZEGA terhubung dengan model inference real-time. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?` 
+          : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow, infrastruktur AI, atau API Anda hari ini?',
         created_at: new Date().toISOString()
       }
     ]);
@@ -120,7 +179,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
 
   const handleSendChatMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || isAiThinking) return;
 
     const userMsg = chatInput;
     setChatInput('');
@@ -134,22 +193,43 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     };
 
     setChatMessages(prev => [...prev, newMsg]);
+    setIsAiThinking(true);
 
-    // Simulated AI response
-    setTimeout(() => {
+    // Call Real-time Backend AI Model Endpoint (/v1/enterprise/copilot/chat)
+    try {
+      const apiHost = getApiBase();
+      const res = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: selectedTicket 
+            ? `[Tiket #${selectedTicket.ticket_code} - ${selectedTicket.subject}] ${userMsg}`
+            : userMsg
+        })
+      });
+
+      let aiReply = '';
+      if (res.ok) {
+        const data = await res.json();
+        aiReply = data.data?.message || data.message;
+      }
+
+      if (!aiReply) {
+        aiReply = `Terima kasih atas pesan Anda mengenai "${userMsg}". Permintaan Anda telah kami terima dan akan langsung diproses oleh AI Support Specialist.`;
+      }
+
       setChatMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender_type: 'ai_specialist',
-          sender_name: 'ZEGA AI Specialist',
-          message: `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue. Latency respons saat ini 12ms.`,
+          sender_name: 'ZEGA AI Support Specialist',
+          message: aiReply,
           created_at: new Date().toISOString()
         }
       ]);
-    }, 800);
 
-    try {
+      // Save to Supabase Realtime DB table
       await enterpriseSupabaseService.sendLiveChatMessage({
         ticket_id: selectedTicket?.id,
         sender_type: 'user',
@@ -157,7 +237,18 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         message: userMsg
       });
     } catch (err) {
-      // Ignored for local fallback
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender_type: 'ai_specialist',
+          sender_name: 'ZEGA AI Support Specialist',
+          message: `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue.`,
+          created_at: new Date().toISOString()
+        }
+      ]);
+    } finally {
+      setIsAiThinking(false);
     }
   };
 
@@ -178,7 +269,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-6">
       {/* Toast Notification */}
       {localToast && (
         <div className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold shadow-2xl border border-slate-700 animate-bounce flex items-center gap-2">
@@ -351,23 +442,66 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         </div>
       </div>
 
-      {/* REAL-TIME SUPPORT TICKET HISTORY AUDIT TABLE */}
+      {/* REAL-TIME SUPPORT TICKET HISTORY AUDIT SECTION */}
       <div className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Ticket size={18} className="text-orange-500" />
-            <span>Riwayat Tiket Bantuan Anda (Realtime)</span>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs sm:text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Ticket size={18} className="text-orange-500 shrink-0" />
+            <span>Riwayat Tiket Bantuan (Realtime)</span>
           </h3>
           <button
             onClick={() => setIsTicketModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-3 sm:px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
           >
             <Send size={14} />
-            <span>Kirim Tiket Baru</span>
+            <span className="hidden sm:inline">Kirim Tiket Baru</span>
+            <span className="sm:hidden">Tiket Baru</span>
           </button>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+        {/* Mobile View: Stacked Ticket Cards */}
+        <div className="grid grid-cols-1 gap-3 md:hidden">
+          {tickets.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 font-medium rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
+              Belum ada tiket bantuan. Klik "Tiket Baru" untuk mengirim.
+            </div>
+          ) : (
+            tickets.map((t) => (
+              <div key={t.id} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{t.ticket_code}</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                    <Clock size={11} className="animate-spin" />
+                    {t.status}
+                  </span>
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">{t.subject}</h4>
+                <div className="flex items-center justify-between text-[10.5px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <span className="font-medium">Kategori: <strong>{t.category}</strong></span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                    t.priority === 'Tinggi' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                  }`}>
+                    {t.priority}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={() => handleOpenLiveChat(t)}
+                    className="px-3 py-1 rounded-lg bg-orange-500 text-white font-bold text-[11px] hover:bg-orange-600 transition-colors"
+                  >
+                    Live Chat
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-800">
@@ -558,10 +692,20 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
                       ? 'bg-orange-500 text-white rounded-br-none'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none border border-slate-200/60 dark:border-slate-700/60'
                   }`}>
-                    {msg.message}
+                    {msg.sender_type === 'user' ? msg.message : renderFormattedChatMessage(msg.message)}
                   </div>
                 </div>
               ))}
+
+              {isAiThinking && (
+                <div className="flex flex-col items-start">
+                  <span className="text-[9.5px] font-mono text-slate-400 mb-1">ZEGA AI Support Specialist</span>
+                  <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-bl-none border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+                    <Sparkles size={14} className="animate-spin text-orange-500" />
+                    <span className="text-xs font-medium animate-pulse">Sedang memproses jawaban dengan AI model...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Message Input Footer */}

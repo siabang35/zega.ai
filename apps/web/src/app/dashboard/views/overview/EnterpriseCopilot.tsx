@@ -52,10 +52,30 @@ export function EnterpriseCopilot({
 
     return (
       <div className="space-y-1.5 leading-relaxed text-xs">
-        {lines.map((line, idx) => {
-          if (!line.trim()) return <div key={idx} className="h-1" />;
+        {lines.map((rawLine, idx) => {
+          const trimmed = rawLine.trim();
+          if (!trimmed) return <div key={idx} className="h-1" />;
 
-          const parts = line.split(/(\*\*[^*]+\*\*)/g);
+          // Detect bullets or numbered list items
+          const isBullet = /^[•\-\*\+]\s+/.test(trimmed) || /^[•\-\*\+]$/.test(trimmed);
+          const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+
+          let contentLine = trimmed;
+          let bulletPrefix: React.ReactNode = null;
+
+          if (isBullet) {
+            contentLine = trimmed.replace(/^[•\-\*\+]\s*/, '');
+            bulletPrefix = <span className="text-indigo-400 font-bold text-xs shrink-0 select-none">•</span>;
+          } else if (numMatch) {
+            contentLine = numMatch[2];
+            bulletPrefix = (
+              <span className="text-indigo-400 font-mono font-bold text-[10px] shrink-0 bg-indigo-500/10 px-1 py-0.2 rounded border border-indigo-500/20">
+                {numMatch[1]}
+              </span>
+            );
+          }
+
+          const parts = contentLine.split(/(\*\*[^*]+\*\*)/g);
           const formattedLine = parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               return (
@@ -67,16 +87,16 @@ export function EnterpriseCopilot({
             return part;
           });
 
-          if (line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*')) {
+          if (bulletPrefix) {
             return (
-              <div key={idx} className="flex items-start gap-1.5 pl-1">
-                <span className="text-indigo-400 font-bold text-xs shrink-0">•</span>
-                <span className="flex-1">{formattedLine}</span>
+              <div key={idx} className="flex items-start gap-2 pl-1">
+                {bulletPrefix}
+                <div className="flex-1 leading-snug">{formattedLine}</div>
               </div>
             );
           }
 
-          return <p key={idx}>{formattedLine}</p>;
+          return <p key={idx} className="leading-snug">{formattedLine}</p>;
         })}
       </div>
     );
