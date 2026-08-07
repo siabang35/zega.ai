@@ -52,10 +52,18 @@ export async function registerPlugins(app: FastifyInstance) {
         return false;
       });
 
-      const isZegaDomain = /^https:\/\/(www\.)?zegaai\.site$/i.test(origin) || origin.endsWith('.zegaai.site');
+      const isAllowedDomain =
+        /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
+        origin.endsWith('.zegaai.site') ||
+        origin.endsWith('.zega.ai') ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com') ||
+        origin.endsWith('.pages.dev') ||
+        origin.endsWith('.netlify.app');
+
       const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
-      if (isConfigured || isZegaDomain || isLocalhost) {
+      if (isConfigured || isAllowedDomain || isLocalhost) {
         return cb(null, true);
       }
 

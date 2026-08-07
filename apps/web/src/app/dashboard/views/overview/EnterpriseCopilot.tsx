@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
+import { getApiBase } from '../../../../config/api';
 
 export interface EnterpriseCopilotProps {
   dark?: boolean;
@@ -110,7 +111,7 @@ export function EnterpriseCopilot({
 
     // Try calling backend real AI inference endpoint first with 25s timeout for DeepSeek R1 reasoning
     try {
-      const apiHost = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      const apiHost = getApiBase();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
 
@@ -146,8 +147,11 @@ export function EnterpriseCopilot({
         replyMessage = `👋 **Halo! Selamat datang di ZEGA Enterprise Copilot AI.**\n\nSaya asisten AI terintegrasi kluster enterprise Anda per **${currentDate}**.\n\nAda yang bisa saya bantu hari ini?\n• 🖥️ **Status & Latency Kluster**\n• 🛡️ **Audit Keamanan OWASP**\n• 💰 **Laporan Optimalisasi Biaya LLM**\n• ⚡ **Telemetri Swarm Agent**`;
         aiModel = 'deepseek-r1-zeroclaw';
       } else if (promptLower.includes('lu siapa') || promptLower.includes('siapa kamu') || promptLower.includes('who are you') || promptLower.includes('identitas')) {
-        replyMessage = `✨ **ZEGA Enterprise Copilot AI:**\n\nSaya adalah **ZEGA Enterprise Copilot**, AI Operating System Assistant yang didukung model **DeepSeek R1** (HuggingFace Inference API) dan **9Router Engine**.\n\nSaya terhubung langsung dengan telemetry 8 microservice node, audit log OWASP Level 3, dan database Supabase Realtime untuk mengelola infrastruktur AI enterprise secara optimal.`;
+        replyMessage = `✨ **ZEGA Enterprise Copilot AI:**\n\nSaya adalah **ZEGA Enterprise Copilot**, AI Operating System Assistant yang didukung model **DeepSeek R1** dan **9Router Engine**.\n\nSaya terhubung langsung dengan telemetry 8 microservice node, audit log OWASP Level 3, dan database Supabase Realtime untuk mengelola infrastruktur AI enterprise secara optimal.`;
         aiModel = 'deepseek-r1-huggingface';
+      } else if (promptLower.includes('fungsi') || promptLower.includes('apa itu') || promptLower.includes('tentang zega') || promptLower.includes('fitur') || promptLower.includes('kegunaan') || promptLower.includes('keunggulan') || promptLower.includes('manfaat')) {
+        replyMessage = `🚀 **ZEGA AI Operating System (Enterprise Capabilities):**\n\nZEGA AI adalah platform orchestration & sistem operasi AI enterprise multi-agent terpadu. Fungsi utama ZEGA AI meliputi:\n\n1. ⚡ **Autonomous Swarm Workflows:** Eksekusi otomatis ratusan agen AI (Marketing, HR, Finance, DevSecOps, Legal) dalam satu pipa kerja.\n2. 💳 **ZeroClaw Solana Payment Bridge:** Pembayaran instant keyless vault USDC/SOL dengan otomatisasi invoice ke Telegram & WhatsApp.\n3. 🛡️ **OWASP Level 3 Security Gate:** Perlindungan multi-layer anti-prompt injection, anti-throttling, & enkripsi data zero-trust.\n4. 🔀 **9Router Multi-LLM Layer:** Routing pintar otomatis antar model AI (DeepSeek R1, Groq LPU, Gemini Flash) untuk latency tercepat dan efisiensi biaya maksimal.`;
+        aiModel = 'deepseek-r1-zeroclaw';
       } else if (promptLower.includes('cluster') || promptLower.includes('node') || promptLower.includes('status')) {
         replyMessage = `🖥️ **Enterprise AI Cluster Telemetry (${currentDate}):**\n• Active Microservices: **8 / 8 Operational** ✅\n• ZeroClaw Node Latency: **22 ms** (Frankfurt Edge)\n• Vector DB Throughput: **18,732 req/min**\n• Auto-Scaling Capacity: **64% Available**`;
         aiModel = 'deepseek-r1-huggingface';

@@ -3,6 +3,7 @@ import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
+import { getApiBase } from '../../../../config/api';
 import {
   Terminal,
   ShieldCheck,
@@ -124,19 +125,6 @@ export interface GeneratedInvoice {
   isDemo?: boolean;
   is_demo?: boolean;
 }
-
-const getApiBase = (): string => {
-  if (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_URL) {
-    return String((import.meta as any).env.VITE_API_URL).replace(/\/$/, '');
-  }
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host.includes('zegaai.site') || host.includes('vercel.app') || host.includes('render.com')) {
-      return 'https://zega-ai.onrender.com';
-    }
-  }
-  return 'https://zega-ai.onrender.com';
-};
 
 const API_BASE = getApiBase();
 
