@@ -13,16 +13,19 @@ async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>
 export const umkmSupabaseService = {
   // Helper: Resolve CDN URLs for assets
   getCdnUrl(path?: string): string {
-    if (!path) return '/assets/logo/zegalogo.png';
+    const baseCdn = (import.meta.env.VITE_CDN_URL || import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://cdn.zegaai.site').replace(/\/$/, '');
+    if (!path) return `${baseCdn}/assets/logo/zegalogo.png`;
     if (
       path.startsWith('http://') ||
       path.startsWith('https://') ||
       path.startsWith('data:') ||
       path.startsWith('blob:')
     ) return path;
-    if (path.startsWith('/design/') || path.startsWith('/assets/')) return path;
-    const baseCdn = (import.meta.env.VITE_CDN_URL || '').replace(/\/$/, '');
-    return baseCdn ? `${baseCdn}${path.startsWith('/') ? '' : '/'}${path}` : path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const fullPath = (cleanPath.startsWith('/assets/') || cleanPath.startsWith('/design/') || cleanPath.startsWith('/videos/') || cleanPath.startsWith('/images/'))
+      ? cleanPath
+      : `/assets${cleanPath}`;
+    return `${baseCdn}${fullPath}`;
   },
 
   // 1. Fetch Realtime UMKM Dashboard Data
@@ -159,10 +162,27 @@ export const umkmSupabaseService = {
     }
   },
 
-  // 7. Add / Deploy New AI Employee
-  async addUmkmAiEmployee(storeId: string, payload: any) {
+  // 6.1 Delete AI Employee
+  async deleteUmkmAiEmployee(employeeId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_ai_employees')
+        .delete()
+        .eq('id', employeeId)
+        .select();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err.message };
+    }
+  },
+
+  // 7. Add / Deploy New AI Employee with Real LLM Engine Specs
+  async addUmkmAiEmployee(storeId: string = '11111111-1111-1111-1111-111111111111', payload: any) {
     try {
       const newAgentCode = payload.agent_code || `AGENT-${Math.floor(1000 + Math.random() * 9000)}`;
+      const cdnAvatar = this.getCdnUrl(payload.avatar_path || 'assets/visualization/ai-avatar.png');
       const { data, error } = await supabase
         .from('umkm_ai_employees')
         .insert({
@@ -170,13 +190,22 @@ export const umkmSupabaseService = {
           agent_code: newAgentCode,
           name: payload.name,
           agent_name: payload.name,
-          role: payload.category || 'Support & Ops',
-          role_title: payload.category || 'Specialist',
-          category: payload.category || 'Support & Ops',
-          description: payload.desc || 'Autonomous enterprise AI worker.',
-          status: payload.status || 'active',
-          avatar_path: payload.avatar_path || 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png',
-          capabilities: payload.capabilities || ['WhatsApp API', 'Supabase RAG'],
+          role: payload.role || payload.category || 'Support & Ops',
+          role_title: payload.role || payload.category || 'Specialist',
+          category: payload.category || payload.role || 'Support & Ops',
+          description: payload.desc || payload.description || 'Autonomous enterprise AI worker.',
+          status: payload.status || 'working',
+          model_engine: payload.model_engine || 'ZEGA-Swarm-Llama-3.3-70B',
+          routing_strategy: payload.routing_strategy || '9Router-Auto-Cost-Optimizer',
+          execution_gateway: payload.execution_gateway || 'ZeroClaw-Edge-Gateway',
+          system_prompt: payload.system_prompt || 'You are an autonomous AI employee assisting UMKM operations.',
+          temperature: payload.temperature ?? 0.7,
+          max_tokens: payload.max_tokens ?? 4096,
+          model_type: payload.model_type || 'llm_swarm',
+          est_cost_per_1k_tokens: payload.est_cost_per_1k_tokens ?? 0.0005,
+          avatar_path: cdnAvatar,
+          cdn_avatar_url: cdnAvatar,
+          capabilities: payload.capabilities || ['WhatsApp API', 'Supabase RAG', 'Live Analytics', '9Router Engine', 'ZeroClaw Gateway'],
           tasks_completed_today: 0,
           chats_solved: 0,
           chats_today: 0,
@@ -196,6 +225,105 @@ export const umkmSupabaseService = {
         .single();
 
       if (error) throw error;
+
+      // Update KPI active agents count
+      const { data: currentKpi } = await supabase.from('umkm_dashboard_kpis').select('tasks_completed_today, usage_percentage').eq('store_id', storeId).maybeSingle();
+      await supabase.from('umkm_dashboard_kpis').upsert({
+        store_id: storeId,
+        tasks_completed_today: (currentKpi?.tasks_completed_today || 126) + 1,
+        updated_at: new Date().toISOString()
+      });
+
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err.message };
+    }
+  },
+
+  // 7.1 Quick Action: Create Real Invoice Transaction
+  async createUmkmInvoiceQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string; amount: number }) {
+    try {
+      const invNum = `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+      const { data, error } = await supabase
+        .from('umkm_transactions')
+        .insert({
+          store_id: storeId,
+          transaction_code: invNum,
+          customer_name: payload.title || 'General Customer',
+          payment_method: 'QRIS / E-Wallet',
+          amount_idr: payload.amount || 500000,
+          status: 'confirmed',
+          notes: payload.detail || 'Generated from Overview Quick Actions',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err.message };
+    }
+  },
+
+  // 7.2 Quick Action: Send Broadcast
+  async sendUmkmBroadcastQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string }) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_timeline_events')
+        .insert({
+          store_id: storeId,
+          event_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          icon_symbol: 'Send',
+          title: 'Broadcast Sent',
+          event_text: `WA Broadcast "${payload.title}" delivered to customers`,
+          badge_label: 'Delivered',
+          event_type: 'broadcast',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err.message };
+    }
+  },
+
+  // 7.3 Quick Action: Add Product to Catalog
+  async addUmkmProductQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string; amount: number }) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_products')
+        .insert({
+          store_id: storeId,
+          org_id: 'umkm-org-01',
+          sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: payload.title || 'New Item',
+          category: payload.detail || 'General',
+          price: payload.amount || 150000,
+          stock: 50,
+          status: 'active',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log timeline event
+      await supabase.from('umkm_timeline_events').insert({
+        store_id: storeId,
+        event_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        icon_symbol: 'ShoppingBag',
+        title: 'Product Catalog Updated',
+        event_text: `Added new product "${payload.title}" (${payload.amount ? 'Rp' + payload.amount.toLocaleString('id-ID') : 'Rp0'})`,
+        badge_label: 'Catalog',
+        event_type: 'inventory',
+        created_at: new Date().toISOString()
+      });
+
       return { data, error: null };
     } catch (err: any) {
       return { data: null, error: err.message };

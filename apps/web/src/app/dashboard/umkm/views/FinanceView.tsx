@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, Scale, TrendingUp, ChevronDown, Sparkles, X, ArrowRight, QrCode, ExternalLink,
   Calendar, Filter, CheckCircle2, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CreditCard,
-  PieChart, RefreshCw, FileText, Plus, ShieldCheck, ChevronRight, Copy, Check
+  PieChart, RefreshCw, FileText, Plus, ShieldCheck, ChevronRight, Copy, Check, Bot, Settings
 } from 'lucide-react';
 import { ZeroClawTerminalView } from '../../enterprise/views/ZeroClawTerminalView';
 import { SupabaseDashboardService } from '../../services/supabaseService';
@@ -10,7 +10,8 @@ import { PrivyWalletService } from '../../../services/privyWalletService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
   CreateInvoiceModal, RecordExpenseModal, ReconciliationModal, 
-  TaxSettingsModal, AllTransactionsModal, DateFilterModal, FilterModal 
+  TaxSettingsModal, AllTransactionsModal, DateFilterModal, FilterModal,
+  DeployFinanceSwarmModal, FinancialReportModal, ManageFinanceSwarmModal, ConfigureFinanceModelModal
 } from './finance/FinanceModals';
 import { 
   Chart as ChartJS, 
@@ -58,6 +59,11 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   const [isAllTxModalOpen, setIsAllTxModalOpen] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
+  const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isManageSwarmModalOpen, setIsManageSwarmModalOpen] = useState(false);
+  const [isConfigureModelModalOpen, setIsConfigureModelModalOpen] = useState(false);
 
   const [copiedWallet, setCopiedWallet] = useState(false);
 
@@ -202,6 +208,20 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     fetchFinanceData();
   };
 
+  const handleDeploySwarm = async (swarm: any) => {
+    await SupabaseDashboardService.deployFinanceAiSwarm('11111111-1111-1111-1111-111111111111', swarm);
+    fetchFinanceData();
+  };
+
+  const handleExecuteInsight = async (insightId: string, actionLabel: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'applied' ? 'active' : 'applied';
+    await SupabaseDashboardService.executeFinanceInsightAction(insightId, actionLabel, nextStatus);
+    if (triggerToast) {
+      triggerToast(nextStatus === 'applied' ? `Rekomendasi AI (${actionLabel}) berhasil diterapkan!` : `Status rekomendasi dikembalikan.`);
+    }
+    fetchFinanceData();
+  };
+
   // Helper Money Formatter
   const formatMoney = (valUsdc: number) => {
     if (currencyMode === 'IDR') {
@@ -211,23 +231,46 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     return `$${valUsdc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
   };
 
-  // 1. Cash Flow Multi-Line Chart (Income, Expense, Balance)
-  const cashflowLabels = financeData.cashflow.map((c: any) => c.date_label);
-  const incomeData = financeData.cashflow.map((c: any) => c.income);
-  const expenseDataList = financeData.cashflow.map((c: any) => c.expense);
-  const balanceDataList = financeData.cashflow.map((c: any) => c.balance);
+  // 1. Cash Flow Multi-Line Chart (Income, Expense, Balance) Dynamic Timeframes
+  const getDynamicCashflow = () => {
+    if (cashflowTab === 'Weekly') {
+      return {
+        labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+        income: [2450, 3100, 2850, 3600],
+        expense: [680, 890, 720, 950],
+        balance: [1770, 2210, 2130, 2650]
+      };
+    }
+    if (cashflowTab === 'Monthly') {
+      return {
+        labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
+        income: [7800, 8900, 9400, 11200, 12500, 14200],
+        expense: [2400, 2700, 2900, 3100, 3400, 3800],
+        balance: [5400, 6200, 6500, 8100, 9100, 10400]
+      };
+    }
+    // Default Daily
+    return {
+      labels: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.date_label) : ['1 Jul', '6 Jul', '11 Jul', '16 Jul', '21 Jul', '26 Jul', '31 Jul'],
+      income: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.income) : [350, 620, 500, 1020, 780, 910, 820],
+      expense: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.expense) : [120, 180, 150, 420, 210, 310, 250],
+      balance: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.balance) : [230, 440, 350, 600, 570, 600, 570]
+    };
+  };
+
+  const currentCashflow = getDynamicCashflow();
 
   const cashFlowChartData = {
-    labels: cashflowLabels,
+    labels: currentCashflow.labels,
     datasets: [
       {
         label: 'Income',
-        data: incomeData,
+        data: currentCashflow.income,
         borderColor: '#10b981',
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-          gradient.addColorStop(0, 'rgba(16, 185, 129, 0.2)');
+          gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
           gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
           return gradient;
         },
@@ -240,12 +283,12 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
       },
       {
         label: 'Expense',
-        data: expenseDataList,
+        data: currentCashflow.expense,
         borderColor: '#ef4444',
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-          gradient.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+          gradient.addColorStop(0, 'rgba(239, 68, 68, 0.18)');
           gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
           return gradient;
         },
@@ -258,12 +301,12 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
       },
       {
         label: 'Balance',
-        data: balanceDataList,
+        data: currentCashflow.balance,
         borderColor: '#3b82f6',
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.18)');
           gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
           return gradient;
         },
@@ -289,7 +332,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         padding: 12,
         cornerRadius: 14,
         callbacks: {
-          label: (item: any) => ` ${item.dataset.label}: $${item.raw.toLocaleString('en-US')}`,
+          label: (item: any) => ` ${item.dataset.label}: ${formatMoney(item.raw)}`,
         },
       },
     },
@@ -303,7 +346,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         ticks: { 
           font: { size: 10, weight: 'bold' }, 
           color: '#94a3b8',
-          callback: (val: any) => `$${val}`
+          callback: (val: any) => currencyMode === 'IDR' ? `Rp${(val/1000).toFixed(0)}k` : `$${val}`
         },
       },
     },
@@ -415,7 +458,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             </button>
           </div>
 
-          {/* Controls: Date Picker & Filter */}
+          {/* Controls: Date Picker, Filter & Deploy Swarm */}
           <button
             onClick={() => setIsDateModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -429,6 +472,14 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           >
             <Filter size={14} className="text-slate-400" />
             <span>Filter</span>
+          </button>
+
+          <button
+            onClick={() => setIsDeployModalOpen(true)}
+            className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Sparkles size={14} />
+            <span>+ Deploy AI Swarm</span>
           </button>
         </div>
       </div>
@@ -667,9 +718,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             </div>
 
             <button
-              onClick={() => {
-                if (triggerToast) triggerToast('Mengunduh Laporan Keuangan Bulanan...');
-              }}
+              onClick={() => setIsReportModalOpen(true)}
               className="w-full py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-xs text-center"
             >
               Lihat Laporan Keuangan →
@@ -833,49 +882,90 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                   <Sparkles size={16} className="text-purple-300" />
                   <h3 className="font-extrabold text-xs tracking-wider uppercase">AI Finance Assistant</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/30">
-                  Active
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/30">
+                    Active
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAccordionExpanded(!isAccordionExpanded)}
+                    className="px-2.5 py-1 rounded-xl bg-purple-800/60 hover:bg-purple-700/60 text-purple-200 text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 border border-purple-400/30"
+                  >
+                    <span>{isAccordionExpanded ? 'Tutup' : 'Buka'}</span>
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${isAccordionExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
               </div>
 
               <p className="text-xs text-purple-100 font-medium">
-                ZeroClaw AI mendeteksi <span className="font-bold text-white">3 insight penting</span> untuk Anda:
+                ZeroClaw AI mendeteksi <span className="font-bold text-white">{financeData.insights?.length || 3} insight penting</span> untuk Anda:
               </p>
 
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 flex items-start gap-2">
-                  <div className="size-2 rounded-full bg-amber-400 mt-1 shrink-0" />
-                  <div>
-                    <div className="font-bold">Pengeluaran Gas Fee naik 12%</div>
-                    <p className="text-[10px] text-purple-200">Pertimbangkan optimasi transaksi.</p>
-                  </div>
-                </div>
+              <div className="space-y-2.5 text-xs max-h-80 overflow-y-auto pr-0.5">
+                {(isAccordionExpanded ? (financeData.insights || []) : (financeData.insights || []).slice(0, 1)).map((ins: any, idx: number) => (
+                  <div key={ins.id || idx} className="p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/15 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'} alt={ins.model_engine} className="size-6 rounded-lg object-cover bg-white/20 p-0.5" />
+                        <div>
+                          <div className="font-extrabold text-white leading-tight">{ins.title}</div>
+                          <div className="text-[9px] text-purple-200 font-mono mt-0.5">{ins.model_provider || 'ZeroClaw AI'}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black shrink-0 ${
+                        ins.impact_level === 'CRITICAL' ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40' :
+                        ins.impact_level === 'HIGH IMPACT' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' :
+                        'bg-indigo-500/30 text-indigo-200 border border-indigo-400/40'
+                      }`}>
+                        {ins.impact_level || 'RECOMMENDED'}
+                      </span>
+                    </div>
 
-                <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 flex items-start gap-2">
-                  <div className="size-2 rounded-full bg-emerald-400 mt-1 shrink-0" />
-                  <div>
-                    <div className="font-bold">Margin keuntungan lebih tinggi dari rata-rata</div>
-                    <p className="text-[10px] text-purple-200">Pertahankan strategi produk saat ini.</p>
-                  </div>
-                </div>
+                    <p className="text-[10.5px] text-purple-100/90 leading-relaxed">{ins.description}</p>
 
-                <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/10 flex items-start gap-2">
-                  <div className="size-2 rounded-full bg-blue-400 mt-1 shrink-0" />
-                  <div>
-                    <div className="font-bold">3 pelanggan berpotensi repeat order</div>
-                    <p className="text-[10px] text-purple-200">Follow up untuk meningkatkan loyalitas.</p>
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleExecuteInsight(ins.id, ins.action_label, ins.status)}
+                        className={`w-full py-1.5 px-3 rounded-xl font-extrabold text-[10.5px] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
+                          ins.status === 'applied'
+                            ? 'bg-emerald-500 text-white shadow-emerald-900/30'
+                            : 'bg-white/20 hover:bg-emerald-600 text-white hover:shadow-md'
+                        }`}
+                      >
+                        {ins.status === 'applied' ? (
+                          <>
+                            <CheckCircle2 size={12} />
+                            <span>✓ Telah Diterapkan</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={12} />
+                            <span>{ins.action_label || 'Terapkan Rekomendasi'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
 
-              <button
-                onClick={() => {
-                  if (triggerToast) triggerToast('AI Finance Assistant: Rekomendasi diaktifkan.');
-                }}
-                className="w-full py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs transition-all cursor-pointer text-center"
-              >
-                Lihat Rekomendasi →
-              </button>
+              <div className="grid grid-cols-2 gap-2 text-xs font-bold pt-1">
+                <button
+                  onClick={() => setIsManageSwarmModalOpen(true)}
+                  className="py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Bot size={14} />
+                  <span>Kelola Swarm</span>
+                </button>
+                <button
+                  onClick={() => setIsConfigureModelModalOpen(true)}
+                  className="py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Settings size={14} />
+                  <span>Konfigurasi</span>
+                </button>
+              </div>
             </div>
 
             {/* Jatuh Tempo Pembayaran Card */}
@@ -947,9 +1037,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           </button>
 
           <button
-            onClick={() => {
-              if (triggerToast) triggerToast('Menampilkan Laporan Keuangan Lengkap...');
-            }}
+            onClick={() => setIsReportModalOpen(true)}
             className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 transition-all flex items-center gap-3 cursor-pointer shadow-xs text-left group"
           >
             <div className="size-9 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
@@ -1014,6 +1102,29 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         isOpen={isFilterModalOpen} 
         onClose={() => setIsFilterModalOpen(false)} 
         triggerToast={triggerToast || (() => {})} 
+      />
+      <DeployFinanceSwarmModal 
+        isOpen={isDeployModalOpen} 
+        onClose={() => setIsDeployModalOpen(false)} 
+        onDeploy={handleDeploySwarm}
+        triggerToast={triggerToast || (() => {})} 
+      />
+      <FinancialReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        financeData={financeData}
+        triggerToast={triggerToast || (() => {})}
+      />
+      <ManageFinanceSwarmModal
+        isOpen={isManageSwarmModalOpen}
+        onClose={() => setIsManageSwarmModalOpen(false)}
+        financeData={financeData}
+        triggerToast={triggerToast || (() => {})}
+      />
+      <ConfigureFinanceModelModal
+        isOpen={isConfigureModelModalOpen}
+        onClose={() => setIsConfigureModelModalOpen(false)}
+        triggerToast={triggerToast || (() => {})}
       />
     </div>
   );

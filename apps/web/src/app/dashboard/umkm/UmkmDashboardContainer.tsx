@@ -51,7 +51,18 @@ export function UmkmDashboardContainer({
     invoice_gen: 'finance',
     finance: 'finance',
     store: 'store',
+    manage_product: 'store/manage_product',
+    top_selling: 'store/top_selling',
+    manage_stock_limit: 'store/manage_stock_limit',
+    manage_discount: 'store/manage_discount',
+    manage_category: 'store/manage_category',
+    print_barcode: 'store/print_barcode',
+    stock_sync: 'store/stock_sync',
     customers: 'customers',
+    list_customers: 'customers/list_customers',
+    customer_segment: 'customers/customer_segment',
+    customer_distributions: 'customers/customer_distributions',
+    customer_activity_stream: 'customers/customer_activity_stream',
     reports: 'reports',
     knowledge: 'knowledge',
     integrations: 'marketplace',
@@ -69,7 +80,29 @@ export function UmkmDashboardContainer({
     marketing: 'ai_copywriter',
     finance: 'invoice_gen',
     store: 'store',
+    'store/manage_product': 'manage_product',
+    'store/top_selling': 'top_selling',
+    'store/manage_stock_limit': 'manage_stock_limit',
+    'store/manage_discount': 'manage_discount',
+    'store/manage_category': 'manage_category',
+    'store/print_barcode': 'print_barcode',
+    'store/stock_sync': 'stock_sync',
+    manage_product: 'manage_product',
+    top_selling: 'top_selling',
+    manage_stock_limit: 'manage_stock_limit',
+    manage_discount: 'manage_discount',
+    manage_category: 'manage_category',
+    print_barcode: 'print_barcode',
+    stock_sync: 'stock_sync',
     customers: 'customers',
+    'customers/list_customers': 'list_customers',
+    'customers/customer_segment': 'customer_segment',
+    'customers/customer_distributions': 'customer_distributions',
+    'customers/customer_activity_stream': 'customer_activity_stream',
+    list_customers: 'list_customers',
+    customer_segment: 'customer_segment',
+    customer_distributions: 'customer_distributions',
+    customer_activity_stream: 'customer_activity_stream',
     reports: 'reports',
     knowledge: 'knowledge',
     marketplace: 'integrations',
@@ -81,8 +114,10 @@ export function UmkmDashboardContainer({
     if (typeof window !== 'undefined') {
       const parts = window.location.pathname.split('/').filter(Boolean);
       if (parts.length >= 2) {
-        const slug = parts[1];
-        if (slugToTabMap[slug]) return slugToTabMap[slug];
+        const fullSlug = parts.slice(1).join('/');
+        if (slugToTabMap[fullSlug]) return slugToTabMap[fullSlug];
+        const singleSlug = parts[1];
+        if (slugToTabMap[singleSlug]) return slugToTabMap[singleSlug];
       }
     }
     return 'umkm';
@@ -128,9 +163,14 @@ export function UmkmDashboardContainer({
       if (typeof window !== 'undefined') {
         const parts = window.location.pathname.split('/').filter(Boolean);
         if (parts.length >= 2) {
-          const slug = parts[1];
-          if (slugToTabMap[slug]) {
-            setActiveTabState(slugToTabMap[slug]);
+          const fullSlug = parts.slice(1).join('/');
+          if (slugToTabMap[fullSlug]) {
+            setActiveTabState(slugToTabMap[fullSlug]);
+            return;
+          }
+          const singleSlug = parts[1];
+          if (slugToTabMap[singleSlug]) {
+            setActiveTabState(slugToTabMap[singleSlug]);
           }
         }
       }
@@ -425,7 +465,8 @@ export function UmkmDashboardContainer({
       <div className="space-y-0.5">
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id || (activeTab === 'umkm' && item.id === 'umkm');
+          const isStoreSubRoute = ['store', 'manage_product', 'top_selling', 'manage_stock_limit'].includes(activeTab);
+          const isActive = activeTab === item.id || (activeTab === 'umkm' && item.id === 'umkm') || (item.id === 'store' && isStoreSubRoute);
           const isPopoverOpen = activePopover === item.id;
 
           return (
@@ -1121,6 +1162,7 @@ export function UmkmDashboardContainer({
             userName={userName} 
             userEmail={userEmail} 
             isGuest={isGuest}
+            onNavigateTab={setActiveTab}
             onUpdateAvatar={(newUrl) => {
               setCurrentAvatar(newUrl);
               if (typeof window !== 'undefined') {

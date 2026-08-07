@@ -8,6 +8,13 @@ import { SalesView } from './views/SalesView';
 import { FinanceView } from './views/FinanceView';
 import { MarketingView } from './views/MarketingView';
 import { StoreView } from './views/StoreView';
+import { ManageProductView } from './views/store/ManageProductView';
+import { TopSellingView } from './views/store/TopSellingView';
+import { ManageStockLimitView } from './views/store/ManageStockLimitView';
+import { ManageDiscountSubView } from './views/store/ManageDiscountSubView';
+import { ManageCategorySubView } from './views/store/ManageCategorySubView';
+import { PrintBarcodeSubView } from './views/store/PrintBarcodeSubView';
+import { StockSyncSubView } from './views/store/StockSyncSubView';
 import { CustomersView } from './views/CustomersView';
 import { ReportsView } from './views/ReportsView';
 import { KnowledgeView } from './views/KnowledgeView';
@@ -41,6 +48,15 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
     if (externalTab === 'ai_copywriter' || externalTab === 'marketing') return 'marketing';
     if (externalTab === 'invoice_gen' || externalTab === 'finance') return 'finance';
     if (externalTab === 'store') return 'store';
+    if (externalTab === 'manage_product' || externalTab === 'store_manage_product') return 'manage_product';
+    if (externalTab === 'store_top_selling' || externalTab === 'top_selling') return 'top_selling';
+    if (externalTab === 'store_stock_alert' || externalTab === 'stock_alert' || externalTab === 'low_stock' || externalTab === 'manage_stock_limit') return 'manage_stock_limit';
+    if (externalTab === 'add_product' || externalTab === 'store_add_product') return 'manage_product';
+    if (externalTab === 'bulk_upload' || externalTab === 'store_bulk_upload') return 'manage_product';
+    if (externalTab === 'manage_discount' || externalTab === 'store_manage_discount') return 'manage_discount';
+    if (externalTab === 'manage_category' || externalTab === 'store_manage_category') return 'manage_category';
+    if (externalTab === 'print_barcode' || externalTab === 'store_print_barcode') return 'print_barcode';
+    if (externalTab === 'stock_sync' || externalTab === 'store_stock_sync') return 'stock_sync';
     if (externalTab === 'customers') return 'customers';
     if (externalTab === 'reports') return 'reports';
     if (externalTab === 'knowledge') return 'knowledge';
@@ -85,8 +101,17 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'sales' && <SalesView />}
       {currentTab === 'marketing' && <MarketingView triggerToast={triggerToast} />}
       {currentTab === 'finance' && <FinanceView triggerToast={triggerToast} isGuest={isGuest} userEmail={userEmail} userName={userName} />}
-      {currentTab === 'store' && <StoreView triggerToast={triggerToast} />}
-      {currentTab === 'customers' && <CustomersView triggerToast={triggerToast} />}
+      {currentTab === 'store' && <StoreView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'manage_product' && <ManageProductView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'top_selling' && <TopSellingView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'manage_stock_limit' && <ManageStockLimitView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'manage_discount' && <ManageDiscountSubView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'manage_category' && <ManageCategorySubView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'print_barcode' && <PrintBarcodeSubView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {currentTab === 'stock_sync' && <StockSyncSubView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
+      {(currentTab === 'customers' || currentTab === 'list_customers' || currentTab === 'customer_segment' || currentTab === 'customer_distributions' || currentTab === 'customer_activity_stream') && (
+        <CustomersView triggerToast={triggerToast} activeSubPage={currentTab} onNavigateTab={handleTabChange} />
+      )}
       {currentTab === 'reports' && <ReportsView triggerToast={triggerToast} />}
       {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} />}
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} />}
@@ -97,7 +122,10 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {/* FLOATING ZEGA COPILOT WIDGET */}
       <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
         <button 
-          onClick={() => triggerToast('Opening ZEGA Copilot Assistant...')} 
+          onClick={() => {
+            triggerToast('🚀 ZEGA Copilot AI Assistant Aktif!');
+            handleTabChange('my_agents');
+          }} 
           className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-md shadow-slate-900/10 dark:shadow-black/40 flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
         >
           <Sparkles size={15} className="text-orange-400" />

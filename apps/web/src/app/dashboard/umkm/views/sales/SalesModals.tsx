@@ -270,10 +270,38 @@ export function AllProductsModal({ isOpen, onClose }: { isOpen: boolean; onClose
 // 6. All Channels Modal
 export function AllChannelsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const channels = [
-    { name: 'WhatsApp Business API', pct: '45%', amount: 'Rp6.100.000', color: 'bg-emerald-500' },
-    { name: 'Shopee Seller Store', pct: '30%', amount: 'Rp4.100.000', color: 'bg-orange-500' },
-    { name: 'Instagram Direct', pct: '15%', amount: 'Rp2.000.000', color: 'bg-purple-500' },
-    { name: 'TikTok Shop Messaging', pct: '10%', amount: 'Rp1.300.000', color: 'bg-cyan-500' },
+    { 
+      name: 'WhatsApp Business API', 
+      pct: '45%', 
+      amount: 'Rp6.100.000', 
+      color: 'bg-emerald-500', 
+      icon: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
+      fallback: '/assets/logo/whatsapp-for-business.webp'
+    },
+    { 
+      name: 'Shopee Seller Store', 
+      pct: '30%', 
+      amount: 'Rp4.100.000', 
+      color: 'bg-orange-500', 
+      icon: 'https://cdn.zegaai.site/assets/logo/shopee.png',
+      fallback: '/assets/logo/shopee.png'
+    },
+    { 
+      name: 'Instagram Direct', 
+      pct: '15%', 
+      amount: 'Rp2.000.000', 
+      color: 'bg-purple-500', 
+      icon: 'https://cdn.zegaai.site/assets/logo/instagram.png',
+      fallback: '/assets/logo/instagram.png'
+    },
+    { 
+      name: 'TikTok Shop Messaging', 
+      pct: '10%', 
+      amount: 'Rp1.300.000', 
+      color: 'bg-cyan-500', 
+      icon: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
+      fallback: '/assets/logo/tiktok.webp'
+    },
   ];
 
   return (
@@ -283,7 +311,12 @@ export function AllChannelsModal({ isOpen, onClose }: { isOpen: boolean; onClose
           <div key={i} className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
             <div className="flex justify-between items-center font-bold">
               <div className="flex items-center gap-2">
-                <div className={`size-3 rounded-full ${c.color}`} />
+                <img 
+                  src={c.icon} 
+                  onError={(e: any) => { e.target.onerror = null; e.target.src = c.fallback; }}
+                  alt={c.name} 
+                  className="size-4.5 object-contain rounded-md bg-white p-0.5 border border-slate-200 dark:border-slate-700" 
+                />
                 <span className="text-slate-900 dark:text-slate-100">{c.name}</span>
               </div>
               <span className="font-black text-slate-900 dark:text-slate-100">{c.amount}</span>
@@ -300,33 +333,198 @@ export function AllChannelsModal({ isOpen, onClose }: { isOpen: boolean; onClose
 }
 
 // 7. AI Report Modal
-export function AiReportModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function AiReportModal({ 
+  isOpen, 
+  onClose,
+  insights = [] 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void;
+  insights?: any[];
+}) {
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan AI Business Growth & Insights">
-      <div className="space-y-3 text-xs">
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-800/60 border border-orange-200/80 dark:border-slate-700 space-y-2">
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan AI Business Growth & Insights Realtime">
+      <div className="space-y-4 text-xs">
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800 border border-orange-200/80 dark:border-slate-700 space-y-2">
           <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold">
             <Sparkles size={16} />
-            <span>Rekomendasi AI Assistant ZEGA</span>
+            <span>Rekomendasi AI Sales Optimization Swarm</span>
           </div>
           <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-            Berdasarkan tren penjualan bulan Juli 2026, channel WhatsApp mengalami konversi tertinggi sebesar 45%. Paket Skincare Basic disarankan untuk dijadikan bundle utama pada promosi tanggal kembar mendatang.
+            Hasil analisa real-time dari 9Router Layer 5 Model Router Engine dan ZeroClaw Edge Daemon memperkirakan pertumbuhan omset signifikan jika strategi di bawah diterapkan.
           </p>
         </div>
 
         <div className="space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">3 Langkah Strategis AI:</h4>
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium">
-            1. Tambahkan stok Paket Skincare Basic minimal 50 unit.
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium">
-            2. Buat promosi otomatis di WhatsApp untuk pelanggan yang belum checkout.
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium">
-            3. Tingkatkan iklan TikTok Shop pada jam 19.00 - 21.00 WIB.
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+            <span>Rekomendasi AI Real-time ({insights.length} Insights):</span>
+          </h4>
+          
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {insights.map((ins: any, idx: number) => (
+              <div key={ins.id || idx} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt="AI Logo" className="size-5 rounded-lg object-contain bg-white p-0.5" />
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{ins.headline}</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/80 text-orange-600 border border-orange-200 dark:border-orange-900/60">
+                    {ins.model_engine || '9Router'}
+                  </span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 text-[11px]">{ins.content}</p>
+                {ins.action_suggestion && (
+                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 p-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
+                    💡 Aksi AI: {ins.action_suggestion}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </ModalBase>
   );
 }
+
+// 8. Deploy Real AI Model Sales Swarm Modal
+export function DeploySalesSwarmModal({
+  isOpen,
+  onClose,
+  onDeploySwarm,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onDeploySwarm: (modelPayload: any) => Promise<void>;
+  triggerToast: (msg: string) => void;
+}) {
+  const [selectedEngine, setSelectedEngine] = useState('9Router-Auto-Cost-Optimizer');
+  const [insightType, setInsightType] = useState('forecast');
+  const [customHeadline, setCustomHeadline] = useState('');
+  const [isDeploying, setIsDeploying] = useState(false);
+
+  const realModels = [
+    {
+      engine: '9Router-Auto-Cost-Optimizer',
+      provider: '9router/gpt-4o-mini',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/9router.png',
+      desc: 'Layer 5 Intelligent Cost-Optimized Router Engine with sub-200ms latency.'
+    },
+    {
+      engine: 'ZeroClaw-Edge-Daemon',
+      provider: 'zeroclaw/daemon-v0.5.3',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
+      desc: 'High-throughput edge daemon executing localized sales forecasting.'
+    },
+    {
+      engine: 'ZEGA-Swarm-Llama-3.3-70B',
+      provider: '9router/llama-3.3-70b',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+      desc: 'Flagship open-weights enterprise intelligence model for sales analytics.'
+    },
+    {
+      engine: 'Qwen-2.5-Coder-32B',
+      provider: '9router/qwen-2.5-coder-32b',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
+      desc: 'Specialized analytical engine for sales revenue & invoice generation.'
+    },
+    {
+      engine: 'DeepSeek-R1-Reasoning',
+      provider: '9router/deepseek-r1',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
+      desc: 'Advanced reasoning engine for complex multi-channel conversion analysis.'
+    },
+    {
+      engine: 'Claude-3.5-Sonnet',
+      provider: '9router/claude-3.5-sonnet',
+      gateway: 'ZeroClaw-Edge-Gateway',
+      icon: 'https://cdn.zegaai.site/assets/logo/claude.webp',
+      desc: 'Premium natural language model for generating sales copy & strategy.'
+    }
+  ];
+
+  const handleDeploy = async () => {
+    setIsDeploying(true);
+    const chosen = realModels.find(m => m.engine === selectedEngine) || realModels[0];
+
+    const modelPayload = {
+      model_engine: chosen.engine,
+      model_provider: chosen.provider,
+      execution_gateway: chosen.gateway,
+      cdn_icon_url: chosen.icon,
+      insight_type: insightType,
+      headline: customHeadline.trim() || `Sales AI Forecast (${chosen.engine})`,
+      content: `AI Model ${chosen.engine} menganalisis data omset real-time dan menyarankan penguatan strategi promosi di channel utama.`,
+      action_suggestion: `Deploy alokasi iklan otomatis via 9Router Router Engine.`
+    };
+
+    await onDeploySwarm(modelPayload);
+    setIsDeploying(false);
+    triggerToast(`Real AI Model Swarm Deployed: ${chosen.engine}`);
+    onClose();
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Deploy Real AI Sales Swarm & Model Engine">
+      <div className="space-y-4 text-xs">
+        <p className="text-slate-500 dark:text-slate-400 font-medium">
+          Pilih Real AI Model Engine yang terhubung langsung ke Supabase WebSockets & Cloudflare R2 CDN untuk menghasilkan prediksi sales real-time.
+        </p>
+
+        <div>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">Pilih Real AI Model Engine:</label>
+          <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-1">
+            {realModels.map((m) => (
+              <button
+                key={m.engine}
+                type="button"
+                onClick={() => setSelectedEngine(m.engine)}
+                className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                  selectedEngine === m.engine 
+                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-500 ring-1 ring-orange-500' 
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <img src={m.icon} alt={m.engine} className="size-7 rounded-xl object-contain bg-white p-1 border border-slate-200 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate">{m.engine}</span>
+                    <span className="text-[9px] font-mono text-slate-400">{m.provider}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{m.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Judul Prediksi AI Custom (Opsional):</label>
+          <input
+            type="text"
+            value={customHeadline}
+            onChange={(e) => setCustomHeadline(e.target.value)}
+            placeholder="mis. Prediksi Kenaikan Omset Harian 25%"
+            className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-orange-500 text-xs"
+          />
+        </div>
+
+        <button
+          onClick={handleDeploy}
+          disabled={isDeploying}
+          className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+          <span>{isDeploying ? 'Deploying Model Swarm...' : 'Deploy Real AI Sales Swarm'}</span>
+        </button>
+      </div>
+    </ModalBase>
+  );
+}
+

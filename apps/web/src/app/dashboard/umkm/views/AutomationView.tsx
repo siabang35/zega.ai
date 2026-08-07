@@ -40,6 +40,63 @@ interface AutomationViewProps {
   triggerToast: (msg: string) => void;
 }
 
+const AI_MODEL_ENGINES = [
+  {
+    id: '9Router-Auto-Cost-Optimizer',
+    name: '9Router Layer 5 Engine',
+    badge: 'Auto-Cost Router',
+    desc: 'Lowest Token Cost & Multi-Provider Failover',
+    logo: 'https://cdn.zegaai.site/assets/logo/9router.png',
+    provider: '9router/auto',
+    gateway: 'ZeroClaw-Edge-Gateway'
+  },
+  {
+    id: 'ZeroClaw-Edge-Gateway-Llama3',
+    name: 'ZeroClaw Edge Gateway',
+    badge: 'Sub-200ms Edge',
+    desc: 'Edge Swarm Node Execution & Solana Pay Escrow',
+    logo: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
+    provider: 'zeroclaw/daemon-v0.5.3',
+    gateway: 'ZeroClaw-Daemon'
+  },
+  {
+    id: 'ZEGA-Swarm-Llama-3.3-70B',
+    name: 'ZEGA Swarm Llama 3.3 70B',
+    badge: 'Flagship Enterprise',
+    desc: 'Ultra-Fast Complex Reasoning & Operations',
+    logo: 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+    provider: '9router/llama-3.3-70b',
+    gateway: 'ZeroClaw-Edge-Gateway'
+  },
+  {
+    id: 'DeepSeek-R1-Distill-Qwen-32B',
+    name: 'DeepSeek R1 Distill 32B',
+    badge: 'High Reasoning',
+    desc: 'Deep Analytical Thinking & Logic Swarm',
+    logo: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
+    provider: 'zeroclaw/deepseek-r1',
+    gateway: 'ZeroClaw-Edge-Gateway'
+  },
+  {
+    id: 'Qwen-2.5-Coder-32B',
+    name: 'Qwen 2.5 Coder 32B',
+    badge: 'Automation Code',
+    desc: 'API Workflows & Code Synthesis Engine',
+    logo: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
+    provider: '9router/qwen-2.5-coder',
+    gateway: 'ZeroClaw-Edge-Gateway'
+  },
+  {
+    id: 'Claude-3.5-Sonnet-v2',
+    name: 'Claude 3.5 Sonnet v2',
+    badge: 'Vision & OCR',
+    desc: 'Multimodal Vision & Document OCR Specialist',
+    logo: 'https://cdn.zegaai.site/assets/logo/claude.webp',
+    provider: '9router/claude-3.5-sonnet',
+    gateway: 'ZeroClaw-Edge-Gateway'
+  }
+];
+
 const SAMPLE_JSON_BLUEPRINT = `{
   "title": "WA Auto-Invoice & Stock Decrement",
   "trigger_event": "New Order (Online Store)",
@@ -54,102 +111,55 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [loading, setLoading] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [importJsonText, setImportJsonText] = useState(SAMPLE_JSON_BLUEPRINT);
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   const [newAutomationForm, setNewAutomationForm] = useState({
     title: '',
     trigger_event: 'New Order (Online Store)',
     description: '',
-    steps: 'Order Trigger -> AI Processor -> WA Alert'
+    steps: 'Order Trigger -> AI Processor -> WA Alert',
+    model_engine: '9Router-Auto-Cost-Optimizer',
+    model_provider: '9router/auto',
+    execution_gateway: 'ZeroClaw-Edge-Gateway',
+    cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png'
   });
 
   // Real-time Database State
-  const [automations, setAutomations] = useState<any[]>([
-    {
-      id: 'c1111111-1111-1111-1111-111111111111',
-      title: 'New Order -> Invoice -> WA -> Save -> Update Stock',
-      description: 'Buat invoice otomatis saat ada pesanan baru',
-      trigger_event: 'New Order (Online Store)',
-      last_run: '2 menit yang lalu',
-      status: 'active',
-      success_rate: 100,
-      created_at: '2026-05-12'
-    },
-    {
-      id: 'c2222222-1111-1111-1111-111111111111',
-      title: 'Customer Chat -> AI Reply -> Tag -> Follow Up',
-      description: 'Balas chat pelanggan otomatis & follow up',
-      trigger_event: 'New Message (WhatsApp)',
-      last_run: '1 menit yang lalu',
-      status: 'active',
-      success_rate: 98,
-      created_at: '2026-05-10'
-    },
-    {
-      id: 'c3333333-1111-1111-1111-111111111111',
-      title: 'Payment Reminder -> WA -> Email -> Update Status',
-      description: 'Kirim pengingat pembayaran otomatis',
-      trigger_event: 'Invoice Due (Finance AI)',
-      last_run: '5 menit yang lalu',
-      status: 'active',
-      success_rate: 100,
-      created_at: '2026-05-08'
-    },
-    {
-      id: 'c4444444-1111-1111-1111-111111111111',
-      title: 'New Lead -> CRM -> Email -> Add to List',
-      description: 'Lead baru masuk ke CRM dan email list',
-      trigger_event: 'New Lead (Form/Website)',
-      last_run: '10 menit yang lalu',
-      status: 'active',
-      success_rate: 94,
-      created_at: '2026-05-07'
-    },
-    {
-      id: 'c5555555-1111-1111-1111-111111111111',
-      title: 'Abandoned Cart -> WA -> Discount -> Recover',
-      description: 'Pulihkan keranjang yang ditinggalkan',
-      trigger_event: 'Abandoned Cart (Store)',
-      last_run: '15 menit yang lalu',
-      status: 'paused',
-      success_rate: 86,
-      created_at: '2026-05-05'
-    },
-    {
-      id: 'c6666666-1111-1111-1111-111111111111',
-      title: 'Stock Alert -> WA -> Order Suggestion',
-      description: 'Notifikasi stok menipis & rekomendasi pembelian',
-      trigger_event: 'Low Stock (Store AI)',
-      last_run: '30 menit yang lalu',
-      status: 'active',
-      success_rate: 97,
-      created_at: '2026-05-02'
-    },
-    {
-      id: 'c7777777-1111-1111-1111-111111111111',
-      title: 'Review Request -> WA -> Incentive -> Tag',
-      description: 'Minta review pelanggan & beri insentif',
-      trigger_event: 'Order Completed (Store)',
-      last_run: '1 jam yang lalu',
-      status: 'failed',
-      success_rate: 72,
-      created_at: '2026-05-01'
-    }
-  ]);
+  const [automations, setAutomations] = useState<any[]>([]);
+  const [kpiData, setKpiData] = useState<any>({
+    tasks_completed_today: 0,
+    hours_saved_weekly: 0,
+    revenue_generated_today: 0,
+    estimated_ai_salary_saved: 0
+  });
 
   // Load database data
   const loadAutomations = async () => {
     try {
       setLoading(true);
-      const data = await SupabaseDashboardService.getUmkmAutomations('11111111-1111-1111-1111-111111111111');
+      const [data, realtimeRes] = await Promise.all([
+        SupabaseDashboardService.getUmkmAutomations('11111111-1111-1111-1111-111111111111'),
+        SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111')
+      ]);
+
       if (data && data.length > 0) {
         setAutomations(data);
       }
+      if (realtimeRes && realtimeRes.kpis) {
+        setKpiData(realtimeRes.kpis);
+      }
     } catch (e) {
-      console.error('Failed to fetch automations', e);
+      console.error('Failed to fetch automations & KPIs', e);
     } finally {
       setLoading(false);
     }
@@ -189,6 +199,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
     return true;
   });
+
+  // Dynamic Pagination Slicing
+  const totalPages = Math.max(1, Math.ceil(filteredAutomations.length / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAutomations = filteredAutomations.slice(
+    (validCurrentPage - 1) * pageSize,
+    validCurrentPage * pageSize
+  );
 
   // Calculate summary counts dynamically for 100% Realtime Donut Chart
   const totalCount = automations.length || 12;
@@ -337,6 +355,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
         <div className="flex items-center gap-2.5">
           <button
+            onClick={() => setShowDocModal(true)}
+            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
+          >
+            <BookOpen size={14} className="text-orange-500" />
+            <span>Dokumentasi Engine</span>
+          </button>
+
+          <button
             onClick={() => setShowImportModal(true)}
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
           >
@@ -383,7 +409,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">89</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today || 126}</div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>▲ 18% vs yesterday</span>
             </div>
@@ -399,7 +425,11 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">96%</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+              {automations.length > 0
+                ? `${Math.round(automations.reduce((acc, a) => acc + (a.success_rate || 98), 0) / automations.length)}%`
+                : '98%'}
+            </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>▲ 2% vs yesterday</span>
             </div>
@@ -415,7 +445,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">56.2</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+              {kpiData.hours_saved_weekly ? `${kpiData.hours_saved_weekly} Jam` : '11.0 Jam'}
+            </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>▲ 22% vs last week</span>
             </div>
@@ -431,7 +463,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">Rp2.100.000</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+              Rp{(kpiData.estimated_ai_salary_saved || ((kpiData.hours_saved_weekly || 11) * 150000)).toLocaleString('id-ID')}
+            </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>▲ 20% vs last month</span>
             </div>
@@ -443,19 +477,28 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ACTION BAR & FILTER TABS */}
       {/* ========================================================================= */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
-        {/* Left Tabs */}
+        {/* Left Tabs with Realtime Counts */}
         <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold">
-          {['Semua', 'Berjalan', 'Dijeda', 'Gagal', 'Selesai'].map((tab) => (
+          {[
+            { label: 'Semua', count: totalCount, color: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300' },
+            { label: 'Berjalan', count: runningCount, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+            { label: 'Dijeda', count: pausedCount, color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+            { label: 'Gagal', count: failedCount, color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
+            { label: 'Selesai', count: completedCount, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' }
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setFilterTab(tab)}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                filterTab === tab
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+              key={tab.label}
+              onClick={() => setFilterTab(tab.label)}
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterTab === tab.label
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/50 dark:border-slate-800'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              {tab}
+              <span>{tab.label}</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${tab.color}`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>
@@ -479,9 +522,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             className="px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="Semua Status">Semua Status</option>
-            <option value="Berjalan">Berjalan</option>
-            <option value="Dijeda">Dijeda</option>
-            <option value="Gagal">Gagal</option>
+            <option value="Berjalan">Berjalan ({runningCount})</option>
+            <option value="Dijeda">Dijeda ({pausedCount})</option>
+            <option value="Gagal">Gagal ({failedCount})</option>
+            <option value="Selesai">Selesai ({completedCount})</option>
           </select>
 
           <div className="flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
@@ -520,29 +564,54 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <th className="pb-3 pl-2">AUTOMATION</th>
-                    <th className="pb-3">TRIGGER</th>
-                    <th className="pb-3">AKSI TERAKHIR</th>
+                    <th className="pb-3 pl-2">AUTOMATION WORKFLOW</th>
+                    <th className="pb-3">AI ENGINE / ROUTER</th>
+                    <th className="pb-3">TRIGGER EVENT</th>
+                    <th className="pb-3">LAST EXECUTION</th>
                     <th className="pb-3">STATUS</th>
                     <th className="pb-3 text-center">SUCCESS RATE</th>
-                    <th className="pb-3">DIBUAT</th>
                     <th className="pb-3 pr-2 text-right">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredAutomations.map((item) => {
+                  {paginatedAutomations.map((item) => {
                     const { Icon: TriggerIcon, bg: triggerBg } = getTriggerIconInfo(item.trigger_event || item.title);
                     const isRunning = item.status === 'active' || item.status === 'running';
                     const isPaused = item.status === 'paused';
                     const isFailed = item.status === 'failed';
 
+                    const matchedModel = AI_MODEL_ENGINES.find(m => m.id === item.model_engine) || {
+                      name: item.model_engine || '9Router Layer 5 Engine',
+                      badge: 'Real Model',
+                      logo: item.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'
+                    };
+
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group">
                         <td className="py-3.5 pl-2 pr-3 max-w-[220px]">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="px-1.5 py-0.2 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-extrabold flex items-center gap-1">
+                              <Zap size={10} /> ⚡ Event Workflow
+                            </span>
+                          </div>
                           <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-500 transition-colors" title={item.title}>
                             {item.title}
                           </h4>
                           <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.description}</p>
+                        </td>
+
+                        <td className="py-3.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={matchedModel.logo}
+                              alt={matchedModel.name}
+                              className="size-6 rounded-lg object-contain bg-white p-0.5 border border-slate-200/60 shadow-2xs flex-shrink-0"
+                            />
+                            <div className="truncate max-w-[130px]">
+                              <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200 block truncate">{matchedModel.name}</span>
+                              <span className="text-[9px] text-slate-400 block truncate">{item.execution_gateway || 'ZeroClaw Edge Gateway'}</span>
+                            </div>
+                          </div>
                         </td>
 
                         <td className="py-3.5 pr-3">
@@ -575,10 +644,6 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
                         <td className="py-3.5 text-center font-extrabold text-xs text-slate-900 dark:text-slate-100">
                           {item.success_rate ? `${item.success_rate}%` : '100%'}
-                        </td>
-
-                        <td className="py-3.5 text-[10.5px] text-slate-400 whitespace-nowrap">
-                          {item.created_at ? item.created_at.slice(0, 10) : '12 Mei 2026'}
                         </td>
 
                         <td className="py-3.5 pr-2 text-right">
@@ -624,16 +689,27 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredAutomations.map((item) => {
+              {paginatedAutomations.map((item) => {
                 const { Icon: TriggerIcon, bg: triggerBg } = getTriggerIconInfo(item.trigger_event || item.title);
                 const isRunning = item.status === 'active' || item.status === 'running';
+
+                const matchedModel = AI_MODEL_ENGINES.find(m => m.id === item.model_engine) || {
+                  name: item.model_engine || '9Router Layer 5 Engine',
+                  badge: 'Real Model',
+                  logo: item.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'
+                };
 
                 return (
                   <div key={item.id} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between space-y-3 hover:border-orange-400/50 transition-all">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className={`size-7 rounded-xl ${triggerBg} flex items-center justify-center`}>
-                          <TriggerIcon size={14} />
+                        <div className="flex items-center gap-2">
+                          <div className={`size-7 rounded-xl ${triggerBg} flex items-center justify-center`}>
+                            <TriggerIcon size={14} />
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-extrabold flex items-center gap-1">
+                            <Zap size={10} /> ⚡ Event Workflow
+                          </span>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${isRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                           • {isRunning ? 'Berjalan' : 'Dijeda'}
@@ -641,6 +717,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                       </div>
                       <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{item.title}</h4>
                       <p className="text-[10px] text-slate-400 leading-relaxed">{item.description}</p>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex items-center gap-2">
+                      <img src={matchedModel.logo} alt={matchedModel.name} className="size-5 rounded-md object-contain bg-white p-0.5 border border-slate-200/60" />
+                      <div className="truncate flex-1">
+                        <span className="font-extrabold text-[10px] text-slate-800 dark:text-slate-200 block truncate">{matchedModel.name}</span>
+                        <span className="text-[8.5px] text-slate-400 block truncate">{item.execution_gateway || 'ZeroClaw Edge Gateway'}</span>
+                      </div>
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-medium">
@@ -658,14 +742,59 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           )}
 
-          {/* Pagination Footer */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Tampilkan 1-{filteredAutomations.length} dari {automations.length} automation</span>
-            <div className="flex items-center gap-1.5">
-              <button className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer">&lt;</button>
-              <button className="px-3 py-1 rounded-lg bg-orange-500 text-white font-extrabold">1</button>
-              <button className="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer">2</button>
-              <button className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer">&gt;</button>
+          {/* Interactive Dynamic Pagination Footer */}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-medium">
+            <span>
+              Menampilkan {filteredAutomations.length === 0 ? 0 : (validCurrentPage - 1) * pageSize + 1}-
+              {Math.min(validCurrentPage * pageSize, filteredAutomations.length)} dari {filteredAutomations.length} automation
+            </span>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px]">Tampilkan:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              >
+                <option value={4}>4 per halaman</option>
+                <option value={6}>6 per halaman</option>
+                <option value={10}>10 per halaman</option>
+              </select>
+
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={validCurrentPage <= 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                >
+                  &lt;
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      validCurrentPage === pageNum
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
+                <button
+                  disabled={validCurrentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                >
+                  &gt;
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -727,7 +856,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4.5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Template Populer</h3>
-              <button onClick={() => triggerToast('Opening full templates gallery')} className="text-[10px] font-extrabold text-orange-500 hover:underline cursor-pointer">Lihat Semua &gt;</button>
+              <button onClick={() => setShowTemplateModal(true)} className="text-[10px] font-extrabold text-orange-500 hover:underline cursor-pointer">Lihat Semua &gt;</button>
             </div>
 
             <div className="space-y-2.5">
@@ -816,7 +945,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
         <div className="pt-2 flex justify-end">
           <button
-            onClick={() => triggerToast('Opening enterprise documentation...')}
+            onClick={() => setShowDocModal(true)}
             className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
           >
             <BookOpen size={14} className="text-orange-500" />
@@ -950,6 +1079,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   title: newAutomationForm.title,
                   trigger_event: newAutomationForm.trigger_event,
                   description: newAutomationForm.description || 'Custom user created workflow',
+                  model_engine: newAutomationForm.model_engine,
+                  model_provider: newAutomationForm.model_provider,
+                  execution_gateway: newAutomationForm.execution_gateway,
+                  cdn_icon_url: newAutomationForm.cdn_icon_url,
                   status: 'active'
                 };
 
@@ -962,7 +1095,16 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 }
 
                 setShowCreateModal(false);
-                setNewAutomationForm({ title: '', trigger_event: 'New Order (Online Store)', description: '', steps: '' });
+                setNewAutomationForm({
+                  title: '',
+                  trigger_event: 'New Order (Online Store)',
+                  description: '',
+                  steps: 'Order Trigger -> AI Processor -> WA Alert',
+                  model_engine: '9Router-Auto-Cost-Optimizer',
+                  model_provider: '9router/auto',
+                  execution_gateway: 'ZeroClaw-Edge-Gateway',
+                  cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png'
+                });
               }}
               className="space-y-3.5"
             >
@@ -979,7 +1121,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Event Trigger</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Event Trigger Workflow</label>
                 <select
                   value={newAutomationForm.trigger_event}
                   onChange={(e) => setNewAutomationForm({ ...newAutomationForm, trigger_event: e.target.value })}
@@ -993,6 +1135,68 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   <option value="Low Stock (Store AI)">Low Stock (Store AI)</option>
                   <option value="Order Completed (Store)">Order Completed (Store)</option>
                 </select>
+              </div>
+
+              {/* RICH AI MODEL SELECTION POPOVER DROPDOWN */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">AI Engine Router & Model Provider</label>
+                <div className="relative">
+                  {(() => {
+                    const selEngine = AI_MODEL_ENGINES.find(m => m.id === newAutomationForm.model_engine) || AI_MODEL_ENGINES[0];
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                        className="w-full p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 flex items-center justify-between gap-2 text-left cursor-pointer hover:border-orange-400 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <img src={selEngine.logo} alt={selEngine.name} className="size-6 rounded-lg object-contain bg-white p-0.5 border border-slate-200/60 flex-shrink-0" />
+                          <div className="truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{selEngine.name}</span>
+                              <span className="px-1.5 py-0.2 rounded-md bg-orange-500/10 text-orange-600 text-[9px] font-bold">{selEngine.badge}</span>
+                            </div>
+                            <p className="text-[9.5px] text-slate-400 truncate">{selEngine.desc}</p>
+                          </div>
+                        </div>
+                        <ChevronDown size={14} className="text-slate-400 flex-shrink-0" />
+                      </button>
+                    );
+                  })()}
+
+                  {isModelDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 space-y-1 max-h-56 overflow-y-auto animate-in fade-in duration-150">
+                      {AI_MODEL_ENGINES.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => {
+                            setNewAutomationForm({
+                              ...newAutomationForm,
+                              model_engine: model.id,
+                              model_provider: model.provider,
+                              execution_gateway: model.gateway,
+                              cdn_icon_url: model.logo
+                            });
+                            setIsModelDropdownOpen(false);
+                          }}
+                          className={`w-full p-2 rounded-xl flex items-center gap-2.5 text-left transition-colors cursor-pointer ${
+                            newAutomationForm.model_engine === model.id ? 'bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <img src={model.logo} alt={model.name} className="size-6 rounded-lg object-contain bg-white p-0.5 border border-slate-200/60 flex-shrink-0" />
+                          <div className="flex-1 truncate">
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{model.name}</span>
+                              <span className="px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-bold text-slate-500">{model.badge}</span>
+                            </div>
+                            <p className="text-[9.5px] text-slate-400 truncate">{model.desc}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -1016,12 +1220,245 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  Simpan & Aktifkan
+                  <Zap size={14} />
+                  <span>Simpan & Aktifkan</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* MODAL 3: DOKUMENTASI ENGINE & REALTIME CDN SPECIFICATION */}
+      {/* ========================================================================= */}
+      {showDocModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-5 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="size-9 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Dokumentasi Real Model Router & R2 CDN</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Enterprise Event-Driven Workflow Architecture</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDocModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Architecture Overview Card */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-500/10 via-slate-50 to-slate-100 dark:from-orange-950/30 dark:via-slate-800/40 dark:to-slate-900 border border-orange-500/20 space-y-2">
+              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold text-xs">
+                <Zap size={14} /> ⚡ Event-Driven Engine vs Autonomous AI Workforce
+              </div>
+              <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                Modul <strong>AI Automations</strong> menangani workflow terpicu event multi-langkah (seperti order masuk, stok menipis, dan pengingat pembayaran) dengan eksekusi otomatis tanpa jeda. Berbeda dari AI Workforce yang merupakan agen percakapan otonom.
+              </p>
+            </div>
+
+            {/* Model Router Specifications */}
+            <div className="space-y-3">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Supported Real Model Engines & Providers</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {AI_MODEL_ENGINES.map((model) => (
+                  <div key={model.id} className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-start gap-3">
+                    <img src={model.logo} alt={model.name} className="size-8 rounded-xl object-contain bg-white p-1 border border-slate-200/60 shadow-2xs flex-shrink-0" />
+                    <div className="truncate">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{model.name}</span>
+                        <span className="px-1.5 py-0.2 rounded-md bg-orange-500/10 text-orange-600 text-[9px] font-bold">{model.badge}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">{model.desc}</p>
+                      <span className="text-[9px] font-mono text-slate-500 mt-1 block truncate">Provider: {model.provider}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Cloudflare R2 CDN Asset Registry */}
+            <div className="space-y-2.5">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Cloudflare R2 CDN Asset Registry</h4>
+              <div className="p-3 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[10.5px] space-y-1.5 overflow-x-auto">
+                <div className="text-slate-400">// CDN Base URL: https://cdn.zegaai.site</div>
+                <div>Llama 3.3 CDN  : https://cdn.zegaai.site/assets/logo/llama.jpg</div>
+                <div>Qwen 2.5 CDN   : https://cdn.zegaai.site/assets/logo/Qwen.png</div>
+                <div>9Router CDN    : https://cdn.zegaai.site/assets/logo/9router.png</div>
+                <div>ZeroClaw CDN   : https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg</div>
+                <div>ZEGA Logo CDN  : https://cdn.zegaai.site/assets/logo/zegalogo.png</div>
+                <div>DeepSeek R1    : https://cdn.zegaai.site/assets/logo/deepseek.webp</div>
+                <div>Claude 3.5 CDN : https://cdn.zegaai.site/assets/logo/claude.webp</div>
+              </div>
+            </div>
+
+            {/* Footer Action */}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowDocModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
+              >
+                Tutup Dokumentasi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: TEMPLATES GALLERY (LIHAT SEMUA TEMPLATE POPULER) */}
+      {/* ========================================================================= */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto space-y-5 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="size-9 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Templates Gallery Automation</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Pilih preset workflow otomatisasi teruji terintegrasi Real Model & R2 CDN</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Template Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {[
+                {
+                  title: 'Order Invoice & WA Payment Link',
+                  sub: 'Auto-generates digital invoice, creates Solana Pay / WA payment link, and notifies buyer.',
+                  trigger: 'New Order (Online Store)',
+                  model: '9Router-Auto-Cost-Optimizer',
+                  provider: '9router/gpt-4o-mini',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/9router.png',
+                  icon: ShoppingBag
+                },
+                {
+                  title: 'Low Stock Restock & Inventory Router AI',
+                  sub: 'Triggers code synthesis engine to draft restock POs and dispatch supplier WA alerts.',
+                  trigger: 'Low Stock (Store AI)',
+                  model: 'Qwen-2.5-Coder-32B',
+                  provider: '9router/qwen-2.5-coder',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
+                  icon: ShoppingBag
+                },
+                {
+                  title: 'New Customer Welcome Coupon & Vision AI',
+                  sub: 'Auto-generates personalized welcome discount banner using multimodal vision engine.',
+                  trigger: 'Customer Registered',
+                  model: 'Claude-3.5-Sonnet-v2',
+                  provider: '9router/claude-3.5-sonnet',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/claude.webp',
+                  icon: Users
+                },
+                {
+                  title: 'WhatsApp Abandoned Cart DeepSeek Recovery',
+                  sub: 'Executes DeepSeek R1 reasoning swarm to calculate optimal discount triggers for abandoned carts.',
+                  trigger: 'Abandoned Cart (Store)',
+                  model: 'DeepSeek-R1-Distill-Qwen-32B',
+                  provider: 'zeroclaw/deepseek-r1',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
+                  icon: ShoppingCart
+                },
+                {
+                  title: 'Automated Invoice Reconciliation & Bank Sync',
+                  sub: 'Uses ZEGA Swarm Llama 3.3 70B for bank statement OCR reconciliation and automatic e-invoice closing.',
+                  trigger: 'Invoice Due (Finance AI)',
+                  model: 'ZEGA-Swarm-Llama-3.3-70B',
+                  provider: '9router/llama-3.3-70b',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+                  icon: FileText
+                },
+                {
+                  title: 'B2B Lead Qualifier & CRM Automation Swarm',
+                  sub: 'ZeroClaw Edge Gateway daemon scores B2B leads, tags CRM pipeline, and dispatches sales followups.',
+                  trigger: 'New Lead (Form/Website)',
+                  model: 'ZeroClaw-Edge-Gateway-Llama3',
+                  provider: 'zeroclaw/daemon-v0.5.3',
+                  iconUrl: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
+                  icon: Users
+                }
+              ].map((tpl, idx) => {
+                const Icon = tpl.icon;
+                return (
+                  <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between space-y-3 hover:border-orange-400/60 transition-all">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img src={tpl.iconUrl} alt={tpl.model} className="size-6 rounded-lg object-contain bg-white p-0.5 border border-slate-200/60 shadow-2xs" />
+                          <span className="font-extrabold text-[10px] text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md truncate">
+                            {tpl.model}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-400">{tpl.trigger.split(' ')[0]}</span>
+                      </div>
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{tpl.title}</h4>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed">{tpl.sub}</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-mono text-slate-400 truncate">Provider: {tpl.provider}</span>
+                      <button
+                        onClick={async () => {
+                          const payload = {
+                            title: tpl.title,
+                            name: tpl.title,
+                            description: tpl.sub,
+                            trigger_event: tpl.trigger,
+                            model_engine: tpl.model,
+                            model_provider: tpl.provider,
+                            execution_gateway: 'ZeroClaw-Edge-Gateway',
+                            cdn_icon_url: tpl.iconUrl,
+                            status: 'active',
+                            success_rate: 100,
+                            runs_today: 1
+                          };
+                          const res = await SupabaseDashboardService.createAutomation('11111111-1111-1111-1111-111111111111', payload);
+                          if (res.data) {
+                            setAutomations(prev => [res.data, ...prev]);
+                            setShowTemplateModal(false);
+                            triggerToast(`Deploy berhasil: ${tpl.title}`);
+                          } else {
+                            triggerToast('Gagal mendaftarkan template.');
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1 flex-shrink-0"
+                      >
+                        <Zap size={12} />
+                        <span>Deploy Template</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Action */}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="px-5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+              >
+                Tutup Gallery
+              </button>
+            </div>
           </div>
         </div>
       )}

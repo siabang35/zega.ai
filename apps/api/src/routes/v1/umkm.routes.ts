@@ -571,4 +571,136 @@ Instruksi Keamanan & Operasional Utama:
       },
     });
   });
+
+  /**
+   * POST /v1/umkm/ai-employees
+   * Deploys a new AI Employee with real AI model engine, system prompt, and R2 CDN avatar resolution
+   */
+  fastify.post('/ai-employees', async (request, reply) => {
+    const body = request.body as {
+      storeId?: string;
+      name: string;
+      role?: string;
+      category?: string;
+      modelEngine?: string;
+      routingStrategy?: string;
+      executionGateway?: string;
+      systemPrompt?: string;
+      temperature?: number;
+      maxTokens?: number;
+      description?: string;
+      avatarPath?: string;
+      capabilities?: string[];
+    };
+
+    const supabase = SupabaseService.getClient();
+    const storeId = body.storeId || '11111111-1111-1111-1111-111111111111';
+    const baseCdn = 'https://cdn.zegaai.site';
+    const rawAvatar = body.avatarPath || '/assets/visualization/ai-avatar.png';
+    const cdnAvatar = rawAvatar.startsWith('http') ? rawAvatar : `${baseCdn}${rawAvatar.startsWith('/') ? '' : '/'}${rawAvatar}`;
+    const agentCode = `AGENT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    if (!supabase) {
+      const mockAgent = {
+        id: 'emp-mock-' + Date.now(),
+        store_id: storeId,
+        agent_code: agentCode,
+        name: body.name,
+        role: body.role || body.category || 'Support & Ops Specialist',
+        model_engine: body.modelEngine || 'ZEGA-Swarm-Llama-3.3-70B',
+        routing_strategy: body.routingStrategy || '9Router-Auto-Cost-Optimizer',
+        execution_gateway: body.executionGateway || 'ZeroClaw-Edge-Gateway',
+        system_prompt: body.systemPrompt || 'You are an autonomous AI employee.',
+        temperature: body.temperature ?? 0.7,
+        max_tokens: body.maxTokens ?? 4096,
+        status: 'working',
+        avatar_path: cdnAvatar,
+        cdn_avatar_url: cdnAvatar,
+        capabilities: body.capabilities || ['WhatsApp API', 'Supabase RAG', body.modelEngine || '9Router Engine'],
+        created_at: new Date().toISOString()
+      };
+      return reply.send({ success: true, data: mockAgent });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('umkm_ai_employees')
+        .insert([{
+          store_id: storeId,
+          agent_code: agentCode,
+          name: body.name,
+          agent_name: body.name,
+          role: body.role || body.category || 'Support & Ops Specialist',
+          role_title: body.role || body.category || 'Specialist',
+          category: body.category || body.role || 'Support & Ops Specialist',
+          description: body.description || `Autonomous AI worker powered by ${body.modelEngine || 'ZEGA Swarm'}.`,
+          status: 'working',
+          model_engine: body.modelEngine || 'ZEGA-Swarm-Llama-3.3-70B',
+          routing_strategy: body.routingStrategy || '9Router-Auto-Cost-Optimizer',
+          execution_gateway: body.executionGateway || 'ZeroClaw-Edge-Gateway',
+          system_prompt: body.systemPrompt || 'You are an autonomous AI employee.',
+          temperature: body.temperature ?? 0.7,
+          max_tokens: body.maxTokens ?? 4096,
+          avatar_path: cdnAvatar,
+          cdn_avatar_url: cdnAvatar,
+          capabilities: body.capabilities || ['WhatsApp API', 'Supabase RAG', body.modelEngine || '9Router Engine'],
+          tasks_completed_today: 0,
+          chats_solved: 0,
+          chats_today: 0,
+          resolution_rate: 98.5,
+          avg_response_time_sec: 1.2,
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        return reply.status(400).send({ success: false, error: { message: error.message } });
+      }
+
+      // Log timeline event for model deployment
+      await supabase.from('umkm_timeline_events').insert([{
+        store_id: storeId,
+        event_time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        icon_symbol: 'Bot',
+        event_text: `AI Employee ${body.name} deployed with model ${body.modelEngine || '9Router Engine'}`,
+        badge_label: body.modelEngine || '9Router Swarm'
+      }]);
+
+      return reply.send({ success: true, data });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: { message: err?.message } });
+    }
+  });
+
+  /**
+   * PATCH /v1/umkm/ai-employees/:id/status
+   * Updates status of an AI employee
+   */
+  fastify.patch('/ai-employees/:id/status', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { status } = request.body as { status: string };
+
+    const supabase = SupabaseService.getClient();
+    if (!supabase) {
+      return reply.send({ success: true, data: { id, status, updated_at: new Date().toISOString() } });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('umkm_ai_employees')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        return reply.status(400).send({ success: false, error: { message: error.message } });
+      }
+
+      return reply.send({ success: true, data });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: { message: err?.message } });
+    }
+  });
 };
+

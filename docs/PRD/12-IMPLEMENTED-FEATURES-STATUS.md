@@ -164,4 +164,5 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | ZEGA Copilot Enterprise Security & Multi-LLM Spec | `docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md` | Documented & Verified |
 | Enterprise Mobile Navigation & Routing Spec | `docs/PRD/37-ENTERPRISE-MOBILE-NAVIGATION-AND-ROUTING-MODERNIZATION-SPEC.md` | Documented & Verified |
 | Enterprise Settings & Mobile Realtime Governance Spec | `docs/PRD/38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md` | Documented & Verified |
+| UMKM CRM Full-Stack Real-Time Telemetry Spec | `docs/PRD/39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
 

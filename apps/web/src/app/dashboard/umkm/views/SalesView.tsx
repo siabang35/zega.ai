@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, ShoppingBag, BarChart3, TrendingUp, ChevronDown, 
-  Filter, Calendar, Sparkles, ArrowUpRight, Target, RefreshCw, CheckCircle2, User, HelpCircle
+  Filter, Calendar, Sparkles, ArrowUpRight, Target, RefreshCw, CheckCircle2, User, HelpCircle, Zap
 } from 'lucide-react';
 import { 
   Chart as ChartJS, 
@@ -20,7 +20,8 @@ import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
   SetGoalModal, AllProductsModal, AllChannelsModal, 
-  AiReportModal, DateFilterModal, FilterModal, HelpInfoModal
+  AiReportModal, DateFilterModal, FilterModal, HelpInfoModal,
+  DeploySalesSwarmModal
 } from './sales/SalesModals';
 
 ChartJS.register(
@@ -89,6 +90,8 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
     period_month: 'Juli 2026'
   });
 
+  const [insights, setInsights] = useState<any[]>([]);
+
   // Fetch Data from Supabase & Subscribe Realtime
   const loadSalesData = async () => {
     setLoading(true);
@@ -98,6 +101,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
     if (res.topProducts?.length) setTopProducts(res.topProducts);
     if (res.activities?.length) setActivities(res.activities);
     if (res.goal) setSalesGoal(res.goal);
+    if (res.insights?.length) setInsights(res.insights);
     setLoading(false);
   };
 
@@ -115,13 +119,60 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
     await SupabaseDashboardService.updateSalesGoal('11111111-1111-1111-1111-111111111111', newTarget);
   };
 
-  // Chart.js Line Data
+  // Deploy Real AI Sales Swarm Callback
+  const handleDeploySwarm = async (modelPayload: any) => {
+    await SupabaseDashboardService.deploySalesAiSwarm('11111111-1111-1111-1111-111111111111', modelPayload);
+    await loadSalesData();
+  };
+
+  // Dynamic Chart Configuration for Daily, Weekly, and Monthly Time Tabs
+  const getChartConfig = () => {
+    const totalRev = metrics.total_revenue || 13500000;
+    if (timeTab === 'Daily') {
+      return {
+        labels: ['Sen (1 Agt)', 'Sel (2 Agt)', 'Rab (3 Agt)', 'Kam (4 Agt)', 'Jum (5 Agt)', 'Sab (6 Agt)', 'Ming (7 Agt)'],
+        actualData: [0.42, 0.58, 0.65, 0.49, 0.78, 0.85, 0.92],
+        targetData: [0.45, 0.45, 0.50, 0.50, 0.60, 0.70, 0.75],
+        formatVal: (v: number) => `Rp${(v * 1000000).toLocaleString('id-ID')}`,
+        yAxisFormat: (v: any) => `Rp${(v * 1000).toFixed(0)}k`,
+        peakText: 'Puncak Penjualan: Minggu (Rp920.000)',
+        avgText: 'Rata-rata: Rp670.000 / hari',
+        growthBadge: '↑ +14.2% vs Mgg Lalu'
+      };
+    } else if (timeTab === 'Weekly') {
+      return {
+        labels: ['Minggu 1 (1-7 Jul)', 'Minggu 2 (8-14 Jul)', 'Minggu 3 (15-21 Jul)', 'Minggu 4 (22-31 Jul)'],
+        actualData: [2.85, 3.10, 3.65, 3.90],
+        targetData: [3.00, 3.00, 3.50, 4.00],
+        formatVal: (v: number) => `Rp${(v * 1000000).toLocaleString('id-ID')}`,
+        yAxisFormat: (v: any) => `Rp${v}M`,
+        peakText: 'Puncak Penjualan: Minggu 4 (Rp3.90M)',
+        avgText: 'Rata-rata: Rp3.37M / minggu',
+        growthBadge: '↑ +21.0% vs Bln Lalu'
+      };
+    } else {
+      return {
+        labels: ['Feb 2026', 'Mar 2026', 'Apr 2026', 'Mei 2026', 'Jun 2026', 'Jul 2026'],
+        actualData: [8.50, 9.20, 10.40, 11.80, 12.50, (totalRev / 1000000)],
+        targetData: [8.00, 9.00, 10.00, 11.00, 12.00, 13.50],
+        formatVal: (v: number) => `Rp${v.toFixed(2)}M`,
+        yAxisFormat: (v: any) => `Rp${v}M`,
+        peakText: 'Puncak Penjualan: Jul 2026 (Rp13.50M)',
+        avgText: 'Rata-rata: Rp10.98M / bulan',
+        growthBadge: '↑ +18.0% MoM'
+      };
+    }
+  };
+
+  const chartConfig = getChartConfig();
+
+  // Dynamic Chart.js Line Data with Dual Datasets (Aktual vs Target)
   const lineData = {
-    labels: ['1 Jul', '6 Jul', '11 Jul', '16 Jul', '21 Jul', '26 Jul', '31 Jul'],
+    labels: chartConfig.labels,
     datasets: [
       {
-        label: 'Revenue',
-        data: [1.2, 1.9, 2.4, 2.0, 2.7, 2.5, 3.2],
+        label: 'Aktual Revenue',
+        data: chartConfig.actualData,
         borderColor: '#f97316',
         borderWidth: 3,
         backgroundColor: (context: any) => {
@@ -132,13 +183,28 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           return gradient;
         },
         fill: true,
-        tension: 0.45,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        tension: 0.4,
+        pointRadius: 5,
+        pointHoverRadius: 8,
         pointBackgroundColor: '#f97316',
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
       },
+      {
+        label: 'Target Sales',
+        data: chartConfig.targetData,
+        borderColor: '#94a3b8',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#94a3b8',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 1.5,
+      }
     ],
   };
 
@@ -146,15 +212,30 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: true,
+        position: 'top' as const,
+        align: 'end' as const,
+        labels: {
+          boxWidth: 10,
+          boxHeight: 10,
+          usePointStyle: true,
+          font: { size: 10, weight: 'bold' as const },
+          color: '#64748b'
+        }
+      },
       tooltip: {
         backgroundColor: '#0f172a',
         titleFont: { size: 11, weight: 'bold' as const },
-        bodyFont: { size: 12, weight: 'bold' as const },
-        padding: 10,
-        cornerRadius: 12,
+        bodyFont: { size: 11, weight: 'bold' as const },
+        padding: 12,
+        cornerRadius: 14,
         callbacks: {
-          label: (context: any) => ` Rp${(context.raw * 1000000).toLocaleString('id-ID')}`,
+          label: (context: any) => {
+            const labelName = context.dataset.label || '';
+            const rawVal = context.raw;
+            return ` ${labelName}: ${chartConfig.formatVal(rawVal)}`;
+          },
         },
       },
     },
@@ -164,11 +245,11 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
         ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' as const } },
       },
       y: {
-        grid: { color: 'rgba(226, 232, 240, 0.3)' },
+        grid: { color: 'rgba(226, 232, 240, 0.4)' },
         ticks: { 
           color: '#94a3b8', 
           font: { size: 10, weight: 'bold' as const },
-          callback: (value: any) => `Rp${value}M`
+          callback: (value: any) => chartConfig.yAxisFormat(value)
         },
       },
     },
@@ -215,6 +296,15 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Deploy Real AI Sales Swarm Button */}
+          <button
+            onClick={() => setActiveModal('deploySwarm')}
+            className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+          >
+            <Sparkles size={14} className="animate-pulse" />
+            <span>+ Deploy AI Swarm</span>
+          </button>
+
           {/* Date Picker Button */}
           <button
             onClick={() => setActiveModal('dateFilter')}
@@ -379,14 +469,30 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
                   onClick={() => setTimeTab(tab)}
                   className={`px-3 py-1 rounded-lg cursor-pointer transition-all ${
                     timeTab === tab 
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs' 
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-orange-500 text-white shadow-xs font-black' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* DYNAMIC METRIC PILLS & CHART INTERACTIVITY SUMMARY */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <span>🔥</span> {chartConfig.peakText}
+              </span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">
+                {chartConfig.avgText}
+              </span>
+            </div>
+            <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+              {chartConfig.growthBadge}
+            </span>
           </div>
 
           <div className="h-64">
@@ -474,23 +580,52 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mb-3">{t.salesView.salesBySource}</h3>
             
             <div className="space-y-4">
-              {channels.map((ch, idx) => (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-700 dark:text-slate-300">{ch.channel_name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-900 dark:text-slate-100 font-black">Rp{ch.amount.toLocaleString('id-ID')}</span>
-                      <span className="text-slate-400 font-medium text-[10px]">{ch.percentage}%</span>
+              {channels.map((ch, idx) => {
+                const isWa = ch.channel_name.toLowerCase().includes('whatsapp');
+                const isTikTok = ch.channel_name.toLowerCase().includes('tiktok');
+                const isShopee = ch.channel_name.toLowerCase().includes('shopee');
+                const isIg = ch.channel_name.toLowerCase().includes('instagram');
+
+                const localFallback = isWa ? '/assets/logo/whatsapp-for-business.webp' :
+                                      isTikTok ? '/assets/logo/tiktok.webp' :
+                                      isShopee ? '/assets/logo/shopee.png' :
+                                      isIg ? '/assets/logo/instagram.png' :
+                                      '/assets/logo/9router.png';
+
+                const primaryCdn = isWa ? 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' :
+                                   isTikTok ? 'https://cdn.zegaai.site/assets/logo/tiktok.webp' :
+                                   isShopee ? 'https://cdn.zegaai.site/assets/logo/shopee.png' :
+                                   isIg ? 'https://cdn.zegaai.site/assets/logo/instagram.png' :
+                                   'https://cdn.zegaai.site/assets/logo/9router.png';
+
+                const logoUrl = ch.cdn_icon_url || primaryCdn;
+
+                return (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-bold">
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={logoUrl} 
+                          onError={(e: any) => { e.target.onerror = null; e.target.src = localFallback; }}
+                          alt={ch.channel_name} 
+                          className="size-4.5 object-contain rounded-md bg-white p-0.5 border border-slate-200/80 dark:border-slate-700" 
+                        />
+                        <span className="text-slate-700 dark:text-slate-300">{ch.channel_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-900 dark:text-slate-100 font-black">Rp{ch.amount.toLocaleString('id-ID')}</span>
+                        <span className="text-slate-400 font-medium text-[10px]">{ch.percentage}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${ch.percentage}%`, backgroundColor: ch.color_hex || '#10b981' }} 
+                      />
                     </div>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${ch.percentage}%`, backgroundColor: ch.color_hex || '#10b981' }} 
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -578,38 +713,40 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
             <div className="size-7 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-xs">
               <Sparkles size={16} />
             </div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">AI Sales Insight</h3>
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">AI Sales Optimization Swarm</h3>
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                <img src={metrics.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt="AI Model" className="size-3.5 object-contain bg-white rounded-xs" />
+                <span>{metrics.model_engine || '9Router-Auto-Cost-Optimizer'}</span>
+                <span>•</span>
+                <span>{metrics.execution_gateway || 'ZeroClaw-Edge-Gateway'}</span>
+              </div>
+            </div>
           </div>
 
-          <button 
-            onClick={() => setActiveModal('aiReport')}
-            className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 font-extrabold text-xs border border-orange-200 dark:border-slate-700 hover:bg-orange-100 cursor-pointer shadow-xs transition-all"
-          >
-            {t.salesView.aiReportFull} →
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setActiveModal('aiReport')}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 font-extrabold text-xs border border-orange-200 dark:border-slate-700 hover:bg-orange-100 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Sparkles size={12} />
+              <span>{t.salesView.aiReportFull} →</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 text-xs font-medium space-y-1">
-            <p className="text-purple-600 dark:text-purple-400 font-extrabold flex items-center gap-1.5">
-              <span>🚀</span> Growth Trend
-            </p>
-            <p className="text-slate-700 dark:text-slate-300">Penjualan meningkat 18% dibanding bulan lalu. Pertahankan momentum ini!</p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 text-xs font-medium space-y-1">
-            <p className="text-amber-600 dark:text-amber-400 font-extrabold flex items-center gap-1.5">
-              <span>⭐</span> Top Product
-            </p>
-            <p className="text-slate-700 dark:text-slate-300">Paket Skincare Basic adalah produk terlaris. Pertimbangkan tambah stok.</p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 text-xs font-medium space-y-1">
-            <p className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5">
-              <span>💬</span> Best Channel
-            </p>
-            <p className="text-slate-700 dark:text-slate-300">WhatsApp memberikan kontribusi terbesar. Optimalkan promosi di channel ini.</p>
-          </div>
+          {insights.slice(0, 3).map((ins: any, idx: number) => (
+            <div key={ins.id || idx} className="p-3.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 text-xs font-medium space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-purple-600 dark:text-purple-400 font-extrabold flex items-center gap-1.5 truncate">
+                  <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt="AI" className="size-4 object-contain bg-white p-0.5 rounded-xs" />
+                  <span className="truncate">{ins.headline}</span>
+                </p>
+              </div>
+              <p className="text-slate-700 dark:text-slate-300 line-clamp-2">{ins.content}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -655,6 +792,14 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
       <AiReportModal
         isOpen={activeModal === 'aiReport'}
         onClose={() => setActiveModal(null)}
+        insights={insights}
+      />
+
+      <DeploySalesSwarmModal
+        isOpen={activeModal === 'deploySwarm'}
+        onClose={() => setActiveModal(null)}
+        onDeploySwarm={handleDeploySwarm}
+        triggerToast={triggerToast}
       />
     </div>
   );

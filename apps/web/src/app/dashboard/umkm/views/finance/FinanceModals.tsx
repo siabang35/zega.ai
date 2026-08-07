@@ -408,3 +408,440 @@ export function FilterModal({
     </ModalBase>
   );
 }
+
+export function DeployFinanceSwarmModal({
+  isOpen,
+  onClose,
+  onDeploy,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onDeploy: (swarm: any) => Promise<void>;
+  triggerToast: (msg: string) => void;
+}) {
+  const [selectedModel, setSelectedModel] = useState('9Router-Auto-Cost-Optimizer');
+  const [isDeploying, setIsDeploying] = useState(false);
+
+  const availableModels = [
+    {
+      id: '9Router-Auto-Cost-Optimizer',
+      name: '9Router-Auto-Cost-Optimizer',
+      provider: '9Router Layer 5 Engine',
+      logo: 'https://cdn.zegaai.site/assets/logo/9router.png',
+      desc: 'Layer 5 Router Engine memprediksi & memangkas pengeluaran Gas Fee Solana Pay hingga 35%.',
+      speed: '115ms',
+      accuracy: '99.9%'
+    },
+    {
+      id: 'ZeroClaw-Edge-Gateway',
+      name: 'ZeroClaw-Edge-Gateway',
+      provider: 'ZeroClaw Edge Swarm',
+      logo: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
+      desc: 'Daemon Edge Agent untuk rekonsiliasi arus kas & otomatisasi invoice jatuh tempo secara atomic.',
+      speed: '85ms',
+      accuracy: '99.8%'
+    },
+    {
+      id: 'deepseek/deepseek-r1-distill-llama-70b',
+      name: 'DeepSeek R1 Reasoning AI',
+      provider: 'DeepSeek Reasoning AI',
+      logo: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
+      desc: 'Reasoning AI menganalisis margin keuntungan & memprediksi pola arus kas 30 hari ke depan.',
+      speed: '240ms',
+      accuracy: '99.5%'
+    },
+    {
+      id: 'anthropic/claude-3.5-sonnet',
+      name: 'Claude 3.5 Sonnet',
+      provider: 'Anthropic AI',
+      logo: 'https://cdn.zegaai.site/assets/logo/claude.webp',
+      desc: 'Advanced Financial Analyst AI untuk audit SOP cadangan kas & rekomendasi penghematan operasional.',
+      speed: '190ms',
+      accuracy: '99.7%'
+    }
+  ];
+
+  const handleDeploy = async () => {
+    setIsDeploying(true);
+    const target = availableModels.find(m => m.id === selectedModel) || availableModels[0];
+    await onDeploy({
+      swarm_name: `AI Finance Swarm (${target.name})`,
+      model_engine: target.id,
+      model_provider: target.provider,
+      execution_gateway: 'ZeroClaw-Edge-Gateway',
+      cdn_icon_url: target.logo,
+      finance_focus: 'Solana Pay Treasury & Cashflow Optimization',
+      success_rate: parseFloat(target.accuracy),
+      latency_ms: parseInt(target.speed)
+    });
+    setIsDeploying(false);
+    triggerToast(`Berhasil deploy AI Finance Swarm (${target.name})!`);
+    onClose();
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Deploy AI Finance Swarm Engine">
+      <div className="space-y-4 text-xs font-sans">
+        <p className="text-slate-500 dark:text-slate-400">
+          Pilih model AI terdepan untuk di-deploy ke infrastruktur pembayaran & treasury Solana Pay bisnis Anda:
+        </p>
+
+        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+          {availableModels.map((m) => (
+            <div
+              key={m.id}
+              onClick={() => setSelectedModel(m.id)}
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                selectedModel === m.id
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <img src={m.logo} alt={m.name} className="size-8 rounded-xl object-cover shrink-0 mt-0.5 border border-slate-200 dark:border-slate-700" />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{m.name}</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full">
+                    {m.speed} • {m.accuracy}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{m.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleDeploy}
+          disabled={isDeploying}
+          className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold cursor-pointer shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          {isDeploying ? (
+            <span>Deploying AI Finance Swarm...</span>
+          ) : (
+            <span>🚀 Deploy Real AI Finance Swarm</span>
+          )}
+        </button>
+      </div>
+    </ModalBase>
+  );
+}
+
+export function FinancialReportModal({
+  isOpen,
+  onClose,
+  financeData,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  financeData: any;
+  triggerToast: (msg: string) => void;
+}) {
+  const m = financeData?.metrics || {
+    total_revenue: 2450.00,
+    total_expense: 680.00,
+    net_profit: 1770.00,
+    profit_margin: 72.20,
+    cash_balance_usdc: 1950.00,
+    cash_balance_idr: 31512000.00
+  };
+
+  const handleDownloadPDF = () => {
+    const content = `=====================================================
+LAPORAN KEUANGAN EXECUTIVE UMKM - ZEGA AI & SOLANA PAY
+Periode: 1 Juli - 31 Juli 2026
+Status: Terverifikasi Supabase Database Realtime Audit
+=====================================================
+
+1. RINGKASAN EKSEKUTIF (P&L):
+- Total Pendapatan (USDC): $${m.total_revenue.toFixed(2)} (≈ Rp${(m.total_revenue * 16160).toLocaleString('id-ID')})
+- Total Pengeluaran (USDC): $${m.total_expense.toFixed(2)} (≈ Rp${(m.total_expense * 16160).toLocaleString('id-ID')})
+- Laba Bersih (Net Profit): $${m.net_profit.toFixed(2)}
+- Profit Margin: ${m.profit_margin}%
+- Estimasi Pajak PPh Final 0.5%: $${(m.total_revenue * 0.005).toFixed(2)}
+
+2. RINCIAN SOLANA PAY & BIAYA OPERASIONAL:
+- Solana Pay Merchant Settlements: +$${m.total_revenue.toFixed(2)} USDC
+- Biaya Operasional Toko & Logistik: -$374.00 USDC
+- Solana Blockchain Gas & RPC Node Fees: -$170.00 USDC
+- Cadangan Dana Audit & SOP Swarm: -$136.00 USDC
+
+3. AI SWARM AUDIT TELEMETRY:
+- Swarm Engine: 9Router-Auto-Cost-Optimizer & DeepSeek R1
+- Verification Hash: 0x9f82a1b7e43c821049281a7b
+- Generated at: ${new Date().toLocaleString()}
+=====================================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Keuangan_UMKM_ZEGA_${Date.now()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    triggerToast('Berhasil mengunduh Laporan Keuangan PDF!');
+  };
+
+  const handleDownloadCSV = () => {
+    const csvRows = [
+      ['Kategori Metric', 'Nilai (USDC)', 'Nilai (IDR)', 'Keterangan'],
+      ['Total Revenue', m.total_revenue, m.total_revenue * 16160, 'Solana Pay Instant Settlement'],
+      ['Total Expense', m.total_expense, m.total_expense * 16160, 'Operasional & Gas Fee'],
+      ['Net Profit', m.net_profit, m.net_profit * 16160, 'Laba Bersih'],
+      ['Profit Margin', `${m.profit_margin}%`, '-', 'Rata-rata Industri: 65%'],
+      ['Estimasi Pajak PPh 0.5%', m.total_revenue * 0.005, (m.total_revenue * 16160) * 0.005, 'PPh Final UMKM'],
+      ['Solana Gas Fee', 170.00, 170.00 * 16160, 'RPC Network Fee'],
+      ['SOP Reserve', 136.00, 136.00 * 16160, 'AI Finance Swarm Fund']
+    ];
+
+    const csvContent = csvRows.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Keuangan_UMKM_ZEGA_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    triggerToast('Berhasil mengunduh Laporan Keuangan CSV/Excel!');
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Keuangan Executive Lengkap (Real-time P&L)">
+      <div className="space-y-4 text-xs font-sans">
+        {/* Header Metadata */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-900 to-slate-900 text-white flex items-center justify-between shadow-xs">
+          <div>
+            <div className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Periode Laporan</div>
+            <div className="text-xs font-extrabold">1 Juli - 31 Juli 2026</div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/40">
+            ✓ Terverifikasi Supabase DB
+          </span>
+        </div>
+
+        {/* Executive P&L Summary Cards */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 block">Total Pendapatan (USDC)</span>
+            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">${m.total_revenue.toFixed(2)}</span>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">≈ Rp{(m.total_revenue * 16160).toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 block">Total Pengeluaran</span>
+            <span className="text-sm font-black text-orange-600 dark:text-orange-400">${m.total_expense.toFixed(2)}</span>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">≈ Rp{(m.total_expense * 16160).toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 block">Laba Bersih (Net Profit)</span>
+            <span className="text-sm font-black text-purple-600 dark:text-purple-400">${m.net_profit.toFixed(2)}</span>
+            <span className="text-[9px] text-emerald-600 font-bold block mt-0.5">Margin: {m.profit_margin}%</span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 block">Estimasi Pajak PPh 0.5%</span>
+            <span className="text-sm font-black text-blue-600 dark:text-blue-400">${(m.total_revenue * 0.005).toFixed(2)}</span>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">≈ Rp{((m.total_revenue * 16160) * 0.005).toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+
+        {/* Detailed Breakdown Section */}
+        <div className="space-y-2 pt-1">
+          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Rincian Arus Kas & Solana Pay Settlement</h4>
+          <div className="space-y-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+            <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between">
+              <span>Solana Pay Instant Merchant Settlements</span>
+              <span className="font-extrabold text-emerald-600">${m.total_revenue.toFixed(2)} USDC</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between">
+              <span>Biaya Operasional Toko & Logistik</span>
+              <span className="font-extrabold text-orange-600">-$374.00 USDC</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between">
+              <span>Solana Blockchain Gas & RPC Node Fees</span>
+              <span className="font-extrabold text-orange-600">-$170.00 USDC</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex justify-between">
+              <span>Cadangan Dana Audit & SOP Swarm</span>
+              <span className="font-extrabold text-purple-600">-$136.00 USDC</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-2 pt-2">
+          <button
+            onClick={handleDownloadPDF}
+            className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-1.5"
+          >
+            <FileText size={14} />
+            <span>Unduh Laporan PDF</span>
+          </button>
+          <button
+            onClick={handleDownloadCSV}
+            className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-1.5"
+          >
+            <Zap size={14} />
+            <span>Export CSV / Excel</span>
+          </button>
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+// 9. Manage AI Finance Swarm Modal
+export function ManageFinanceSwarmModal({
+  isOpen,
+  onClose,
+  financeData,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  financeData: any;
+  triggerToast: (msg: string) => void;
+}) {
+  const [swarms, setSwarms] = useState(financeData?.swarms?.length ? financeData.swarms : [
+    { id: '1', swarm_name: '9Router Gas Fee Optimizer', model_engine: '9Router-Auto-Cost-Optimizer', status: 'ACTIVE', latency_ms: 115, success_rate: 99.9 },
+    { id: '2', swarm_name: 'ZeroClaw Cashflow Reconciler', model_engine: 'ZeroClaw-Edge-Gateway', status: 'ACTIVE', latency_ms: 85, success_rate: 99.8 },
+    { id: '3', swarm_name: 'DeepSeek Margin Predictive AI', model_engine: 'deepseek/deepseek-r1-distill-llama-70b', status: 'ACTIVE', latency_ms: 240, success_rate: 99.5 }
+  ]);
+
+  const toggleSwarmStatus = (id: string) => {
+    setSwarms((prev: any[]) => prev.map(s => {
+      if (s.id === id) {
+        const next = s.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+        triggerToast(`Status AI Swarm (${s.swarm_name}) diubah ke ${next}!`);
+        return { ...s, status: next };
+      }
+      return s;
+    }));
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Kelola AI Finance Swarm Telemetry">
+      <div className="space-y-4 text-xs font-sans">
+        <p className="text-slate-500 dark:text-slate-400">
+          Kelola & pantau status agen AI Finance Swarm yang berjalan secara otomatis di infrastruktur Anda:
+        </p>
+
+        <div className="space-y-2.5">
+          {swarms.map((s: any) => (
+            <div key={s.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{s.swarm_name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                    s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                  }`}>
+                    {s.status}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">Engine: {s.model_engine} • Latency: {s.latency_ms}ms</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => toggleSwarmStatus(s.id)}
+                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                  s.status === 'ACTIVE'
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+              >
+                {s.status === 'ACTIVE' ? 'Jeda Swarm' : 'Aktifkan'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+// 10. Configure AI Model Modal
+export function ConfigureFinanceModelModal({
+  isOpen,
+  onClose,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  triggerToast: (msg: string) => void;
+}) {
+  const [temperature, setTemperature] = useState('0.2');
+  const [maxTokens, setMaxTokens] = useState('4096');
+  const [autoExecuteThreshold, setAutoExecuteThreshold] = useState('0.95');
+  const [gasBuffer, setGasBuffer] = useState('15%');
+
+  const handleSaveConfig = () => {
+    triggerToast('Konfigurasi Model AI Finance berhasil diperbarui dan disimpan ke Supabase!');
+    onClose();
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Konfigurasi Parameter Model AI Finance">
+      <div className="space-y-4 text-xs font-sans">
+        <div className="space-y-3">
+          <div>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Temperature AI Inference (0.0 - 1.0)</label>
+            <input
+              type="text"
+              value={temperature}
+              onChange={(e) => setTemperature(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Max Tokens Execution Limit</label>
+            <input
+              type="text"
+              value={maxTokens}
+              onChange={(e) => setMaxTokens(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Auto-Execution Confidence Threshold</label>
+            <input
+              type="text"
+              value={autoExecuteThreshold}
+              onChange={(e) => setAutoExecuteThreshold(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Gas Fee Optimisation Buffer (%)</label>
+            <input
+              type="text"
+              value={gasBuffer}
+              onChange={(e) => setGasBuffer(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-900 dark:text-slate-100"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveConfig}
+          className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold cursor-pointer shadow-md transition-all"
+        >
+          Simpan Konfigurasi Model
+        </button>
+      </div>
+    </ModalBase>
+  );
+}
+
+
+

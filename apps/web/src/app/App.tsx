@@ -2296,32 +2296,9 @@ function AppContent() {
           ? 'individual'
           : (session?.role || 'individual');
 
-      if (role === 'superadmin') {
-        return (
-          <SuperAdminDashboard
-            onClose={() => {
-              localStorage.removeItem('zega_mock_session');
-              setShowDashboard(false);
-              setCurrentPath('/');
-              if (typeof window !== 'undefined') {
-                window.history.pushState({}, '', '/');
-              }
-            }}
-            dark={dark}
-            setDark={setDark}
-            onSwitchToUserMode={() => {
-              const userSession = {
-                ...session,
-                role: 'enterprise',
-              };
-              localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
-              navigateTo('/console');
-            }}
-          />
-        );
-      }
+    if (role === 'superadmin') {
       return (
-        <UserDashboard
+        <SuperAdminDashboard
           onClose={() => {
             localStorage.removeItem('zega_mock_session');
             setShowDashboard(false);
@@ -2332,21 +2309,44 @@ function AppContent() {
           }}
           dark={dark}
           setDark={setDark}
-          userRole={role as any}
-          userEmail={session?.email || ''}
-          userName={session?.fullName || ''}
-          isGuest={false}
-          onSwitchToAdminMode={() => {
-            const adminSession = {
+          onSwitchToUserMode={() => {
+            const userSession = {
               ...session,
-              role: 'superadmin',
+              role: 'enterprise',
             };
-            localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
-            navigateTo('/admin');
+            localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+            navigateTo('/console');
           }}
         />
       );
     }
+    return (
+      <UserDashboard
+        onClose={() => {
+          localStorage.removeItem('zega_mock_session');
+          setShowDashboard(false);
+          setCurrentPath('/');
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/');
+          }
+        }}
+        dark={dark}
+        setDark={setDark}
+        userRole={role as any}
+        userEmail={session?.email || ''}
+        userName={session?.fullName || ''}
+        isGuest={false}
+        onSwitchToAdminMode={() => {
+          const adminSession = {
+            ...session,
+            role: 'superadmin',
+          };
+          localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
+          navigateTo('/admin');
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -2627,7 +2627,7 @@ function AppContent() {
           <div className="hero-text-reveal hero-text-reveal-delay-2 relative mx-auto mt-6 sm:mt-10 w-full max-w-[94vw] sm:max-w-[780px] lg:max-w-[840px] group select-none overflow-visible">
             {/* Multi-Layer Ambient Glow Backdrop Aura — Mobile Safe Inset */}
             <div className="absolute -inset-2 sm:-inset-6 rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-r from-[#ff6b35]/25 via-[#e8295a]/20 to-[#0ea5e9]/25 blur-2xl sm:blur-3xl opacity-70 sm:opacity-80 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            
+
             <div className="relative overflow-hidden rounded-xl sm:rounded-3xl border border-slate-200/90 dark:border-white/12 bg-slate-950/80 shadow-[0_20px_50px_-15px_rgba(255,107,53,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-all duration-500 hover:scale-[1.01]">
               {/* Top Glass Highlight Edge */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent z-20" />
@@ -3867,7 +3867,7 @@ function AppContent() {
           <p className="mt-3.5 text-[12px] sm:text-[13px] text-white/80 font-medium max-w-[280px] sm:max-w-none mx-auto leading-relaxed">
             {t.cta.subtitle}
           </p>
-          
+
           <div className="mt-6 flex items-center justify-center gap-3">
             <button
               onClick={() => handleOpenAuth("self-serve")}
