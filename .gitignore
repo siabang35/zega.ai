@@ -36,7 +36,8 @@ out/
 
 # ─── 4. LOGS & TEMPORARY FILES ───────────────────────────────────────────────
 *.log
-logs/
+/logs/
+!apps/web/src/app/dashboard/enterprise/views/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

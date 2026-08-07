@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env"],
+  "globalEnv": ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_API_URL", "VITE_CDN_URL"],
   "ui": "stream",
   "tasks": {
     "dev": {
@@ -10,6 +11,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_API_URL", "VITE_CDN_URL"],
       "outputs": ["dist/**", ".next/**"]
     },
     "lint": {
