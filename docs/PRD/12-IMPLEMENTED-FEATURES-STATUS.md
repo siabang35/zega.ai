@@ -165,4 +165,25 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Enterprise Mobile Navigation & Routing Spec | `docs/PRD/37-ENTERPRISE-MOBILE-NAVIGATION-AND-ROUTING-MODERNIZATION-SPEC.md` | Documented & Verified |
 | Enterprise Settings & Mobile Realtime Governance Spec | `docs/PRD/38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md` | Documented & Verified |
 | UMKM CRM Full-Stack Real-Time Telemetry Spec | `docs/PRD/39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
+| UMKM AI Marketplace Modernization Spec | `docs/PRD/40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
+| Marketplace Overview SQL Migration 75 | `supabase/migrations/sql_umkm/75_umkm_marketplace_overview_realtime.sql` | Executed & RLS/RPC Ready |
+| Custom AI Request Modal & Workflow | `apps/web/src/app/dashboard/umkm/views/marketplace/MarketplaceModals.tsx` | Verified & Production Ready |
+
+---
+
+### 12.9 UMKM AI Marketplace Modernization & Real-Time Telemetry
+
+The **UMKM AI Marketplace Overview & Sub-Views** (`MarketplaceView.tsx`) have been fully modernized into a data-driven executive console:
+
+1. **SQL Migration 75 (`75_umkm_marketplace_overview_realtime.sql`)**:
+   - `umkm_marketplace_custom_requests` table with status workflow (`pending`, `in_review`, `approved`, `fulfilled`, `rejected`).
+   - RPC `submit_umkm_marketplace_custom_ai_request`: Persistent custom AI request submission with automatic tenant isolation.
+   - RPC `get_umkm_marketplace_overview_telemetry`: Real-time telemetry calculations for total installed agents, execution counters, average latency, and custom requests.
+
+2. **Service Integration (`supabaseService.ts`)**:
+   - RPC-first patterns (`submitCustomAIRequest` and `fetchOverviewTelemetry`) providing strict RLS safety.
+
+3. **Enterprise UI/UX & Compact Banner Standards**:
+   - Redesigned Overview with 6-card capped popular agent grid, dynamic CDN asset resolution (`DynamicBrandLogo`), and realistic enterprise security specifications (AES-256-GCM, Supabase RLS, OWASP Level 3 static/dynamic audits).
+   - Standardized sub-page banners (`popular_agents`, `all_categories`, `all_integrations`, `marketplace_articles`, `new_agents`, `top_used_agents`) into compact single-row enterprise headers with real-time stat badges and inline controls.
 

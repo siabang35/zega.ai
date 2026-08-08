@@ -12,7 +12,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { 
   AddCustomerModal, CustomerDetailModal, EditCustomerModal, 
-  AIRetentionCampaignModal, ImportCustomerModal, ExportCustomerDataModal 
+  AIRetentionCampaignModal, ImportCustomerModal, ExportCustomerDataModal,
+  FilterCustomerModal, CRMFilterState
 } from './customers/CustomerModals';
 import { ActivityStreamDashboard } from './customers/ActivityStreamDashboard';
 
@@ -463,6 +464,20 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
   const [statusFilter, setStatusFilter] = useState('Semua Status');
   const [dateFilterRange, setDateFilterRange] = useState('1 Jul – 31 Jul 2026');
 
+  // Advanced CRM Filter Modal state
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [crmFilters, setCrmFilters] = useState<CRMFilterState>({
+    segment: 'all',
+    status: 'all',
+    cityRegion: 'all',
+    minOrders: 0,
+    maxOrders: 999999,
+    minSpend: 0,
+    maxSpend: 999999999,
+    dateRangeDays: 0,
+    sortBy: 'spend_desc',
+  });
+
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -482,9 +497,25 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
   // Load real-time data from Supabase
-  const loadCustomerOverview = async () => {
+  const loadCustomerOverview = async (overrideFilters?: Partial<CRMFilterState>) => {
     try {
-      const data = await SupabaseDashboardService.getUmkmCrmCustomerListTelemetry();
+      const activeFilters = { ...crmFilters, ...(overrideFilters || {}) };
+      const effectiveSegment = activeFilters.segment !== 'all' ? activeFilters.segment : (segmentFilter !== 'Semua Segment' ? segmentFilter : 'all');
+      const effectiveStatus = activeFilters.status !== 'all' ? activeFilters.status : (statusFilter !== 'Semua Status' ? statusFilter : 'all');
+
+      const data = await SupabaseDashboardService.getUmkmCrmFilteredCustomers({
+        segment: effectiveSegment,
+        status: effectiveStatus,
+        cityRegion: activeFilters.cityRegion,
+        search: searchQuery,
+        minOrders: activeFilters.minOrders,
+        maxOrders: activeFilters.maxOrders,
+        minSpend: activeFilters.minSpend,
+        maxSpend: activeFilters.maxSpend,
+        dateRangeDays: activeFilters.dateRangeDays,
+        sortBy: activeFilters.sortBy,
+      });
+
       if (data && data.customers) {
         setCustomerData((prev: any) => ({
           ...prev,
@@ -518,7 +549,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
       loadCustomerOverview();
     });
     return () => unsubscribe();
-  }, [currentSubTab]);
+  }, [currentSubTab, searchQuery, segmentFilter, statusFilter, crmFilters]);
 
   // Handle Realtime Customer Delete
   const handleDeleteCustomer = async (cust: any) => {
@@ -539,44 +570,51 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
     }
   };
 
-  // Filtered customers table
+  // Filtered & Sorted customers table
   const filteredCustomers = customerData.customers.filter((c: any) => {
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    // Search filter
+    const matchesSearch = !searchQuery || 
+                          (c.name && c.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                          (c.email && c.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
                           (c.phone && c.phone.includes(searchQuery));
-    const matchesSegment = segmentFilter === 'Semua Segment' || c.segment === segmentFilter;
-    const matchesStatus = statusFilter === 'Semua Status' || c.status === statusFilter;
-    return matchesSearch && matchesSegment && matchesStatus;
+    
+    // Segment filter
+    const effectiveSeg = crmFilters.segment !== 'all' ? crmFilters.segment : segmentFilter;
+    const matchesSegment = effectiveSeg === 'Semua Segment' || effectiveSeg === 'all' || c.segment === effectiveSeg;
+
+    // Status filter
+    const effectiveStatus = crmFilters.status !== 'all' ? crmFilters.status : statusFilter;
+    const matchesStatus = effectiveStatus === 'Semua Status' || effectiveStatus === 'all' || c.status === effectiveStatus;
+
+    // Region filter
+    const matchesRegion = crmFilters.cityRegion === 'all' || !crmFilters.cityRegion || (c.city_region && c.city_region.toLowerCase().includes(crmFilters.cityRegion.toLowerCase()));
+
+    // Spend filter
+    const spend = Number(c.total_spend_idr || 0);
+    const matchesSpend = spend >= (crmFilters.minSpend || 0) && spend <= (crmFilters.maxSpend || 999999999);
+
+    // Orders filter
+    const orders = Number(c.total_orders || 0);
+    const matchesOrders = orders >= (crmFilters.minOrders || 0) && orders <= (crmFilters.maxOrders || 999999);
+
+    return matchesSearch && matchesSegment && matchesStatus && matchesRegion && matchesSpend && matchesOrders;
   });
 
-  // Dynamic Page Slice Generation for seamless sliding (Page 1, 2, 3... 250)
+  // Apply sorting
+  const sortedFilteredCustomers = [...filteredCustomers].sort((a: any, b: any) => {
+    if (crmFilters.sortBy === 'spend_desc') return (b.total_spend_idr || 0) - (a.total_spend_idr || 0);
+    if (crmFilters.sortBy === 'spend_asc') return (a.total_spend_idr || 0) - (b.total_spend_idr || 0);
+    if (crmFilters.sortBy === 'orders_desc') return (b.total_orders || 0) - (a.total_orders || 0);
+    if (crmFilters.sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+    if (crmFilters.sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '');
+    return 0;
+  });
+
+  // Clean Pagination without fabricated mock data
   const pageSize = 5;
   const getPaginatedCustomers = () => {
     const startIndex = (currentPage - 1) * pageSize;
-    if (filteredCustomers.length >= startIndex + pageSize) {
-      return filteredCustomers.slice(startIndex, startIndex + pageSize);
-    }
-    return Array.from({ length: Math.min(pageSize, filteredCustomers.length || 5) }).map((_, i) => {
-      const idx = startIndex + i + 1;
-      const baseCustomer = (filteredCustomers.length > 0) ? filteredCustomers[i % filteredCustomers.length] : {
-        name: 'Pelanggan UMKM',
-        email: `customer${idx}@zegaai.site`,
-        phone: `+62 812-${String(1000 + idx).padStart(4, '0')}-9000`,
-        segment: ['VIP', 'Loyal', 'Repeat', 'New'][idx % 4],
-        status: idx % 7 === 0 ? 'Tidak Aktif' : 'Aktif',
-        avatar_url: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`
-      };
-      const code = `CUST-${String(idx).padStart(3, '0')}`;
-      return {
-        ...baseCustomer,
-        id: `c_page_${idx}`,
-        customer_code: code,
-        name: idx <= 5 ? baseCustomer.name : `${baseCustomer.name} #${idx}`,
-        email: idx <= 5 ? baseCustomer.email : `cust${idx}@zegaai.site`,
-        total_orders: ((idx * 3) % 25) + 1,
-        total_spend_idr: (((idx * 185000) % 4800000) + 350000)
-      };
-    });
+    return sortedFilteredCustomers.slice(startIndex, startIndex + pageSize);
   };
 
   const paginatedCustomers = getPaginatedCustomers();
@@ -938,8 +976,83 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     <option value="Repeat">Repeat</option>
                     <option value="New">New</option>
                   </select>
+
+                  {/* Advanced Multi-Criteria Filter Button */}
+                  <button
+                    onClick={() => setIsFilterModalOpen(true)}
+                    className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0 || crmFilters.dateRangeDays > 0
+                        ? 'border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-300'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                    }`}
+                  >
+                    <Filter size={13} className="text-orange-500" />
+                    <span>Filter Advanced</span>
+                    {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
+                      <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
+                    )}
+                  </button>
                 </div>
               </div>
+
+              {/* Active Filter Chips Bar */}
+              {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0 || searchQuery !== '' || segmentFilter !== 'Semua Segment') && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
+                  <span className="text-slate-400 mr-1 font-semibold">Filter Aktif:</span>
+                  {searchQuery && (
+                    <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
+                      Pencarian: "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
+                    </span>
+                  )}
+                  {crmFilters.segment !== 'all' && (
+                    <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
+                      Segmen: {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
+                    </span>
+                  )}
+                  {crmFilters.status !== 'all' && (
+                    <span className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 flex items-center gap-1">
+                      Status: {crmFilters.status} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, status: 'all' })} />
+                    </span>
+                  )}
+                  {crmFilters.cityRegion !== 'all' && (
+                    <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900 flex items-center gap-1">
+                      Wilayah: {crmFilters.cityRegion} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, cityRegion: 'all' })} />
+                    </span>
+                  )}
+                  {crmFilters.minOrders > 0 && (
+                    <span className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-1">
+                      Orders: ≥ {crmFilters.minOrders} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minOrders: 0 })} />
+                    </span>
+                  )}
+                  {crmFilters.minSpend > 0 && (
+                    <span className="px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center gap-1">
+                      Spend: ≥ Rp{crmFilters.minSpend.toLocaleString('id-ID')} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minSpend: 0 })} />
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSegmentFilter('Semua Segment');
+                      setStatusFilter('Semua Status');
+                      setCrmFilters({
+                        segment: 'all',
+                        status: 'all',
+                        cityRegion: 'all',
+                        minOrders: 0,
+                        maxOrders: 999999,
+                        minSpend: 0,
+                        maxSpend: 999999999,
+                        dateRangeDays: 0,
+                        sortBy: 'spend_desc',
+                      });
+                      triggerToast('✓ Semua filter telah direset.');
+                    }}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline ml-2 cursor-pointer"
+                  >
+                    Reset Semua
+                  </button>
+                </div>
+              )}
 
             {/* Table Content */}
             {filteredCustomers.length === 0 ? (
@@ -1441,13 +1554,18 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           </button>
 
           <button 
-            onClick={() => {
-              setSegmentFilter(segmentFilter === 'Semua Segment' ? 'VIP' : 'Semua Segment');
-              triggerToast(segmentFilter === 'Semua Segment' ? 'Filter Segment: VIP' : 'Filter Reset: Semua Segment');
-            }}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs"
+            onClick={() => setIsFilterModalOpen(true)}
+            className={`px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+              crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0
+                ? 'border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-300'
+                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+            }`}
           >
-            <Filter size={14} /> <span>Filter ({segmentFilter})</span>
+            <Filter size={14} className="text-orange-500" />
+            <span>Filter Advanced</span>
+            {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
+              <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
+            )}
           </button>
 
           <button 
@@ -1746,13 +1864,80 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
 
               {/* Filter Button */}
               <button 
-                onClick={() => triggerToast(`Status Filter: ${statusFilter}, Segment: ${segmentFilter}`)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+                onClick={() => setIsFilterModalOpen(true)}
+                className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                  crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0
+                    ? 'border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-300'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                }`}
               >
-                <Filter size={12} /> <span>Filter</span>
+                <Filter size={12} className="text-orange-500" />
+                <span>Filter Advanced</span>
+                {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
+                  <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
+                )}
               </button>
             </div>
           </div>
+
+          {/* Active Filter Chips Bar for Main Overview Table */}
+          {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0 || searchQuery !== '' || segmentFilter !== 'Semua Segment') && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
+              <span className="text-slate-400 mr-1 font-semibold">Filter Aktif:</span>
+              {searchQuery && (
+                <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
+                  Pencarian: "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
+                </span>
+              )}
+              {crmFilters.segment !== 'all' && (
+                <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
+                  Segmen: {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
+                </span>
+              )}
+              {crmFilters.status !== 'all' && (
+                <span className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 flex items-center gap-1">
+                  Status: {crmFilters.status} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, status: 'all' })} />
+                </span>
+              )}
+              {crmFilters.cityRegion !== 'all' && (
+                <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900 flex items-center gap-1">
+                  Wilayah: {crmFilters.cityRegion} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, cityRegion: 'all' })} />
+                </span>
+              )}
+              {crmFilters.minOrders > 0 && (
+                <span className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-1">
+                  Orders: ≥ {crmFilters.minOrders} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minOrders: 0 })} />
+                </span>
+              )}
+              {crmFilters.minSpend > 0 && (
+                <span className="px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center gap-1">
+                  Spend: ≥ Rp{crmFilters.minSpend.toLocaleString('id-ID')} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minSpend: 0 })} />
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSegmentFilter('Semua Segment');
+                  setStatusFilter('Semua Status');
+                  setCrmFilters({
+                    segment: 'all',
+                    status: 'all',
+                    cityRegion: 'all',
+                    minOrders: 0,
+                    maxOrders: 999999,
+                    minSpend: 0,
+                    maxSpend: 999999999,
+                    dateRangeDays: 0,
+                    sortBy: 'spend_desc',
+                  });
+                  triggerToast('✓ Semua filter telah direset.');
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline ml-2 cursor-pointer"
+              >
+                Reset Semua
+              </button>
+            </div>
+          )}
 
           {/* Table Rendering */}
           <div className="overflow-x-auto">
@@ -2069,6 +2254,36 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
         isOpen={isExportModalOpen} 
         onClose={() => setIsExportModalOpen(false)} 
         triggerToast={triggerToast} 
+      />
+
+      <FilterCustomerModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        triggerToast={triggerToast}
+        filters={crmFilters}
+        onApplyFilters={(newFilters) => {
+          setCrmFilters(newFilters);
+          loadCustomerOverview(newFilters);
+        }}
+        onResetFilters={() => {
+          const defaultF: CRMFilterState = {
+            segment: 'all',
+            status: 'all',
+            cityRegion: 'all',
+            minOrders: 0,
+            maxOrders: 999999,
+            minSpend: 0,
+            maxSpend: 999999999,
+            dateRangeDays: 0,
+            sortBy: 'spend_desc',
+          };
+          setCrmFilters(defaultF);
+          setSearchQuery('');
+          setSegmentFilter('Semua Segment');
+          setStatusFilter('Semua Status');
+          loadCustomerOverview(defaultF);
+        }}
+        matchingCount={filteredCustomers.length}
       />
     </div>
   );

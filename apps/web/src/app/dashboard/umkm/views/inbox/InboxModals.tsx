@@ -31,10 +31,10 @@ function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
 // 1. Manage Integrations Modal
 export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isOpen: boolean; onClose: () => void; triggerToast: (msg: string) => void }) {
   const [channels, setChannels] = useState([
-    { name: 'WhatsApp Business API', icon: MessageSquare, color: 'text-emerald-500', connected: true, webhook: 'https://api.zega.ai/webhooks/wa/store-123' },
-    { name: 'Instagram Direct', icon: Instagram, color: 'text-pink-500', connected: true, webhook: 'https://api.zega.ai/webhooks/ig/store-123' },
-    { name: 'Shopee Seller Chat', icon: ShoppingBag, color: 'text-orange-500', connected: true, webhook: 'https://api.zega.ai/webhooks/shopee/store-123' },
-    { name: 'TikTok Shop Messaging', icon: Video, color: 'text-slate-900 dark:text-slate-100', connected: true, webhook: 'https://api.zega.ai/webhooks/tiktok/store-123' },
+    { name: 'WhatsApp Business API', icon: MessageSquare, color: 'text-emerald-500', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/wa/store-123' },
+    { name: 'Instagram Direct', icon: Instagram, color: 'text-pink-500', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/ig/store-123' },
+    { name: 'Shopee Seller Chat', icon: ShoppingBag, color: 'text-orange-500', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/shopee/store-123' },
+    { name: 'TikTok Shop Messaging', icon: Video, color: 'text-slate-900 dark:text-slate-100', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/tiktok/store-123' },
     { name: 'Email SMTP / IMAP', icon: FileText, color: 'text-blue-500', connected: true, webhook: 'support@toko-cikcik.com' },
     { name: 'Facebook Messenger', icon: MessageSquare, color: 'text-indigo-500', connected: false, webhook: 'Not Connected' },
   ]);

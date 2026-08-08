@@ -9,8 +9,16 @@ import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
   ExportReportModal, AIHealthRecommendationModal, 
-  ScheduleReportModal, QuickAccessDetailModal 
+  ScheduleReportModal, QuickAccessDetailModal,
+  DatePickerModal, ReportsFilterModal
 } from './reports/ReportModals';
+import { CustomReportModal } from './reports/CustomReportModal';
+import { AiRecommendationsSubView } from './reports/AiRecommendationsSubView';
+import { SalesSubView } from './reports/SalesSubView';
+import { MarketingSubView } from './reports/MarketingSubView';
+import { StoreSubView } from './reports/StoreSubView';
+import { FinanceSubView } from './reports/FinanceSubView';
+import { CustomersSubView } from './reports/CustomersSubView';
 
 import {
   Chart as ChartJS,
@@ -38,13 +46,94 @@ ChartJS.register(
   Filler
 );
 
+const TAB_QUERY_MAP: Record<string, string> = {
+  'overview': 'Ringkasan Overview',
+  'sales': 'Laporan Penjualan',
+  'marketing': 'Laporan Marketing',
+  'store': 'Laporan Store',
+  'store-report': 'Laporan Store',
+  'store_report': 'Laporan Store',
+  'finance': 'Laporan Keuangan',
+  'money-reports': 'Laporan Keuangan',
+  'money_reports': 'Laporan Keuangan',
+  'customers': 'Laporan Pelanggan',
+  'ai-recommendations': 'Rekomendasi AI',
+};
+
+const REVERSE_TAB_MAP: Record<string, string> = {
+  'Ringkasan Overview': 'overview',
+  'Laporan Penjualan': 'sales',
+  'Laporan Marketing': 'marketing',
+  'Laporan Store': 'store',
+  'Laporan Keuangan': 'finance',
+  'Laporan Pelanggan': 'customers',
+  'Rekomendasi AI': 'ai-recommendations',
+};
+
+// Smart Brand Logo Resolver for Overview Sales Channels
+export const getPerformerLogoUrl = (name: string): string => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('whatsapp') || n.includes('wa')) {
+    return '/assets/logo/whatsapp-for-business.webp';
+  }
+  if (n.includes('shopee')) {
+    return '/assets/logo/shopee.png';
+  }
+  if (n.includes('instagram') || n.includes('ig')) {
+    return '/assets/logo/instagram.png';
+  }
+  if (n.includes('tiktok')) {
+    return '/assets/logo/tiktok.webp';
+  }
+  return '/assets/logo/zegalogo.png';
+};
+
 interface ReportsViewProps {
   triggerToast: (msg: string) => void;
 }
 
 export function ReportsView({ triggerToast }: ReportsViewProps) {
   const { t } = useLanguage();
-  const [subTab, setSubTab] = useState('Overview');
+
+  const getInitialSubTab = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab')?.toLowerCase();
+      if (tabParam && TAB_QUERY_MAP[tabParam]) {
+        return TAB_QUERY_MAP[tabParam];
+      }
+    }
+    return 'Ringkasan Overview';
+  };
+
+  const [subTab, setSubTabState] = useState<string>(getInitialSubTab);
+
+  const setSubTab = (t: string) => {
+    setSubTabState(t);
+    if (typeof window !== 'undefined') {
+      const slug = REVERSE_TAB_MAP[t] || 'overview';
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') !== slug) {
+        params.set('tab', slug);
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.pushState({}, '', newUrl);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab')?.toLowerCase();
+        if (tabParam && TAB_QUERY_MAP[tabParam]) {
+          setSubTabState(TAB_QUERY_MAP[tabParam]);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [timeHorizon, setTimeHorizon] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [dateRange, setDateRange] = useState('1 Jul – 31 Jul 2026');
 
@@ -52,6 +141,9 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isCustomReportModalOpen, setIsCustomReportModalOpen] = useState(false);
+  const [isDatePickerModalOpen, setIsDatePickerModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [quickAccessModalTitle, setQuickAccessModalTitle] = useState<string | null>(null);
 
   // Consolidated Reports Data State
@@ -117,25 +209,25 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
     ]
   });
 
-  // Load Realtime Data from Supabase
+  // Load Realtime Data from Supabase with Subtab & Time Horizon filters
   const loadReportsOverview = async () => {
     try {
-      const data = await SupabaseDashboardService.getUmkmReportsOverview();
+      const data = await SupabaseDashboardService.getUmkmAiIntelligenceOverview(subTab, timeHorizon, dateRange);
       if (data) {
         setReportsData((prev: any) => ({
           ...prev,
-          metrics: data.metrics || prev.metrics,
+          metrics: data.metrics && Object.keys(data.metrics).length > 0 ? data.metrics : prev.metrics,
           revenueTime: data.revenueTime?.length > 0 ? data.revenueTime : prev.revenueTime,
           salesChannels: data.salesChannels?.length > 0 ? data.salesChannels : prev.salesChannels,
-          healthScore: data.healthScore || prev.healthScore,
+          healthScore: data.healthScore && Object.keys(data.healthScore).length > 0 ? data.healthScore : prev.healthScore,
           topProducts: data.topProducts?.length > 0 ? data.topProducts : prev.topProducts,
           topCustomers: data.topCustomers?.length > 0 ? data.topCustomers : prev.topCustomers,
-          monthlySummary: data.monthlySummary || prev.monthlySummary,
+          monthlySummary: data.monthlySummary && Object.keys(data.monthlySummary).length > 0 ? data.monthlySummary : prev.monthlySummary,
           schedules: data.schedules?.length > 0 ? data.schedules : prev.schedules
         }));
       }
     } catch (e) {
-      console.warn('Reports overview load error:', e);
+      console.warn('AI Intelligence overview load error:', e);
     }
   };
 
@@ -145,7 +237,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
       loadReportsOverview();
     });
     return () => unsubscribe();
-  }, []);
+  }, [subTab, timeHorizon, dateRange]);
 
   // 1. Multi-series Chart Data (Revenue & Orders Over Time)
   const revenueLabels = reportsData.revenueTime.map((r: any) => r.period_label);
@@ -300,12 +392,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Date Picker Selector */}
           <button
-            onClick={() => {
-              const ranges = ['1 Jul – 31 Jul 2026', '1 Jun – 30 Jun 2026', 'Q2 2026', 'Tahun 2026'];
-              const next = ranges[(ranges.indexOf(dateRange) + 1) % ranges.length];
-              setDateRange(next);
-              triggerToast(`Periode Laporan disesuaikan ke: ${next}`);
-            }}
+            onClick={() => setIsDatePickerModalOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-300 shadow-xs hover:border-orange-500 cursor-pointer transition-colors"
           >
             <Calendar size={14} className="text-orange-500" />
@@ -314,7 +401,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
           {/* Filter Button */}
           <button 
-            onClick={() => triggerToast(`Filter Laporan Aktif: ${subTab} (${dateRange})`)}
+            onClick={() => setIsFilterModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs"
           >
             <Filter size={14} /> <span>Filter</span>
@@ -332,7 +419,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
       {/* 2. Top Navigation Sub-Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-6 text-xs font-bold overflow-x-auto no-scrollbar">
-        {['Overview', 'Sales', 'Marketing', 'Store', 'Finance', 'Customers'].map((t) => (
+        {['Ringkasan Overview', 'Laporan Penjualan', 'Laporan Marketing', 'Laporan Store', 'Laporan Keuangan', 'Laporan Pelanggan', 'Rekomendasi AI'].map((t) => (
           <button 
             key={t}
             onClick={() => {
@@ -350,14 +437,24 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         ))}
       </div>
 
+      {/* SUB-TAB CONTENT ROUTING */}
+      {(subTab === 'Laporan Penjualan' || subTab === 'Sales') && <SalesSubView triggerToast={triggerToast} dateRange={dateRange} reportsData={reportsData} />}
+      {(subTab === 'Laporan Marketing' || subTab === 'Marketing') && <MarketingSubView triggerToast={triggerToast} dateRange={dateRange} reportsData={reportsData} />}
+      {(subTab === 'Laporan Store' || subTab === 'Store') && <StoreSubView triggerToast={triggerToast} dateRange={dateRange} reportsData={reportsData} />}
+      {(subTab === 'Laporan Keuangan' || subTab === 'Finance') && <FinanceSubView triggerToast={triggerToast} dateRange={dateRange} reportsData={reportsData} />}
+      {(subTab === 'Laporan Pelanggan' || subTab === 'Customers') && <CustomersSubView triggerToast={triggerToast} dateRange={dateRange} reportsData={reportsData} />}
+      {subTab === 'Rekomendasi AI' && <AiRecommendationsSubView triggerToast={triggerToast} dateRange={dateRange} />}
+
+      {/* OVERVIEW TAB CONTENT */}
+      {(subTab === 'Ringkasan Overview' || subTab === 'Overview') && <>
       {/* 3. Top 5 Metric Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
         {/* Card 1: Total Revenue */}
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-emerald-500 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>Total Revenue</span>
-            <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black">
-              $
+            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
+              <DollarSign size={16} />
             </div>
           </div>
           <div>
@@ -379,7 +476,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-orange-500 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>Orders</span>
-            <div className="size-8 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-black">
+            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
               <ShoppingBag size={16} />
             </div>
           </div>
@@ -402,7 +499,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>New Customers</span>
-            <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-black">
+            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
               <Users size={16} />
             </div>
           </div>
@@ -425,7 +522,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-purple-500 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>Avg Order Value</span>
-            <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-black">
+            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
               <BarChart3 size={16} />
             </div>
           </div>
@@ -448,7 +545,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1 hover:border-pink-500 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>Conversion Rate</span>
-            <div className="size-8 rounded-xl bg-pink-50 text-pink-600 dark:bg-pink-950/60 flex items-center justify-center font-black">
+            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
               <Percent size={16} />
             </div>
           </div>
@@ -486,7 +583,10 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               {(['Daily', 'Weekly', 'Monthly'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setTimeHorizon(tab)}
+                  onClick={() => {
+                    setTimeHorizon(tab);
+                    triggerToast(`📅 Horizon Revenue Over Time: ${tab}`);
+                  }}
                   className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     timeHorizon === tab ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -514,23 +614,27 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             </div>
           </div>
 
-          {/* Channel Legend Breakdown */}
+          {/* Channel Legend Breakdown with R2 CDN Logos */}
           <div className="space-y-2 text-xs font-bold">
-            {reportsData.salesChannels.map((c: any, i: number) => (
-              <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color_hex }} />
-                  <span className="text-slate-700 dark:text-slate-300">{c.channel_name}</span>
+            {reportsData.salesChannels.map((c: any, i: number) => {
+              const logoUrl = getPerformerLogoUrl(c.channel_name);
+              return (
+                <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
+                  <div className="flex items-center gap-2">
+                    <img src={logoUrl} alt={c.channel_name} className="size-5 rounded-md object-contain shrink-0" />
+                    <span className="text-slate-700 dark:text-slate-300">{c.channel_name}</span>
+                  </div>
+                  <span className="font-mono text-slate-900 dark:text-slate-100">
+                    {c.percentage}% <span className="text-slate-400 font-normal">(Rp{(c.revenue_idr / 1000000).toFixed(1)}M)</span>
+                  </span>
                 </div>
-                <span className="font-mono text-slate-900 dark:text-slate-100">
-                  {c.percentage}% <span className="text-slate-400 font-normal">(Rp{(c.revenue_idr / 1000000).toFixed(1)}M)</span>
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
+
           <button 
-            onClick={() => { setQuickAccessModalTitle('Analisis Channel Penjualan'); }}
+            onClick={() => setSubTab('Laporan Penjualan')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
             <span>Lihat Semua Channel</span>
@@ -563,7 +667,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
           </div>
 
           <button 
-            onClick={() => setIsHealthModalOpen(true)}
+            onClick={() => setSubTab('Rekomendasi AI')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
             <span>Lihat Rekomendasi AI</span>
@@ -663,7 +767,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
           </div>
 
           <button 
-            onClick={() => setQuickAccessModalTitle('Laporan Top Pelanggan')}
+            onClick={() => setSubTab('Laporan Pelanggan')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
             <span>Lihat Semua Pelanggan</span>
@@ -707,7 +811,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
           </div>
 
           <button 
-            onClick={() => setQuickAccessModalTitle('Ringkasan Bulanan Komprehensif')}
+            onClick={() => setIsExportModalOpen(true)}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
             <span>Lihat Laporan Lengkap</span>
@@ -724,18 +828,24 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { title: 'Laporan Penjualan', desc: 'Analisis penjualan & order', icon: BarChart3, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
-              { title: 'Laporan Marketing', desc: 'Evaluasi campaign & ROI', icon: TrendingUp, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
-              { title: 'Laporan Store', desc: 'Produk, stok & performa', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
-              { title: 'Laporan Keuangan', desc: 'Arus kas & profitabilitas', icon: DollarSign, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
-              { title: 'Laporan Pelanggan', desc: 'Akuisisi & retensi', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/60' },
-              { title: 'Custom Report', desc: 'Buat laporan kustom', icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/60' }
+              { title: 'Laporan Penjualan', desc: 'Analisis penjualan & order', tab: 'Laporan Penjualan', icon: BarChart3, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
+              { title: 'Laporan Marketing', desc: 'Evaluasi campaign & ROI', tab: 'Laporan Marketing', icon: TrendingUp, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
+              { title: 'Laporan Store', desc: 'Produk, stok & performa', tab: 'Laporan Store', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
+              { title: 'Laporan Keuangan', desc: 'Arus kas & profitabilitas', tab: 'Laporan Keuangan', icon: DollarSign, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
+              { title: 'Laporan Pelanggan', desc: 'Akuisisi & retensi', tab: 'Laporan Pelanggan', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/60' },
+              { title: 'Custom Report', desc: 'Buat laporan kustom AI', tab: 'Custom', icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/60' }
             ].map((item, i) => {
               const IconComp = item.icon;
               return (
                 <button
                   key={i}
-                  onClick={() => setQuickAccessModalTitle(item.title)}
+                  onClick={() => {
+                    if (item.tab === 'Custom') {
+                      setIsCustomReportModalOpen(true);
+                    } else {
+                      setSubTab(item.tab);
+                    }
+                  }}
                   className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 hover:border-orange-500 dark:hover:border-orange-500 text-left space-y-2 transition-all cursor-pointer group shadow-xs"
                 >
                   <div className={`size-8 rounded-xl ${item.color} flex items-center justify-center`}>
@@ -780,6 +890,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
           </button>
         </div>
       </div>
+      </>}
 
       {/* Action Modals */}
       <ExportReportModal
@@ -801,6 +912,27 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         onClose={() => setIsScheduleModalOpen(false)}
         triggerToast={triggerToast}
         onRefresh={loadReportsOverview}
+      />
+
+      <CustomReportModal
+        isOpen={isCustomReportModalOpen}
+        onClose={() => setIsCustomReportModalOpen(false)}
+        triggerToast={triggerToast}
+      />
+
+      <DatePickerModal
+        isOpen={isDatePickerModalOpen}
+        onClose={() => setIsDatePickerModalOpen(false)}
+        currentRange={dateRange}
+        onSelectRange={(range) => setDateRange(range)}
+        triggerToast={triggerToast}
+      />
+
+      <ReportsFilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        subTab={subTab}
+        triggerToast={triggerToast}
       />
 
       {quickAccessModalTitle && (

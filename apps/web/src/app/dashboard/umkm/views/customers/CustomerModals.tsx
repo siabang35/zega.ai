@@ -834,3 +834,255 @@ export function ExportCustomerDataModal({ isOpen, onClose, triggerToast }: Modal
     </div>
   );
 }
+
+/**
+ * 7. Advanced Multi-Criteria CRM Filter Modal
+ */
+export interface CRMFilterState {
+  segment: string;
+  status: string;
+  cityRegion: string;
+  minOrders: number;
+  maxOrders: number;
+  minSpend: number;
+  maxSpend: number;
+  dateRangeDays: number;
+  sortBy: string;
+}
+
+export interface FilterCustomerModalProps extends ModalBaseProps {
+  filters: CRMFilterState;
+  onApplyFilters: (newFilters: CRMFilterState) => void;
+  onResetFilters: () => void;
+  matchingCount?: number;
+}
+
+export function FilterCustomerModal({
+  isOpen,
+  onClose,
+  triggerToast,
+  filters,
+  onApplyFilters,
+  onResetFilters,
+  matchingCount = 0
+}: FilterCustomerModalProps) {
+  const [localFilters, setLocalFilters] = useState<CRMFilterState>(filters);
+
+  React.useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleApply = () => {
+    onApplyFilters(localFilters);
+    triggerToast('✓ Filter basis data pelanggan berhasil diterapkan!');
+    onClose();
+  };
+
+  const handleReset = () => {
+    onResetFilters();
+    triggerToast('✓ Filter telah direset ke tampilan default.');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="size-8 rounded-xl bg-orange-500/10 text-orange-500 grid place-items-center">
+              <Filter size={18} />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Filter Multi-Kriteria Pelanggan</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Saring data pelanggan berdasarkan segmentasi, lokasi, spend, dan aktivitas.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 text-xs font-semibold">
+          {/* Segmentasi Pelanggan */}
+          <div>
+            <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">Segmentasi Pelanggan</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'all', label: 'Semua Segment' },
+                { id: 'VIP', label: 'VIP' },
+                { id: 'Loyal', label: 'Loyal' },
+                { id: 'Repeat', label: 'Repeat' },
+                { id: 'New', label: 'New' },
+                { id: 'Churn Risk', label: 'Churn Risk' },
+              ].map((item) => {
+                const active = localFilters.segment === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setLocalFilters({ ...localFilters, segment: item.id })}
+                    className={`py-2 px-3 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
+                      active
+                        ? 'border-orange-500 bg-orange-500 text-white shadow-xs'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:border-orange-300'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Status Pelanggan & Wilayah */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">Status Pelanggan</label>
+              <select
+                value={localFilters.status}
+                onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+              >
+                <option value="all">Semua Status</option>
+                <option value="Aktif">Aktif</option>
+                <option value="Inaktif">Tidak Aktif / Inaktif</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">Wilayah / Provinsi</label>
+              <select
+                value={localFilters.cityRegion}
+                onChange={(e) => setLocalFilters({ ...localFilters, cityRegion: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+              >
+                <option value="all">Semua Wilayah</option>
+                <option value="DKI Jakarta">DKI Jakarta</option>
+                <option value="Jawa Barat">Jawa Barat</option>
+                <option value="Jawa Tengah">Jawa Tengah</option>
+                <option value="Jawa Timur">Jawa Timur</option>
+                <option value="Sumatera Utara">Sumatera Utara</option>
+                <option value="Bali">Bali</option>
+                <option value="Sulawesi Selatan">Sulawesi Selatan</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Filter Range Order & Spend */}
+          <div className="space-y-3 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/60">
+            <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">Rentang Transaksi & Total Belanja</span>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Min Pesanan (Order)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={localFilters.minOrders}
+                  onChange={(e) => setLocalFilters({ ...localFilters, minOrders: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Max Pesanan (Order)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={localFilters.maxOrders}
+                  onChange={(e) => setLocalFilters({ ...localFilters, maxOrders: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Min Belanja (IDR)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={50000}
+                  value={localFilters.minSpend}
+                  onChange={(e) => setLocalFilters({ ...localFilters, minSpend: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Max Belanja (IDR)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={500000}
+                  value={localFilters.maxSpend}
+                  onChange={(e) => setLocalFilters({ ...localFilters, maxSpend: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Periode Terakhir & Sorting */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">Aktivitas Terakhir (Recency)</label>
+              <select
+                value={localFilters.dateRangeDays}
+                onChange={(e) => setLocalFilters({ ...localFilters, dateRangeDays: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+              >
+                <option value={0}>Semua Waktu</option>
+                <option value={7}>7 Hari Terakhir</option>
+                <option value={30}>30 Hari Terakhir</option>
+                <option value={90}>90 Hari Terakhir</option>
+                <option value={365}>1 Tahun Terakhir</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">Pengurutan (Sort By)</label>
+              <select
+                value={localFilters.sortBy}
+                onChange={(e) => setLocalFilters({ ...localFilters, sortBy: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+              >
+                <option value="spend_desc">Total Belanja (Tertinggi)</option>
+                <option value="spend_asc">Total Belanja (Terendah)</option>
+                <option value="orders_desc">Jumlah Pesanan (Terbanyak)</option>
+                <option value="recent_desc">Pesanan Terakhir (Terbaru)</option>
+                <option value="name_asc">Nama Pelanggan (A-Z)</option>
+                <option value="name_desc">Nama Pelanggan (Z-A)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            Reset Filter
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-md flex items-center gap-1.5"
+          >
+            <span>Terapkan Filter</span>
+            {matchingCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-white/20 text-[11px] font-black">
+                {matchingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

@@ -702,5 +702,92 @@ Instruksi Keamanan & Operasional Utama:
       return reply.status(500).send({ success: false, error: { message: err?.message } });
     }
   });
+
+  /**
+   * POST /v1/umkm/crm/filtered-customers
+   * Advanced multi-criteria CRM customer filtering endpoint with Cloudflare R2 CDN avatar resolution
+   */
+  fastify.post('/crm/filtered-customers', async (request, reply) => {
+    const body = request.body as {
+      storeId?: string;
+      segment?: string;
+      status?: string;
+      cityRegion?: string;
+      search?: string;
+      minOrders?: number;
+      maxOrders?: number;
+      minSpend?: number;
+      maxSpend?: number;
+      dateRangeDays?: number;
+      sortBy?: string;
+      limit?: number;
+      offset?: number;
+    };
+
+    const storeId = body?.storeId || 'STORE-DEMO-1283';
+    const supabase = SupabaseService.getClient();
+
+    if (!supabase) {
+      const baseCdn = 'https://cdn.zegaai.site';
+      return reply.send({
+        success: true,
+        filters_applied: body || {},
+        metrics: {
+          total_matching_customers: 6,
+          total_revenue_idr: 18800000.0,
+          active_customers: 5,
+          vip_customers: 2,
+          loyal_customers: 1,
+          repeat_customers: 1,
+          new_customers: 1,
+          churn_risk_customers: 1,
+        },
+        total_count: 6,
+        customers: [
+          { id: 'c1', customer_code: 'CUST-001', name: 'Siti Aisyah', email: 'siti.aisyah@example.com', phone: '+62 812-3456-7890', segment: 'VIP', total_orders: 18, total_spend_idr: 4500000, last_order_at: '2026-08-07 14:30', status: 'Aktif', city_region: 'DKI Jakarta', avatar_url: `${baseCdn}/assets/avatar/avatar_1.webp` },
+          { id: 'c2', customer_code: 'CUST-002', name: 'Budi Santoso', email: 'budi.santoso@example.com', phone: '+62 813-9876-5432', segment: 'Loyal', total_orders: 12, total_spend_idr: 3200000, last_order_at: '2026-08-05 11:20', status: 'Aktif', city_region: 'Jawa Barat', avatar_url: `${baseCdn}/assets/avatar/avatar_2.webp` },
+          { id: 'c3', customer_code: 'CUST-003', name: 'Dewi Lestari', email: 'dewi.lestari@example.com', phone: '+62 856-1122-3344', segment: 'Repeat', total_orders: 8, total_spend_idr: 1850000, last_order_at: '2026-08-03 09:15', status: 'Aktif', city_region: 'Jawa Tengah', avatar_url: `${baseCdn}/assets/avatar/avatar_3.webp` },
+        ],
+      });
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_umkm_crm_filtered_customers', {
+        p_store_id: storeId,
+        p_segment: body?.segment || 'all',
+        p_status: body?.status || 'all',
+        p_city_region: body?.cityRegion || 'all',
+        p_search: body?.search || '',
+        p_min_orders: body?.minOrders ?? 0,
+        p_max_orders: body?.maxOrders ?? 999999,
+        p_min_spend: body?.minSpend ?? 0,
+        p_max_spend: body?.maxSpend ?? 999999999,
+        p_date_range_days: body?.dateRangeDays ?? 0,
+        p_sort_by: body?.sortBy || 'spend_desc',
+        p_limit: body?.limit || 50,
+        p_offset: body?.offset || 0,
+      });
+
+      if (error) {
+        return reply.status(400).send({ success: false, error: { message: error.message } });
+      }
+
+      // Ensure R2 CDN avatar URLs
+      const baseCdn = 'https://cdn.zegaai.site';
+      if (data && Array.isArray(data.customers)) {
+        data.customers = data.customers.map((c: any) => ({
+          ...c,
+          avatar_url: (c.avatar_url && c.avatar_url.startsWith('http')) 
+            ? c.avatar_url 
+            : `${baseCdn}${c.avatar_url?.startsWith('/') ? '' : '/'}${c.avatar_url || 'assets/avatar/avatar_1.webp'}`
+        }));
+      }
+
+      return reply.send({ success: true, ...data });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: { message: err?.message || 'Internal Server Error' } });
+    }
+  });
 };
+
 

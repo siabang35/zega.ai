@@ -59,7 +59,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
     if (externalTab === 'stock_sync' || externalTab === 'store_stock_sync') return 'stock_sync';
     if (externalTab === 'customers') return 'customers';
     if (externalTab === 'reports') return 'reports';
-    if (externalTab === 'knowledge') return 'knowledge';
+    if (externalTab === 'knowledge' || externalTab?.startsWith('knowledge')) return 'knowledge';
     if (externalTab === 'automation' || externalTab === 'sandbox') return 'automation';
     if (externalTab === 'marketplace' || externalTab === 'integrations') return 'marketplace';
     if (externalTab === 'billing') return 'billing';
@@ -113,8 +113,8 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
         <CustomersView triggerToast={triggerToast} activeSubPage={currentTab} onNavigateTab={handleTabChange} />
       )}
       {currentTab === 'reports' && <ReportsView triggerToast={triggerToast} />}
-      {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} />}
-      {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} />}
+      {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} activeSubPage={externalTab} />}
+      {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
       {currentTab === 'billing' && <BillingView triggerToast={triggerToast} />}
       {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} />}
       {currentTab === 'help' && <HelpView />}

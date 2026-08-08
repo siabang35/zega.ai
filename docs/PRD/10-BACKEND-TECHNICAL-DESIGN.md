@@ -183,7 +183,7 @@ Error classes:
 PORT=3001
 NODE_ENV=production
 LOG_LEVEL=info
-API_BASE_URL=https://api.zega.ai
+API_BASE_URL=https://zega-ai.onrender.com
 
 # Supabase
 SUPABASE_URL=https://xxx.supabase.co

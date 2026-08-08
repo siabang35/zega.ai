@@ -194,6 +194,21 @@ The web application runs locally at `http://localhost:5173` and the Fastify API 
 | `pnpm type-check` | Execute TypeScript verification across all packages |
 | `pnpm lint` | Run ESLint across apps and shared packages |
 
+### 10. 🏪 Production-Grade UMKM AI Marketplace & Real-Time Telemetry Suite
+- **SQL Migration 75 (`75_umkm_marketplace_overview_realtime.sql`)**:
+  - `umkm_marketplace_custom_requests` table schema supporting full lifecycle statuses (`pending`, `in_review`, `approved`, `fulfilled`, `rejected`) with strict RLS multi-tenant isolation.
+  - RPC `submit_umkm_marketplace_custom_ai_request`: Atomic submission procedure handling user input sanitization and tenant binding.
+  - RPC `get_umkm_marketplace_overview_telemetry`: Real-time calculation of active agent counts, total executed tasks, average latency (ms), and custom request counters.
+- **Service Layer RPC Integrations (`supabaseService.ts`)**:
+  - RPC-first methods `submitCustomAIRequest` and `fetchOverviewTelemetry` providing zero-leak data fetching.
+- **Custom AI Request Modal & Workflow (`RequestCustomAIModal`)**:
+  - Interactive enterprise modal allowing store owners to request customized AI agents with specific model preferences and budgets.
+- **Navigation Bridge & Security Realism**:
+  - Standardized cross-module routing connecting Marketplace Overview to "AI Saya", "Integrasi Saya", "Generate FAQ" (`onNavigateTab('knowledge')`), and "Pusat Bantuan".
+  - Updated Security & Trust card with enterprise claims: AES-256-GCM encryption, Supabase RLS, OWASP Level 3 pre-release audits, and isolated tenant environments.
+- **Compact Enterprise Sub-Menu Banner Standard**:
+  - Compact single-row enterprise headers (`p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs`) replacing generic gradient banners across all 6 sub-page views (`popular_agents`, `all_categories`, `all_integrations`, `marketplace_articles`, `new_agents`, `top_used_agents`).
+
 ---
 
 ## 📄 Comprehensive Documentation
@@ -214,6 +229,8 @@ Product Requirement Documents (PRD) are organized in `/docs/PRD`:
 - [32. ZEGA Copilot Enterprise Security & Multi-LLM Specification](docs/PRD/32-ZEGA-COPILOT-ENTERPRISE-SECURITY-AND-MULTI-LLM-SPEC.md)
 - [33. 2026 Flagship AI Models, 9Router Swarm & OWASP Security Specification](docs/PRD/33-ZEGA-2026-FLAGSHIP-AI-MODELS-AND-SECURITY-SPEC.md)
 - [34. ZEGA AI 6-Layer Enterprise Swarm Architecture Specification](docs/PRD/34-ZEGA-AI-6-LAYER-SWARM-ARCHITECTURE-SPEC.md)
+- [39. UMKM CRM Full-Stack Real-Time Telemetry Specification](docs/PRD/39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md)
+- [40. UMKM AI Marketplace Modernization Specification](docs/PRD/40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md)
 
 ---
 
