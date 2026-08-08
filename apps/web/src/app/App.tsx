@@ -2206,15 +2206,17 @@ function AppContent() {
   }
 
   const isPublicCheckout =
-    !currentPath.startsWith('/console') && (
-      currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
-      currentPath === '/payment' || currentPath.startsWith('/payment') ||
-      currentPath === '/pay' || currentPath.startsWith('/pay') ||
-      currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
+    !currentPath.startsWith('/console') &&
+    !currentPath.startsWith('/dashboard') &&
+    !currentPath.startsWith('/admin') && (
+      currentPath === '/checkout' || currentPath.startsWith('/checkout/') ||
+      currentPath === '/payment' || currentPath.startsWith('/payment/') ||
+      currentPath === '/pay' || currentPath.startsWith('/pay/') ||
+      currentPath === '/invoice' || currentPath.startsWith('/invoice/') ||
       (typeof window !== 'undefined' && (
-        window.location.pathname.includes('/checkout') ||
-        (window.location.pathname.includes('/payment') && !window.location.pathname.startsWith('/console')) ||
-        (window.location.pathname.includes('/pay') && !window.location.pathname.startsWith('/console')) ||
+        window.location.pathname.startsWith('/checkout') ||
+        (window.location.pathname.startsWith('/payment') && !window.location.pathname.startsWith('/console') && !window.location.pathname.startsWith('/dashboard') && !window.location.pathname.startsWith('/admin')) ||
+        (window.location.pathname.startsWith('/pay') && !window.location.pathname.startsWith('/console') && !window.location.pathname.startsWith('/dashboard') && !window.location.pathname.startsWith('/admin')) ||
         window.location.search.includes('reference=') ||
         window.location.search.includes('ref=')
       ))

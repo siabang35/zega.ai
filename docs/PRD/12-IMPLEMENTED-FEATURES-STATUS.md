@@ -166,7 +166,11 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Enterprise Settings & Mobile Realtime Governance Spec | `docs/PRD/38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md` | Documented & Verified |
 | UMKM CRM Full-Stack Real-Time Telemetry Spec | `docs/PRD/39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
 | UMKM AI Marketplace Modernization Spec | `docs/PRD/40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
+| UMKM Billing Overview Modernization Spec | `docs/PRD/41-UMKM-BILLING-OVERVIEW-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
 | Marketplace Overview SQL Migration 75 | `supabase/migrations/sql_umkm/75_umkm_marketplace_overview_realtime.sql` | Executed & RLS/RPC Ready |
+| Billing Invoices SQL Migration 83 | `supabase/migrations/sql_umkm/83_umkm_billing_invoices_realtime.sql` | Executed & Deduplication Ready |
+| Billing Overview RPC SQL Migration 84 | `supabase/migrations/sql_umkm/84_umkm_billing_overview_realtime.sql` | Executed & RPC Ready |
+| Billing Actions & Support SQL Migration 85 | `supabase/migrations/sql_umkm/85_umkm_billing_actions_and_support_realtime.sql` | Executed & RLS/Realtime Ready |
 | Custom AI Request Modal & Workflow | `apps/web/src/app/dashboard/umkm/views/marketplace/MarketplaceModals.tsx` | Verified & Production Ready |
 
 ---
@@ -186,4 +190,25 @@ The **UMKM AI Marketplace Overview & Sub-Views** (`MarketplaceView.tsx`) have be
 3. **Enterprise UI/UX & Compact Banner Standards**:
    - Redesigned Overview with 6-card capped popular agent grid, dynamic CDN asset resolution (`DynamicBrandLogo`), and realistic enterprise security specifications (AES-256-GCM, Supabase RLS, OWASP Level 3 static/dynamic audits).
    - Standardized sub-page banners (`popular_agents`, `all_categories`, `all_integrations`, `marketplace_articles`, `new_agents`, `top_used_agents`) into compact single-row enterprise headers with real-time stat badges and inline controls.
+
+---
+
+### 12.10 UMKM Billing Overview Modernization & Real-Time Telemetry
+
+The **UMKM Billing & Plan Overview Command Center** (`BillingView.tsx`) has been transformed into a full-stack financial control suite:
+
+1. **SQL Migration Suite (Migrations 83, 84 & 85)**:
+   - `83_umkm_billing_invoices_realtime.sql`: Invoice records, e-Faktur tracking (`010.000-26.xxxx`), and unique deduplication indices (`idx_umkm_billing_invoices_num`).
+   - `84_umkm_billing_overview_realtime.sql`: Stored procedure `get_umkm_billing_overview_summary` consolidating active subscription plan telemetry, billing IDR volume, usage limits (credits, employees, automations, storage), 30-day usage trends, recent invoices, and settlement transactions into a single JSON payload.
+   - `85_umkm_billing_actions_and_support_realtime.sql`: Tables `umkm_billing_plans` (Starter, Growth, Enterprise with Cloudflare R2 CDN icons) and `umkm_billing_support_tickets` with RPC procedures `submit_umkm_billing_support_ticket` and `get_umkm_billing_plans_and_support`.
+
+2. **Vector Printable PDF Engine & Bulk Exporter (`supabaseService.ts`)**:
+   - `downloadSingleInvoicePDF`: Printable A4 vector engine with official ZEGA logo, merchant details, e-Faktur tax tracking, itemized breakdown, and automated browser print triggers (`window.print()`).
+   - `exportInvoicesBulk`: Multi-format exporter (`.pdf`, `.csv`, `.json`).
+
+3. **UI/UX & Sub-Tab Quick Action Routing (`BillingView.tsx`)**:
+   - Dynamic SVG trend chart with mathematical point scaling across 7D, 30D, and 90D timeframes.
+   - Complete sub-tab quick action button routing (Download Invoice, Ubah Paket, Tambah Metode, Lihat Usage Detail, Hubungi Support).
+   - Live customer support ticket submission modal overlay writing directly to Supabase DB via RPC.
+
 

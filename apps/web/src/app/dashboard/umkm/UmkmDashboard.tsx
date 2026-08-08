@@ -115,7 +115,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'reports' && <ReportsView triggerToast={triggerToast} />}
       {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} activeSubPage={externalTab} />}
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
-      {currentTab === 'billing' && <BillingView triggerToast={triggerToast} />}
+      {currentTab === 'billing' && <BillingView triggerToast={triggerToast} activeSubPage={externalTab} />}
       {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} />}
       {currentTab === 'help' && <HelpView />}
 

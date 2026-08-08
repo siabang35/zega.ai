@@ -41,6 +41,7 @@
 | 38 | [Enterprise Settings & Mobile Realtime Governance Spec](./38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md) | `38-ENTERPRISE-SETTINGS-AND-MOBILE-REALTIME-GOVERNANCE-SPEC.md` | Modernized AdvancedTab and sub-views design parity, Supabase Realtime synchronization, Cloudflare R2 CDN assets integration, mobile pill touch scroller and zero key leak security audit |
 | 39 | [UMKM CRM Full-Stack Real-Time Telemetry Spec](./39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md) | `39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md` | Complete full-stack real-time telemetry for UMKM CRM, growth timeframes, table pagination, filter integration, and nullish coalescing guardrails |
 | 40 | [UMKM AI Marketplace Modernization Spec](./40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md) | `40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Production-grade UMKM AI Marketplace Overview modernization, SQL Migration 75, Custom AI Request workflow, Telemetry RPCs, Navigation integration, and Compact Enterprise Banners |
+| 41 | [UMKM Billing Overview Modernization Spec](./41-UMKM-BILLING-OVERVIEW-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md) | `41-UMKM-BILLING-OVERVIEW-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Production-grade UMKM Billing Overview command center modernization, SQL Migrations 83-85, printable A4 PDF vector engine, multi-format bulk exporter, dynamic SVG trend charts, and sub-tab quick action button routing |
 
 ---
 

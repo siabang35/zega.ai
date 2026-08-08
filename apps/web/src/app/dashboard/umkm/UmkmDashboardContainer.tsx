@@ -120,6 +120,16 @@ export function UmkmDashboardContainer({
     'knowledge/copywriter': 'knowledge',
     marketplace: 'integrations',
     billing: 'billing',
+    'billing/overview': 'billing',
+    'billing/invoice': 'billing',
+    'billing/invoices': 'billing',
+    'billing/usage': 'billing',
+    'billing/payment-methods': 'billing',
+    'billing/payment_methods': 'billing',
+    'billing/payments': 'billing',
+    'billing/payment': 'billing',
+    'billing/history': 'billing',
+    'billing/settings': 'billing',
     settings: 'settings',
   };
 
