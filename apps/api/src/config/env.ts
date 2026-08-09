@@ -17,10 +17,27 @@ try {
 /**
  * ZEGA AI — Environment Configuration
  *
+ * FOUNDATION HARDENING (F-ARCH-04):
+ *   - Critical security secrets (JWT_SECRET, COOKIE_SECRET) have NO defaults — startup fails if missing.
+ *   - Infrastructure credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) default to 'placeholder'
+ *     for dev convenience, but a PRODUCTION GUARD rejects placeholders in production.
+ *   - Superadmin emails MUST be explicitly configured — no hardcoded fallback.
+ *
  * All environment variables are validated at startup via Zod.
  * If any required variable is missing or invalid, the server will
  * refuse to start and print a clear error message.
  */
+
+// ── Known placeholder values that must NEVER appear in production ──
+const PLACEHOLDER_VALUES = [
+  'placeholder',
+  'placeholder-service-role-key',
+  'placeholder-anon-key',
+  'sk_test_placeholder',
+  'whsec_placeholder',
+  'https://placeholder.supabase.co',
+];
+
 const envSchema = z.object({
   // Server
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -28,7 +45,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   API_BASE_URL: z.string().url().default('http://localhost:3001'),
 
-  // Supabase
+  // Supabase — placeholder defaults for dev only, rejected in production
   SUPABASE_URL: z.string().url().default('https://placeholder.supabase.co'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).default('placeholder-service-role-key'),
   SUPABASE_ANON_KEY: z.string().min(1).default('placeholder-anon-key'),
@@ -36,7 +53,7 @@ const envSchema = z.object({
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // Stripe
+  // Stripe — placeholder defaults for dev only, rejected in production
   STRIPE_SECRET_KEY: z.string().default('sk_test_placeholder'),
   STRIPE_WEBHOOK_SECRET: z.string().default('whsec_placeholder'),
 
@@ -77,15 +94,18 @@ const envSchema = z.object({
   GITHUB_OAUTH_CLIENT_SECRET: z.string().default(''),
   OAUTH_REDIRECT_URI: z.string().default('http://localhost:5173/auth/callback'),
 
-  // Security & Encryption
-  JWT_SECRET: z.string().min(32).default('zega-ai-dev-jwt-secret-change-in-production-32chars'),
-  COOKIE_SECRET: z.string().min(32).default('zega-ai-dev-cookie-secret-change-in-production-32ch'),
+  // Security & Encryption — NO DEFAULTS for critical secrets
+  JWT_SECRET: z.string().min(32),
+  COOKIE_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string().default(''),
   SUPABASE_JWT_SECRET: z.string().default(''),
   DATABASE_URL: z.string().default(''),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().default(60000),
+
+  // Superadmin Emails — MUST be explicitly configured, no hardcoded fallback (F-ARCH-14 FIX)
+  SUPERADMIN_EMAILS: z.string().default(''),
 
   // Cloudflare Turnstile & Brevo Email Service
   CLOUDFLARE_TURNSTILE_SECRET_KEY: z.string().default(''),
@@ -117,6 +137,64 @@ const envSchema = z.object({
 
 export type EnvConfig = z.infer<typeof envSchema>;
 
+/**
+ * FOUNDATION HARDENING — Production Startup Guard
+ *
+ * In production mode, verifies that no critical configuration is using
+ * placeholder/default values. The server REFUSES TO START if placeholder
+ * credentials are detected in production — this prevents accidental
+ * deployment with fake/missing infrastructure credentials.
+ *
+ * Design Principle: Fail-fast at startup, not at first request.
+ */
+function validateProductionGuard(config: EnvConfig): void {
+  if (config.NODE_ENV !== 'production') return;
+
+  const violations: string[] = [];
+
+  // Critical infrastructure — MUST be real in production
+  if (PLACEHOLDER_VALUES.includes(config.SUPABASE_URL)) {
+    violations.push('SUPABASE_URL is a placeholder value');
+  }
+  if (PLACEHOLDER_VALUES.includes(config.SUPABASE_SERVICE_ROLE_KEY)) {
+    violations.push('SUPABASE_SERVICE_ROLE_KEY is a placeholder value');
+  }
+  if (PLACEHOLDER_VALUES.includes(config.SUPABASE_ANON_KEY)) {
+    violations.push('SUPABASE_ANON_KEY is a placeholder value');
+  }
+
+  // Payment infrastructure — must be configured if used
+  if (PLACEHOLDER_VALUES.includes(config.STRIPE_SECRET_KEY)) {
+    // Warn but don't block — Stripe may not be actively used
+    console.warn('⚠️  STRIPE_SECRET_KEY is a placeholder. Stripe payments will be rejected.');
+  }
+  if (PLACEHOLDER_VALUES.includes(config.STRIPE_WEBHOOK_SECRET)) {
+    console.warn('⚠️  STRIPE_WEBHOOK_SECRET is a placeholder. Stripe webhooks will be rejected.');
+  }
+
+  // Superadmin configuration — MUST be explicit in production
+  if (!config.SUPERADMIN_EMAILS || config.SUPERADMIN_EMAILS.trim() === '') {
+    console.warn('⚠️  SUPERADMIN_EMAILS is not configured. No superadmin access will be granted.');
+  }
+
+  if (violations.length > 0) {
+    console.error('');
+    console.error('╔══════════════════════════════════════════════════════════════╗');
+    console.error('║  🚫 PRODUCTION STARTUP BLOCKED — PLACEHOLDER CREDENTIALS   ║');
+    console.error('╠══════════════════════════════════════════════════════════════╣');
+    for (const v of violations) {
+      console.error(`║  ❌ ${v.padEnd(56)}║`);
+    }
+    console.error('╠══════════════════════════════════════════════════════════════╣');
+    console.error('║  Configure real credentials in .env or environment vars.   ║');
+    console.error('║  The server will NOT start with placeholder values in      ║');
+    console.error('║  NODE_ENV=production.                                      ║');
+    console.error('╚══════════════════════════════════════════════════════════════╝');
+    console.error('');
+    process.exit(1);
+  }
+}
+
 function loadEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
@@ -127,6 +205,9 @@ function loadEnv(): EnvConfig {
     }
     process.exit(1);
   }
+
+  // FOUNDATION HARDENING: Block production startup with placeholder credentials
+  validateProductionGuard(result.data);
 
   return result.data;
 }

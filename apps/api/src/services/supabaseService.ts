@@ -159,7 +159,37 @@ class SupabaseBackendService {
   }
 
   /**
+   * FOUNDATION HARDENING (F-PERF-03): Maximum rows returned by any single query.
+   * Prevents unbounded result sets that could exhaust server memory.
+   */
+  private static readonly MAX_QUERY_LIMIT = 500;
+
+  /**
+   * Health check — distinguishes "no data" from "DB unreachable" (F-REL-02 FIX).
+   * Returns { healthy: true } if DB is reachable, { healthy: false, error } otherwise.
+   */
+  async healthCheck(): Promise<{ healthy: boolean; latencyMs: number; error?: string }> {
+    const supabase = this.getClient();
+    if (!supabase) {
+      return { healthy: false, latencyMs: 0, error: 'Supabase client not initialized (missing credentials)' };
+    }
+
+    const start = Date.now();
+    try {
+      const { error } = await supabase.from('profiles').select('id').limit(1);
+      const latencyMs = Date.now() - start;
+      if (error) {
+        return { healthy: false, latencyMs, error: `DB query failed: ${error.message}` };
+      }
+      return { healthy: true, latencyMs };
+    } catch (err: any) {
+      return { healthy: false, latencyMs: Date.now() - start, error: `DB connection failed: ${err?.message}` };
+    }
+  }
+
+  /**
    * Fetch all registered agents from public.agents
+   * FOUNDATION HARDENING (F-PERF-03): Bounded to MAX_QUERY_LIMIT rows.
    */
   async getAgents() {
     const supabase = this.getClient();
@@ -169,7 +199,8 @@ class SupabaseBackendService {
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(SupabaseBackendService.MAX_QUERY_LIMIT);
 
       if (error) {
         logger.warn(`[SupabaseService] getAgents error: ${error.message}`);
@@ -178,6 +209,34 @@ class SupabaseBackendService {
       return data || [];
     } catch (err) {
       logger.warn({ err }, '[SupabaseService] getAgents exception.');
+      return [];
+    }
+  }
+
+  /**
+   * EA-02 FIX: Fetch agents scoped to a specific user.
+   * This is the tenant-aware alternative to getAgents().
+   * Service-role client still bypasses RLS, so we enforce the filter explicitly.
+   */
+  async getAgentsByUser(userId: string) {
+    const supabase = this.getClient();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(SupabaseBackendService.MAX_QUERY_LIMIT);
+
+      if (error) {
+        logger.warn(`[SupabaseService] getAgentsByUser error: ${error.message}`);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      logger.warn({ err, userId }, '[SupabaseService] getAgentsByUser exception.');
       return [];
     }
   }
@@ -289,26 +348,51 @@ class SupabaseBackendService {
     }
   }
 
+  // In-memory rate limiting map for fail-closed fallback
+  private localRateLimitMap = new Map<string, { count: number; expiresAt: number }>();
+
   /**
-   * OWASP Anti-Throttling Rate Limit Check Stored Procedure
+   * OWASP Anti-Throttling Rate Limit Check (Fail-Closed Architecture)
+   * Falls back to in-memory sliding window rate limiter on database error.
    */
   async checkRateLimit(identifier: string, action: string, maxRequests = 100, windowSeconds = 60): Promise<boolean> {
     const supabase = this.getClient();
-    if (!supabase) return true;
 
-    try {
-      const { data, error } = await supabase.rpc('check_rate_limit', {
-        p_identifier: identifier,
-        p_action: action,
-        p_max_requests: maxRequests,
-        p_window_seconds: windowSeconds,
-      });
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.rpc('check_rate_limit', {
+          p_identifier: identifier,
+          p_action: action,
+          p_max_requests: maxRequests,
+          p_window_seconds: windowSeconds,
+        });
 
-      if (error) return true;
-      return Boolean(data);
-    } catch {
+        if (!error && typeof data === 'boolean') {
+          return data;
+        }
+        logger.warn({ error, action, identifier }, '[SupabaseService] check_rate_limit RPC error, invoking fail-closed memory fallback');
+      } catch (err) {
+        logger.warn({ err, action, identifier }, '[SupabaseService] check_rate_limit RPC exception, invoking fail-closed memory fallback');
+      }
+    }
+
+    // Fail-Closed Fallback: Local Memory Sliding-Window Rate Limiter
+    const key = `${identifier}:${action}`;
+    const now = Date.now();
+    const entry = this.localRateLimitMap.get(key);
+
+    if (!entry || entry.expiresAt <= now) {
+      this.localRateLimitMap.set(key, { count: 1, expiresAt: now + windowSeconds * 1000 });
       return true;
     }
+
+    if (entry.count >= maxRequests) {
+      logger.warn({ key, count: entry.count, maxRequests }, '[SupabaseService] Fail-closed memory rate limit exceeded');
+      return false; // FAIL CLOSED
+    }
+
+    entry.count += 1;
+    return true;
   }
 
   /**

@@ -5,6 +5,18 @@ import { BrevoService } from '../../services/brevoService.js';
 import { TurnstileService } from '../../services/turnstileService.js';
 import { OtpStore } from '../../services/otpStore.js';
 import { SupabaseService } from '../../services/supabaseService.js';
+import { logger } from '../../utils/logger.js';
+
+/**
+ * FOUNDATION HARDENING — Parse superadmin emails from explicit env configuration.
+ * F-ARCH-14 FIX: No hardcoded fallback. If SUPERADMIN_EMAILS is not configured,
+ * NO user gets superadmin access. This prevents accidental privilege escalation
+ * when the env var is missing.
+ */
+function getConfiguredSuperAdmins(): string[] {
+  const raw = envConfig.SUPERADMIN_EMAILS || '';
+  return raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
 
 /**
  * ZEGA AI — Authentication Routes (OWASP Compliant Single Gate Auth & Supabase Sync)
@@ -112,6 +124,22 @@ export async function authRoutes(app: FastifyInstance) {
       }
 
       // 1. Cloudflare Turnstile Verification
+      // FOUNDATION HARDENING (F-ARCH-05): Turnstile is MANDATORY in production.
+      // In development, it remains optional for local testing convenience.
+      const isProduction = envConfig.NODE_ENV === 'production';
+      const hasTurnstileKey = !!(envConfig.CLOUDFLARE_TURNSTILE_SECRET_KEY && envConfig.CLOUDFLARE_TURNSTILE_SECRET_KEY.length > 5);
+
+      if (isProduction && hasTurnstileKey && !body.turnstileToken) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'CAPTCHA_REQUIRED',
+            message: 'Bot defense verification (Turnstile) is required. Please complete the captcha.',
+            statusCode: 400,
+          },
+        });
+      }
+
       if (body.turnstileToken) {
         const captchaResult = await TurnstileService.verifyToken({
           token: body.turnstileToken,
@@ -200,17 +228,34 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 2. Resolve Role Single Gate Entry Point
-    let role: 'superadmin' | 'enterprise' | 'individual' = body.audienceSegment === 'enterprise' ? 'enterprise' : 'individual';
-    let fullName = body.fullName || verification.metadata?.fullName || 'Alex Morgan';
+    // 2. Resolve Role Server-Side (OWASP Anti-Privilege Escalation Gate)
+    const normalizedEmail = body.email.toLowerCase().trim();
+    let role: 'superadmin' | 'enterprise' | 'individual' = 'individual';
+    let fullName = body.fullName || verification.metadata?.fullName || normalizedEmail.split('@')[0];
 
-    const normalizedEmail = body.email.toLowerCase();
-    if (normalizedEmail.includes('admin@zegaai.site') || normalizedEmail.includes('superadmin')) {
+    // FOUNDATION HARDENING (F-ARCH-14): Superadmin list from EXPLICIT env config only.
+    // No hardcoded fallback — if SUPERADMIN_EMAILS is not configured, nobody gets superadmin.
+    const configuredSuperAdmins = getConfiguredSuperAdmins();
+
+    if (configuredSuperAdmins.length > 0 && configuredSuperAdmins.includes(normalizedEmail)) {
       role = 'superadmin';
       fullName = 'SuperAdmin ZEGA Root';
-    } else if (normalizedEmail.includes('enterprise@zegaai.site') || normalizedEmail.includes('enterprise')) {
-      role = 'enterprise';
-      fullName = 'Enterprise Workspace Admin';
+      logger.info({ email: normalizedEmail }, '[Auth] Superadmin role granted via SUPERADMIN_EMAILS config');
+    } else {
+      // Fetch existing profile from DB to preserve assigned role
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+
+        if (existingProfile?.role) {
+          role = existingProfile.role === 'superadmin' ? 'enterprise' : existingProfile.role;
+          if (existingProfile.full_name) fullName = existingProfile.full_name;
+        }
+      }
     }
 
     // 3. Sync User Profile to Supabase Database
@@ -224,15 +269,15 @@ export async function authRoutes(app: FastifyInstance) {
     const userId = dbProfile?.id || crypto.randomUUID();
 
     // 4. Issue Signed JWT Access Token
+    // FOUNDATION HARDENING: Reduced from 8h to 1h for smaller breach window.
+    // A refresh token mechanism should be added for seamless session extension.
     const token = app.jwt.sign(
       {
         sub: userId,
         email: normalizedEmail,
-        roles: [role],
-        tenant: role === 'enterprise' ? 'acme-enterprise' : 'default',
-        fullName,
+        role: role,
       },
-      { expiresIn: '8h' }
+      { expiresIn: '1h' }
     );
 
     // 5. Log OWASP Audit Event
@@ -248,17 +293,17 @@ export async function authRoutes(app: FastifyInstance) {
     // 6. Set Secure OWASP HTTP-Only Cookie
     reply.setCookie('__zega_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: envConfig.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
-      maxAge: 8 * 3600,
+      maxAge: 1 * 3600, // FOUNDATION HARDENING: 1h to match JWT expiry
     });
 
     return {
       success: true,
       data: {
         accessToken: token,
-        expiresIn: 28800,
+        expiresIn: 3600, // FOUNDATION HARDENING: 1h
         tokenType: 'Bearer',
         user: {
           id: userId,
@@ -277,7 +322,7 @@ export async function authRoutes(app: FastifyInstance) {
     const privySyncSchema = z.object({
       email: z.string().email(),
       fullName: z.string().optional(),
-      role: z.enum(['superadmin', 'enterprise', 'individual']).default('individual'),
+      // SECURITY: role is NOT accepted from client — derived server-side only
       provider: z.enum(['email', 'google', 'github']).default('email'),
     });
 
@@ -294,6 +339,28 @@ export async function authRoutes(app: FastifyInstance) {
           statusCode: 429,
         },
       });
+    }
+
+    // Derive role server-side from DB profile (never trust client)
+    const normalizedEmail = body.email.toLowerCase().trim();
+    let derivedRole: 'superadmin' | 'enterprise' | 'individual' = 'individual';
+    // FOUNDATION HARDENING (F-ARCH-14): Use explicit config, no hardcoded fallback
+    const configuredSuperAdmins = getConfiguredSuperAdmins();
+
+    if (configuredSuperAdmins.length > 0 && configuredSuperAdmins.includes(normalizedEmail)) {
+      derivedRole = 'superadmin';
+    } else {
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+        if (profile?.role) {
+          derivedRole = profile.role === 'superadmin' ? 'enterprise' : profile.role;
+        }
+      }
     }
 
     const privyAppId = envConfig.PRIVY_APP_ID || process.env.PRIVY_APP_ID || '';
@@ -341,7 +408,7 @@ export async function authRoutes(app: FastifyInstance) {
       success: true,
       data: {
         email: body.email,
-        role: body.role,
+        role: derivedRole,
         privyCloudUser,
         message: `User ${body.email} synchronized to Privy Official Cloud & Solana Embedded Wallet created.`,
       },
