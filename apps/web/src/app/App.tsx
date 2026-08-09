@@ -2642,14 +2642,17 @@ function AppContent() {
                   muted
                   playsInline
                   preload="auto"
-                  poster={getR2CdnUrl('/assets/3D/zega_robotic.png')}
-                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02] relative z-10"
                 >
+                  <source src="/assets/3D/zega_animate.mp4" type="video/mp4" />
                   <source src={getR2CdnUrl('/assets/3D/zega_animate.mp4')} type="video/mp4" />
                   <img
-                    src={getR2CdnUrl('/assets/3D/zega_robotic.png')}
+                    src="/assets/3D/zega_robotic.png"
                     alt="ZEGA Robotic Autonomous Swarm"
                     className="w-full h-full object-cover object-center"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getR2CdnUrl('/assets/3D/zega_robotic.png');
+                    }}
                   />
                 </video>
 
