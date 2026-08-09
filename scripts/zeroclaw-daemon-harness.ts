@@ -1,10 +1,22 @@
 /**
- * ZeroClaw Gateway Daemon Test Harness (v0.8.3 API Spec)
+ * ══════════════════════════════════════════════════════════════════════
+ * ⚠️  DEVELOPMENT TEST FIXTURE ONLY — NOT THE REAL ZEROCLAW RUNTIME  ⚠️
+ * ══════════════════════════════════════════════════════════════════════
  *
- * Runs a standalone HTTP Gateway server on 127.0.0.1:4242 mirroring the ZeroClaw Rust binary runtime.
- * Loads docs/zeroclaw/config.toml, parses SOP files, and executes live SOP steps against ZEGA API.
+ * This is a lightweight HTTP mock that simulates the ZeroClaw Gateway API
+ * surface for local development and integration testing. It does NOT
+ * execute real SOPs, does NOT load real skills, and does NOT provide
+ * any security guarantees.
  *
- * Run with: pnpm zeroclaw:daemon
+ * FOR PRODUCTION / BOUNTY DEMONSTRATION:
+ *   Use the real ZeroClaw Rust binary from:
+ *   https://github.com/zeroclaw-labs/zeroclaw
+ *
+ *   Install: curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
+ *   Config:  cp docs/zeroclaw/config.toml ~/.zeroclaw/config.toml
+ *   Run:     zeroclaw agent
+ *
+ * Run this harness with: pnpm zeroclaw:dev-harness
  */
 
 import http from 'http';

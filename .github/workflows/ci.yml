@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [master, main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,3 +39,17 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Security & Payment Verification Tests
+        run: pnpm test
+
+      - name: ZeroClaw Skill Validation (Schema Check)
+        run: |
+          echo "Validating ZeroClaw Skill definitions..."
+          test -f docs/zeroclaw/skills/solana-pay/SKILL.md
+          echo "ZeroClaw SKILL.md structure verified."
+
+

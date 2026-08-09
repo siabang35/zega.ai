@@ -137,6 +137,13 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
     try {
       const res = await SupabaseDashboardService.getBillingInvoicesOverview('11111111-1111-1111-1111-111111111111', search, status);
       if (res?.success) {
+        if (Array.isArray(res.invoices)) {
+          res.invoices.sort((a: any, b: any) => {
+            const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.created_at || 0).getTime();
+            const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.created_at || 0).getTime();
+            return timeB - timeA;
+          });
+        }
         setInvoicesOverviewData(res);
       }
     } catch (e) {
@@ -306,7 +313,13 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
     try {
       const data = await SupabaseDashboardService.getUmkmBillingHistory(search, status);
       if (data?.success) {
-        setHistoryTransactions(data.transactions || []);
+        const txList = [...(data.transactions || [])];
+        txList.sort((a: any, b: any) => {
+          const timeA = new Date(a.created_at || a.created_at_iso || a.txn_date_label || 0).getTime();
+          const timeB = new Date(b.created_at || b.created_at_iso || b.txn_date_label || 0).getTime();
+          return timeB - timeA;
+        });
+        setHistoryTransactions(txList);
         if (data.metrics) setHistoryMetrics(data.metrics);
       }
     } catch (e) {

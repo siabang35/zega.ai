@@ -158,51 +158,51 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     let isMounted = true;
     const fetchZeroClawRealtime = async () => {
       try {
-        const [statusRes, rpcRes] = await Promise.allSettled([
-          fetch('/v1/zeroclaw/status').then(r => r.json()),
+        const [listRes, rpcRes] = await Promise.allSettled([
+          fetch('/v1/zeroclaw/settlement/list?isDemo=false').then(r => r.json()),
           fetch('/v1/zeroclaw/solana-rpc').then(r => r.json())
         ]);
 
-        if (isMounted && statusRes.status === 'fulfilled' && statusRes.value?.success) {
-          setGatewayActive(true);
+        let rawItems: any[] = [];
+        if (listRes.status === 'fulfilled' && listRes.value?.success && Array.isArray(listRes.value.data) && listRes.value.data.length > 0) {
+          rawItems = listRes.value.data;
+        } else if (rpcRes.status === 'fulfilled' && rpcRes.value?.success && Array.isArray(rpcRes.value.signatures)) {
+          rawItems = rpcRes.value.signatures;
         }
 
-        if (isMounted && rpcRes.status === 'fulfilled' && rpcRes.value?.success && Array.isArray(rpcRes.value.signatures)) {
-          const sigs = rpcRes.value.signatures.slice(0, 10);
-          if (sigs.length > 0) {
-            const mapped = sigs.map((s: any, idx: number) => {
-              const fullSig = s.signature || s.tx_signature || '';
-              const shortSig = fullSig.length >= 10 
-                ? `TX#${fullSig.substring(0, 4)}...${fullSig.substring(fullSig.length - 4)}` 
-                : `TX#Devnet_${idx + 1}`;
-              
-              const parsedAmt = typeof s.amountUsdc === 'number' ? s.amountUsdc : (typeof s.amount === 'number' ? s.amount : 15.00);
-              const memoText = s.memo || (s.err ? 'Failed Tx' : 'ZeroClaw Solana Pay Settlement');
-              const confStatus = s.confirmationStatus === 'finalized' || s.confirmationStatus === 'confirmed' || !s.err ? 'Sukses' : 'Pending';
+        if (isMounted && rawItems.length > 0) {
+          const mapped = rawItems.slice(0, 15).map((s: any, idx: number) => {
+            const fullSig = s.signature || s.tx_signature || s.referenceKey || '';
+            const shortSig = fullSig.length >= 10 
+              ? `TX#${fullSig.substring(0, 4)}...${fullSig.substring(fullSig.length - 4)}` 
+              : `TX#Devnet_${idx + 1}`;
+            
+            const parsedAmt = typeof s.amount === 'number' ? s.amount : (typeof s.amountUsdc === 'number' ? s.amountUsdc : parseFloat(s.amount_usdc || '15.00'));
+            const memoText = s.memo || (s.err ? 'Failed Tx' : 'ZeroClaw Solana Pay Settlement');
+            const confStatus = (s.status === 'confirmed' || s.status === 'finalized' || s.confirmationStatus === 'finalized' || s.confirmationStatus === 'confirmed' || !s.err) ? 'Sukses' : 'Pending';
 
-              // Calculate time ago from blockTime or current time
-              let timeLabel = `${(idx + 1) * 3} menit lalu`;
-              if (s.blockTime) {
-                const diffSec = Math.max(1, Math.floor(Date.now() / 1000 - s.blockTime));
-                if (diffSec < 60) timeLabel = `${diffSec} detik lalu`;
-                else if (diffSec < 3600) timeLabel = `${Math.floor(diffSec / 60)} menit lalu`;
-                else timeLabel = `${Math.floor(diffSec / 3600)} jam lalu`;
-              }
+            let createdIso = s.rawCreatedAt || s.createdAtISO || (s.blockTime ? new Date(s.blockTime * 1000).toISOString() : new Date().toISOString());
+            const diffSec = Math.max(1, Math.floor((Date.now() - new Date(createdIso).getTime()) / 1000));
+            let timeLabel = `${diffSec} detik lalu`;
+            if (diffSec >= 3600) timeLabel = `${Math.floor(diffSec / 3600)} jam lalu`;
+            else if (diffSec >= 60) timeLabel = `${Math.floor(diffSec / 60)} menit lalu`;
 
-              return {
-                tx_hash: shortSig,
-                full_signature: fullSig,
-                customer_name: s.customerName || memoText,
-                amount_usdc: parsedAmt,
-                status: confStatus,
-                time_ago: timeLabel,
-                slot: s.slot ? `Slot ${s.slot}` : 'Devnet'
-              };
-            });
-            setZeroClawLiveTx(mapped);
-          } else {
-            setZeroClawLiveTx([]);
-          }
+            return {
+              tx_hash: shortSig,
+              full_signature: fullSig,
+              customer_name: s.customerName || memoText,
+              amount_usdc: isNaN(parsedAmt) ? 15.00 : parsedAmt,
+              status: confStatus,
+              time_ago: timeLabel,
+              slot: s.slot ? `Slot ${s.slot}` : 'Devnet',
+              created_iso: createdIso
+            };
+          });
+
+          // Sort newest first
+          mapped.sort((a, b) => new Date(b.created_iso).getTime() - new Date(a.created_iso).getTime());
+          setZeroClawLiveTx(mapped);
+          setGatewayActive(true);
         }
       } catch (err) {
         console.warn('ZeroClaw live RPC polling note:', err);

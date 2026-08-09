@@ -1,11 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { R2StorageService } from '../../services/r2StorageService.js';
 import { SupabaseService } from '../../services/supabaseService.js';
 import { zeroClawSignatureMonitor } from '../../services/zeroclawSignatureMonitor.js';
 import { solanaRpcManager } from '../../services/solanaRpcManager.js';
 import { logger } from '../../utils/logger.js';
 import { envConfig } from '../../config/env.js';
+import {
+  validateSignatureFormat,
+  validateUsdcMint,
+  validateTxFreshness,
+  detectPromptInjection,
+  INJECTION_PATTERNS,
+  VALID_USDC_MINTS,
+} from '../../utils/settlementValidation.js';
 
 export function generateSolanaPayReferenceKey(): string {
   try {
@@ -65,8 +74,8 @@ let zeroClawState = {
   bridgeStatus: 'Standby / Autonomous Prototype Mode',
   daemonVersion: 'v0.8.3',
   connectedChannels: ['WhatsApp (zeroclaw_channel)', 'Telegram Bot', 'ZEGA Monorepo MCP'],
-  totalReconciledUsdc: 485.50,
-  reconciledTxCount: 24,
+  totalReconciledUsdc: 0,
+  reconciledTxCount: 0,
   lastHeartbeat: new Date().toISOString(),
 };
 
@@ -847,16 +856,8 @@ const MAX_REQUESTS_PER_MINUTE = 30;
 // Anti-Replay & Idempotency Cache for On-Chain Transactions
 const processedSignaturesSet = new Set<string>();
 
-// OWASP Anti-Injection keywords
-const INJECTION_PATTERNS = [
-  /override\s+safety/i,
-  /bypass\s+approval/i,
-  /refund\s+without\s+verification/i,
-  /force\s+payout/i,
-  /ignore\s+previous\s+instructions/i,
-  /transfer\s+all\s+funds/i,
-  /system\s+prompt\s+leak/i,
-];
+// OWASP Anti-Injection keywords & Prompt Injection Guards (Imported from settlementValidation.ts)
+// INJECTION_PATTERNS imported at top of file
 
 // REAL LLM HTTP API FETCH CALLERS
 async function callGroqApi(prompt: string, apiKey: string): Promise<string> {
@@ -1058,27 +1059,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     // LAYER 2: Base58 Solana Signature Validation (Zero-Trust Real On-Chain Check)
     // Synthetic IDs (sol_..., gen_inv_...) are strictly REJECTED.
     // ════════════════════════════════════════════════════════════════════════
-    if (!txSignature || typeof txSignature !== 'string') {
+    const sigValidation = validateSignatureFormat(txSignature);
+    if (!sigValidation.ok) {
       return reply.status(400).send({
         success: false,
-        error: '🛡️ Layer 2 Rejected: Signature transaksi On-Chain wajib diisi. Mohon lakukan transfer via wallet (Phantom/Solflare) terlebih dahulu.',
-        layer: 'MISSING_SIGNATURE'
-      });
-    }
-
-    const cleanSig = txSignature.trim();
-    const BASE58_REGEX = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
-
-    if (cleanSig.startsWith('sol_') || cleanSig.startsWith('gen_inv_') || cleanSig.length < 80 || cleanSig.length > 92 || !BASE58_REGEX.test(cleanSig)) {
-      return reply.status(400).send({
-        success: false,
-        error: `🛡️ Layer 2 Rejected: Signature "${cleanSig.substring(0, 16)}..." tidak valid. Transaction Signature Solana harus 87-88 karakter Base58 asli dari Solana Devnet.`,
-        layer: 'BASE58_FORMAT',
+        error: `🛡️ Layer 2 Rejected: Signature "${(txSignature || '').substring(0, 16)}..." tidak valid. Transaction Signature Solana harus 87-88 karakter Base58 asli dari Solana Devnet.`,
+        layer: sigValidation.layer || 'BASE58_FORMAT',
         hint: 'Kirim pembayaran asli melalui Phantom atau Solflare untuk mendapatkan Transaction Signature valid.'
       });
     }
 
-    const effectiveSig = cleanSig;
+    const effectiveSig = txSignature.trim();
 
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 3: Anti-Replay & Idempotency Protection
@@ -1092,6 +1083,33 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         data: reconciledEvents.find(e => e.signature === effectiveSig) || { signature: effectiveSig, amount: validAmountUsdc }
       });
     }
+
+    // 🛡️ Persistent DB Replay Check (survives process restarts across cluster nodes)
+    try {
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        const { data: dbRows } = await supabase
+          .from('zeroclaw_solana_settlements')
+          .select('id, signature, amount_usdc, status')
+          .eq('signature', effectiveSig)
+          .limit(1);
+        if (Array.isArray(dbRows) && dbRows.length > 0) {
+          processedSignaturesSet.add(effectiveSig);
+          return reply.send({
+            success: true,
+            mode: 'idempotent_duplicate',
+            note: 'Replay Guard (Persistent DB): Transaction signature already reconciled in database.',
+            layer: 'ANTI_REPLAY_PERSISTENT',
+            data: dbRows[0]
+          });
+        }
+      }
+    } catch {
+      // Non-blocking fallback if DB is unreachable
+    }
+
+    // Server-side environment check for Demo / Simulation mode — user payload cannot override
+    const isDemoMode = process.env.ZEGA_DEMO_MODE === 'true';
 
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 4: On-Chain Signature Status Verification (Solana Devnet RPC)
@@ -1119,8 +1137,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       // RPC unreachable or all endpoints failed
     }
 
-    // Strictly REJECT if signature does NOT exist on Solana Devnet RPC (except in explicitly requested demo/simulation mode)
-    if (!onChainVerified && !isDemo) {
+    // Strictly REJECT if signature does NOT exist on Solana Devnet RPC (except in explicitly configured server demo mode)
+    if (!onChainVerified && !isDemoMode) {
       return reply.status(403).send({
         success: false,
         error: `🛡️ Layer 4 Rejected: Transaction Signature "${effectiveSig.substring(0, 16)}..." tidak ditemukan di Solana Devnet blockchain. Hanya transaksi asli yang telah diproses oleh network yang diterima.`,
@@ -1142,7 +1160,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     // ════════════════════════════════════════════════════════════════════════
     // LAYER 5: Transaction Detail Verification (getTransaction)
-    // Deep-inspect the actual transaction: verify recipient, check freshness
+    // Deep-inspect the actual transaction: verify recipient, check freshness, mint validation
     // ════════════════════════════════════════════════════════════════════════
     let txBlockTime: number | null = null;
     let txRecipientMatch = false;
@@ -1177,7 +1195,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           // 🛡️ Layer 5 Anti-Fraud Check 2: Reject transactions that do not match merchant wallet or reference key
-          if (!txRecipientMatch && !isDemo) {
+          if (!txRecipientMatch && !isDemoMode) {
             processedSignaturesSet.delete(effectiveSig);
             return reply.status(403).send({
               success: false,
@@ -1188,19 +1206,29 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             });
           }
 
-          // Freshness check: reject transactions older than 72 hours (except in demo/dev test mode)
-          if (txBlockTime && !isDemo) {
-            const txAge = Date.now() / 1000 - txBlockTime;
-            const MAX_TX_AGE_SECONDS = 72 * 60 * 60; // 72 hours
-            if (txAge > MAX_TX_AGE_SECONDS) {
-              processedSignaturesSet.delete(effectiveSig);
-              return reply.status(403).send({
-                success: false,
-                error: `🛡️ Layer 5 Rejected: Transaksi terlalu lama (${Math.floor(txAge / 3600)} jam lalu). Hanya transaksi dalam 72 jam terakhir yang diterima untuk settlement.`,
-                layer: 'TX_FRESHNESS',
-                txBlockTime: new Date(txBlockTime * 1000).toISOString()
-              });
-            }
+          // 🛡️ Layer 5 Anti-Fraud Check 3: Explicit SPL Token Mint Verification
+          const mintValidation = validateUsdcMint(parsedTx.mint);
+          if (!mintValidation.ok && !isDemoMode) {
+            processedSignaturesSet.delete(effectiveSig);
+            return reply.status(403).send({
+              success: false,
+              error: `🛡️ Layer 5 Rejected: Token mint "${parsedTx.mint}" tidak valid. Hanya transfer resmi USDC yang diterima.`,
+              layer: mintValidation.layer || 'SPL_MINT_MISMATCH',
+              actualMint: parsedTx.mint,
+              expectedMints: VALID_USDC_MINTS
+            });
+          }
+
+          // Freshness check: reject transactions older than 72 hours
+          const freshnessValidation = validateTxFreshness(txBlockTime);
+          if (!freshnessValidation.ok && !isDemoMode) {
+            processedSignaturesSet.delete(effectiveSig);
+            return reply.status(403).send({
+              success: false,
+              error: `🛡️ Layer 5 Rejected: Transaksi terlalu lama (${freshnessValidation.error}). Hanya transaksi dalam 72 jam terakhir yang diterima untuk settlement.`,
+              layer: freshnessValidation.layer || 'TX_FRESHNESS',
+              txBlockTime: new Date(txBlockTime! * 1000).toISOString()
+            });
           }
         }
       } catch (e) {
@@ -1219,7 +1247,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       channel: 'SOLANA-PAY-DEVNET',
       network: network || 'solana-devnet',
       memo: memo || 'Solana Pay Merchant Payout',
-      slot: onChainSlot || (480264000 + Math.floor(Math.random() * 500)),
+      slot: onChainSlot || null,
       timeAgo: 'Just now',
       privyVerified,
       privyWalletAddress: privyWalletAddress || (merchantPubkey?.startsWith('PrivySol') ? merchantPubkey : null),
@@ -1243,7 +1271,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const userUuid = isDemo ? null : await resolveUserUuid(userId);
 
-        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=tx_signature`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1528,7 +1556,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (supabaseUrl && supabaseKey) {
       try {
-        let queryParam = 'or=(status.eq.confirmed,status.eq.finished,status.eq.settled_exact,status.eq.underpaid,status.eq.overpaid)&order=created_at.desc&limit=50';
+        let queryParam = 'order=created_at.desc&limit=100';
         if (isDemoBool) {
           queryParam = `is_demo=eq.true&${queryParam}`;
         } else {
@@ -1537,15 +1565,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const userEmailEnc = encodeURIComponent(userId || 'user@zegaai.site');
 
           if (merchantEnc) {
-            queryParam = `is_demo=eq.false&or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userUuid || ''})&${queryParam}`;
+            queryParam = `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userUuid || ''},is_demo.eq.false)&${queryParam}`;
           } else if (userUuid) {
-            queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc})&${queryParam}`;
+            queryParam = `or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc},is_demo.eq.false)&${queryParam}`;
           } else {
-            queryParam = `is_demo=eq.false&${queryParam}`;
+            queryParam = `order=created_at.desc&limit=100`;
           }
         }
 
-        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}`, {
+        let dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?${queryParam}`, {
           method: 'GET',
           headers: {
             'apikey': supabaseKey,
@@ -1554,28 +1582,103 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           }
         });
 
+        // Union Fetch: Also query finished/paid invoices from zeroclaw_invoices to ensure all lunas items appear in Vault Payment Lunas
+        let invoiceRows: any[] = [];
+        try {
+          const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?select=*&or=(status.ilike.*finished*,status.ilike.*paid*,status.ilike.*lunas*,settlement_status.ilike.*confirmed*)&order=created_at.desc&limit=100`, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (invRes.ok) {
+            invoiceRows = (await invRes.json()) as any[];
+          }
+        } catch (invErr) { }
+
         if (dbRes.ok) {
-          const rows = (await dbRes.json()) as any[];
+          let rows = (await dbRes.json()) as any[];
+          if ((!rows || rows.length === 0) && !isDemoBool) {
+            const fallbackRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?order=created_at.desc&limit=100`, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            if (fallbackRes.ok) {
+              rows = (await fallbackRes.json()) as any[];
+            }
+          }
+
           const mappedEvents = rows.map((r) => ({
             id: r.id,
             signature: r.tx_signature || r.reference_key,
             referenceKey: r.reference_key,
-            amount: parseFloat(r.amount_usdc),
-            amountUsdc: parseFloat(r.amount_usdc),
+            amount: parseFloat(r.amount_usdc || '0'),
+            amountUsdc: parseFloat(r.amount_usdc || '0'),
             currency: 'USDC',
-            timestamp: new Date(r.created_at).toLocaleTimeString(),
-            channel: isDemoBool ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE',
+            timestamp: r.created_at ? new Date(r.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }) : new Date().toLocaleTimeString('id-ID'),
+            rawCreatedAt: r.created_at || new Date().toISOString(),
+            createdAtISO: r.created_at || new Date().toISOString(),
+            channel: r.channel || (r.is_demo ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-SETTLED'),
             network: r.network || 'solana-devnet',
-            memo: r.memo || (isDemoBool ? 'Public Demo Settlement' : 'Private Authenticated Settlement'),
+            memo: r.memo || (r.is_demo ? 'Public Demo Settlement' : 'Private Authenticated Settlement'),
             slot: 480269120,
-            timeAgo: 'Just now'
+            timeAgo: 'Baru saja',
+            is_demo: Boolean(r.is_demo),
+            solanaPayUrl: r.solana_pay_url || null,
+            r2CdnUrl: r.r2_cdn_url || null
           }));
 
+          const mappedInvoices = (invoiceRows || []).map((inv) => {
+            const createdIso = inv.created_at || new Date().toISOString();
+            return {
+              id: `inv_settled_${inv.id}`,
+              signature: inv.tx_signature || inv.reference_key || `ref_${inv.id}`,
+              referenceKey: inv.reference_key || inv.referenceKey,
+              amount: parseFloat(inv.amount || inv.amount_usdc || '0'),
+              amountUsdc: parseFloat(inv.amount || inv.amount_usdc || '0'),
+              currency: 'USDC',
+              timestamp: inv.created_at ? new Date(inv.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }) : 'Baru saja',
+              rawCreatedAt: createdIso,
+              createdAtISO: createdIso,
+              channel: 'SOLANA-PAY-SETTLED',
+              network: 'solana-devnet',
+              memo: `LUNAS: ${inv.customer_name || 'Pembayaran Kasir'} (${inv.invoice_code || inv.id})`,
+              slot: 480320899,
+              timeAgo: 'Baru saja',
+              is_demo: Boolean(inv.is_demo),
+              solanaPayUrl: inv.solana_pay_url || null,
+              r2CdnUrl: inv.r2_cdn_url || null
+            };
+          });
+
           const combinedData = [...mappedEvents];
+          mappedInvoices.forEach((invEvt) => {
+            if (!combinedData.some(e => e.signature === invEvt.signature || e.id === invEvt.id || (e.referenceKey && e.referenceKey === invEvt.referenceKey))) {
+              combinedData.push(invEvt);
+            }
+          });
+
           reconciledEvents.forEach((memEvt: any) => {
             if (!combinedData.some(e => e.signature === memEvt.signature || e.id === memEvt.id)) {
-              combinedData.push(memEvt);
+              combinedData.push({
+                ...memEvt,
+                rawCreatedAt: memEvt.rawCreatedAt || memEvt.createdAtISO || new Date().toISOString(),
+                createdAtISO: memEvt.createdAtISO || memEvt.rawCreatedAt || new Date().toISOString()
+              });
             }
+          });
+
+          // 🛡️ Deterministic Sorting: Sort Vault Payment settlements by creation time descending (newest at top)
+          combinedData.sort((a, b) => {
+            const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.timestamp || 0).getTime();
+            const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.timestamp || 0).getTime();
+            return timeB - timeA;
           });
 
           return reply.send({
@@ -2453,7 +2556,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             amount: parseFloat(r.amount_usdc).toFixed(2),
             memo: r.memo || 'Solana Pay Invoice',
             solanaPayUrl: r.solana_pay_url || `solana:${r.merchant_pubkey}?amount=${r.amount_usdc}&reference=${r.reference_key}`,
-            createdAt: new Date(r.created_at || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            createdAt: r.created_at ? new Date(r.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }) : new Date().toLocaleTimeString('id-ID'),
+            rawCreatedAt: r.created_at || new Date().toISOString(),
+            createdAtISO: r.created_at || new Date().toISOString(),
             merchantWallet: r.merchant_pubkey,
             referenceKey: r.reference_key,
             status: r.status || 'active',
@@ -2463,6 +2568,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             r2CdnUrl: r.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${userId || 'demo'}/audit_${r.reference_key || r.id}.json`,
             customerTarget: r.customer_target || undefined,
           }));
+
+          // 🛡️ Deterministic Sorting: Sort Invoices ("Daftar Tagihan") by creation time descending (newest at top)
+          invoices.sort((a, b) => {
+            const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.createdAt || 0).getTime();
+            const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.createdAt || 0).getTime();
+            return timeB - timeA;
+          });
 
           return reply.send({
             success: true,
@@ -3066,9 +3178,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     if (!rawLlmOutput) {
       if (isPayRequest) {
         const amount = prompt.match(/\b\d+(\.\d+)?\b/)?.[0] || '15.00';
-        rawLlmOutput = `[ZEROCLAW RUST AGENT RUNTIME]\nInvoice created successfully for **${amount} USDC** on Solana Devnet.\n\nSolana Pay Link:\n\`${solanaPayUrl}\`\n\nReference Key: \`${referenceKey}\`\nStatus: Awaiting buyer signature via Cron SOP Poller.`;
+        rawLlmOutput = `[ZEGA NATIVE POS ASSISTANT]\nInvoice created successfully for **${amount} USDC** on Solana Devnet.\n\nSolana Pay Link:\n\`${solanaPayUrl}\`\n\nReference Key: \`${referenceKey}\`\nStatus: Awaiting buyer signature via Cron SOP Poller.`;
       } else {
-        rawLlmOutput = `[ZEROCLAW RUST AGENT RUNTIME]\nZeroClaw processed your prompt: "${prompt}". Tier 1 Keyless Custody active. Solana Devnet RPC healthy (142ms). Set GROQ_API_KEY or GEMINI_API_KEY in apps/api/.env for live cloud LLM inference.`;
+        rawLlmOutput = `[ZEGA NATIVE POS ASSISTANT]\nPrompt processed: "${prompt}". Tier 1 Keyless Custody active. Solana Devnet RPC healthy. Set GROQ_API_KEY or GEMINI_API_KEY in apps/api/.env for live cloud LLM inference.`;
       }
     }
 
@@ -3079,8 +3191,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
     sanitizedResponse = sanitizedResponse.replace(/\n{3,}/g, '\n\n').trim();
 
-    const latencyMs = Date.now() - startTime + Math.floor(Math.random() * 40 + 80);
-    const tps = Math.floor(Math.random() * 120 + 220); // 220 - 340 Tokens Per Second
+    const latencyMs = Date.now() - startTime;
+    const estimatedTokens = (sanitizedResponse || '').split(/\s+/).length * 1.3;
+    const tps = latencyMs > 0 ? Math.round(estimatedTokens / (latencyMs / 1000)) : null;
 
     return reply.send({
       success: true,
@@ -3099,107 +3212,68 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /v1/zeroclaw/events ──
   fastify.post<{ Body: ZeroClawEventBody }>('/events', async (request, reply) => {
+    // ════════════════════════════════════════════════════════════════════════
+    // AUTH GATE: Verify bearer token or HMAC to prevent unauthenticated
+    // event injection (P1-01 audit fix)
+    // ════════════════════════════════════════════════════════════════════════
+    const eventsSecret = process.env.ZEROCLAW_WEBHOOK_SECRET || process.env.ZEROCLAW_BEARER_TOKEN || '';
+    if (eventsSecret) {
+      const authHeader = (request.headers['authorization'] as string) || '';
+      const sigHeader = (request.headers['x-webhook-signature'] as string) || '';
+
+      const hasValidBearer = authHeader === `Bearer ${eventsSecret}`;
+      let hasValidHmac = false;
+      if (sigHeader) {
+        const expectedSig = sigHeader.replace(/^sha256=/, '');
+        const computedSig = computeHmacSha256(eventsSecret, JSON.stringify(request.body || {}));
+        hasValidHmac = verifyHmacTimingSafe(expectedSig, computedSig);
+      }
+
+      if (!hasValidBearer && !hasValidHmac) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Unauthorized: Provide Authorization Bearer token or X-Webhook-Signature HMAC.',
+          layer: 'EVENTS_AUTH_GATE',
+        });
+      }
+    }
+
     const body = request.body || {};
     const { eventType, amount, currency, signature, customerChannel, checkpointId, prompt, details } = body;
 
     zeroClawState.lastHeartbeat = new Date().toISOString();
 
     if (eventType === 'payment_reconciled') {
+      if (!signature) {
+        return reply.status(400).send({ success: false, error: 'Reconciled payment event requires valid transaction signature.' });
+      }
+      const sigValidation = validateSignatureFormat(signature);
+      if (!sigValidation.ok) {
+        return reply.status(400).send({ success: false, error: `Invalid payment_reconciled signature: ${sigValidation.error}`, layer: 'BASE58_FORMAT' });
+      }
       const parsedAmount = amount || 0;
+      if (parsedAmount <= 0) {
+        return reply.status(400).send({ success: false, error: 'Payment amount must be positive.' });
+      }
+
       zeroClawState.totalReconciledUsdc += parsedAmount;
       zeroClawState.reconciledTxCount += 1;
 
       const event = {
         id: `tx_rec_${Date.now()}`,
-        signature: signature || `sig_${Math.random().toString(36).substring(7)}`,
+        signature,
         amount: parsedAmount,
         currency: currency || 'USDC',
         timestamp: new Date().toISOString(),
         channel: customerChannel || 'WhatsApp',
         network: zeroClawState.network,
-        slot: (details?.slot as number) || 480000650,
+        slot: (details?.slot as number) || undefined,
       };
       reconciledEvents.unshift(event);
 
       fastify.log.info({ event }, 'ZeroClaw payment reconciled on Solana Devnet');
       return reply.send({ success: true, message: 'Payment reconciled successfully', event });
     }
-
-    // ── POST /v1/zeroclaw/settlement/record ──
-    // OWASP Amount Reconciliation Engine (Underpaid, Overpaid, Exact Match, Unpaid)
-    fastify.post<{
-      Body: {
-        userId?: string;
-        merchantPubkey?: string;
-        amountUsdc?: number;
-        expectedAmountUsdc?: number;
-        referenceKey?: string;
-        txSignature?: string;
-        network?: string;
-        memo?: string;
-        isDemo?: boolean;
-      };
-    }>('/settlement/record', async (request, reply) => {
-      const {
-        userId,
-        merchantPubkey,
-        amountUsdc = 0,
-        expectedAmountUsdc = amountUsdc,
-        referenceKey,
-        txSignature,
-        network = 'solana-devnet',
-        memo,
-        isDemo = false,
-      } = request.body || {};
-
-      const paidAmount = Number(amountUsdc) || 0;
-      const expectedAmount = Number(expectedAmountUsdc) || paidAmount;
-      const diff = paidAmount - expectedAmount;
-
-      let settlementStatus: 'settled_exact' | 'settled_underpaid' | 'settled_overpaid' | 'unpaid' = 'settled_exact';
-      if (paidAmount <= 0) {
-        settlementStatus = 'unpaid';
-      } else if (diff < -0.001) {
-        settlementStatus = 'settled_underpaid';
-      } else if (diff > 0.001) {
-        settlementStatus = 'settled_overpaid';
-      }
-
-      const event = {
-        id: `rec_${Date.now()}`,
-        signature: txSignature || referenceKey || `sig_${Date.now()}`,
-        amount: paidAmount,
-        expectedAmount,
-        amountDiff: diff,
-        settlementStatus,
-        currency: 'USDC',
-        timestamp: new Date().toISOString(),
-        channel: isDemo ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE',
-        network,
-        memo: memo || `Settlement (${paidAmount} USDC, Status: ${settlementStatus})`,
-        slot: undefined,
-        userId: userId || 'user@zegaai.site',
-        merchantPubkey: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userId || 'user@zegaai.site'),
-      };
-
-      reconciledEvents.unshift(event);
-      zeroClawState.totalReconciledUsdc += paidAmount;
-      zeroClawState.reconciledTxCount += 1;
-
-
-
-      return reply.send({
-        success: true,
-        message: settlementStatus === 'settled_exact'
-          ? 'Pembayaran Tepat & Terverifikasi On-Chain!'
-          : settlementStatus === 'settled_underpaid'
-            ? `Pembayaran Kurang (Underpaid)! Harap bayar sisa ${Math.abs(diff).toFixed(2)} USDC.`
-            : settlementStatus === 'settled_overpaid'
-              ? `Pembayaran Berlebih (Overpaid)! Kelebihan +${diff.toFixed(2)} USDC dicatat.`
-              : 'Pembayaran Belum Diterima.',
-        settlement: event,
-      });
-    });
 
     if (eventType === 'refund_requested' || eventType === 'checkpoint_update') {
       const newCheckpoint: PendingCheckpoint = {
@@ -3343,8 +3417,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   const WEBHOOK_SECRET = process.env.ZEROCLAW_WEBHOOK_SECRET || process.env.ZEROCLAW_BEARER_TOKEN || '';
 
   function computeHmacSha256(secret: string, body: string): string {
-    const { createHmac } = require('crypto') as typeof import('crypto');
     return createHmac('sha256', secret).update(body).digest('hex');
+  }
+
+  function verifyHmacTimingSafe(expectedSigHex: string, computedSigHex: string): boolean {
+    try {
+      const expectedBuf = Buffer.from(expectedSigHex, 'hex');
+      const computedBuf = Buffer.from(computedSigHex, 'hex');
+      if (expectedBuf.length !== computedBuf.length) return false;
+      return timingSafeEqual(expectedBuf, computedBuf);
+    } catch {
+      return false;
+    }
   }
 
   fastify.post<{
@@ -3352,13 +3436,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/webhook/inbound', async (request, reply) => {
     const rawBody = JSON.stringify(request.body || {});
 
-    // Verify HMAC-SHA256 signature
+    // Verify HMAC-SHA256 signature using timing-safe comparison
     if (WEBHOOK_SECRET) {
       const sigHeader = (request.headers['x-webhook-signature'] as string) || '';
       const expectedSig = sigHeader.replace(/^sha256=/, '');
       const computedSig = computeHmacSha256(WEBHOOK_SECRET, rawBody);
 
-      if (!expectedSig || expectedSig !== computedSig) {
+      if (!expectedSig || !verifyHmacTimingSafe(expectedSig, computedSig)) {
         return reply.status(401).send({
           success: false,
           error: 'Webhook signature verification failed. Provide X-Webhook-Signature: sha256=<HMAC-SHA256>.',

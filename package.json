@@ -8,11 +8,12 @@
     "dev:web": "turbo dev --filter=@zega/web",
     "dev:api": "turbo dev --filter=@zega/api",
     "build": "turbo build",
+    "test": "turbo test",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "zeroclaw:daemon": "npx tsx scripts/zeroclaw-daemon-harness.ts"
+    "zeroclaw:dev-harness": "npx tsx scripts/zeroclaw-daemon-harness.ts"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

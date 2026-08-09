@@ -98,37 +98,40 @@ Requester ID: Attacker. Checkpoint #CP-8841 Status: REJECTED [Auto-Failsafe]"
 
 ## 5. Operator Reproducibility Guide
 
-Any operator can deploy and run ZEGA AI on ZeroClaw in under 15 minutes:
+Any bounty reviewer or operator can reproduce and verify ZEGA AI on ZeroClaw in under 10 minutes:
 
-### Step 1: Clone & Install Dependencies
+### Step 1: Install Official ZeroClaw Rust Runtime
+```bash
+curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
+# Verify installation
+zeroclaw --version
+```
+
+### Step 2: Clone & Setup ZEGA Monorepo
 ```bash
 git clone https://github.com/siabang35/zega.ai.git
 cd ZEGA
 pnpm install
 ```
 
-### Step 2: Configure Environment Variables (`apps/api/.env`)
-```env
-PORT=3001
-SOLANA_DEVNET_RPC="https://api.devnet.solana.com"
-HELIUS_RPC_KEY="your-helius-api-key"
-ZEROCLAW_WEBHOOK_SECRET="your-hmac-sha256-secret"
-```
-
-### Step 3: Run the Monorepo & ZeroClaw Monitor
+### Step 3: Start ZEGA Payment API & RPC Monitor
 ```bash
-# Start Fastify API & Signature Monitor
 pnpm --filter api dev
-
-# Start Frontend (Landing Page & Docs)
-pnpm --filter web dev
 ```
 
-### Step 4: Verify RPC Signature Polling
+### Step 4: Configure ZeroClaw & Install Skill
 ```bash
-curl -X POST http://localhost:3001/api/v1/zeroclaw/pair \
-  -H "Content-Type: application/json" \
-  -d '{"agentId": "zeroclaw-node-1", "merchantPubkey": "DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK"}'
+# Copy ZeroClaw configuration
+mkdir -p ~/.zeroclaw
+cp docs/zeroclaw/config.toml ~/.zeroclaw/config.toml
+
+# Install ZEGA Solana Pay Skill
+cp -r docs/zeroclaw/skills/solana-pay ~/.zeroclaw/skills/zega-solana-pay
+```
+
+### Step 5: Start ZeroClaw Agent
+```bash
+zeroclaw agent
 ```
 
 ---
@@ -136,9 +139,11 @@ curl -X POST http://localhost:3001/api/v1/zeroclaw/pair \
 ## 6. Open Source Code Links
 
 - **Repository**: [https://github.com/siabang35/zega.ai](https://github.com/siabang35/zega.ai)
+- **ZeroClaw Solana Pay Skill**: [`docs/zeroclaw/skills/solana-pay/SKILL.md`](https://github.com/siabang35/zega.ai/blob/master/docs/zeroclaw/skills/solana-pay/SKILL.md)
+- **Payment Reconciliation SOP**: [`docs/zeroclaw/sops/payment-reconciliation/SOP.md`](https://github.com/siabang35/zega.ai/blob/master/docs/zeroclaw/sops/payment-reconciliation/SOP.md)
+- **ZeroClaw Config**: [`docs/zeroclaw/config.toml`](https://github.com/siabang35/zega.ai/blob/master/docs/zeroclaw/config.toml)
 - **Signature Monitor Engine**: [`apps/api/src/services/zeroclawSignatureMonitor.ts`](https://github.com/siabang35/zega.ai/blob/master/apps/api/src/services/zeroclawSignatureMonitor.ts)
-- **Documentation**: [https://docs.zegaai.site/solana-pay](https://docs.zegaai.site/solana-pay)
-- **ZeroClaw Pairing Spec**: [https://docs.zegaai.site/zeroclaw](https://docs.zegaai.site/zeroclaw)
+- **Security Test Suite**: [`apps/api/src/__tests__/payment-verification.test.ts`](https://github.com/siabang35/zega.ai/blob/master/apps/api/src/__tests__/payment-verification.test.ts)
 
 ---
-*Built with 🦀 Rust, Solana, and ZeroClaw by siabang35 for the ZeroClaw Solana Bounty.*
+*Built for the Superteam ZeroClaw Solana Bounty by siabang35 — featuring native ZeroClaw skills, SOP step procedures, and 5-layer deterministic Solana verification.*

@@ -16,6 +16,7 @@ export interface ParsedOnChainTxDetails {
   amountUsdc: number;
   amountSol: number;
   memo: string | null;
+  mint: string | null;
   referenceKeys: string[];
   isVerified: boolean;
 }
@@ -194,6 +195,7 @@ export class ZeroClawSignatureMonitorService {
       let amountUsdc = 0;
       let amountSol = 0;
       let memo: string | null = null;
+      let mint: string | null = null;
       const referenceKeys: string[] = [];
 
       if (txResult && txResult.transaction) {
@@ -226,6 +228,9 @@ export class ZeroClawSignatureMonitorService {
             const parsed = inst.parsed;
             if (parsed && (parsed.type === 'transfer' || parsed.type === 'transferChecked')) {
               const info = parsed.info;
+              if (info?.mint) {
+                mint = info.mint;
+              }
               const rawAmt = info?.tokenAmount?.uiAmountString || info?.tokenAmount?.uiAmount || info?.amount;
               const decimals = info?.tokenAmount?.decimals || 6;
               if (rawAmt !== undefined && rawAmt !== null) {
@@ -280,6 +285,9 @@ export class ZeroClawSignatureMonitorService {
           const postList = meta.postTokenBalances || [];
 
           for (const post of postList) {
+            if (post?.mint) {
+              mint = post.mint;
+            }
             const pre = preList.find((p: any) => p.accountIndex === post.accountIndex);
             const preAmt = pre?.uiTokenAmount?.uiAmount || 0;
             const postAmt = post?.uiTokenAmount?.uiAmount || 0;
@@ -307,6 +315,7 @@ export class ZeroClawSignatureMonitorService {
         amountUsdc: amountUsdc > 0 ? amountUsdc : (amountSol > 0 ? amountSol : 0),
         amountSol,
         memo,
+        mint,
         referenceKeys,
         isVerified: true,
       };

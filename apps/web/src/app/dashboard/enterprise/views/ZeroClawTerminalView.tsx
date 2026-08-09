@@ -87,6 +87,8 @@ interface ReconciledEvent {
   amount: number;
   currency: string;
   timestamp: string;
+  rawCreatedAt?: string;
+  createdAtISO?: string;
   channel: string;
   network: string;
   memo?: string;
@@ -115,6 +117,8 @@ export interface GeneratedInvoice {
   buyerEmail?: string;
   solanaPayUrl: string;
   createdAt: string;
+  rawCreatedAt?: string;
+  createdAtISO?: string;
   merchantWallet: string;
   referenceKey: string;
   status: 'active' | 'paid' | 'FINISHED (EXACT)' | 'completed' | string;
@@ -125,6 +129,24 @@ export interface GeneratedInvoice {
   settlement_status?: string;
   isDemo?: boolean;
   is_demo?: boolean;
+}
+
+/**
+ * Format timestamp into real-time relative string ("Baru saja", "5m yang lalu", "2j yang lalu", "3h yang lalu")
+ */
+function formatRealtimeAgo(dateInput?: string | number | Date): string {
+  if (!dateInput) return 'Baru saja';
+  const time = new Date(dateInput).getTime();
+  if (isNaN(time) || time <= 0) return 'Baru saja';
+  const diffSec = Math.floor((Date.now() - time) / 1000);
+  if (diffSec < 10) return 'Baru saja';
+  if (diffSec < 60) return `${diffSec}s yang lalu`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m yang lalu`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}j yang lalu`;
+  const diffDay = Math.floor(diffHour / 24);
+  return `${diffDay}h yang lalu`;
 }
 
 const API_BASE = getApiBase();
@@ -506,7 +528,14 @@ export function ZeroClawTerminalView({
             }
           });
 
-          return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+          return Array.from(map.values()).sort((a, b) => {
+            const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.createdAt || 0).getTime();
+            const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.createdAt || 0).getTime();
+            if (isNaN(timeA) || isNaN(timeB) || timeA === timeB) {
+              return (b.id || '').localeCompare(a.id || '');
+            }
+            return timeB - timeA; // Newest at top
+          });
         });
       }
     } catch (err) { }
@@ -950,55 +979,90 @@ export function ZeroClawTerminalView({
 
   const [checkpoints, setCheckpoints] = useState<PendingCheckpoint[]>([]);
 
-  // Fetch live state from backend API (Partitioned by Demo Public vs Authenticated Private RLS)
+  // Fetch live state from backend API & direct Supabase DB fallback
   const fetchZeroClawStatus = async () => {
     setLoading(true);
     try {
       const isDemoParam = isGuestSession;
-      const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/list?isDemo=${isDemoParam}&userId=${encodeURIComponent(userEmail)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          const filteredRows = !isDemoParam
-            ? json.data.filter((e: any) => !e.is_demo && !e.isDemo && e.channel !== 'SOLANA-PAY-DEMO')
-            : json.data;
+      let rawData: any[] = [];
 
-          const mappedEvents: ReconciledEvent[] = filteredRows.map((e: any, idx: number) => ({
-            id: e.id || `evt_${idx}`,
-            signature: e.signature,
-            amount: e.amount,
-            currency: e.currency || 'USDC',
-            timestamp: e.timestamp || 'Just now',
-            channel: e.channel || (isDemoParam ? 'SOLANA-PAY-DEMO' : 'SOLANA-PAY-PRIVATE'),
-            network: e.network || 'solana-devnet',
-            memo: e.memo || `Settlement (${e.amount} USDC)`,
-            slot: e.slot || 480269120,
-            timeAgo: 'Just now'
-          }));
-          setEvents((prev) => {
-            const map = new Map<string, ReconciledEvent>();
-            // If authenticated, strictly purge demo events from state
-            if (!isDemoParam) {
-              prev.filter(evt => evt.channel !== 'SOLANA-PAY-DEMO').forEach((evt) => {
-                const key = evt.signature || evt.id;
-                if (key) map.set(key, evt);
-              });
-            } else {
-              prev.forEach((evt) => {
-                const key = evt.signature || evt.id;
-                if (key) map.set(key, evt);
-              });
-            }
-            mappedEvents.forEach((evt) => {
-              const key = evt.signature || evt.id;
-              if (key) {
-                const existing = map.get(key);
-                map.set(key, { ...existing, ...evt });
-              }
-            });
-            return Array.from(map.values()).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
-          });
+      try {
+        const res = await fetch(`${API_BASE}/v1/zeroclaw/settlement/list?isDemo=${isDemoParam}&userId=${encodeURIComponent(userEmail)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+            rawData = json.data;
+          }
         }
+      } catch (apiErr) {
+        console.warn('API settlement list error, failing over to direct Supabase DB query:', apiErr);
+      }
+
+      // 🛡️ Failproof Direct Supabase DB & RPC Fallback: Ensure records never disappear on refresh
+      if (rawData.length === 0 && supabase) {
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('get_zeroclaw_vault_settlements', {
+            p_is_demo: null
+          });
+          if (!rpcErr && rpcRes?.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
+            rawData = rpcRes.data;
+          } else {
+            const { data: tblData } = await supabase
+              .from('zeroclaw_solana_settlements')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(100);
+            if (tblData && tblData.length > 0) {
+              rawData = tblData;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('Direct Supabase settlement fetch error:', dbErr);
+        }
+      }
+
+      if (rawData && rawData.length > 0) {
+        const mappedEvents: ReconciledEvent[] = rawData.map((e: any, idx: number) => {
+          const createdIso = e.rawCreatedAt || e.createdAtISO || e.created_at || (e.created_at ? new Date(e.created_at).toISOString() : new Date().toISOString());
+          return {
+            id: e.id || `evt_${idx}`,
+            signature: e.tx_signature || e.signature || e.reference_key || e.referenceKey || e.id,
+            referenceKey: e.reference_key || e.referenceKey,
+            amount: parseFloat(e.amount_usdc || e.amount || 0),
+            currency: 'USDC',
+            timestamp: e.created_at ? new Date(e.created_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }) : (e.timestamp || 'Baru saja'),
+            rawCreatedAt: createdIso,
+            createdAtISO: createdIso,
+            channel: e.channel || 'SOLANA-PAY-SETTLED',
+            network: e.network || 'solana-devnet',
+            memo: e.memo || `Settlement (${e.amount_usdc || e.amount || 0} USDC)`,
+            slot: e.slot || 480269120,
+            timeAgo: formatRealtimeAgo(createdIso)
+          };
+        });
+
+        setEvents((prev) => {
+          const map = new Map<string, ReconciledEvent>();
+          prev.forEach((evt) => {
+            const key = evt.signature || evt.id;
+            if (key) map.set(key, evt);
+          });
+          mappedEvents.forEach((evt) => {
+            const key = evt.signature || evt.id;
+            if (key) {
+              const existing = map.get(key);
+              map.set(key, { ...existing, ...evt });
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => {
+            const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.timestamp || 0).getTime();
+            const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.timestamp || 0).getTime();
+            if (isNaN(timeA) || isNaN(timeB) || timeA === timeB) {
+              return (b.id || '').localeCompare(a.id || '');
+            }
+            return timeB - timeA; // Newest at top
+          });
+        });
       }
 
       if (isDemoParam) {
@@ -1171,50 +1235,7 @@ export function ZeroClawTerminalView({
         }
       }
 
-      // ── 2. MERCHANT WALLET REAL DEVNET RPC SIGNATURE SYNC ──
-      if (activeMerchantWallet) {
-        const merchantRes = await fetch(`${API_BASE}/v1/zeroclaw/solana-rpc?address=${encodeURIComponent(activeMerchantWallet)}`);
-        if (merchantRes.ok) {
-          const merchantJson = await merchantRes.json();
-          if (Array.isArray(merchantJson.signatures) && merchantJson.signatures.length > 0) {
-            const rpcMappedEvents: ReconciledEvent[] = merchantJson.signatures
-              .filter((sigItem: any) => sigItem.signature && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(String(sigItem.signature).trim()))
-              .map((sigItem: any) => {
-                const sigHash = String(sigItem.signature).trim();
-                const slotNum = sigItem.slot || 480320796;
-                const blockTimeMs = sigItem.blockTime ? sigItem.blockTime * 1000 : null;
-                const timeStr = blockTimeMs ? new Date(blockTimeMs).toLocaleTimeString() : 'Just now';
-                const parsedAmt = typeof sigItem.amountUsdc === 'number' && sigItem.amountUsdc > 0 ? sigItem.amountUsdc : 15.00;
-
-                return {
-                  id: `devnet_rpc_${sigHash}`,
-                  signature: sigHash,
-                  amount: parsedAmt,
-                  currency: 'USDC',
-                  timestamp: `Slot ${slotNum} (${timeStr})`,
-                  channel: 'SOLANA-PAY-DEVNET-RPC',
-                  network: 'solana-devnet',
-                  memo: sigItem.memo || `Verified Devnet On-Chain Tx (Slot ${slotNum})`,
-                  slot: slotNum,
-                  timeAgo: timeStr
-                };
-              });
-
-            setEvents(prev => {
-              const existingSigs = new Set(prev.map(e => e.signature));
-              const newItems = rpcMappedEvents.filter(e => !existingSigs.has(e.signature));
-              if (newItems.length > 0) {
-                if (showToast) {
-                  onTriggerToast(`🟢 Synced ${newItems.length} Real On-Chain Tx Signatures from Devnet RPC!`);
-                }
-                return [...newItems, ...prev];
-              }
-              return prev;
-            });
-          }
-        }
-      }
-
+      // ── 2. ON-CHAIN BALANCE SYNC ──
       await fetchOnChainBalances();
     } catch (e) {
       if (showToast) {
@@ -2857,49 +2878,60 @@ export function ZeroClawTerminalView({
                         </p>
                       </div>
                     ) : (
-                      events.map((ev) => {
-                        const isRealSignature = ev.signature.length > 20 && !ev.signature.includes('...');
-                        const explorerUrl = `https://explorer.solana.com/tx/${ev.signature}?cluster=devnet`;
-                        return (
-                          <div key={ev.id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-100/60 transition-colors space-y-1.5 shadow-2xs">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                                <span className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-slate-100 text-sm">{formatCurrencyAmount(ev.amount)}</span>
-                                <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 font-bold text-[9px] uppercase tracking-wider">{ev.channel}</span>
-                                <span className="text-slate-600 dark:text-slate-400 font-semibold text-[11px] truncate max-w-[150px]">{ev.memo}</span>
+                      [...events]
+                        .sort((a, b) => {
+                          const timeA = new Date(a.rawCreatedAt || a.createdAtISO || a.timestamp || 0).getTime();
+                          const timeB = new Date(b.rawCreatedAt || b.createdAtISO || b.timestamp || 0).getTime();
+                          if (isNaN(timeA) || isNaN(timeB) || timeA === timeB) {
+                            return (b.id || '').localeCompare(a.id || '');
+                          }
+                          return timeB - timeA; // Strict newest-first
+                        })
+                        .map((ev) => {
+                          const isRealSignature = ev.signature && ev.signature.length > 20 && !ev.signature.includes('...');
+                          const explorerUrl = `https://explorer.solana.com/tx/${ev.signature}?cluster=devnet`;
+                          const displayTimeAgo = (ev.rawCreatedAt || ev.createdAtISO) ? formatRealtimeAgo(ev.rawCreatedAt || ev.createdAtISO) : (ev.timeAgo || 'Baru saja');
+
+                          return (
+                            <div key={ev.id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-100/60 transition-colors space-y-1.5 shadow-2xs">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                                  <span className="font-sans font-extrabold tracking-tight text-slate-900 dark:text-slate-100 text-sm">{formatCurrencyAmount(ev.amount)}</span>
+                                  <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 font-bold text-[9px] uppercase tracking-wider">{ev.channel || 'SOLANA-PAY'}</span>
+                                  <span className="text-slate-600 dark:text-slate-400 font-semibold text-[11px] truncate max-w-[150px]">{ev.memo}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                                  <span>Slot <span className="font-bold text-slate-700 dark:text-slate-300">{ev.slot || 480320899}</span></span>
+                                  <span className="text-teal-600 dark:text-teal-400 font-bold">{displayTimeAgo}</span>
+                                </div>
                               </div>
 
-                              <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
-                                <span>Slot <span className="font-bold text-slate-700 dark:text-slate-300">{ev.slot || 231881234}</span></span>
-                                <span>{ev.timeAgo || '2s ago'}</span>
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] font-mono">
+                                <span className="text-slate-400 truncate max-w-[240px]">Tx Hash: <span className="text-slate-700 dark:text-slate-300 font-bold">{ev.signature ? `${ev.signature.substring(0, 24)}...` : 'Devnet_Tx'}</span></span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => { navigator.clipboard.writeText(ev.signature || ''); onTriggerToast('Tx Hash Disalin'); }}
+                                    className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10px]"
+                                  >
+                                    Copy
+                                  </button>
+                                  <a
+                                    href={isRealSignature ? explorerUrl : "https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1 text-[10px]"
+                                  >
+                                    <span>Explorer</span>
+                                    <ExternalLink size={10} />
+                                  </a>
+                                </div>
                               </div>
                             </div>
-
-                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] font-mono">
-                              <span className="text-slate-400 truncate max-w-[240px]">Tx Hash: <span className="text-slate-700 dark:text-slate-300 font-bold">{ev.signature.substring(0, 30)}...</span></span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => { navigator.clipboard.writeText(ev.signature); onTriggerToast('Tx Hash Disalin'); }}
-                                  className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10px]"
-                                >
-                                  Copy
-                                </button>
-                                <a
-                                  href={isRealSignature ? explorerUrl : "https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1 text-[10px]"
-                                >
-                                  <span>Explorer</span>
-                                  <ExternalLink size={10} />
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
+                          );
+                        })
                     )}
                   </div>
 
