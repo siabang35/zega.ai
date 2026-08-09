@@ -8,25 +8,40 @@
 [![Solana Devnet](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat-square&logo=solana&logoColor=white)](https://solana.com)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)
 
-An autonomous Solana Pay merchant POS automation platform built natively on the [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) agentic framework. ZEGA AI integrates a self-hosted ZeroClaw Rust runtime agent to generate single-use Solana Pay invoices, reconcile on-chain settlements via RPC reference-key polling, and route customer refunds through human-approval checkpoints — enforced by a Tier 1 (Keyless Agent) custody model.
+> **ZEGA (Zero-friction Enterprise Generative AI & Automation)** is an agentic execution platform that enables organizations to deploy, orchestrate, govern, and monetize AI agents across enterprise and business workflows.
+
+In this production implementation and Superteam bounty submission, ZEGA AI composes the official [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) Rust agentic framework (`v0.8.3`) to deliver an autonomous, keyless Solana Pay merchant POS and settlement automation engine.
+
+---
+
+## Executive Summary & Bounty Verification Matrix
+
+| Kriteria Bounty Superteam | Realisasi Teknis ZEGA AI | Lokasi Bukti Kode & Verifikasi |
+|---|---|---|
+| **1. Native ZeroClaw Architecture (30%)** | Composes stock ZeroClaw Rust binary (`v0.8.3`), `@zega/zeroclaw-bridge`, 4 SOPs, 4 Skills, MCP servers (Helius DAS via SSE + SendAI via stdio), and Upstream PR #9806. | [`docs/zeroclaw/config.toml`](docs/zeroclaw/config.toml)<br>[`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) |
+| **2. Security & T1 Keyless Custody (25%)** | Tier 1 (Keyless Agent) model: zero private key storage; OWASP Level 3 prompt injection defense; human-in-the-loop checkpoints (`quorum: 1`); PostgreSQL trigger `trg_sync_invoice_to_settlement` & `tx_signature UNIQUE` anti-replay. | [`docs/ZEROCLAW_FORENSIC_AUDIT.md`](docs/ZEROCLAW_FORENSIC_AUDIT.md)<br>[`apps/api/src/utils/settlementValidation.ts`](apps/api/src/utils/settlementValidation.ts) |
+| **3. Engineering Craft & Monorepo (20%)** | Turborepo monorepo across 6 packages (`@zega/web`, `@zega/api`, `@zega/zeroclaw-bridge`, `@zega/shared`, `@zega/supabase`, `@zega/config`). `pnpm type-check` & `pnpm build` pass with 0 errors. | [`turbo.json`](turbo.json)<br>[`package.json`](package.json) |
+| **4. Reproducibility & Test Suite (15%)** | **89 / 89 Test Specs PASS (0 Errors)** covering API endpoints, HMAC webhooks, prompt injection red-teaming, and database replay bounds. Includes instant daemon harness (`pnpm zeroclaw:daemon`). | [`.github/workflows/ci.yml`](.github/workflows/ci.yml)<br>[`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
+| **5. Merchant Utility & Live Production (10%)** | Real-time ZeroClaw POS Terminal view, strict creation-timestamp descending ordering, Cloudflare R2 CDN audit proofs, live production deployment at `zegaai.site`. | [`ZeroClawTerminalView.tsx`](apps/web/src/app/dashboard/enterprise/views/ZeroClawTerminalView.tsx)<br>[https://zegaai.site](https://zegaai.site) |
 
 ---
 
 ## Quick Reference & Live Links
 
-| Specification | Details & Links |
+| Topic | Direct Resource Link |
 |---|---|
-| **Custody Tier** | Tier 1 (Keyless Agent) — No private keys stored, held, or accessed |
-| **Security Audit** | **91 / 100 — GO Verdict** ([Hostile Forensic Audit Report](docs/ZEROCLAW_FORENSIC_AUDIT.md)) |
-| **Automated Test Suite** | **89 / 89 Test Specs PASS (0 Errors)** ([Hardening Matrix](docs/ZEGA_FINAL_HARDENING_REPORT.md)) |
-| **Upstream Integration** | ZeroClaw Upstream PR #9806 ([@zega/zeroclaw-bridge Integration Guide](docs/book/src/integrations/zega-ai.md)) |
-| **Live Production** | [https://zegaai.site](https://zegaai.site) |
-| **Bounty Submission** | [ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
+| **Live Production Platform** | [https://zegaai.site](https://zegaai.site) |
+| **Bounty Showcase Submission** | [`ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md`](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
+| **Hostile Forensic Security Audit** | [`docs/ZEROCLAW_FORENSIC_AUDIT.md`](docs/ZEROCLAW_FORENSIC_AUDIT.md) (**Audit Score: 91/100 GO Verdict**) |
+| **Final Hardening & Test Matrix** | [`docs/ZEGA_FINAL_HARDENING_REPORT.md`](docs/ZEGA_FINAL_HARDENING_REPORT.md) (**89/89 Tests PASS**) |
+| **Upstream Integration Guide** | [`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) (ZeroClaw Upstream PR #9806) |
+| **Judge Reproducibility Manual** | [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
 
 ---
 
 ## Table of Contents
 
+- [Platform Core Mission & Capabilities](#platform-core-mission--capabilities)
 - [System Architecture & Sequence Flows](#system-architecture--sequence-flows)
 - [ZeroClaw Primitives Composed](#zeroclaw-primitives-composed)
 - [Security, Custody & Threat Model](#security-custody--threat-model)
@@ -38,9 +53,20 @@ An autonomous Solana Pay merchant POS automation platform built natively on the 
 
 ---
 
+## Platform Core Mission & Capabilities
+
+ZEGA delivers enterprise-grade AI agent management by unifying four operational pillars:
+
+1. **Deploy**: Self-hosted ZeroClaw Rust edge daemons (`v0.8.3`) and TypeScript gateway bridge clients (`@zega/zeroclaw-bridge`) running lightweight node runtimes.
+2. **Orchestrate**: Event-driven workflow execution (`AutomationView`), multi-agent swarm node management (`MyAgentsView`), and cron/channel SOP triggers.
+3. **Govern**: Supervised risk profiles, human-in-the-loop approval checkpoints (`kind: checkpoint`, `policy: merchant-refund`, `quorum: 1`), OWASP Level 3 prompt injection guards, and audit trail generation with Cloudflare R2 storage.
+4. **Monetize**: Solana Pay single-use reference key generation, SPL USDC token settlement reconciliation, and database-backed atomic deduplication (`tx_signature UNIQUE`).
+
+---
+
 ## System Architecture & Sequence Flows
 
-### 1. Solana Pay Checkout & Settlement Reconciliation Flow
+### 1. Autonomous Solana Pay POS Settlement Reconciliation Flow
 
 ```mermaid
 sequenceDiagram
@@ -70,7 +96,7 @@ sequenceDiagram
     Agent-->>Cashier: "Invoice #412 paid ✓ (0.32 USDC, Slot 480463344)"
 ```
 
-### 2. Human-in-the-Loop Refund Approval & Injection Defense Flow
+### 2. Governed Refund Request & Injection Defense Flow
 
 ```mermaid
 sequenceDiagram
@@ -101,9 +127,9 @@ sequenceDiagram
 
 ## ZeroClaw Primitives Composed
 
-ZEGA AI strictly composes stock primitives exposed by the official ZeroClaw Rust binary (`v0.8.3`) alongside custom bridge integrations:
+ZEGA AI composes stock primitives exposed by the official ZeroClaw Rust binary (`v0.8.3`) alongside typed bridge package integrations:
 
-| ZeroClaw Primitive | ZEGA Implementation Specification | Source Location |
+| ZeroClaw Primitive | ZEGA Technical Implementation Specification | Source Location |
 |---|---|---|
 | **SOP — Cron Trigger** | `payment-reconciliation`: Polls pending Solana reference keys every 30s via `getSignaturesForAddress` | [`docs/zeroclaw/sops/payment-reconciliation/`](docs/zeroclaw/sops/payment-reconciliation/) |
 | **SOP — Channel Trigger** | `refund-approval`: Subscribes to `refund_requested` webhook events | [`docs/zeroclaw/sops/refund-approval/`](docs/zeroclaw/sops/refund-approval/) |
