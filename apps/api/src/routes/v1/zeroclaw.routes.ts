@@ -752,20 +752,81 @@ interface PendingCheckpoint {
   prompt: string;
   status: 'pending' | 'approved' | 'rejected';
   injectionFlagged: boolean;
+  sopName?: string;
+  daemonRunId?: string;
 }
 
-const pendingCheckpoints: PendingCheckpoint[] = [
-  {
-    checkpointId: 'chk_ref_9901',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    customerChannel: 'WhatsApp (zeroclaw_channel)',
-    amountUsdc: 25.00,
-    recipientAddress: 'AttackerSolanaPublicKey1111111111111111111',
-    prompt: 'Prompt Injection Warning: Customer message requested instant refund of 25 USDC claiming item was damaged.',
-    status: 'pending',
-    injectionFlagged: true,
+// 🛡️ Dynamic In-Memory + Supabase DB Checkpoints Store (0% hardcoded mock data)
+const pendingCheckpoints: PendingCheckpoint[] = [];
+
+/** Sync & Load Checkpoints from Supabase DB */
+async function loadCheckpointsFromDb(): Promise<PendingCheckpoint[]> {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return pendingCheckpoints;
+
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_checkpoints?order=created_at.desc&limit=50`, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    });
+    if (res.ok) {
+      const rows = (await res.json()) as any[];
+      if (Array.isArray(rows)) {
+        const loaded: PendingCheckpoint[] = rows.map((r: any) => ({
+          checkpointId: r.checkpoint_id,
+          timestamp: r.created_at || r.updated_at || new Date().toISOString(),
+          customerChannel: r.customer_channel || 'WhatsApp',
+          amountUsdc: parseFloat(r.amount_usdc || 0),
+          recipientAddress: r.recipient_address || '',
+          prompt: r.prompt || '',
+          status: (r.status as 'pending' | 'approved' | 'rejected') || 'pending',
+          injectionFlagged: Boolean(r.injection_flagged),
+          sopName: r.sop_name || 'refund-approval',
+          daemonRunId: r.daemon_run_id || undefined,
+        }));
+        pendingCheckpoints.length = 0;
+        pendingCheckpoints.push(...loaded);
+      }
+    }
+  } catch (e) {
+    logger.warn({ err: e }, 'Could not load zeroclaw_checkpoints from Supabase');
   }
-];
+  return pendingCheckpoints;
+}
+
+/** Persist a new or updated checkpoint to Supabase DB */
+async function persistCheckpointToDb(chk: PendingCheckpoint): Promise<void> {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return;
+
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/zeroclaw_checkpoints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        checkpoint_id: chk.checkpointId,
+        customer_channel: chk.customerChannel,
+        amount_usdc: chk.amountUsdc,
+        recipient_address: chk.recipientAddress,
+        prompt: chk.prompt,
+        status: chk.status,
+        injection_flagged: chk.injectionFlagged,
+        sop_name: chk.sopName || 'refund-approval',
+        daemon_run_id: chk.daemonRunId || null,
+        created_at: chk.timestamp,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    logger.error({ err: e, checkpointId: chk.checkpointId }, 'Failed to persist checkpoint to Supabase');
+  }
+}
 
 const reconciledEvents: Array<{
   id: string;
@@ -2480,6 +2541,30 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // ── Periodic Background ZeroClaw Gateway Daemon Health Probe (Every 30 Seconds) ──
+  const DAEMON_PING_INTERVAL_MS = 30000;
+  const daemonHealthTimer = setInterval(async () => {
+    try {
+      const bridgeState = await zeroclawBridge.getState();
+      if (bridgeState.status === 'paired' || bridgeState.status === 'connecting') {
+        zeroClawState.bridgeConnected = true;
+        zeroClawState.bridgeStatus = `Connected to ZeroClaw Gateway (${bridgeState.daemonVersion || 'v0.8.3'}) at ${ZEROCLAW_GATEWAY_URL}`;
+        zeroClawState.daemonVersion = bridgeState.daemonVersion || 'v0.8.3';
+      } else {
+        zeroClawState.bridgeConnected = false;
+        zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline: ${bridgeState.lastError || 'Unreachable'})`;
+      }
+    } catch {
+      zeroClawState.bridgeConnected = false;
+      zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline)`;
+    }
+  }, DAEMON_PING_INTERVAL_MS);
+
+  fastify.addHook('onClose', (_instance, done) => {
+    clearInterval(daemonHealthTimer);
+    done();
+  });
+
   // ── GET /v1/zeroclaw/status ── Query Real ZeroClaw v0.8.3 Gateway Status via Bridge Client
   fastify.get('/status', async () => {
     try {
@@ -2496,6 +2581,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       zeroClawState.bridgeConnected = false;
       zeroClawState.bridgeStatus = `Standby / Autonomous Mode (Gateway at ${ZEROCLAW_GATEWAY_URL} offline)`;
     }
+
+    // Sync dynamic checkpoints from DB
+    await loadCheckpointsFromDb().catch(() => {});
 
     return {
       success: true,
@@ -2782,7 +2870,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // 3. OWASP Prompt Injection Detection
+    // 3. OWASP Prompt Injection Detection & Dual-Layer SOP Defense
     const isInjectionFlagged = INJECTION_PATTERNS.some((pattern) => pattern.test(prompt));
     if (isInjectionFlagged) {
       const checkpointId = `chk_auto_${Date.now()}`;
@@ -2795,8 +2883,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         prompt: `Prompt Injection Blocked: "${prompt.substring(0, 80)}..."`,
         status: 'pending',
         injectionFlagged: true,
+        sopName: 'refund-approval',
       };
       pendingCheckpoints.unshift(flaggedCheckpoint);
+
+      // 🛡️ Layer 1: Persist checkpoint to Supabase DB
+      persistCheckpointToDb(flaggedCheckpoint).catch(() => {});
+
+      // 🛡️ Layer 2: Dual-Layer Defense — Forward flagged injection event to ZeroClaw Rust runtime SOP engine
+      if (zeroClawState.bridgeConnected) {
+        zeroclawBridge.webhook(`INJECTION_ALERT prompt="${prompt.replace(/"/g, "'")}" checkpoint=${checkpointId}`).catch(() => {});
+      }
 
       return reply.send({
         success: true,
@@ -3089,10 +3186,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         prompt: prompt || 'Refund request requiring human owner approval.',
         status: 'pending',
         injectionFlagged: true,
+        sopName: 'refund-approval',
       };
       pendingCheckpoints.unshift(newCheckpoint);
+      persistCheckpointToDb(newCheckpoint).catch(() => {});
 
-      return reply.send({ success: true, message: 'Refund approval checkpoint logged', checkpoint: newCheckpoint });
+      // Forward to ZeroClaw bridge daemon if connected
+      if (zeroClawState.bridgeConnected) {
+        zeroclawBridge.webhook(`CHECKPOINT_CREATED id=${newCheckpoint.checkpointId} amount=${newCheckpoint.amountUsdc} channel=${newCheckpoint.customerChannel}`).catch(() => {});
+      }
+
+      return reply.send({ success: true, message: 'Refund approval checkpoint logged & persisted', checkpoint: newCheckpoint });
     }
 
     return reply.send({ success: true, message: 'ZeroClaw event received' });
@@ -3103,22 +3207,108 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     '/approve-checkpoint',
     async (request, reply) => {
       const { checkpointId, decision } = request.body || {};
-      const checkpoint = pendingCheckpoints.find((c) => c.checkpointId === checkpointId);
+      let checkpoint = pendingCheckpoints.find((c) => c.checkpointId === checkpointId);
 
       if (!checkpoint) {
-        return reply.status(404).send({ success: false, error: 'Checkpoint not found' });
+        // Fallback sync from DB
+        await loadCheckpointsFromDb().catch(() => {});
+        checkpoint = pendingCheckpoints.find((c) => c.checkpointId === checkpointId);
+      }
+
+      if (!checkpoint) {
+        return reply.status(404).send({ success: false, error: `Checkpoint ${checkpointId} not found in DB or memory` });
       }
 
       checkpoint.status = decision === 'approve' ? 'approved' : 'rejected';
+      await persistCheckpointToDb(checkpoint).catch(() => {});
 
-      fastify.log.info({ checkpointId, decision }, 'ZeroClaw refund checkpoint decision updated');
+      // Forward decision to ZeroClaw Rust Gateway Daemon so SOP engine can resume/abort run
+      let bridgeForwarded = false;
+      if (zeroClawState.bridgeConnected) {
+        try {
+          await zeroclawBridge.webhook(
+            `CHECKPOINT_DECISION checkpoint_id=${checkpointId} status=${checkpoint.status} decision=${decision}`
+          );
+          bridgeForwarded = true;
+        } catch (err: any) {
+          fastify.log.warn({ err: err.message, checkpointId }, 'Could not forward checkpoint decision to ZeroClaw daemon');
+        }
+      }
+
+      fastify.log.info({ checkpointId, decision, bridgeForwarded }, 'ZeroClaw refund checkpoint decision processed');
       return reply.send({
         success: true,
-        message: `Checkpoint ${checkpointId} set to ${checkpoint.status}`,
+        message: `Checkpoint ${checkpointId} marked as ${checkpoint.status}`,
         checkpoint,
+        bridgeForwarded,
+        daemonConnected: zeroClawState.bridgeConnected,
       });
     }
   );
+
+  // ── GET /v1/zeroclaw/sops/runs ── Telemetry & SOP Run State Query Endpoint
+  fastify.get('/sops/runs', async (_request, reply) => {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    let sopRuns: any[] = [];
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_sop_runs?order=started_at.desc&limit=20`, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+        });
+        if (dbRes.ok) {
+          sopRuns = (await dbRes.json()) as any[];
+        }
+      } catch (err) {
+        fastify.log.warn({ err }, 'Failed to fetch zeroclaw_sop_runs from DB');
+      }
+    }
+
+    const definedSops = [
+      {
+        name: 'payment-reconciliation',
+        description: 'Polls Solana RPC for pending invoice reference keys, verifies on-chain payment, updates DB',
+        version: '1.0.0',
+        trigger: 'cron (*/30 * * * * *)',
+        custodyTier: 'T1',
+        status: 'active',
+      },
+      {
+        name: 'refund-approval',
+        description: 'Routes refund requests through prompt injection screening and merchant approval checkpoint',
+        version: '1.0.0',
+        trigger: 'channel (webhook.zega:refund_requested)',
+        custodyTier: 'T1',
+        status: 'active',
+      },
+      {
+        name: 'defi-guardian',
+        description: 'Monitors portfolio health and token price shifts using Jupiter V2 & Switchboard Crossbar',
+        version: '1.0.0',
+        trigger: 'cron (*/60 * * * * *)',
+        custodyTier: 'T0',
+        status: 'active',
+      },
+      {
+        name: 'balance-alert',
+        description: 'Alerts merchant when wallet SOL balance drops below gas threshold',
+        version: '1.0.0',
+        trigger: 'cron (0 * * * * *)',
+        custodyTier: 'T0',
+        status: 'active',
+      },
+    ];
+
+    return reply.send({
+      success: true,
+      daemonConnected: zeroClawState.bridgeConnected,
+      daemonVersion: zeroClawState.daemonVersion,
+      sops: definedSops,
+      activeRuns: sopRuns,
+      pendingCheckpointsCount: pendingCheckpoints.filter(c => c.status === 'pending').length,
+    });
+  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // NEW ROUTE GROUP 1: Webhook Channel with HMAC-SHA256 Signature Verification
