@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Megaphone, Sparkles, DollarSign, Target, TrendingUp, TrendingDown, 
   Filter, Calendar, ChevronDown, ChevronUp, ArrowUpRight, Plus, RefreshCw, CheckCircle2, 
-  MessageSquare, Instagram, Video, ShoppingBag, Mail, ShieldCheck, Zap
+  MessageSquare, Instagram, Video, ShoppingBag, Mail, ShieldCheck, Zap,
+  LayoutDashboard, BarChart3, FileText, Activity
 } from 'lucide-react';
 import { 
   Chart as ChartJS, 
@@ -23,6 +24,11 @@ import {
   DeployMarketingSwarmModal, CreateCampaignModal, CreateContentModal, AllChannelsModal, 
   AllCampaignsModal, DateFilterModal, FilterModal, AllActivitiesModal 
 } from './marketing/MarketingModals';
+import { CampaignSubPage } from './marketing/subpages/CampaignSubPage';
+import { PerformaByChannelSubPage } from './marketing/subpages/PerformaByChannelSubPage';
+import { MarketingReportsSubPage } from './marketing/subpages/MarketingReportsSubPage';
+import { AktivitasSubPage } from './marketing/subpages/AktivitasSubPage';
+import { ContentStudioSubPage } from './marketing/subpages/ContentStudioSubPage';
 
 ChartJS.register(
   CategoryScale, 
@@ -36,12 +42,48 @@ ChartJS.register(
   Filler
 );
 
+export type MarketingSubTab = 'overview' | 'campaign' | 'channel' | 'reports' | 'aktivitas' | 'konten';
+
 interface MarketingViewProps {
   triggerToast?: (msg: string) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
-export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
+export function MarketingView({ triggerToast = () => {}, onNavigateTab }: MarketingViewProps) {
   const { t } = useLanguage();
+
+  const getInitialSubTab = (): MarketingSubTab => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sub = params.get('subtab') || params.get('sub_page') || params.get('tab');
+      if (sub === 'campaign' || sub === 'campaigns') return 'campaign';
+      if (sub === 'channel' || sub === 'channels' || sub === 'performa_by_channel') return 'channel';
+      if (sub === 'reports' || sub === 'report') return 'reports';
+      if (sub === 'aktivitas' || sub === 'activities' || sub === 'activity') return 'aktivitas';
+      if (sub === 'konten' || sub === 'content' || sub === 'studio' || sub === 'content_studio') return 'konten';
+    }
+    return 'overview';
+  };
+
+  const [activeSubTab, setActiveSubTabState] = useState<MarketingSubTab>(getInitialSubTab);
+
+  const setActiveSubTab = (tab: MarketingSubTab) => {
+    setActiveSubTabState(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('subtab', tab);
+      window.history.pushState({}, '', url.toString());
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveSubTabState(getInitialSubTab());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [timeTab, setTimeTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [contentTab, setContentTab] = useState<string>('Semua');
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -79,18 +121,18 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
   ]);
 
   const [campaigns, setCampaigns] = useState<any[]>([
-    { id: '1', campaign_name: 'Promo Agustus', date_range: '22 Jun - 22 Jul', reach_text: '45.2K', leads_count: 182, revenue: 2450000, roas_text: '3.8x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-    { id: '2', campaign_name: 'Diskon Spesial Minggu Ini', date_range: '15 Jul - 31 Jul', reach_text: '32.1K', leads_count: 128, revenue: 1620000, roas_text: '2.9x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
-    { id: '3', campaign_name: 'Bundle Hemat', date_range: '10 Jul - 24 Jul', reach_text: '23.6K', leads_count: 84, revenue: 780000, roas_text: '2.1x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-    { id: '4', campaign_name: 'Launching Produk Baru', date_range: '1 Jul - 20 Jul', reach_text: '18.9K', leads_count: 46, revenue: 350000, roas_text: '1.6x', status: 'Selesai', image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' },
-    { id: '5', campaign_name: 'Remarketing Customer', date_range: '1 Jul - 31 Jul', reach_text: '7.6K', leads_count: 16, revenue: 0, roas_text: '-', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' }
+    { id: '1', campaign_name: 'Promo Agustus', channel_name: 'WhatsApp Broadcast', date_range: '22 Jun - 22 Jul', reach_text: '45.2K', leads_count: 182, revenue: 2450000, roas_text: '3.8x', status: 'Aktif', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp', creative_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
+    { id: '2', campaign_name: 'Diskon Spesial Minggu Ini', channel_name: 'Instagram Ads', date_range: '15 Jul - 31 Jul', reach_text: '32.1K', leads_count: 128, revenue: 1620000, roas_text: '2.9x', status: 'Aktif', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png', creative_image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
+    { id: '3', campaign_name: 'Bundle Hemat', channel_name: 'WhatsApp Broadcast', date_range: '10 Jul - 24 Jul', reach_text: '23.6K', leads_count: 84, revenue: 780000, roas_text: '2.1x', status: 'Aktif', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp', creative_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
+    { id: '4', campaign_name: 'Launching Produk Baru', channel_name: 'TikTok Shop', date_range: '1 Jul - 20 Jul', reach_text: '18.9K', leads_count: 46, revenue: 350000, roas_text: '1.6x', status: 'Selesai', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp', creative_image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' },
+    { id: '5', campaign_name: 'Remarketing Customer', channel_name: 'Instagram Ads', date_range: '1 Jul - 31 Jul', reach_text: '7.6K', leads_count: 16, revenue: 0, roas_text: '-', status: 'Aktif', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png', creative_image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' }
   ]);
 
   const [contentItems, setContentItems] = useState<any[]>([
-    { id: '1', title: 'Promo Skincare', platform: 'Instagram', content_type: 'Instagram Post', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-    { id: '2', title: 'Tips Perawatan Kulit', platform: 'Instagram', content_type: 'Instagram Story', image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' },
-    { id: '3', title: 'Diskon Spesial!', platform: 'WhatsApp', content_type: 'WhatsApp Template', image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
-    { id: '4', title: 'Produk Baru', platform: 'TikTok', content_type: 'TikTok Video', image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' }
+    { id: '1', title: 'Promo Skincare', platform: 'Instagram', content_type: 'Instagram Post', cdn_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
+    { id: '2', title: 'Tips Perawatan Kulit', platform: 'Instagram', content_type: 'Instagram Story', cdn_image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg', image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' },
+    { id: '3', title: 'Diskon Spesial!', platform: 'WhatsApp', content_type: 'WhatsApp Template', cdn_image_url: '/design/dashboard_umkm/marketing/discount.jpeg', image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
+    { id: '4', title: 'Produk Baru', platform: 'TikTok', content_type: 'TikTok Video', cdn_image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg', image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' }
   ]);
 
   const [activities, setActivities] = useState<any[]>([
@@ -434,139 +476,206 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. TOP METRICS GRID (6 CARDS WITH SPARKLINES) */}
+      {/* SUB-TAB NAVIGATION BAR */}
+      {/* ========================================================================= */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2.5 overflow-x-auto">
+        {[
+          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+          { id: 'campaign', label: 'Campaign', icon: Megaphone },
+          { id: 'konten', label: 'AI Content Studio', icon: Sparkles },
+          { id: 'channel', label: 'Performa by Channel', icon: BarChart3 },
+          { id: 'reports', label: 'Reports', icon: FileText },
+          { id: 'aktivitas', label: 'Aktivitas', icon: Activity },
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as MarketingSubTab)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Icon size={15} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* SUBPAGE 1: CAMPAIGN */}
+      {activeSubTab === 'campaign' && (
+        <CampaignSubPage 
+          campaigns={campaigns} 
+          onOpenCreateCampaign={() => setActiveModal('createCampaign')} 
+          triggerToast={triggerToast} 
+        />
+      )}
+
+      {/* SUBPAGE: AI CONTENT STUDIO */}
+      {activeSubTab === 'konten' && (
+        <ContentStudioSubPage storeId="11111111-1111-1111-1111-111111111111" />
+      )}
+
+      {/* SUBPAGE 2: PERFORMA BY CHANNEL */}
+      {activeSubTab === 'channel' && (
+        <PerformaByChannelSubPage 
+          channels={channels} 
+          getChannelLogo={getChannelLogo} 
+          triggerToast={triggerToast} 
+        />
+      )}
+
+      {/* SUBPAGE 3: REPORTS */}
+      {activeSubTab === 'reports' && (
+        <MarketingReportsSubPage 
+          metrics={metrics} 
+          triggerToast={triggerToast} 
+        />
+      )}
+
+      {/* SUBPAGE 4: AKTIVITAS */}
+      {activeSubTab === 'aktivitas' && (
+        <AktivitasSubPage 
+          activities={activities} 
+          triggerToast={triggerToast} 
+        />
+      )}
+
+      {/* SUBPAGE 0: OVERVIEW MAIN DASHBOARD */}
+      {activeSubTab === 'overview' && (
+        <>
+      {/* ========================================================================= */}
+      {/* 2. TOP METRICS GRID (6 ENTERPRISE KPI CARDS) */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3.5">
         {/* Card 1: Total Reach */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Reach</span>
+            <div className="size-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
               <Users size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">Total Reach</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
               {metrics.total_reach || '125.4K'}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.reach_growth || 12}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                ↑ {metrics.reach_growth || 12}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-blue-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 20 Q 25 5, 50 15 T 100 5" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
 
         {/* Card 2: Engagement Rate */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Engagement</span>
+            <div className="size-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
               <Megaphone size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">Engagement Rate</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
               {metrics.engagement_rate || 7.8}%
             </div>
-            <div className="text-[10px] font-bold text-rose-500 mt-0.5 flex items-center gap-1">
-              <span>↓ {Math.abs(metrics.engagement_growth || 1.2)}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
+                ↓ {Math.abs(metrics.engagement_growth || 1.2)}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-purple-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 10 Q 30 22, 60 8 T 100 18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
 
         {/* Card 3: Leads Generated */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Leads</span>
+            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
               <Sparkles size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">Leads Generated</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {metrics.leads_generated || 456}
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+              {(metrics.leads_generated || 456).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.leads_growth || 23}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                ↑ {metrics.leads_growth || 23}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-emerald-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 22 Q 25 18, 50 8 T 100 4" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
 
-        {/* Card 4: Revenue from Campaign */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        {/* Card 4: Revenue Campaign */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Revenue</span>
+            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
               <DollarSign size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">Revenue Campaign</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(metrics.revenue_campaign || 5200000).toLocaleString('id-ID')}
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+              Rp {(metrics.revenue_campaign || 5200000).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.revenue_growth || 18}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                ↑ {metrics.revenue_growth || 18}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-orange-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 20 Q 30 15, 60 5 T 100 12" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
 
         {/* Card 5: Cost per Lead */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cost / Lead</span>
+            <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
               <Target size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">Cost per Lead</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(metrics.cost_per_lead || 11403).toLocaleString('id-ID')}
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+              Rp {(metrics.cost_per_lead || 11400).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↓ {Math.abs(metrics.cpl_growth || 8)}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                ↓ {Math.abs(metrics.cpl_growth || 8)}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-amber-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 12 Q 30 20, 60 10 T 100 15" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
 
         {/* Card 6: ROAS */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 flex items-center justify-center font-bold text-xs">
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ROAS</span>
+            <div className="size-7 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
               <TrendingUp size={14} />
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">ROAS</span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {metrics.roas || 4.2}x
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+              {typeof metrics.roas === 'number' ? metrics.roas.toFixed(2) : metrics.roas || '4.20'}x
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.roas_growth || 15}%</span>
-              <span className="text-slate-400 font-normal">vs last month</span>
+            <div className="mt-2 flex items-center justify-between text-[10px]">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                ↑ {metrics.roas_growth || 15}%
+              </span>
+              <span className="text-slate-400 font-medium">vs bln lalu</span>
             </div>
           </div>
-          <svg className="w-full h-6 mt-1 text-cyan-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 18 Q 30 8, 60 16 T 100 4" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
         </div>
       </div>
 
@@ -649,7 +758,7 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
           </div>
 
           <button
-            onClick={() => setActiveModal('allChannels')}
+            onClick={() => setActiveSubTab('channel')}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 transition-colors pt-2 cursor-pointer flex items-center justify-center gap-1"
           >
             <span>Lihat Semua Channel</span>
@@ -689,7 +798,7 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
           </div>
 
           <button
-            onClick={() => setActiveModal('allCampaigns')}
+            onClick={() => setActiveSubTab('reports')}
             className="w-full py-2.5 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 hover:bg-orange-100 font-extrabold text-xs cursor-pointer text-center transition-all flex items-center justify-center gap-1.5"
           >
             <span>Lihat Laporan Lengkap</span>
@@ -701,9 +810,9 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
       {/* ========================================================================= */}
       {/* 4. BOTTOM SECTION: TOP CAMPAIGNS, AI CONTENT STUDIO, AI RECOMMENDATIONS */}
       {/* ========================================================================= */}
-      <div className="grid lg:grid-cols-12 gap-5">
+      <div className="grid lg:grid-cols-12 gap-5 items-start">
         {/* Top Campaigns Table (5 Cols) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Campaigns</h3>
@@ -723,37 +832,44 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
                 <span className="col-span-3 text-right">Revenue</span>
               </div>
 
-              {campaigns.slice(0, 5).map((c, i) => (
-                <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                  <div className="col-span-5 flex items-center gap-2 truncate">
-                    <img 
-                      src={c.image_url} 
-                      alt={c.campaign_name} 
-                      className="size-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700" 
-                    />
-                    <div className="truncate">
-                      <div className="font-extrabold text-slate-900 dark:text-slate-100 truncate text-[11px]">{c.campaign_name}</div>
-                      <div className="text-[10px] text-slate-400">{c.date_range}</div>
+              {campaigns.slice(0, 5).map((c, i) => {
+                const logo = getChannelLogo(c.channel_name || '');
+                return (
+                  <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                    <div className="col-span-5 flex items-center gap-2 truncate">
+                      <img 
+                        src={c.cdn_icon_url || logo.cdn} 
+                        alt={c.campaign_name || 'Campaign'} 
+                        className="size-8 rounded-xl object-contain border border-slate-200 dark:border-slate-700 bg-white p-1 shrink-0 shadow-2xs" 
+                        onError={(e: any) => { 
+                          e.target.onerror = null;
+                          e.target.src = logo.fallback || logo.cdn; 
+                        }}
+                      />
+                      <div className="truncate">
+                        <div className="font-extrabold text-slate-900 dark:text-slate-100 truncate text-[11px]">{c.campaign_name}</div>
+                        <div className="text-[10px] text-slate-400">{c.date_range}</div>
+                      </div>
+                    </div>
+
+                    <span className="col-span-2 text-center font-bold text-slate-600 dark:text-slate-300 text-[11px]">{c.reach_text}</span>
+                    <span className="col-span-2 text-center font-bold text-slate-900 dark:text-slate-100 text-[11px]">{c.leads_count}</span>
+                    <div className="col-span-3 text-right">
+                      <div className="font-black text-slate-900 dark:text-slate-100 text-[11px]">Rp{(c.revenue || c.revenue_num || 0).toLocaleString('id-ID')}</div>
+                      <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold ${
+                        c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {c.status}
+                      </span>
                     </div>
                   </div>
-
-                  <span className="col-span-2 text-center font-bold text-slate-600 dark:text-slate-300 text-[11px]">{c.reach_text}</span>
-                  <span className="col-span-2 text-center font-bold text-slate-900 dark:text-slate-100 text-[11px]">{c.leads_count}</span>
-                  <div className="col-span-3 text-right">
-                    <div className="font-black text-slate-900 dark:text-slate-100 text-[11px]">Rp{(c.revenue || 0).toLocaleString('id-ID')}</div>
-                    <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold ${
-                      c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      {c.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           <button
-            onClick={() => setActiveModal('allCampaigns')}
+            onClick={() => setActiveSubTab('campaign')}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 transition-colors pt-2 cursor-pointer flex items-center justify-center gap-1"
           >
             <span>Lihat Semua Campaign</span>
@@ -762,7 +878,7 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
         </div>
 
         {/* AI Content Studio Panel (4 Cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div>
             <div className="flex items-center justify-between">
               <div>
@@ -790,28 +906,42 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
 
             {/* Grid Content Cards */}
             <div className="grid grid-cols-2 gap-2.5 mt-2">
-              {filteredContent.slice(0, 4).map((item, i) => (
-                <div key={i} className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                  <img 
-                    src={item.image_url} 
-                    alt={item.title} 
-                    className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300" 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent p-2.5 flex flex-col justify-end">
-                    <span className="text-[9px] font-black text-orange-300 uppercase tracking-wider">{item.content_type}</span>
-                    <h4 className="text-xs font-extrabold text-white truncate">{item.title}</h4>
+              {filteredContent.slice(0, 4).map((item, i) => {
+                const defaultCdnUrl = item.platform === 'Instagram' 
+                  ? 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80'
+                  : item.platform === 'TikTok'
+                  ? 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&w=600&q=80'
+                  : item.platform === 'WhatsApp'
+                  ? 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=600&q=80'
+                  : 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80';
+                
+                return (
+                  <div key={i} className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+                    <img 
+                      src={item.cdn_image_url || item.creative_image_url || defaultCdnUrl} 
+                      alt={item.title} 
+                      className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300" 
+                      onError={(e: any) => { 
+                        e.target.onerror = null;
+                        e.target.src = defaultCdnUrl; 
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent p-2.5 flex flex-col justify-end">
+                      <span className="text-[9px] font-black text-orange-300 uppercase tracking-wider">{item.content_type}</span>
+                      <h4 className="text-xs font-extrabold text-white truncate">{item.title}</h4>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           <button
-            onClick={() => setActiveModal('createContent')}
-            className="w-full py-2.5 rounded-2xl border border-orange-500 text-orange-500 hover:bg-orange-50 font-extrabold text-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all shadow-xs"
+            onClick={() => setActiveSubTab('konten')}
+            className="w-full py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all shadow-sm"
           >
             <Sparkles size={14} />
-            <span>Buat Konten Baru</span>
+            <span>Akses Content AI Studio</span>
           </button>
         </div>
 
@@ -819,27 +949,27 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
         <div className="lg:col-span-3 space-y-4">
           {/* Executive AI Recommendations Card */}
           <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
-            {/* Gradient Header Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-700 text-white space-y-2.5 shadow-sm">
+            {/* Enterprise Header Banner */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white space-y-2.5 shadow-sm">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-black tracking-wider text-amber-300 uppercase">
-                  <Sparkles size={16} className="text-amber-300" />
+                <div className="flex items-center gap-1.5 text-xs font-black tracking-wider text-amber-400 uppercase">
+                  <Sparkles size={16} className="text-amber-400" />
                   <span>AI Recommendations Swarm</span>
                 </div>
-                <div className="flex items-center gap-1.5 bg-purple-950/60 border border-purple-400/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-emerald-300">
+                <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-emerald-400">
                   <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Live Model Engine</span>
                 </div>
               </div>
               
-              <div className="p-2 rounded-xl bg-purple-950/60 border border-purple-300/30 text-[10px] space-y-1">
-                <div className="flex justify-between font-bold text-purple-100">
-                  <span className="text-purple-200">Active Router:</span>
-                  <span className="text-amber-200 font-extrabold truncate max-w-[130px]">{metrics.model_engine || '9Router'}</span>
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[10px] space-y-1">
+                <div className="flex justify-between font-bold text-slate-300">
+                  <span className="text-slate-400">Active Router:</span>
+                  <span className="text-amber-400 font-extrabold truncate max-w-[130px]">{metrics.model_engine || '9Router'}</span>
                 </div>
-                <div className="flex justify-between font-bold text-purple-200">
-                  <span className="text-purple-200">Performance:</span>
-                  <span className="text-emerald-300 font-extrabold">{metrics.success_rate || 99.85}% Success • {metrics.latency_ms || 142}ms Latency</span>
+                <div className="flex justify-between font-bold text-slate-300">
+                  <span className="text-slate-400">Performance:</span>
+                  <span className="text-emerald-400 font-extrabold">{metrics.success_rate || 99.85}% Success • {metrics.latency_ms || 142}ms Latency</span>
                 </div>
               </div>
             </div>
@@ -942,11 +1072,11 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aktivitas Terbaru</h3>
-              <button onClick={() => setActiveModal('allActivities')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">Lihat Semua</button>
+              <button onClick={() => setActiveSubTab('aktivitas')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">Lihat Semua ↗</button>
             </div>
 
             <div className="space-y-2.5 text-xs">
-              {activities.map((act, i) => (
+              {activities.slice(0, 3).map((act, i) => (
                 <div key={i} className="flex items-start gap-2.5">
                   <div className="size-6 rounded-lg bg-orange-50 dark:bg-orange-950/60 text-orange-500 flex items-center justify-center shrink-0 mt-0.5">
                     <CheckCircle2 size={12} />
@@ -961,6 +1091,8 @@ export function MarketingView({ triggerToast = () => {} }: MarketingViewProps) {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* ========================================================================= */}
       {/* 5. RENDER ACTIVE MODALS */}

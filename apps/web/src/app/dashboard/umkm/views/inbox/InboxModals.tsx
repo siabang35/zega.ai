@@ -301,3 +301,239 @@ export function AiReasoningModal({ isOpen, onClose }: { isOpen: boolean; onClose
     </ModalBase>
   );
 }
+
+// 7. Customer Full Profile Modal
+export function CustomerFullProfileModal({ 
+  isOpen, 
+  onClose, 
+  customer, 
+  triggerToast 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  customer: any; 
+  triggerToast: (msg: string) => void; 
+}) {
+  if (!customer) return null;
+
+  const sampleOrders = [
+    { id: 'ORD-9982', date: '08 Agu 2026', total: 199000, status: 'Selesai', items: 'Paket Basic Skincare Remaja' },
+    { id: 'ORD-8841', date: '15 Mei 2026', total: 450000, status: 'Selesai', items: 'Paket Sunscreen & Cleanser' },
+  ];
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Profil Lengkap Pelanggan">
+      <div className="space-y-4 text-xs">
+        {/* Customer Avatar & Primary Metadata */}
+        <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+          <img
+            src={customer.customer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            alt={customer.customer_name}
+            className="size-14 rounded-full object-cover border-2 border-blue-600 shadow-xs"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{customer.customer_name}</h3>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[9px] font-extrabold flex items-center gap-0.5">
+                <Check size={10} /> Terverifikasi
+              </span>
+            </div>
+            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">{customer.customer_phone}</p>
+            <p className="text-[10px] text-slate-400 truncate">{customer.customer_email || 'siti.aisyah@gmail.com'}</p>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+            <p className="text-[10px] text-slate-400 font-bold">Total Order</p>
+            <p className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5">{customer.total_orders || 3}x</p>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+            <p className="text-[10px] text-slate-400 font-bold">Total Belanja</p>
+            <p className="font-black text-sm text-blue-600 dark:text-blue-400 mt-0.5">Rp{(customer.total_spent || 650000).toLocaleString('id-ID')}</p>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+            <p className="text-[10px] text-slate-400 font-bold">Member Sejak</p>
+            <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">{customer.customer_since || '12 Mei 2026'}</p>
+          </div>
+        </div>
+
+        {/* Contact Info & Address */}
+        <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5">Detail Kontak & Alamat Pengiriman</h4>
+          <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+            <p><strong className="text-slate-400 font-medium">No. WhatsApp:</strong> {customer.customer_phone}</p>
+            <p><strong className="text-slate-400 font-medium">Email:</strong> {customer.customer_email || 'siti.aisyah@gmail.com'}</p>
+            <p><strong className="text-slate-400 font-medium">Alamat:</strong> {customer.customer_address || 'Jl. Gatot Subroto No. 88, Denpasar Selatan, Bali 80225'}</p>
+            <p><strong className="text-slate-400 font-medium">Agen Penanggung Jawab:</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{customer.assigned_agent || 'Cicik Berluk (CS Lead)'}</span></p>
+          </div>
+        </div>
+
+        {/* Order History */}
+        <div className="space-y-2">
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">Riwayat Transaksi Terakhir</h4>
+          <div className="space-y-1.5">
+            {sampleOrders.map((ord) => (
+              <div key={ord.id} className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{ord.id}</span>
+                    <span className="text-[10px] text-slate-400">{ord.date}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium mt-0.5">{ord.items}</p>
+                </div>
+                <div className="text-right">
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 block">Rp{ord.total.toLocaleString('id-ID')}</span>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">{ord.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions Bar */}
+        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <button
+            onClick={() => {
+              triggerToast(`Menghubungi ${customer.customer_name} via WhatsApp...`);
+              onClose();
+            }}
+            className="flex-1 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer text-center"
+          >
+            Hubungi WhatsApp
+          </button>
+          <button
+            onClick={() => {
+              triggerToast(`Kirim email ke ${customer.customer_name}...`);
+              onClose();
+            }}
+            className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs cursor-pointer text-center"
+          >
+            Kirim Email
+          </button>
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+// 8. Assign Agent Modal
+export function AssignAgentModal({
+  isOpen,
+  onClose,
+  onAssign,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onAssign: (agentName: string) => void;
+  triggerToast: (msg: string) => void;
+}) {
+  const agents = [
+    { name: 'Cicik Berluk', role: 'Owner & CS Lead', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
+    { name: 'Andi Wijaya', role: 'Support Specialist', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&q=80' },
+    { name: 'Siti Rahma', role: 'Sales Executive', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80' },
+    { name: 'ZEGA AI Co-Pilot', role: 'Autonomous AI Agent', avatar: 'https://cdn.zegaai.site/assets/logo/zega.png' },
+  ];
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Tugaskan Agen CS">
+      <div className="space-y-3 text-xs">
+        <p className="text-slate-500 dark:text-slate-400">Pilih anggota tim atau AI Co-Pilot untuk menangani percakapan ini secara langsung.</p>
+        <div className="space-y-2">
+          {agents.map((agent, idx) => (
+            <div key={idx} className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={agent.avatar} alt={agent.name} className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                <div>
+                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{agent.name}</h4>
+                  <p className="text-[10px] text-slate-400">{agent.role}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onAssign(agent.name);
+                  triggerToast(`Percakapan ditugaskan ke ${agent.name}`);
+                  onClose();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] cursor-pointer shadow-xs"
+              >
+                Pilih
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+// 9. Add Tag Modal
+export function AddTagModal({
+  isOpen,
+  onClose,
+  onAddTag,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onAddTag: (tagName: string) => void;
+  triggerToast: (msg: string) => void;
+}) {
+  const [tagInput, setTagInput] = useState('');
+  const presetTags = ['High Priority', 'Order Inquiry', 'VIP Customer', 'Wholesale', 'Skincare', 'Restock', 'Retur / Garansi'];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tagInput.trim()) return;
+    onAddTag(tagInput.trim());
+    triggerToast(`Tag "${tagInput.trim()}" ditambahkan`);
+    setTagInput('');
+    onClose();
+  };
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Tambah Tag Label Percakapan">
+      <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+        <div>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Nama Tag Baru</label>
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            placeholder="Ketik nama tag (cth: High Priority, Retur...)"
+            className="w-full p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-xs focus:outline-none focus:border-blue-600"
+          />
+        </div>
+
+        <div>
+          <label className="font-extrabold text-slate-400 block mb-1.5 text-[10px]">Atau pilih tag rekomendasi:</label>
+          <div className="flex flex-wrap gap-1.5">
+            {presetTags.map((pt, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  onAddTag(pt);
+                  triggerToast(`Tag "${pt}" ditambahkan`);
+                  onClose();
+                }}
+                className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] border border-slate-200/80 dark:border-slate-700 cursor-pointer"
+              >
+                + {pt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-xs cursor-pointer mt-2"
+        >
+          Simpan Tag Baru
+        </button>
+      </form>
+    </ModalBase>
+  );
+}

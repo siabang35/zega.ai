@@ -276,19 +276,19 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
   return (
     <div className="space-y-5">
       {/* 1. Subview Header with ZeroClaw Engine Badge & Action Buttons */}
-      <div className="p-5 rounded-3xl bg-slate-900 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-slate-800 shadow-xl">
+      <div className="p-4 md:p-5 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-3.5">
-          <div className="size-11 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold">
-            <Megaphone size={22} />
+          <div className="size-10 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold">
+            <Megaphone size={18} className="text-orange-500" />
           </div>
           <div>
-            <h2 className="text-base font-black text-white flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <span>Intelijen Pemasaran & Otomasi Campaign</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-400/30 flex items-center gap-1">
-                <Cpu size={12} /> ZeroClaw Engine Active
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1">
+                <Cpu size={12} className="text-orange-500" /> ZeroClaw Engine Active
               </span>
             </h2>
-            <p className="text-xs text-slate-400 font-medium">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
               Analisis efisiensi channel, konversi campaign, dan eksekusi iklan multi-platform terintegrasi.
             </p>
           </div>
@@ -297,9 +297,9 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsLaunchModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
-            <Plus size={15} />
+            <Plus size={14} />
             <span>Launch AI Campaign</span>
           </button>
           <button

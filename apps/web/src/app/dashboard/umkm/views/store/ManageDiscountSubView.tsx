@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, ArrowLeft, Percent, DollarSign, CheckCircle2, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { Tag, Percent, DollarSign, CheckCircle2, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
 
@@ -78,39 +78,46 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
       <StoreHeaderShell activeTab="manage_discount" onNavigateTab={onNavigateTab} />
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 w-full">
+        {/* Header Title Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => onNavigateTab && onNavigateTab('manage_product')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
-            >
-              <ArrowLeft size={18} />
-            </button>
+            <div className="size-10 rounded-2xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200/80 dark:border-orange-900/60 flex items-center justify-center font-bold">
+              <Tag size={20} />
+            </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Tag size={18} className="text-orange-500" />
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Pengaturan Diskon & Promo Massal</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 font-extrabold">
+                  BULK DISCOUNT ENGINE
+                </span>
               </h2>
-              <p className="text-xs text-slate-400 font-medium">Terapkan diskon persentase atau potongan harga untuk produk terpilih atau per kategori.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Terapkan diskon persentase atau potongan harga untuk produk terpilih atau per kategori secara otomatis.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Form Diskon Generator */}
-        <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4">
-          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Sparkles size={14} className="text-amber-500" />
-            <span>Kalkulator & Pengaplikasi Diskon</span>
-          </h4>
+        <div className="p-6 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-5">
+          <div className="flex items-center justify-between">
+            <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500" />
+              <span>Kalkulator & Pengaplikasi Diskon Massal</span>
+            </h4>
+            <span className="text-xs font-bold text-slate-500">
+              Selected: <strong className="text-orange-600 dark:text-orange-400">{selectedProductIds.length > 0 ? `${selectedProductIds.length} Produk` : `Semua Produk (${selectedCategory})`}</strong>
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-bold">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs font-bold">
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Target Kategori</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">Target Kategori Produk</label>
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold focus:outline-none focus:border-orange-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-extrabold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 shadow-2xs"
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -119,13 +126,13 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
             </div>
 
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">Tipe Potongan Harga</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">Tipe Potongan Harga</label>
               <div className="grid grid-cols-2 gap-1 p-1 bg-slate-200/60 dark:bg-slate-900 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setDiscountType('percent')}
-                  className={`py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                    discountType === 'percent' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500'
+                  className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    discountType === 'percent' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
                   % Persen
@@ -133,40 +140,45 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                 <button
                   type="button"
                   onClick={() => setDiscountType('flat')}
-                  className={`py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                    discountType === 'flat' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500'
+                  className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    discountType === 'flat' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  Rp Flat
+                  Rp Flat (Nominal)
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1">
-                {discountType === 'percent' ? 'Nilai Persentase Diskon (%)' : 'Nilai Potongan (Rp)'}
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">
+                {discountType === 'percent' ? 'Nilai Persentase Diskon (%)' : 'Nilai Potongan Price (Rp)'}
               </label>
-              <input
-                type="number"
-                value={discountValue}
-                onChange={e => setDiscountValue(e.target.value)}
-                placeholder={discountType === 'percent' ? '15' : '10000'}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-extrabold text-orange-600 focus:outline-none focus:border-orange-500"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  value={discountValue}
+                  onChange={e => setDiscountValue(e.target.value)}
+                  placeholder={discountType === 'percent' ? '15' : '10000'}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-black text-orange-600 dark:text-orange-400 focus:outline-none focus:border-orange-500 shadow-2xs text-sm"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
+                  {discountType === 'percent' ? '%' : 'IDR'}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/60 pt-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 dark:border-slate-700/80 pt-4">
             <span className="text-xs text-slate-500 font-medium">
-              Targeting: <strong className="text-slate-900 dark:text-slate-100">{selectedProductIds.length > 0 ? `${selectedProductIds.length} produk dipilih` : `Semua produk dalam kategori ${selectedCategory}`}</strong>
+              Targeting Scope: <strong className="text-slate-900 dark:text-slate-100">{selectedProductIds.length > 0 ? `${selectedProductIds.length} produk spesifik dipilih` : `Semua katalog produk dalam kategori "${selectedCategory}"`}</strong>
             </span>
 
             <button
               onClick={handleApplyDiscount}
               disabled={submitting}
-              className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
-              {submitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              {submitting ? <RefreshCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
               <span>Terapkan Diskon Massal</span>
             </button>
           </div>
@@ -174,43 +186,84 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
 
         {/* Product Selection List */}
         <div className="space-y-3">
-          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-            Daftar Produk Target Diskon ({filteredProducts.length} Produk)
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <span>Daftar Produk Target Diskon</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
+                {filteredProducts.length} Produk
+              </span>
+            </h4>
 
-          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-            <table className="w-full text-left text-xs font-semibold">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-400">
+            {filteredProducts.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selectedProductIds.length === filteredProducts.length) setSelectedProductIds([]);
+                  else setSelectedProductIds(filteredProducts.map(p => p.id));
+                }}
+                className="text-xs font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+              >
+                {selectedProductIds.length === filteredProducts.length ? 'Batalkan Pilih Semua' : 'Pilih Semua Produk'}
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+            <table className="w-full text-left text-xs font-medium border-collapse">
+              <thead className="bg-slate-100/80 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-2.5 px-3 w-10 text-center">PILIH</th>
-                  <th className="py-2.5 px-3">PRODUK</th>
-                  <th className="py-2.5 px-3">KATEGORI</th>
-                  <th className="py-2.5 px-3">HARGA ASLI</th>
-                  <th className="py-2.5 px-3">HARGA PROMO SAAT INI</th>
+                  <th className="py-3 px-4 w-12 text-center">PILIH</th>
+                  <th className="py-3 px-4">PRODUK</th>
+                  <th className="py-3 px-4">KATEGORI</th>
+                  <th className="py-3 px-4">HARGA ASLI</th>
+                  <th className="py-3 px-4">HARGA PROMO SAAT INI</th>
+                  <th className="py-3 px-4 text-right">STATUS PROMO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredProducts.map((product) => {
-                  const isSelected = selectedProductIds.includes(product.id);
-                  return (
-                    <tr key={product.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="py-2.5 px-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectProduct(product.id)}
-                          className="rounded border-slate-300 text-orange-500 focus:ring-orange-500 size-4"
-                        />
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">{product.name}</td>
-                      <td className="py-2.5 px-3 text-slate-500">{product.category}</td>
-                      <td className="py-2.5 px-3 font-bold">Rp{(product.price_idr || 0).toLocaleString('id-ID')}</td>
-                      <td className="py-2.5 px-3 font-black text-orange-600">
-                        {product.discount_price_idr ? `Rp${(product.discount_price_idr).toLocaleString('id-ID')}` : '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-400 font-semibold">
+                      Tidak ada produk ditemukan untuk kategori ini.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map((product) => {
+                    const isSelected = selectedProductIds.includes(product.id);
+                    return (
+                      <tr 
+                        key={product.id} 
+                        onClick={() => toggleSelectProduct(product.id)}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected ? 'bg-orange-50/50 dark:bg-orange-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectProduct(product.id)}
+                            className="rounded border-slate-300 text-orange-500 focus:ring-orange-500 size-4 cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-slate-100">{product.name}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-500">{product.category}</td>
+                        <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300">Rp{(product.price_idr || 0).toLocaleString('id-ID')}</td>
+                        <td className="py-3 px-4 font-black text-orange-600 dark:text-orange-400">
+                          {product.discount_price_idr ? `Rp${(product.discount_price_idr).toLocaleString('id-ID')}` : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {product.discount_price_idr ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold border border-emerald-200 dark:border-emerald-900">
+                              Diskon Aktif
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-normal">Harga Normal</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

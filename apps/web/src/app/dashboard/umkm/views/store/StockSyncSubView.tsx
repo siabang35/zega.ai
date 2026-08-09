@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ArrowLeft, CheckCircle2, AlertTriangle, Layers, Smartphone, ShoppingBag, Store } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertTriangle, Layers, Smartphone, ShoppingBag, Store } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
 
@@ -50,91 +50,120 @@ export function StockSyncSubView({ triggerToast, onNavigateTab }: StockSyncSubVi
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
       <StoreHeaderShell activeTab="stock_sync" onNavigateTab={onNavigateTab} />
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 w-full">
+        {/* Header Title Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => onNavigateTab && onNavigateTab('manage_product')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
-            >
-              <ArrowLeft size={18} />
-            </button>
+            <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-900/60 flex items-center justify-center font-bold">
+              <RefreshCw size={20} />
+            </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <RefreshCw size={18} className="text-emerald-500" />
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Sinkronisasi Stok Multi-Channel Real-time</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold">
+                  OMNICHANNEL SYNC
+                </span>
               </h2>
-              <p className="text-xs text-slate-400 font-medium">Cegah overselling dengan menyelaraskan stok antar POS fisik, Shopee, Tokopedia & WhatsApp.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Cegah overselling dengan menyelaraskan stok inventaris POS fisik, Shopee, Tokopedia, & TikTok Shop secara otomatis.
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Channel Selector */}
-        <div className="grid grid-cols-3 gap-3">
-          {(['Tokopedia', 'Shopee', 'POS Kasir'] as const).map(ch => {
-            const active = activeChannel === ch;
-            return (
-              <button
-                key={ch}
-                onClick={() => setActiveChannel(ch)}
-                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer space-y-1 ${
-                  active 
-                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-500 shadow-xs' 
-                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{ch}</span>
-                  {active && <CheckCircle2 size={16} className="text-orange-500" />}
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium block">Status: Online Sync</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Discrepancy Table */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-              Auditing Discrepancy Stok ({products.length} Produk)
-            </h4>
-
+          <div className="flex items-center gap-2">
             <button
               onClick={handleSyncExecution}
               disabled={syncing}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-98"
             >
-              {syncing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              <span>Sinkronkan Stok Ke {activeChannel} Now</span>
+              <RefreshCw size={15} className={syncing ? "animate-spin" : ""} />
+              <span>Sinkronkan Stok Ke {activeChannel}</span>
             </button>
           </div>
+        </div>
 
-          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-            <table className="w-full text-left text-xs font-semibold">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-[10px] uppercase font-bold text-slate-400">
+        {/* Channel Selector Cards Grid */}
+        <div className="space-y-3">
+          <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">
+            Channel Penjualan Terhubung
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {(['Tokopedia', 'Shopee', 'POS Kasir'] as const).map(ch => {
+              const active = activeChannel === ch;
+              return (
+                <button
+                  key={ch}
+                  onClick={() => setActiveChannel(ch)}
+                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer space-y-2 relative overflow-hidden ${
+                    active 
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-500 shadow-md ring-1 ring-emerald-500' 
+                      : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-sm text-slate-900 dark:text-slate-100">{ch}</span>
+                    {active ? (
+                      <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-slate-500 font-semibold">Status Sync:</span>
+                    <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full">
+                      ONLINE SYNCED
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Inventory Discrepancy Table */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <span>Auditing Discrepancy Stok Inventaris</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
+                {products.length} Produk
+              </span>
+            </h4>
+          </div>
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+            <table className="w-full text-left text-xs font-medium border-collapse">
+              <thead className="bg-slate-100/80 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-2.5 px-3">PRODUK</th>
-                  <th className="py-2.5 px-3">SKU</th>
-                  <th className="py-2.5 px-3">STOK DATABASE ZEGA</th>
-                  <th className="py-2.5 px-3">STOK DI {activeChannel.toUpperCase()}</th>
-                  <th className="py-2.5 px-3">STATUS SINKRONISASI</th>
+                  <th className="py-3 px-4">PRODUK</th>
+                  <th className="py-3 px-4">SKU</th>
+                  <th className="py-3 px-4">STOK DATABASE ZEGA</th>
+                  <th className="py-3 px-4">STOK DI {activeChannel.toUpperCase()}</th>
+                  <th className="py-3 px-4 text-right">STATUS SINKRONISASI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {products.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">{p.name}</td>
-                    <td className="py-2.5 px-3 font-mono text-slate-400">{p.sku}</td>
-                    <td className="py-2.5 px-3 font-black text-slate-900 dark:text-slate-100">{p.stock} unit</td>
-                    <td className="py-2.5 px-3 font-extrabold text-blue-600">{p.stock} unit</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold">
-                        ✓ Synchronized
-                      </span>
+                {products.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-400 font-semibold">
+                      Belum ada data stok produk ditemukan.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  products.map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-slate-100">{p.name}</td>
+                      <td className="py-3 px-4 font-mono text-slate-400">{p.sku || 'N/A'}</td>
+                      <td className="py-3 px-4 font-black text-slate-900 dark:text-slate-100">{p.stock || 0} unit</td>
+                      <td className="py-3 px-4 font-extrabold text-blue-600 dark:text-blue-400">{p.stock || 0} unit</td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold border border-emerald-200 dark:border-emerald-900">
+                          ✓ Synchronized
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

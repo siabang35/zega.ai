@@ -297,19 +297,19 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
   return (
     <div className="space-y-5">
       {/* 1. ZeroClaw Sales Intelligence Header Bar */}
-      <div className="bg-gradient-to-r from-orange-950 via-slate-900 to-indigo-950 rounded-3xl p-5 border border-orange-500/30 text-white shadow-xl flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-white shadow-xs flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500/30 to-amber-500/20 border border-orange-400/40 text-orange-400 shadow-lg shadow-orange-500/10 flex items-center justify-center">
-            <BarChart3 size={24} className="text-orange-400" />
+          <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+            <BarChart3 size={20} className="text-orange-500" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-black text-lg text-white">Sales Intelligence & Telemetry Hub</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-white">Sales Intelligence & Telemetry Hub</h2>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
                 <ShieldCheck size={11} /> ZeroClaw & 9Router Active
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Otomasi pelacakan deal pipeline, konversi transaksi, dan performa sales agent terintegrasi Supabase Realtime
             </p>
           </div>
@@ -317,13 +317,13 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Time Horizon Pills */}
-          <div className="bg-slate-800/80 p-1 rounded-2xl border border-slate-700/60 flex items-center gap-1 text-[11px] font-bold">
+          <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700 flex items-center gap-1 text-[11px] font-bold">
             {(['7d', '30d', '90d'] as const).map((h) => (
               <button
                 key={h}
                 onClick={() => handleHorizonChange(h)}
-                className={`px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
-                  selectedHorizon === h ? 'bg-orange-500 text-white shadow-sm font-black' : 'text-slate-400 hover:text-slate-200'
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  selectedHorizon === h ? 'bg-orange-500 text-white shadow-2xs font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {h === '7d' ? '7 Hari' : h === '30d' ? 'Bulan Ini' : 'Kuartal'}
@@ -340,7 +340,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
 
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black cursor-pointer shadow-lg shadow-orange-500/25 flex items-center gap-2 transition-all active:scale-95"
+            className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black cursor-pointer shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
             <Sparkles size={15} /> Automation Create Sales Reports
           </button>

@@ -204,64 +204,61 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
   return (
     <div className="space-y-6 antialiased">
       {/* 1. Header Hero Banner: AI Business Health Diagnostics */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-xl border border-slate-800">
-        <div className="absolute top-0 right-0 size-96 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 size-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
-
-        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-          <div className="space-y-3 flex-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 tracking-wide flex items-center gap-1.5 shadow-xs">
-                <Cpu size={14} className="text-indigo-400" /> {aiModel}
+      <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 tracking-wide flex items-center gap-1.5 shadow-2xs">
+                <Cpu size={12} className="text-orange-500" /> {aiModel}
               </span>
-              <span className="text-xs text-slate-400 font-mono flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" /> Telemetry Realtime Synchronized
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Telemetry Realtime Synchronized
               </span>
             </div>
 
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Diagnosis & Rekomendasi Kesehatan Toko
             </h2>
             
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-normal max-w-3xl">
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-xl">
               {aiSummary}
             </p>
 
-            <div className="pt-2 flex items-center gap-3 flex-wrap">
+            <div className="pt-1 flex items-center gap-2 flex-wrap">
               <button 
                 onClick={handleRefresh}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-semibold border border-white/15 flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-sm"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> 
-                {loading ? 'Menganalisis Telemetry...' : 'Refresh AI Diagnosis'}
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 
+                {loading ? 'Menganalisis...' : 'Refresh AI Diagnosis'}
               </button>
 
               <button 
                 onClick={openCreateModal}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
-                <Plus size={14} /> Tambah Rekomendasi Kustom
+                <Plus size={12} /> Tambah Rekomendasi Kustom
               </button>
             </div>
           </div>
 
           {/* Business Health Gauge Widget */}
-          <div className="bg-slate-900/90 border border-slate-800 backdrop-blur-xl rounded-2xl p-5 flex items-center gap-6 shrink-0 shadow-lg">
-            <div className="relative size-32">
+          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3 flex items-center gap-3 shrink-0 shadow-2xs">
+            <div className="relative size-20 md:size-24">
               <Doughnut data={gaugeData} options={gaugeOpts} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center pt-2 pointer-events-none">
-                <span className="text-3xl font-extrabold text-white tracking-tight">{healthScore}</span>
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{healthLabel}</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
+                <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{healthScore}</span>
+                <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest pt-0.5">{healthLabel}</span>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-xs font-bold border border-emerald-500/25">
-                <TrendingUp size={14} className="text-emerald-400" /> +{pointsChange} poin vs last month
+            <div className="space-y-0.5">
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800">
+                <TrendingUp size={11} className="text-emerald-600 dark:text-emerald-400" /> +{pointsChange} poin vs last month
               </div>
-              <p className="text-xs text-slate-400 font-medium">94/100 Health Score Index</p>
-              <div className="pt-1 text-[11px] text-slate-400 font-mono">
-                Evaluasi Swarm: <span className="text-emerald-400 font-semibold">OPTIMAL</span>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">94/100 Health Score Index</p>
+              <div className="pt-0.5 text-[9px] text-slate-500 dark:text-slate-400 font-mono">
+                Evaluasi Swarm: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">OPTIMAL</span>
               </div>
             </div>
           </div>
@@ -269,31 +266,82 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
       </div>
 
       {/* 2. Business Diagnostic Health Metric Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Sales Velocity', value: '92%', status: 'Tinggi', delta: '+4.2%', icon: BarChart3, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' },
-          { label: 'Inventory Security', value: '96%', status: 'Optimal', delta: '2 Alert Stok', icon: ShoppingBag, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50' },
-          { label: 'Marketing Spend Efficiency', value: '340%', status: 'Sangat Baik', delta: '+18% ROI', icon: TrendingUp, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/50' },
-          { label: 'Customer Loyalty Rate', value: '42.5%', status: 'Stabil', delta: 'RFM Segmented', icon: Users, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50' }
-        ].map((metric, idx) => {
-          const IconC = metric.icon;
-          return (
-            <div key={idx} className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">{metric.label}</span>
-                <div className={`p-2 rounded-xl ${metric.color}`}>
-                  <IconC size={16} />
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between pt-1">
-                <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{metric.value}</span>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
-                  {metric.delta}
-                </span>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Sales Velocity */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-blue-500/10 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold">
+              <BarChart3 size={18} />
             </div>
-          );
-        })}
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              +4.2%
+            </span>
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Sales Velocity</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              92%
+            </div>
+            <span className="text-[11px] text-emerald-600 font-extrabold block mt-1">Status: Tinggi</span>
+          </div>
+        </div>
+
+        {/* Card 2: Inventory Security */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+              <ShoppingBag size={18} />
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              Optimal
+            </span>
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Inventory Security</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              96%
+            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">2 Alert Stok</span>
+          </div>
+        </div>
+
+        {/* Card 3: Marketing Spend Efficiency */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-purple-500/10 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold">
+              <TrendingUp size={18} />
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-extrabold text-[10.5px] border border-purple-200/60 dark:border-purple-900/60">
+              +18% ROI
+            </span>
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Marketing Efficiency</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              340%
+            </div>
+            <span className="text-[11px] text-purple-600 font-extrabold block mt-1">Sangat Baik</span>
+          </div>
+        </div>
+
+        {/* Card 4: Customer Loyalty Rate */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-amber-500/10 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center font-bold">
+              <Users size={18} />
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-extrabold text-[10.5px] border border-amber-200/60 dark:border-amber-900/60">
+              RFM Segmented
+            </span>
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Customer Loyalty Rate</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              42.5%
+            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">Status: Stabil</span>
+          </div>
+        </div>
       </div>
 
       {/* 3. Layout Control & Search Filter Toolbar */}
@@ -387,7 +435,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 <IconComp size={14} />
                 <span>{opt.label}</span>
                 <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold ${
-                  isActive ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  isActive ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
                   {opt.count}
                 </span>
@@ -471,7 +519,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                   
                   <div className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <Cpu size={14} className="text-indigo-600" /> Analisis Telemetry Model ZeroClaw Swarm:
+                      <Cpu size={14} className="text-orange-500" /> Analisis Telemetry Model ZeroClaw Swarm:
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                       {rec.reasoning}
@@ -496,7 +544,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                     ) : (
                       <button
                         onClick={() => handleApply(rec)}
-                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                       >
                         <span>Terapkan Rekomendasi</span>
                         <ArrowRight size={14} />
@@ -662,7 +710,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
       )}
 
       {/* 5. Potential Impact Summary Footprint Card */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
@@ -836,7 +884,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 <button
                   type="submit"
                   disabled={formSaving}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-sm cursor-pointer flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-sm cursor-pointer flex items-center gap-2"
                 >
                   {formSaving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
                   {editingRec ? 'Simpan Perubahan' : 'Tambah Rekomendasi'}

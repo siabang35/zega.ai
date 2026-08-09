@@ -205,7 +205,7 @@ export function AIHealthRecommendationModal({ isOpen, onClose, triggerToast, onR
         </div>
 
         {/* Score Badge Banner */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 space-y-1">
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">↑ 12 Poin vs Bulan Lalu</span>
             <span className="text-[10px] font-bold text-slate-500">Percentile Top 24% UMKM</span>
@@ -532,7 +532,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
 
               <button
                 onClick={handleAddSchedule}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs cursor-pointer shadow-sm transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs cursor-pointer shadow-sm transition-all flex items-center justify-center gap-1.5"
               >
                 <Check size={14} />
                 <span>+ Tambahkan Jadwal ke System</span>
@@ -604,7 +604,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
           <button 
             onClick={handleSaveSchedules}
             disabled={isSaving}
-            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isSaving ? <Clock size={14} className="animate-spin" /> : <Check size={14} />}
             <span>{isSaving ? 'Menyimpan ke Database...' : 'Simpan Pengaturan Jadwal'}</span>

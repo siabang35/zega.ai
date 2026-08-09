@@ -447,120 +447,100 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
       {/* OVERVIEW TAB CONTENT */}
       {(subTab === 'Ringkasan Overview' || subTab === 'Overview') && <>
-      {/* 3. Top 5 Metric Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      {/* 3. Top 5 ENTERPRISE Metric Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
         {/* Card 1: Total Revenue */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-emerald-500 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Total Revenue</span>
-            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
-              <DollarSign size={16} />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+              <DollarSign size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              ↑ {reportsData.metrics.revenue_growth_pct}%
+            </span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Total Revenue</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               Rp{(reportsData.metrics.total_revenue_idr).toLocaleString('id-ID')}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-bold text-emerald-600">
-                ↑ {reportsData.metrics.revenue_growth_pct}% vs last month
-              </span>
-              <svg className="w-12 h-4 overflow-visible" viewBox="0 0 50 15">
-                <path d="M 0 12 Q 12 2, 25 10 T 50 3" fill="none" stroke="#10b981" strokeWidth="2" />
-              </svg>
-            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
         </div>
 
         {/* Card 2: Orders */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-orange-500 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Orders</span>
-            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
-              <ShoppingBag size={16} />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-orange-500/10 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-bold">
+              <ShoppingBag size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              ↑ {reportsData.metrics.orders_growth_pct}%
+            </span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Orders</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               {reportsData.metrics.total_orders}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-bold text-emerald-600">
-                ↑ {reportsData.metrics.orders_growth_pct}% vs last month
-              </span>
-              <svg className="w-12 h-4 overflow-visible" viewBox="0 0 50 15">
-                <path d="M 0 14 Q 15 5, 30 12 T 50 2" fill="none" stroke="#f97316" strokeWidth="2" />
-              </svg>
-            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
         </div>
 
         {/* Card 3: New Customers */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>New Customers</span>
-            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
-              <Users size={16} />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-blue-500/10 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold">
+              <Users size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              ↑ {reportsData.metrics.customers_growth_pct}%
+            </span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">New Customers</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               {reportsData.metrics.new_customers}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-bold text-emerald-600">
-                ↑ {reportsData.metrics.customers_growth_pct}% vs last month
-              </span>
-              <svg className="w-12 h-4 overflow-visible" viewBox="0 0 50 15">
-                <path d="M 0 10 Q 15 14, 30 4 T 50 1" fill="none" stroke="#3b82f6" strokeWidth="2" />
-              </svg>
-            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
         </div>
 
         {/* Card 4: Avg Order Value */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-purple-500 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Avg Order Value</span>
-            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
-              <BarChart3 size={16} />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-purple-500/10 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold">
+              <BarChart3 size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              ↑ {reportsData.metrics.aov_growth_pct}%
+            </span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Avg Order Value</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               Rp{(reportsData.metrics.avg_order_value_idr).toLocaleString('id-ID')}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-bold text-emerald-600">
-                ↑ {reportsData.metrics.aov_growth_pct}% vs last month
-              </span>
-              <svg className="w-12 h-4 overflow-visible" viewBox="0 0 50 15">
-                <path d="M 0 12 Q 15 3, 30 9 T 50 2" fill="none" stroke="#a855f7" strokeWidth="2" />
-              </svg>
-            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
         </div>
 
         {/* Card 5: Conversion Rate */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1 hover:border-pink-500 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Conversion Rate</span>
-            <div className="size-8 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-2xs">
-              <Percent size={16} />
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 sm:col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between">
+            <div className="size-9 rounded-xl bg-pink-500/10 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 border border-pink-500/20 flex items-center justify-center font-bold">
+              <Percent size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
+              ↑ {reportsData.metrics.conversion_growth_pct}%
+            </span>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Conversion Rate</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               {reportsData.metrics.conversion_rate_pct}%
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] font-bold text-emerald-600">
-                ↑ {reportsData.metrics.conversion_growth_pct}% vs last month
-              </span>
-              <svg className="w-12 h-4 overflow-visible" viewBox="0 0 50 15">
-                <path d="M 0 13 Q 15 6, 30 11 T 50 4" fill="none" stroke="#ec4899" strokeWidth="2" />
-              </svg>
-            </div>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
         </div>
       </div>

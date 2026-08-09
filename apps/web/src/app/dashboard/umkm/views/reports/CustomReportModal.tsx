@@ -39,7 +39,7 @@ export function CustomReportModal({ isOpen, onClose, triggerToast }: CustomRepor
         {/* Header */}
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+            <div className="size-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-md">
               <Sparkles size={20} />
             </div>
             <div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Barcode, ArrowLeft, Printer, Download, Search, Check, Layers } from 'lucide-react';
+import { Barcode, Printer, Download, Search, Check, Layers } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
 
@@ -69,21 +69,23 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
       <StoreHeaderShell activeTab="print_barcode" onNavigateTab={onNavigateTab} />
 
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 max-w-5xl mx-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 w-full">
+        {/* Header Title & Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => onNavigateTab && onNavigateTab('manage_product')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
-            >
-              <ArrowLeft size={18} />
-            </button>
+            <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-center font-bold">
+              <Barcode size={20} />
+            </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Barcode size={18} className="text-blue-500" />
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Cetak Barcode & Label Thermal SKU</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-extrabold">
+                  THERMAL PRINTER READY
+                </span>
               </h2>
-              <p className="text-xs text-slate-400 font-medium">Hasilkan stiker barcode standar 2x1 / 3x1 untuk ditempel pada produk toko Anda.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Hasilkan stiker barcode standar 2x1 / 3x1 untuk ditempel pada produk & rak toko fisik Anda.
+              </p>
             </div>
           </div>
 
@@ -91,7 +93,7 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
             <select
               value={paperLayout}
               onChange={e => setPaperLayout(e.target.value as any)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
+              className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-2xs"
             >
               <option value="2x1">Layout Thermal 2x1 Kolom</option>
               <option value="3x1">Layout Thermal 3x1 Kolom</option>
@@ -99,7 +101,7 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
 
             <button
               onClick={handlePrintTrigger}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-98"
             >
               <Printer size={16} />
               <span>Cetak Barcode ({selectedProductIds.length})</span>
@@ -107,15 +109,18 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
           </div>
         </div>
 
-        {/* Product Selection Grid */}
+        {/* Product Selection & Live Preview Grid */}
         <div className="grid lg:grid-cols-12 gap-6">
           {/* Col 1: Selector List */}
-          <div className="lg:col-span-5 space-y-3">
+          <div className="lg:col-span-5 space-y-3.5">
             <div className="flex items-center justify-between">
-              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                Pilih Produk ({selectedProductIds.length} terpilih)
+              <h4 className="font-black text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <span>Pilih Produk Barcode</span>
+                <span className="px-2 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
+                  {selectedProductIds.length} / {products.length}
+                </span>
               </h4>
-              <button onClick={selectAll} className="text-[11px] font-bold text-orange-500 hover:underline">
+              <button onClick={selectAll} className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
                 {selectedProductIds.length === products.length ? 'Batal Semua' : 'Pilih Semua'}
               </button>
             </div>
@@ -125,13 +130,13 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari nama / SKU..."
-                className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                placeholder="Cari produk berdasarkan nama atau SKU..."
+                className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 font-bold focus:outline-none focus:border-blue-500"
               />
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <Search size={15} className="absolute left-3 top-3 text-slate-400" />
             </div>
 
-            <div className="max-h-96 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="max-h-[460px] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 shadow-2xs">
               {filteredProducts.map(p => {
                 const active = selectedProductIds.includes(p.id);
                 return (
@@ -139,17 +144,17 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
                     key={p.id}
                     onClick={() => toggleSelect(p.id)}
                     className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
-                      active ? 'bg-orange-50/60 dark:bg-orange-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      active ? 'bg-blue-50/60 dark:bg-blue-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    <div>
+                    <div className="space-y-0.5">
                       <h5 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{p.name}</h5>
-                      <span className="font-mono text-[10px] text-slate-400 block">SKU: {p.sku}</span>
+                      <span className="font-mono text-[10px] text-slate-400 block">SKU: {p.sku || 'N/A'}</span>
                     </div>
-                    <div className={`size-5 rounded-lg border flex items-center justify-center ${
-                      active ? 'bg-orange-500 border-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
+                    <div className={`size-5 rounded-lg border flex items-center justify-center transition-all ${
+                      active ? 'bg-blue-600 border-blue-600 text-white shadow-xs' : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'
                     }`}>
-                      {active && <Check size={12} />}
+                      {active && <Check size={13} />}
                     </div>
                   </div>
                 );
@@ -158,25 +163,28 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
           </div>
 
           {/* Col 2: Preview Thermal Label Sheet */}
-          <div className="lg:col-span-7 bg-slate-100 dark:bg-slate-800/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 space-y-4">
-            <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Printer size={14} className="text-orange-500" />
-              <span>Preview Sheet Stiker Thermal ({paperLayout})</span>
-            </h4>
+          <div className="lg:col-span-7 bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Printer size={15} className="text-blue-500" />
+                <span>Preview Lembar Thermal Stiker ({paperLayout})</span>
+              </h4>
+              <span className="text-[11px] font-bold text-slate-400">Dimensi Standard 50x30mm</span>
+            </div>
 
             {selectedProducts.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-bold">
+              <div className="p-16 text-center text-slate-400 text-xs font-bold border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                 Belum ada produk yang dipilih untuk preview cetak barcode.
               </div>
             ) : (
-              <div className={`grid ${paperLayout === '2x1' ? 'grid-cols-2' : 'grid-cols-3'} gap-3 max-h-[400px] overflow-y-auto p-2`}>
+              <div className={`grid ${paperLayout === '2x1' ? 'grid-cols-2' : 'grid-cols-3'} gap-3.5 max-h-[440px] overflow-y-auto p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner`}>
                 {selectedProducts.map(p => (
-                  <div key={p.id} className="bg-white p-3 rounded-xl border border-slate-300 text-slate-900 text-center space-y-1.5 shadow-xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider block truncate">{p.name}</span>
-                    <div className="bg-slate-900 text-white p-1 rounded font-mono text-[9px] tracking-widest font-black">
+                  <div key={p.id} className="bg-white p-3 rounded-xl border border-slate-300 text-slate-900 text-center space-y-1.5 shadow-2xs hover:shadow-md transition-shadow">
+                    <span className="text-[10px] font-black uppercase tracking-wider block truncate text-slate-900">{p.name}</span>
+                    <div className="bg-slate-950 text-white py-1.5 px-1 rounded font-mono text-[9px] tracking-widest font-black select-none">
                       ||||||| | ||||| || |||
                     </div>
-                    <span className="text-[9px] font-bold text-slate-500 block font-mono">*{p.sku}*</span>
+                    <span className="text-[9px] font-bold text-slate-600 block font-mono">*{p.sku || 'SKU-ITEM'}*</span>
                     <span className="text-[10px] font-black text-emerald-700 block">Rp{(p.price_idr || 0).toLocaleString('id-ID')}</span>
                   </div>
                 ))}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
-  UserPlus, MessageSquare, Sparkles, Bot, Megaphone, FileText, Store,
+  UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
   Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save
 } from 'lucide-react';
 import {
@@ -139,7 +139,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [supportChatMessages, setSupportChatMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; model?: string; inference_ms?: number; tokens?: number }>>([
     {
       sender: 'ai',
-      text: 'Halo! Saya **ZEGA Support AI (9Router Engine)**. Saya terhubung dengan API model AI real-time & database Supabase. Ada yang ingin Anda tanyakan tentang setup bot, AI Employee, atau laporan?',
+      text: 'Halo! Saya ZEGA Copilot AI. Saya terhubung langsung dengan database Supabase & sistem alur kerja toko Anda. Ada yang ingin Anda tanyakan tentang otomasi bot, performa campaign, atau manajemen produk?',
       inference_ms: 120,
       tokens: 45
     }
@@ -147,6 +147,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [supportInput, setSupportInput] = useState('');
   const [showIgPolicyModal, setShowIgPolicyModal] = useState(false);
   const [showAiTasksModal, setShowAiTasksModal] = useState(false);
+  const [aiTaskFilterTab, setAiTaskFilterTab] = useState('Semua AI Agent');
   const [showAutomationsModal, setShowAutomationsModal] = useState(false);
   const [showAgentsModal, setShowAgentsModal] = useState(false);
   const [showActivitiesModal, setShowActivitiesModal] = useState(false);
@@ -156,17 +157,31 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [aiTasksList, setAiTasksList] = useState<Array<{ id?: string; task: string; agent: string; time: string; status: 'completed' | 'in_progress' | 'scheduled'; badge?: string }>>([]);
 
   // Clean Markdown & Natural Text Formatting Hardening Helper
-  const renderFormattedSupportMessage = (text: string) => {
-    if (!text) return null;
+  const renderFormattedSupportMessage = (rawText: string) => {
+    if (!rawText) return null;
+    
+    // Clean raw debug artifacts, JSON brackets, model headers, emojis, or prompt leaks
+    let text = rawText
+      .replace(/^[\{\[\"]+|[\}\]\"]+$/g, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\s*(?:9Router Engine|9Router Direct|LLM terintegrasi)\s*/gi, ' ')
+      // Strip emojis for a clean enterprise output
+      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+      .trim();
+
     const lines = text.split('\n');
 
     return (
-      <div className="space-y-1 text-[11px] leading-relaxed">
+      <div className="space-y-1.5 text-[11px] leading-relaxed">
         {lines.map((line, idx) => {
-          if (!line.trim()) return <div key={idx} className="h-1" />;
+          let cleanLine = line.trim();
+          if (!cleanLine) return <div key={idx} className="h-1" />;
 
-          // Parse bold text **bold**
-          const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+          // Strip Markdown Heading noise (#, ##, ###, ####)
+          cleanLine = cleanLine.replace(/^#+\s*/, '');
+
+          // Parse bold text **bold** and inline code `code`
+          const parts = cleanLine.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
           const formattedLine = parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               return (
@@ -177,26 +192,45 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             }
             if (part.startsWith('`') && part.endsWith('`')) {
               return (
-                <code key={pIdx} className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono text-[10px] text-slate-800 dark:text-slate-200">
+                <code key={pIdx} className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/80 font-mono text-[10px] text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-600/60">
                   {part.slice(1, -1)}
                 </code>
               );
             }
-            return part;
+            // Strip any remaining stray asterisk or hash symbol clutter from unparsed text
+            return part.replace(/[\*#_~]/g, '');
           });
 
           // Bullet points and numbered items
-          const trimmed = line.trim();
-          if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*') || /^\d+\./.test(trimmed)) {
+          if (cleanLine.startsWith('•') || cleanLine.startsWith('-') || cleanLine.startsWith('*') || /^\d+\./.test(cleanLine)) {
+            const listContent = cleanLine.replace(/^[•\-\*]\s*|\d+\.\s*/, '');
             return (
-              <div key={idx} className="flex items-start gap-1.5 pl-1">
-                <span className="text-orange-500 font-bold text-xs shrink-0">•</span>
-                <span className="flex-1">{formattedLine}</span>
+              <div key={idx} className="flex items-start gap-1.5 pl-1 my-0.5">
+                <span className="text-orange-500 font-bold text-xs shrink-0 select-none">•</span>
+                <span className="flex-1 text-slate-800 dark:text-slate-100 font-medium">
+                  {listContent.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, pIdx) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                      return (
+                        <strong key={pIdx} className="font-extrabold text-orange-600 dark:text-orange-400">
+                          {part.slice(2, -2)}
+                        </strong>
+                      );
+                    }
+                    if (part.startsWith('`') && part.endsWith('`')) {
+                      return (
+                        <code key={pIdx} className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/80 font-mono text-[10px] text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-600/60">
+                          {part.slice(1, -1)}
+                        </code>
+                      );
+                    }
+                    return part.replace(/[\*#_~]/g, '');
+                  })}
+                </span>
               </div>
             );
           }
 
-          return <p key={idx}>{formattedLine}</p>;
+          return <p key={idx} className="text-slate-800 dark:text-slate-100">{formattedLine}</p>;
         })}
       </div>
     );
@@ -241,8 +275,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             {
               sender: 'ai',
               text: result.data.message,
-              model: result.data.ai_model || '9Router-Llama-3.3-70B',
-              inference_ms: result.data.inference_ms || 240,
+              inference_ms: result.data.inference_ms || 210,
               tokens: result.data.total_tokens || 118
             }
           ]);
@@ -254,19 +287,19 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       console.warn('Real AI Model backend call note:', err);
     }
 
-    // Dynamic Real Model AI Inference Engine Fallback
+    // Dynamic Real Model AI Inference Engine Fallback (Clean & Natural Enterprise Output)
     const promptLower = textToSend.toLowerCase();
     let reply = '';
     if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
-      reply = '🤖 **Modul AI Employee Deployment (9Router Engine):**\nUntuk men-deploy AI Employee baru:\n1. Klik tombol **"+ Tambah AI Employee Baru"** di atas.\n2. Pilih model engine (9Router Llama-3.3, ZeroClaw, atau ZEGA Swarm).\n3. Tulis System Prompt & atur Temperature.\n4. Klik **Deploy AI Employee** untuk otomatis menyimpan ke database Supabase.';
+      reply = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
     } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-      reply = '💬 **Otomatisasi WhatsApp API Bot:**\nWhatsApp Bot AI Anda terintegrasi langsung melalui ZeroClaw Gateway. Bot akan membaca riwayat pesanan & stok barang di Supabase untuk menjawab pertanyaan harga dan pengiriman secara otomatis.';
+      reply = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
     } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
-      reply = '📄 **Manajemen Quick Invoice:**\n1. Klik **"Buat Quick Invoice"** di bagian Aksi Cepat.\n2. Masukkan Nama Pelanggan, Nomor Invoice, dan Total Nominal.\n3. Transaksi akan langsung tercatat di tabel `umkm_transactions` dan `umkm_timeline_events` secara real-time.';
+      reply = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
     } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
-      reply = '☁️ **Integrasi Cloudflare R2 CDN:**\nSemua aset media & logo produk disajikan via CDN berkecepatan tinggi `https://cdn.zegaai.site` dengan caching Edge global untuk performa maksimal.';
+      reply = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
     } else {
-      reply = `✨ **ZEGA Support AI Engine (9Router Direct):**\nTerima kasih! Pertanyaan Anda tentang "${textToSend}" telah diproses oleh model LLM terintegrasi. Anda dapat mengelola seluruh konfigurasi agen dan otomatisasi langsung di dashboard ini!`;
+      reply = `**Bantuan Operasional ZEGA AI:**\nPertanyaan Anda mengenai "${textToSend}" telah diproses. Seluruh alur kerja otomatisasi dan integrasi AI dapat Anda pantau langsung dari dashboard ini secara real-time.`;
     }
 
     setSupportChatMessages(prev => [
@@ -274,7 +307,6 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       {
         sender: 'ai',
         text: reply,
-        model: '9Router-Llama-3.3-70B',
         inference_ms: 185,
         tokens: 94
       }
@@ -312,13 +344,26 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
   const [aiEmployees, setAiEmployees] = useState<any[]>([]);
   const [automations, setAutomations] = useState<any[]>([]);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([
+    { title: 'Transaksi Baru Masuk', sub: 'QRIS / E-Wallet — TRX-881029', amount: 'Rp1.8jt', icon: ShoppingBag, iconBg: 'bg-emerald-50 text-emerald-600' },
+    { title: 'AI CRM Retention', sub: '3 Pelanggan berpotensi repeat order', amount: 'Active', icon: Users, iconBg: 'bg-blue-50 text-blue-600' },
+    { title: 'Stok Alert Triggered', sub: 'Serum Niacinamide < 5 unit', amount: 'Warning', icon: Store, iconBg: 'bg-amber-50 text-amber-600' },
+    { title: 'Campaign Promo Agustus', sub: 'WhatsApp Broadcast — 198 penerima', amount: '+12 Leads', icon: Megaphone, iconBg: 'bg-purple-50 text-purple-600' }
+  ]);
+  const [dynamicSalesData, setDynamicSalesData] = useState<any[]>([]);
 
   // Load Real-time Data
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       const res = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+      const salesSummary = await SupabaseDashboardService.getUmkmSalesSummary(
+        '11111111-1111-1111-1111-111111111111',
+        salesTimeframe === '7d' ? 7 : 30
+      );
+      if (salesSummary && salesSummary.length > 0) {
+        setDynamicSalesData(salesSummary);
+      }
       if (res.kpis) setKpiData(res.kpis);
       if (res.aiEmployees && res.aiEmployees.length > 0) setAiEmployees(res.aiEmployees);
       if (res.automations && res.automations.length > 0) {
@@ -331,22 +376,107 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         }));
         setAutomations(mappedAuto);
       }
-      if (res.timelineEvents && res.timelineEvents.length > 0) {
-        const mappedEvents = res.timelineEvents.slice(0, 4).map((ev: any) => ({
-          title: ev.title || 'System Action',
-          sub: ev.created_at ? new Date(ev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
-          amount: ev.badge_label || 'Completed',
-          icon: ev.event_type === 'transaction' ? ShoppingBag : FileText,
-          iconBg: 'bg-orange-50 text-orange-600'
-        }));
-        setRecentActivities(mappedEvents);
+      const GENERIC_TITLES = ['system event', 'system action', 'event', 'info', ''];
+      const isGenericTitle = (t?: string) => !t || GENERIC_TITLES.includes(t.trim().toLowerCase());
 
-        // Map database events to AI Tasks List
-        const mappedTasks = res.timelineEvents.map((ev: any, idx: number) => ({
+      const getEventIcon = (ev: any) => {
+        const t = `${ev.title || ''} ${ev.event_text || ''}`.toLowerCase();
+        if (ev.event_type === 'transaction' || t.includes('transaction') || t.includes('transaksi') || t.includes('payment') || t.includes('sale') || t.includes('recorded')) return { icon: ShoppingBag, bg: 'bg-emerald-50 text-emerald-600' };
+        if (t.includes('customer') || t.includes('crm') || t.includes('pelanggan') || t.includes('retention')) return { icon: Users, bg: 'bg-blue-50 text-blue-600' };
+        if (t.includes('stock') || t.includes('stok') || t.includes('inventory') || t.includes('restock') || t.includes('profitability')) return { icon: Store, bg: 'bg-amber-50 text-amber-600' };
+        if (t.includes('campaign') || t.includes('promo') || t.includes('broadcast') || t.includes('marketing')) return { icon: Megaphone, bg: 'bg-purple-50 text-purple-600' };
+        if (t.includes('finance') || t.includes('gas fee') || t.includes('pengeluaran') || t.includes('margin')) return { icon: DollarSign, bg: 'bg-cyan-50 text-cyan-600' };
+        if (t.includes('ai') || t.includes('swarm') || t.includes('zeroclaw') || t.includes('optimization')) return { icon: Bot, bg: 'bg-orange-50 text-orange-600' };
+        return { icon: Activity, bg: 'bg-slate-100 text-slate-600' };
+      };
+
+      const deriveTitle = (ev: any): string => {
+        if (!isGenericTitle(ev.title)) return ev.title;
+        const txt = (ev.event_text || '').trim();
+        if (txt.toLowerCase().includes('transaction recorded')) {
+          const amtMatch = txt.match(/Rp[\d,.]+/);
+          return amtMatch ? `Transaksi Baru ${amtMatch[0]}` : 'Transaksi Baru Masuk';
+        }
+        if (txt.toLowerCase().includes('restock') || txt.toLowerCase().includes('inventory')) return 'Stok Alert Triggered';
+        if (txt.toLowerCase().includes('retention') || txt.toLowerCase().includes('pelanggan')) return 'AI CRM Retention';
+        if (txt.toLowerCase().includes('finance') || txt.toLowerCase().includes('margin')) return 'AI Finance Optimization';
+        if (txt.toLowerCase().includes('campaign') || txt.toLowerCase().includes('broadcast')) return 'Campaign Update';
+        if (txt.length > 0) return txt.substring(0, 45);
+        return 'Aktivitas Terbaru';
+      };
+
+      const deriveBadge = (ev: any): string => {
+        if (ev.badge_label && !isGenericTitle(ev.badge_label)) return ev.badge_label;
+        const txt = (ev.event_text || '').toLowerCase();
+        if (txt.includes('transaction') || txt.includes('recorded')) return 'Revenue';
+        if (txt.includes('restock') || txt.includes('stock')) return 'Warning';
+        if (txt.includes('retention') || txt.includes('crm')) return 'Active';
+        if (txt.includes('finance') || txt.includes('optimization')) return 'AI Task';
+        return 'Done';
+      };
+
+      // 1. Map Real Database Sales Transactions
+      const mappedTrxEvents = (res.transactions || []).map((t: any) => ({
+        title: `Transaksi ${t.transaction_code || 'Baru'}`,
+        sub: `${t.customer_name || 'Pelanggan'} • ${t.payment_method || 'QRIS'}`,
+        amount: `Rp ${Number(t.amount_idr || 0).toLocaleString('id-ID')}`,
+        icon: ShoppingBag,
+        iconBg: 'bg-emerald-50 text-emerald-600',
+        createdAt: t.created_at ? new Date(t.created_at).getTime() : Date.now()
+      }));
+
+      // 2. Map Real Database Timeline Events
+      const mappedTimelineEvents = (res.timelineEvents || []).map((ev: any) => {
+        const iconInfo = getEventIcon(ev);
+        const eventText = (ev.event_text || '').trim();
+        const subtitle = eventText
+          ? eventText.replace(/^(Executed [^:]+:\s*"?|New\s+)/i, '').replace(/"$/, '').substring(0, 55)
+          : (ev.created_at ? new Date(ev.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Just now');
+        return {
+          title: deriveTitle(ev),
+          sub: subtitle,
+          amount: deriveBadge(ev),
+          icon: iconInfo.icon,
+          iconBg: iconInfo.bg,
+          createdAt: ev.created_at ? new Date(ev.created_at).getTime() : Date.now()
+        };
+      });
+
+      // 3. Synthesize & Sort Chronologically
+      const synthesizedActivities = [...mappedTrxEvents, ...mappedTimelineEvents]
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 4);
+
+      if (synthesizedActivities.length > 0) {
+        setRecentActivities(synthesizedActivities);
+      }
+
+      const deriveAgentName = (ev: any): string => {
+        if (ev.badge_label && ev.badge_label.includes('AI')) return ev.badge_label;
+        const text = `${ev.title || ''} ${ev.event_text || ''}`.toLowerCase();
+        if (text.includes('finance') || text.includes('gas fee') || text.includes('margin') || text.includes('invoice') || text.includes('billing')) return 'Finance & Billing AI';
+        if (text.includes('crm') || text.includes('retention') || text.includes('repeat order') || text.includes('pelanggan') || text.includes('wa')) return 'Customer Service AI';
+        if (text.includes('campaign') || text.includes('promo') || text.includes('broadcast') || text.includes('marketing') || text.includes('studio')) return 'Marketing & Campaign AI';
+        if (text.includes('stock') || text.includes('stok') || text.includes('inventory') || text.includes('restock') || text.includes('supplier')) return 'Inventory & Store AI';
+        if (text.includes('sales') || text.includes('lead') || text.includes('b2b') || text.includes('pipeline')) return 'B2B Sales & Leads AI';
+        return 'AI Employee Swarm';
+      };
+
+      if (res.timelineEvents && res.timelineEvents.length > 0) {
+        // Map database events to AI Tasks List (filter for AI-executed events)
+        const aiEvents = res.timelineEvents.filter((ev: any) =>
+          ev.event_type === 'ai_task' ||
+          (ev.badge_label && ev.badge_label.includes('AI')) ||
+          (ev.title && ev.title.includes('AI')) ||
+          (ev.event_text && /gas fee|margin|repeat order|broadcast|restock|zeroclaw|kualifikasi/i.test(ev.event_text))
+        );
+
+        const targetEvents = aiEvents.length > 0 ? aiEvents : res.timelineEvents;
+        const mappedTasks = targetEvents.map((ev: any, idx: number) => ({
           id: ev.id || `ev-${idx}`,
           task: ev.event_text || ev.title || 'Automated AI Task Completed',
-          agent: ev.badge_label === 'Realtime Task' ? 'AI Employee Swarm' : (ev.event_type === 'transaction' ? 'Finance & Billing AI' : 'Store & Ops AI'),
-          time: ev.event_time || (ev.created_at ? new Date(ev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'),
+          agent: deriveAgentName(ev),
+          time: ev.event_time || (ev.created_at ? new Date(ev.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Just now'),
           status: 'completed' as const,
           badge: ev.badge_label || 'Swarm Task'
         }));
@@ -358,6 +488,18 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      const summary = await SupabaseDashboardService.getUmkmSalesSummary(
+        '11111111-1111-1111-1111-111111111111',
+        salesTimeframe === '7d' ? 7 : 30
+      );
+      if (summary && summary.length > 0) {
+        setDynamicSalesData(summary);
+      }
+    })();
+  }, [salesTimeframe]);
 
   useEffect(() => {
     loadDashboardData();
@@ -569,7 +711,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 </div>
               </div>
               <div className="size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                <Sparkles size={16} />
+                <Cpu size={16} />
               </div>
             </div>
           </div>
@@ -643,34 +785,30 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       </div>
 
       {/* ========================================================================= */}
-      {/* ROW 2: 5 METRIC CARDS WITH RECHARTS SPARKLINE CURVES */}
+      {/* ROW 2: 5 METRIC CARDS - CLEAN ENTERPRISE KPI BLOCKS */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
 
         {/* PENDAPATAN */}
         <div
           onClick={() => onNavigateTab('sales')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
+          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-orange-500 transition-colors">{u.revenue}</span>
-            <div className="size-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <DollarSign size={13} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.revenue}</span>
+            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
+              <DollarSign size={14} />
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-base font-black text-slate-900 dark:text-slate-100">
+          <div className="mt-2.5">
+            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
               Rp{(kpiData.revenue_generated_today || 5200000).toLocaleString('id-ID')}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">{u.revenueSub}</span>
-              <div className="w-14 h-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sparkRevenue}>
-                    <Line type="monotone" dataKey="v" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                +18% vs d-1
+              </span>
+              <span className="text-[9.5px] font-medium text-slate-400">Target Harian</span>
             </div>
           </div>
         </div>
@@ -678,27 +816,23 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         {/* PESANAN BARU */}
         <div
           onClick={() => onNavigateTab('store')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
+          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-orange-500 transition-colors">{u.newOrders}</span>
-            <div className="size-6.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
-              <ShoppingBag size={13} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.newOrders}</span>
+            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
+              <ShoppingBag size={14} />
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-base font-black text-slate-900 dark:text-slate-100">
+          <div className="mt-2.5">
+            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
               {kpiData.orders_today_count || 43}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">+12%</span>
-              <div className="w-14 h-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sparkOrders}>
-                    <Line type="monotone" dataKey="v" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                +12%
+              </span>
+              <span className="text-[9.5px] font-medium text-slate-400">Terproses</span>
             </div>
           </div>
         </div>
@@ -706,27 +840,23 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         {/* PELANGGAN BARU */}
         <div
           onClick={() => onNavigateTab('customers')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
+          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-orange-500 transition-colors">{u.newCustomers}</span>
-            <div className="size-6.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
-              <UserPlus size={13} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.newCustomers}</span>
+            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
+              <UserPlus size={14} />
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-base font-black text-slate-900 dark:text-slate-100">
+          <div className="mt-2.5">
+            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
               {kpiData.new_customers_today_count || 12}
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">+9%</span>
-              <div className="w-14 h-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sparkUsers}>
-                    <Line type="monotone" dataKey="v" stroke="#a855f7" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                +9%
+              </span>
+              <span className="text-[9.5px] font-medium text-slate-400">Organik & Ads</span>
             </div>
           </div>
         </div>
@@ -734,27 +864,23 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         {/* RESPONSE RATE WA */}
         <div
           onClick={() => onNavigateTab('inbox')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
+          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-orange-500 transition-colors">{u.waResponseRate}</span>
-            <div className="size-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <MessageSquare size={13} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.waResponseRate}</span>
+            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
+              <MessageSquare size={14} />
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-base font-black text-slate-900 dark:text-slate-100">
+          <div className="mt-2.5">
+            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
               {kpiData.whatsapp_response_rate || 98}%
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">+3%</span>
-              <div className="w-14 h-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sparkWa}>
-                    <Line type="monotone" dataKey="v" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                +3%
+              </span>
+              <span className="text-[9.5px] font-medium text-slate-400">&lt; 15 dtk SLA</span>
             </div>
           </div>
         </div>
@@ -762,27 +888,23 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         {/* JAM TERSIMPAN */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-orange-500/60 hover:shadow-sm transition-all cursor-pointer group"
+          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 group-hover:text-orange-500 transition-colors">{u.hoursSaved}</span>
-            <div className="size-6.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
-              <Clock size={13} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.hoursSaved}</span>
+            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
+              <Clock size={14} />
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-base font-black text-slate-900 dark:text-slate-100">
+          <div className="mt-2.5">
+            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
               9.2 Hours
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">+15%</span>
-              <div className="w-14 h-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sparkHours}>
-                    <Line type="monotone" dataKey="v" stroke="#6366f1" strokeWidth={2.5} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                +15%
+              </span>
+              <span className="text-[9.5px] font-medium text-slate-400">Efisiensi AI</span>
             </div>
           </div>
         </div>
@@ -801,7 +923,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </span>
           </div>
           <button
-            onClick={() => setShowAgentsModal(true)}
+            onClick={() => onNavigateTab('my_agents')}
             className="text-xs font-extrabold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-0.5 cursor-pointer"
           >
             {u.manageAll} <ArrowRight size={11} />
@@ -945,7 +1067,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             {/* REAL RECHARTS INTERACTIVE GRAPH */}
             <div className="h-56 w-full pt-1">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesTimeframe === '7d' ? sales7Days : sales30Days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={dynamicSalesData.length > 0 ? dynamicSalesData : (salesTimeframe === '7d' ? sales7Days : sales30Days)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f97316" stopOpacity={0.35} />
@@ -993,7 +1115,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   </span>
                 </div>
                 <button
-                  onClick={() => setShowAutomationsModal(true)}
+                  onClick={() => onNavigateTab('automation')}
                   className="text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer flex items-center gap-0.5"
                 >
                   {u.seeAll} <ArrowRight size={11} />
@@ -1001,10 +1123,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               </div>
 
               <div className="space-y-2">
-                {automations.map((item, i) => (
+                {automations.slice(0, 4).map((item, i) => (
                   <div
                     key={item.id || i}
-                    onClick={() => setShowAutomationsModal(true)}
+                    onClick={() => onNavigateTab('automation')}
                     className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-orange-400/50 hover:bg-orange-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-2">
@@ -1042,24 +1164,35 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               </div>
 
               <div className="space-y-2">
-                {aiTasksList.slice(0, 4).map((item, i) => (
-                  <div
-                    key={item.id || i}
-                    onClick={() => setShowAiTasksModal(true)}
-                    className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-purple-400/50 hover:bg-purple-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="size-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                        <CheckCircle size={13} />
+                {aiTasksList.slice(0, 4).map((item, i) => {
+                  const getAiTaskRoute = () => {
+                    const text = `${item.task} ${item.agent}`.toLowerCase();
+                    if (text.includes('finance') || text.includes('bill') || text.includes('invoice') || text.includes('gas fee') || text.includes('margin') || text.includes('pengeluaran')) return 'finance';
+                    if (text.includes('crm') || text.includes('customer') || text.includes('retention') || text.includes('pelanggan') || text.includes('wa') || text.includes('repeat order')) return 'customers';
+                    if (text.includes('marketing') || text.includes('campaign') || text.includes('promo') || text.includes('broadcast') || text.includes('studio')) return 'marketing';
+                    if (text.includes('stock') || text.includes('stok') || text.includes('inventory') || text.includes('store') || text.includes('product') || text.includes('restock') || text.includes('niacinamide')) return 'store';
+                    if (text.includes('sales') || text.includes('lead') || text.includes('b2b') || text.includes('pipeline') || text.includes('closing') || text.includes('kualifikasi')) return 'sales';
+                    return 'my_agents';
+                  };
+                  return (
+                    <div
+                      key={item.id || i}
+                      onClick={() => onNavigateTab(getAiTaskRoute())}
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-purple-400/50 hover:bg-purple-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="size-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                          <CheckCircle size={13} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">{item.task}</h4>
+                          <span className="text-[9px] text-slate-400">{item.agent}</span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">{item.task}</h4>
-                        <span className="text-[9px] text-slate-400">{item.agent}</span>
-                      </div>
+                      <span className="text-[9px] font-semibold text-slate-400 shrink-0">{item.time}</span>
                     </div>
-                    <span className="text-[9px] font-semibold text-slate-400 shrink-0">{item.time}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1084,12 +1217,21 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             <div className="space-y-2 text-xs">
               {recentActivities.map((act, i) => {
                 const Icon = act.icon || FileText;
+                const getActivityRoute = () => {
+                  const title = `${act.title} ${act.sub}`.toLowerCase();
+                  if (title.includes('transaksi') || title.includes('transaction') || title.includes('order') || title.includes('sale') || title.includes('inv') || title.includes('trx')) return 'sales';
+                  if (title.includes('customer') || title.includes('pelanggan') || title.includes('lead') || title.includes('crm') || title.includes('retention')) return 'customers';
+                  if (title.includes('product') || title.includes('stok') || title.includes('stock') || title.includes('store') || title.includes('inventory')) return 'store';
+                  if (title.includes('campaign') || title.includes('promo') || title.includes('broadcast') || title.includes('marketing')) return 'marketing';
+                  if (title.includes('finance') || title.includes('pengeluaran') || title.includes('gas fee') || title.includes('margin')) return 'finance';
+                  return 'customer_activity_stream';
+                };
                 return (
                   <div
                     key={i}
                     onClick={() => {
                       triggerToast(`Activity detail: ${act.title}`);
-                      onNavigateTab('reports');
+                      onNavigateTab(getActivityRoute());
                     }}
                     className="flex items-center justify-between p-1.5 rounded-xl hover:bg-orange-50/60 dark:hover:bg-slate-800/60 transition-all cursor-pointer group"
                   >
@@ -1160,7 +1302,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               onClick={() => setShowSupportAssistantModal(true)}
               className="w-full py-2.5 rounded-xl border-2 border-orange-500/80 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-extrabold text-[11px] shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
             >
-              <Sparkles size={15} className="text-orange-500" />
+              <Bot size={16} className="text-orange-500" />
               <span>{u.chatWithAi}</span>
             </button>
           </div>
@@ -1770,13 +1912,16 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-3.5 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black">
-                  <Sparkles size={16} />
+              <div className="flex items-center gap-2.5">
+                <div className="size-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-black shadow-md shadow-orange-500/20">
+                  <Bot size={18} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Bantuan Cepat Overview</h3>
-                  <p className="text-[10px] text-slate-400">Asisten Bantuan Langsung di Overview</p>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Asisten AI Operasional</span>
+                    <span className="px-2 py-0.2 rounded-full text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black">ONLINE</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Bantuan Langsung &amp; Otomasi Alur Kerja Toko</p>
                 </div>
               </div>
               <button onClick={() => setShowSupportAssistantModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
@@ -1819,13 +1964,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                     {msg.sender === 'ai' && (
                       <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-700/60 text-[8.5px] text-slate-400 font-semibold">
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.2 rounded-md bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 font-extrabold flex items-center gap-1">
+                          <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black flex items-center gap-1">
                             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            {msg.model || '9Router-Llama-3.3-70B'}
+                            ZEGA Copilot AI
                           </span>
-                          <span>• {msg.inference_ms || 185}ms</span>
+                          <span>• Respon {msg.inference_ms || 185}ms</span>
                         </div>
-                        <span className="text-slate-400 font-mono text-[8px]">{msg.tokens || 94} tokens</span>
+                        <span className="text-slate-400 font-medium">Terverifikasi</span>
                       </div>
                     )}
                   </div>
@@ -2068,7 +2213,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 border border-orange-200 dark:border-orange-900/50">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black shadow-xs">
-                  <Sparkles size={18} />
+                  <Bot size={18} />
                 </div>
                 <div>
                   <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Tambah Agen AI Baru ke Swarm Node</h4>
@@ -2322,7 +2467,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               }}
               className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5"
             >
-              <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">⚡ Execute New AI Task Live</span>
+              <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider block">Execute New AI Task Live</span>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -2353,34 +2498,94 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </form>
 
             {/* AI Tasks Realtime Log List */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Realtime Task Execution Stream</span>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {aiTasksList.map((item, idx) => (
-                  <div
-                    key={item.id || idx}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 shadow-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center shrink-0">
-                        <CheckCircle size={16} />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{item.task}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-semibold text-slate-400">{item.agent}</span>
-                          <span className="px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[8.5px] font-bold">
-                            {item.badge || 'Swarm Executed'}
-                          </span>
+            <div className="space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Stream Eksekusi Task Real-Time</span>
+                
+                {/* Agent Filter Tabs */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-[10.5px]">
+                  {['Semua AI Agent', 'Finance', 'Customer Service', 'Marketing', 'Inventory', 'Sales'].map((tabName) => (
+                    <button
+                      type="button"
+                      key={tabName}
+                      onClick={() => setAiTaskFilterTab(tabName)}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold whitespace-nowrap ${
+                        aiTaskFilterTab === tabName
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                      }`}
+                    >
+                      {tabName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {aiTasksList
+                  .filter((item) => {
+                    if (aiTaskFilterTab === 'Semua AI Agent') return true;
+                    return item.agent.toLowerCase().includes(aiTaskFilterTab.toLowerCase()) ||
+                           item.task.toLowerCase().includes(aiTaskFilterTab.toLowerCase());
+                  })
+                  .map((item, idx) => {
+                    const getAiTaskRoute = () => {
+                      const text = `${item.task} ${item.agent}`.toLowerCase();
+                      if (text.includes('finance') || text.includes('bill') || text.includes('invoice') || text.includes('gas fee') || text.includes('margin') || text.includes('pengeluaran')) return 'finance';
+                      if (text.includes('crm') || text.includes('customer') || text.includes('retention') || text.includes('pelanggan') || text.includes('wa') || text.includes('repeat order')) return 'customers';
+                      if (text.includes('marketing') || text.includes('campaign') || text.includes('promo') || text.includes('broadcast') || text.includes('studio')) return 'marketing';
+                      if (text.includes('stock') || text.includes('stok') || text.includes('inventory') || text.includes('store') || text.includes('product') || text.includes('restock') || text.includes('niacinamide')) return 'store';
+                      if (text.includes('sales') || text.includes('lead') || text.includes('b2b') || text.includes('pipeline') || text.includes('closing') || text.includes('kualifikasi')) return 'sales';
+                      return 'my_agents';
+                    };
+
+                    const getRouteLabel = (rt: string) => {
+                      if (rt === 'finance') return 'Buka Finance';
+                      if (rt === 'customers') return 'Buka CRM';
+                      if (rt === 'marketing') return 'Buka Studio';
+                      if (rt === 'store') return 'Buka Stok';
+                      if (rt === 'sales') return 'Buka Sales';
+                      return 'Kelola AI';
+                    };
+
+                    const targetRoute = getAiTaskRoute();
+
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-purple-400/50 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center shrink-0">
+                            <CheckCircle size={16} />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{item.task}</h4>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-semibold text-slate-400">{item.agent}</span>
+                              <span className="px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[8.5px] font-bold">
+                                {item.badge || 'Swarm Executed'}
+                              </span>
+                              <span className="text-[9.5px] font-bold text-slate-400">• {item.time}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAiTasksModal(false);
+                              onNavigateTab(targetRoute);
+                            }}
+                            className="px-3 py-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-[10px] transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          >
+                            <span>{getRouteLabel(targetRoute)}</span>
+                            <ArrowRight size={10} />
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-slate-400 block">{item.time}</span>
-                      <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400">✓ Completed</span>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             </div>
 

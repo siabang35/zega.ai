@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, ShoppingBag, BarChart3, TrendingUp, ChevronDown, 
-  Filter, Calendar, Sparkles, ArrowUpRight, Target, RefreshCw, CheckCircle2, User, HelpCircle, Zap
+  Filter, Calendar, Sparkles, ArrowUpRight, Target, RefreshCw, CheckCircle2, Users, HelpCircle, Workflow
 } from 'lucide-react';
 import { 
   Chart as ChartJS, 
@@ -19,10 +19,13 @@ import { Line, Doughnut } from 'react-chartjs-2';
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
-  SetGoalModal, AllProductsModal, AllChannelsModal, 
+  SetGoalModal, AllProductsModal, AllChannelsModal, SalesBySourceModal,
   AiReportModal, DateFilterModal, FilterModal, HelpInfoModal,
   DeploySalesSwarmModal
 } from './sales/SalesModals';
+import { SalesBySourceSubPage } from './sales/subpages/SalesBySourceSubPage';
+import { SalesByChannelSubPage } from './sales/subpages/SalesByChannelSubPage';
+import { MonthlyReportSubPage } from './sales/subpages/MonthlyReportSubPage';
 
 ChartJS.register(
   CategoryScale, 
@@ -38,11 +41,43 @@ ChartJS.register(
 
 interface SalesViewProps {
   triggerToast?: (msg: string) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
-export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
+export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewProps) {
   const { t } = useLanguage();
   const [timeTab, setTimeTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
+
+  const getInitialSubTab = (): 'overview' | 'sales_by_source' | 'sales_by_channel' | 'monthly_report' => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sub = params.get('subtab') || params.get('sub_page') || params.get('tab');
+      if (sub === 'sales_by_source' || sub === 'sources' || sub === 'source') return 'sales_by_source';
+      if (sub === 'sales_by_channel' || sub === 'channels' || sub === 'channel') return 'sales_by_channel';
+      if (sub === 'monthly_report' || sub === 'monthly' || sub === 'report') return 'monthly_report';
+    }
+    return 'overview';
+  };
+
+  const [activeSubTab, setActiveSubTabState] = useState<'overview' | 'sales_by_source' | 'sales_by_channel' | 'monthly_report'>(getInitialSubTab);
+
+  const setActiveSubTab = (tab: 'overview' | 'sales_by_source' | 'sales_by_channel' | 'monthly_report') => {
+    setActiveSubTabState(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('subtab', tab);
+      window.history.pushState({}, '', url.toString());
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveSubTabState(getInitialSubTab());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -67,6 +102,12 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
     { channel_name: 'Instagram', percentage: 15, amount: 2000000, color_hex: '#a855f7' },
     { channel_name: 'TikTok', percentage: 10, amount: 1300000, color_hex: '#06b6d4' }
   ]);
+
+  const [sources, setSources] = useState<any[]>([]);
+  const [sourceSwarm, setSourceSwarm] = useState<any[]>([]);
+  const [channelBreakdown, setChannelBreakdown] = useState<any[]>([]);
+  const [channelSwarm, setChannelSwarm] = useState<any[]>([]);
+  const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
   const [topProducts, setTopProducts] = useState<any[]>([
     { rank: 1, product_name: 'Paket Skincare Basic', units_sold: 32, revenue: 3840000, trend_growth: 16 },
@@ -95,13 +136,28 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
   // Fetch Data from Supabase & Subscribe Realtime
   const loadSalesData = async () => {
     setLoading(true);
-    const res = await SupabaseDashboardService.getUmkmSalesOverview();
+    const [res, srcRes, brkRes, chSwarmRes, rptRes, srcSwarmRes] = await Promise.all([
+      SupabaseDashboardService.getUmkmSalesOverview(),
+      SupabaseDashboardService.getUmkmSalesSources(),
+      SupabaseDashboardService.getUmkmSalesChannelBreakdown(),
+      SupabaseDashboardService.getUmkmSalesChannelAiSwarm(),
+      SupabaseDashboardService.getUmkmSalesMonthlyReports(),
+      SupabaseDashboardService.getUmkmSalesSourceAiSwarm()
+    ]);
+
     if (res.metrics) setMetrics(res.metrics);
     if (res.channels?.length) setChannels(res.channels);
     if (res.topProducts?.length) setTopProducts(res.topProducts);
     if (res.activities?.length) setActivities(res.activities);
     if (res.goal) setSalesGoal(res.goal);
     if (res.insights?.length) setInsights(res.insights);
+
+    if (srcRes?.length) setSources(srcRes);
+    if (brkRes?.length) setChannelBreakdown(brkRes);
+    if (chSwarmRes?.length) setChannelSwarm(chSwarmRes);
+    if (rptRes) setMonthlyReport(rptRes);
+    if (srcSwarmRes?.length) setSourceSwarm(srcSwarmRes);
+
     setLoading(false);
   };
 
@@ -293,6 +349,57 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             {t.salesView.subtitle}
           </p>
+
+          {/* Enterprise Sub-Menu Navigation Bar */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl w-fit border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold mt-2.5 shadow-xs">
+            <button
+              onClick={() => setActiveSubTab('overview')}
+              className={`px-3.5 py-1.5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeSubTab === 'overview'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <BarChart3 size={14} />
+              <span>Overview</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('sales_by_source')}
+              className={`px-3.5 py-1.5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeSubTab === 'sales_by_source'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <TrendingUp size={14} />
+              <span>Sales by Source</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('sales_by_channel')}
+              className={`px-3.5 py-1.5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeSubTab === 'sales_by_channel'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <ShoppingBag size={14} />
+              <span>Sales by Channel</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('monthly_report')}
+              className={`px-3.5 py-1.5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeSubTab === 'monthly_report'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Sparkles size={14} />
+              <span>Monthly Report</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -326,124 +433,128 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. TOP METRICS GRID (5 CARDS WITH SPARKLINES) */}
+      {/* 2. CONDITIONAL SUB-PAGE RENDERING BASED ON ACTIVE SUB-TAB */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-        {/* Card 1: Total Revenue */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
-              $
-            </div>
-            <span className="text-[11px] font-extrabold text-slate-400">{t.salesView.totalRevenue}</span>
-          </div>
-          <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(metrics.total_revenue || 13500000).toLocaleString('id-ID')}
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.revenue_growth || 18}%</span>
-              <span className="text-slate-400 font-normal">{t.salesView.vsLastMonth}</span>
-            </div>
-          </div>
-          {/* Green Sparkline Curve */}
-          <svg className="w-full h-6 mt-1 text-emerald-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 20 Q 25 5, 50 15 T 100 5" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
+      {activeSubTab === 'sales_by_source' && (
+        <SalesBySourceSubPage sources={sources} aiInsights={sourceSwarm} triggerToast={triggerToast} />
+      )}
 
-        {/* Card 2: Total Orders */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center font-bold text-xs">
-              <ShoppingBag size={14} />
-            </div>
-            <span className="text-[11px] font-extrabold text-slate-400">{t.salesView.totalOrders}</span>
-          </div>
-          <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {metrics.total_orders || 116}
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.orders_growth || 21}%</span>
-              <span className="text-slate-400 font-normal">{t.salesView.vsLastMonth}</span>
-            </div>
-          </div>
-          {/* Orange Sparkline Curve */}
-          <svg className="w-full h-6 mt-1 text-orange-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 18 Q 20 22, 45 10 T 100 8" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
+      {activeSubTab === 'sales_by_channel' && (
+        <SalesByChannelSubPage 
+          channels={channelBreakdown.length ? channelBreakdown : channels} 
+          aiInsights={channelSwarm}
+          triggerToast={triggerToast} 
+        />
+      )}
 
-        {/* Card 3: Average Order Value */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold text-xs">
-              <BarChart3 size={14} />
-            </div>
-            <span className="text-[11px] font-extrabold text-slate-400">{t.salesView.avgOrderValue}</span>
-          </div>
-          <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(metrics.avg_order_value || 116379).toLocaleString('id-ID')}
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.aov_growth || 5}%</span>
-              <span className="text-slate-400 font-normal">{t.salesView.vsLastMonth}</span>
-            </div>
-          </div>
-          {/* Purple Sparkline Curve */}
-          <svg className="w-full h-6 mt-1 text-purple-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 15 Q 30 5, 60 18 T 100 10" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
+      {activeSubTab === 'monthly_report' && (
+        <MonthlyReportSubPage
+          monthlyReports={Array.isArray(monthlyReport) ? monthlyReport : [monthlyReport]}
+          monthlyReport={Array.isArray(monthlyReport) ? monthlyReport[0] : monthlyReport}
+          insights={insights}
+          triggerToast={triggerToast}
+        />
+      )}
 
-        {/* Card 4: Conversion Rate */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center font-bold text-xs">
-              <TrendingUp size={14} />
+      {activeSubTab === 'overview' && (
+        <>
+          {/* TOP METRICS GRID (5 ENTERPRISE KPI CARDS - Sleek, Clutter-Free) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+            {/* Card 1: Total Revenue */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+                  <DollarSign size={18} />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                  <span>↑ {metrics.revenue_growth || 18}%</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{t.salesView.totalRevenue}</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
+                  Rp{(metrics.total_revenue || 13500000).toLocaleString('id-ID')}
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal block mt-1">{t.salesView.vsLastMonth}</span>
+              </div>
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">{t.salesView.conversionRate}</span>
-          </div>
-          <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {metrics.conversion_rate || 4.2}%
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.conversion_growth || 1.3}%</span>
-              <span className="text-slate-400 font-normal">{t.salesView.vsLastMonth}</span>
-            </div>
-          </div>
-          {/* Blue Sparkline Curve */}
-          <svg className="w-full h-6 mt-1 text-blue-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 22 Q 25 8, 50 14 T 100 4" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
 
-        {/* Card 5: New Customers */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between">
-            <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold text-xs">
-              <User size={14} />
+            {/* Card 2: Total Orders */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="size-9 rounded-xl bg-orange-500/10 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-bold">
+                  <ShoppingBag size={18} />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                  <span>↑ {metrics.orders_growth || 21}%</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{t.salesView.totalOrders}</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
+                  {(metrics.total_orders || 116).toLocaleString('id-ID')}
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal block mt-1">{t.salesView.vsLastMonth}</span>
+              </div>
             </div>
-            <span className="text-[11px] font-extrabold text-slate-400">{t.salesView.newCustomers}</span>
+
+            {/* Card 3: Average Order Value */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="size-9 rounded-xl bg-purple-500/10 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold">
+                  <BarChart3 size={18} />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                  <span>↑ {metrics.aov_growth || 5}%</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{t.salesView.avgOrderValue}</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
+                  Rp{(metrics.avg_order_value || 116379).toLocaleString('id-ID')}
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal block mt-1">{t.salesView.vsLastMonth}</span>
+              </div>
+            </div>
+
+            {/* Card 4: Conversion Rate */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div className="size-9 rounded-xl bg-blue-500/10 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold">
+                  <TrendingUp size={18} />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                  <span>↑ {metrics.conversion_growth || 1.3}%</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{t.salesView.conversionRate}</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
+                  {metrics.conversion_rate || 4.2}%
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal block mt-1">{t.salesView.vsLastMonth}</span>
+              </div>
+            </div>
+
+            {/* Card 5: New Customers */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 sm:col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between">
+                <div className="size-9 rounded-xl bg-amber-500/10 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center font-bold">
+                  <Users size={18} />
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                  <span>↑ {metrics.customers_growth || 14}%</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{t.salesView.newCustomers}</span>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
+                  {(metrics.new_customers || 32).toLocaleString('id-ID')}
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal block mt-1">{t.salesView.vsLastMonth}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {metrics.new_customers || 32}
-            </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>↑ {metrics.customers_growth || 14}%</span>
-              <span className="text-slate-400 font-normal">{t.salesView.vsLastMonth}</span>
-            </div>
-          </div>
-          {/* Yellow Sparkline Curve */}
-          <svg className="w-full h-6 mt-1 text-amber-500" viewBox="0 0 100 25" fill="none">
-            <path d="M0 19 Q 30 12, 60 20 T 100 6" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
-      </div>
 
       {/* ========================================================================= */}
       {/* 3. MIDDLE CHARTS ROW: REVENUE OVER TIME & SALES BY CHANNEL */}
@@ -505,7 +616,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           <div className="flex items-center justify-between">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{t.salesView.salesByChannel}</h3>
             <button 
-              onClick={() => setActiveModal('allChannels')}
+              onClick={() => setActiveSubTab('sales_by_channel')}
               className="text-[11px] font-bold text-orange-500 hover:text-orange-600 cursor-pointer flex items-center gap-0.5"
             >
               {t.salesView.viewDetail} →
@@ -559,7 +670,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
                   <span className="col-span-1 font-extrabold text-slate-400">{p.rank}</span>
                   <span className="col-span-5 font-extrabold text-slate-900 dark:text-slate-100 truncate">{p.product_name}</span>
                   <span className="col-span-2 text-center font-bold text-slate-500">{p.units_sold}</span>
-                  <span className="col-span-2 text-right font-black text-slate-900 dark:text-slate-100">Rp{(p.revenue / 1000).toLocaleString('id-ID')}k</span>
+                  <span className="col-span-2 text-right font-black text-slate-900 dark:text-slate-100">Rp{((p.revenue ?? 0) / 1000).toLocaleString('id-ID')}k</span>
                   <span className="col-span-2 text-right font-bold text-emerald-600 dark:text-emerald-400">↑ {p.trend_growth}%</span>
                 </div>
               ))}
@@ -567,7 +678,14 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           </div>
 
           <button 
-            onClick={() => setActiveModal('allProducts')}
+            onClick={() => {
+              if (onNavigateTab) {
+                triggerToast('Membuka menu Top Selling di Store Management...');
+                onNavigateTab('top_selling');
+              } else {
+                setActiveModal('allProducts');
+              }
+            }}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 pt-2 cursor-pointer transition-colors"
           >
             {t.salesView.viewAllProducts} →
@@ -613,7 +731,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
                         <span className="text-slate-700 dark:text-slate-300">{ch.channel_name}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-900 dark:text-slate-100 font-black">Rp{ch.amount.toLocaleString('id-ID')}</span>
+                        <span className="text-slate-900 dark:text-slate-100 font-black">Rp{(ch.amount ?? 0).toLocaleString('id-ID')}</span>
                         <span className="text-slate-400 font-medium text-[10px]">{ch.percentage}%</span>
                       </div>
                     </div>
@@ -630,10 +748,10 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           </div>
 
           <button 
-            onClick={() => setActiveModal('allChannels')}
+            onClick={() => setActiveSubTab('sales_by_source')}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 pt-2 cursor-pointer transition-colors"
           >
-            {t.salesView.viewAllChannels} →
+            Lihat Semua Sumber →
           </button>
         </div>
 
@@ -663,7 +781,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
             </div>
 
             <button 
-              onClick={() => setActiveModal('aiReport')}
+              onClick={() => setActiveSubTab('monthly_report')}
               className="w-full text-center text-[11px] font-extrabold text-orange-500 hover:text-orange-600 pt-1 cursor-pointer"
             >
               {t.salesView.viewFullReport} →
@@ -726,7 +844,7 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
 
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => setActiveModal('aiReport')}
+              onClick={() => { window.location.href = '/dashboard/reports?tab=overview'; }}
               className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 font-extrabold text-xs border border-orange-200 dark:border-slate-700 hover:bg-orange-100 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
             >
               <Sparkles size={12} />
@@ -749,6 +867,8 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
           ))}
         </div>
       </div>
+      </>
+      )}
 
       {/* ========================================================================= */}
       {/* 6. RENDER ACTIVE MODALS */}
@@ -787,12 +907,20 @@ export function SalesView({ triggerToast = () => {} }: SalesViewProps) {
       <AllChannelsModal
         isOpen={activeModal === 'allChannels'}
         onClose={() => setActiveModal(null)}
+        channelData={channelBreakdown.length ? channelBreakdown : channels}
+      />
+
+      <SalesBySourceModal
+        isOpen={activeModal === 'salesBySource'}
+        onClose={() => setActiveModal(null)}
+        sourceData={sources}
       />
 
       <AiReportModal
         isOpen={activeModal === 'aiReport'}
         onClose={() => setActiveModal(null)}
         insights={insights}
+        monthlyReport={monthlyReport}
       />
 
       <DeploySalesSwarmModal

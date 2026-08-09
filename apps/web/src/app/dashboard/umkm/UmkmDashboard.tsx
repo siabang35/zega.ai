@@ -63,7 +63,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
     if (externalTab === 'automation' || externalTab === 'sandbox') return 'automation';
     if (externalTab === 'marketplace' || externalTab === 'integrations') return 'marketplace';
     if (externalTab === 'billing') return 'billing';
-    if (externalTab === 'settings') return 'settings';
+    if (externalTab === 'settings' || externalTab?.startsWith('settings')) return 'settings';
     if (externalTab === 'help' || externalTab === 'bantuan') return 'help';
     return internalTab;
   }, [externalTab, internalTab]);
@@ -98,7 +98,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'my_agents' && <MyAgentsView triggerToast={triggerToast} />}
       {currentTab === 'automation' && <AutomationView triggerToast={triggerToast} />}
       {currentTab === 'inbox' && <InboxView triggerToast={triggerToast} />}
-      {currentTab === 'sales' && <SalesView />}
+      {currentTab === 'sales' && <SalesView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
       {currentTab === 'marketing' && <MarketingView triggerToast={triggerToast} />}
       {currentTab === 'finance' && <FinanceView triggerToast={triggerToast} isGuest={isGuest} userEmail={userEmail} userName={userName} />}
       {currentTab === 'store' && <StoreView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
@@ -116,7 +116,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} activeSubPage={externalTab} />}
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
       {currentTab === 'billing' && <BillingView triggerToast={triggerToast} activeSubPage={externalTab} />}
-      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} />}
+      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} activeSubPage={externalTab} />}
       {currentTab === 'help' && <HelpView />}
 
       {/* FLOATING ZEGA COPILOT WIDGET */}

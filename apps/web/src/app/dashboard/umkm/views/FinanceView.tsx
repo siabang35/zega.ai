@@ -533,127 +533,107 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         <ZeroClawTerminalView onTriggerToast={triggerToast || (() => {})} isGuest={isGuest} userEmail={userEmail} userName={userName} />
       ) : (
         <>
-        {/* 5 Metric Sparkline Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* 5 ENTERPRISE KPI CARDS (Sleek, Clutter-Free) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1: Total Revenue */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400">Total Revenue</span>
-              <div className="size-7 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center">
-                <DollarSign size={14} />
+              <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+                <DollarSign size={18} />
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <ArrowUpRight size={12} />
+                <span>↑ {m.revenue_growth}%</span>
+              </span>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Total Revenue</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                 {formatMoney(m.total_revenue)}
               </div>
-              <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                <ArrowUpRight size={12} />
-                <span>↑ {m.revenue_growth}% vs last month</span>
-              </div>
-            </div>
-            {/* Green Sparkline SVG */}
-            <div className="pt-2">
-              <svg className="w-full h-7 stroke-emerald-500 fill-none" viewBox="0 0 100 25">
-                <path d="M0 20 Q 25 5, 50 15 T 100 5" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+              <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
             </div>
           </div>
 
           {/* Card 2: Total Expense */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400">Total Expense</span>
-              <div className="size-7 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center">
-                <DollarSign size={14} />
+              <div className="size-9 rounded-xl bg-orange-500/10 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-bold">
+                <CreditCard size={18} />
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <ArrowDownRight size={12} />
+                <span>↓ {Math.abs(m.expense_growth)}%</span>
+              </span>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Total Expense</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                 {formatMoney(m.total_expense)}
               </div>
-              <div className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 flex items-center gap-1 mt-0.5">
-                <ArrowDownRight size={12} />
-                <span>↓ {Math.abs(m.expense_growth)}% vs last month</span>
-              </div>
-            </div>
-            {/* Orange Sparkline SVG */}
-            <div className="pt-2">
-              <svg className="w-full h-7 stroke-orange-500 fill-none" viewBox="0 0 100 25">
-                <path d="M0 10 Q 25 22, 50 10 T 100 18" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+              <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
             </div>
           </div>
 
           {/* Card 3: Net Profit */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400">Net Profit</span>
-              <div className="size-7 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center">
-                <Scale size={14} />
+              <div className="size-9 rounded-xl bg-purple-500/10 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold">
+                <Scale size={18} />
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <ArrowUpRight size={12} />
+                <span>↑ {m.profit_growth}%</span>
+              </span>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Net Profit</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                 {formatMoney(m.net_profit)}
               </div>
-              <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                <ArrowUpRight size={12} />
-                <span>↑ {m.profit_growth}% vs last month</span>
-              </div>
-            </div>
-            {/* Purple Sparkline SVG */}
-            <div className="pt-2">
-              <svg className="w-full h-7 stroke-purple-500 fill-none" viewBox="0 0 100 25">
-                <path d="M0 18 Q 25 15, 50 8 T 100 5" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+              <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
             </div>
           </div>
 
           {/* Card 4: Profit Margin */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400">Profit Margin</span>
-              <div className="size-7 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center">
-                <TrendingUp size={14} />
+              <div className="size-9 rounded-xl bg-blue-500/10 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold">
+                <TrendingUp size={18} />
               </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <ArrowUpRight size={12} />
+                <span>↑ {m.margin_growth}%</span>
+              </span>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Profit Margin</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                 {m.profit_margin}%
               </div>
-              <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                <ArrowUpRight size={12} />
-                <span>↑ {m.margin_growth}% vs last month</span>
-              </div>
-            </div>
-            {/* Blue Sparkline SVG */}
-            <div className="pt-2">
-              <svg className="w-full h-7 stroke-blue-500 fill-none" viewBox="0 0 100 25">
-                <path d="M0 15 Q 30 20, 60 10 T 100 8" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+              <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
             </div>
           </div>
 
           {/* Card 5: Cash Balance (USDC) */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs relative overflow-hidden col-span-2 sm:col-span-1">
+          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400">Cash Balance (USDC)</span>
-              <div className="size-7 rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 flex items-center justify-center">
-                <Wallet size={14} />
+              <div className="size-9 rounded-xl bg-teal-500/10 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold">
+                <Wallet size={18} />
               </div>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>LIVE STREAM</span>
+              </span>
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Cash Balance (USDC)</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                 {formatMoney(m.cash_balance_usdc)}
               </div>
-              <div className="text-[10px] font-bold text-slate-400 truncate">
+              <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
                 ≈ Rp31.512.000
-              </div>
-              <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>▲ Live Solana Stream •</span>
-              </div>
+              </span>
             </div>
           </div>
         </div>

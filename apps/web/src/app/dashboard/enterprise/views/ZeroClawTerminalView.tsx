@@ -1694,103 +1694,110 @@ export function ZeroClawTerminalView({
         </div>
       </div>
 
-      {/* TOP 5 KPI SUMMARY METRICS */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {/* TOP 5 ENTERPRISE KPI CARDS (Clean & Clutter-Free) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Custody Tier */}
-        <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">CUSTODY TIER</span>
-            <div className="size-6 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <Shield size={14} />
+            <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+              <Shield size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200/60 dark:border-emerald-900/60">
+              KEYLESS
+            </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-base font-bold text-slate-900 dark:text-slate-100">Tier 1 (Keyless)</span>
-            <ArrowUpRight size={14} className="text-slate-400" />
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Custody Tier</span>
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              Tier 1 (Keyless)
+            </div>
+            <span className="text-[11px] text-emerald-600 font-extrabold block mt-1">Zero Private Keys</span>
           </div>
-          <span className="text-[9.5px] font-bold text-emerald-600 block">Zero Private Keys</span>
         </div>
 
         {/* Card 2: Reconciled Volume */}
-        <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">RECONCILED VOLUME (24H)</span>
-            <div className="size-6 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
-              <Zap size={14} />
+            <div className="size-9 rounded-xl bg-purple-500/10 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold">
+              <Activity size={18} />
             </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-base font-bold text-slate-900 dark:text-slate-100">
-              ${events.reduce((acc, curr) => acc + (curr.amount || 0), 0).toFixed(2)} USDC
+            <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-extrabold text-[10px] border border-purple-200/60 dark:border-purple-900/60">
+              24H STREAM
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[9.5px] font-mono text-slate-400">{events.length} Confirmed Transactions</span>
-            <div className="w-12 h-4">
-              <Line
-                data={{
-                  labels: ['1', '2', '3', '4', '5'],
-                  datasets: [{ data: [100, 200, 310, 420, 485], borderColor: '#8b5cf6', borderWidth: 1.5, tension: 0.4 }],
-                }}
-                options={sparklineOptions}
-              />
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Reconciled Volume</span>
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              ${events.reduce((acc, curr) => acc + (curr.amount || 0), 0).toFixed(2)} USDC
             </div>
+            <span className="text-[11px] text-slate-400 font-medium block mt-1">
+              {events.length} Confirmed Transactions
+            </span>
           </div>
         </div>
 
         {/* Card 3: Active Channels */}
-        <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ACTIVE CHANNELS</span>
-            <div className="size-6 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <MessageSquare size={14} />
+            <div className="size-9 rounded-xl bg-blue-500/10 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-bold">
+              <MessageSquare size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold text-[10px] border border-blue-200/60 dark:border-blue-900/60">
+              CONNECTED
+            </span>
           </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">2</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[9.5px] text-slate-400 font-semibold">WhatsApp, Telegram</span>
-            <div className="w-12 h-4">
-              <Line
-                data={{
-                  labels: ['1', '2', '3', '4', '5'],
-                  datasets: [{ data: [10, 12, 15, 18, 24], borderColor: '#10b981', borderWidth: 1.5, tension: 0.4 }],
-                }}
-                options={sparklineOptions}
-              />
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Active Channels</span>
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              2 Active Hubs
             </div>
+            <span className="text-[11px] text-slate-400 font-medium block mt-1">
+              WhatsApp & Telegram
+            </span>
           </div>
         </div>
 
         {/* Card 4: Approval Checkpoints */}
-        <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">APPROVAL CHECKPOINTS</span>
-            <div className="size-6 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
-              <ShieldCheck size={14} />
+            <div className="size-9 rounded-xl bg-amber-500/10 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center font-bold">
+              <ShieldCheck size={18} />
             </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 font-extrabold text-[10px] border border-amber-200/60 dark:border-amber-900/60">
+              GUARD ACTIVE
+            </span>
           </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-base font-bold text-slate-900 dark:text-slate-100">1 Pending Review</span>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Approval Checkpoints</span>
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              1 Pending Review
+            </div>
+            <span className="text-[11px] text-amber-600 font-extrabold block mt-1">
+              Prompt Guard Active
+            </span>
           </div>
-          <span className="text-[9.5px] font-semibold text-amber-600 block">Prompt Guard Active</span>
         </div>
 
         {/* Card 5: Agent Status */}
-        <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">AGENT STATUS</span>
-            <div className="size-6 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <Bot size={14} />
+            <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold">
+              <Bot size={18} />
             </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <span className="size-2 rounded-full bg-emerald-500" /> Online
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>ONLINE</span>
             </span>
           </div>
-          <span className="text-[9.5px] font-mono text-slate-400 block">Rust Agent v1.8.3</span>
+          <div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Agent Status</span>
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
+              ZeroClaw Engine
+            </div>
+            <span className="text-[11px] font-mono text-slate-400 block mt-1">
+              Rust Runtime v1.8.3
+            </span>
+          </div>
         </div>
       </div>
 

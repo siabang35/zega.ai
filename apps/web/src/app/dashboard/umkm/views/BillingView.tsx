@@ -21,13 +21,17 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
   const { t } = useLanguage();
 
   const parseTabFromSubPage = (sub?: string) => {
-    if (!sub) return 'Overview';
-    const s = sub.toLowerCase();
-    if (s.includes('invoice')) return 'Invoice';
-    if (s.includes('usage')) return 'Usage';
-    if (s.includes('payment') || s.includes('method')) return 'Payment Methods';
-    if (s.includes('history')) return 'History';
-    if (s.includes('setting')) return 'Settings';
+    let s = (sub || '').toLowerCase();
+    if (typeof window !== 'undefined') {
+      s += ' ' + window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab')) s += ' ' + params.get('tab')?.toLowerCase();
+    }
+    if (s.includes('invoice') || s.includes('faktur')) return 'Invoice';
+    if (s.includes('usage') || s.includes('penggunaan')) return 'Usage';
+    if (s.includes('payment') || s.includes('method') || s.includes('pembayaran') || s.includes('kartu')) return 'Payment Methods';
+    if (s.includes('history') || s.includes('transaksi') || s.includes('riwayat')) return 'History';
+    if (s.includes('setting') || s.includes('pengaturan')) return 'Settings';
     return 'Overview';
   };
 

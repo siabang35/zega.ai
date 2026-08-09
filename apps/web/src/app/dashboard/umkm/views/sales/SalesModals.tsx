@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  X, Check, DollarSign, Target, Calendar, Filter, Sparkles, TrendingUp, 
-  ShoppingBag, ArrowUpRight, Award, RefreshCw, BarChart2, Zap, HelpCircle, User, ShieldCheck
+import {
+  X, Check, DollarSign, Target, Calendar, Filter, Sparkles, TrendingUp,
+  ShoppingBag, ArrowUpRight, Award, RefreshCw, BarChart2, HelpCircle, User, ShieldCheck
 } from 'lucide-react';
 
 interface ModalBaseProps {
@@ -29,18 +29,18 @@ function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
 }
 
 // 1. Set Sales Goal Modal
-export function SetGoalModal({ 
-  isOpen, 
-  onClose, 
-  currentGoal, 
-  onSaveGoal, 
-  triggerToast 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  currentGoal: number; 
-  onSaveGoal: (val: number) => void; 
-  triggerToast: (msg: string) => void 
+export function SetGoalModal({
+  isOpen,
+  onClose,
+  currentGoal,
+  onSaveGoal,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  currentGoal: number;
+  onSaveGoal: (val: number) => void;
+  triggerToast: (msg: string) => void
 }) {
   const [target, setTarget] = useState(currentGoal || 20000000);
 
@@ -54,11 +54,11 @@ export function SetGoalModal({
     <ModalBase isOpen={isOpen} onClose={onClose} title="Atur Target Penjualan Bulanan">
       <div className="space-y-4 text-xs">
         <p className="text-slate-500 dark:text-slate-400">Tentukan target pendapatan bulanan untuk memotivasi tim sales dan AI Assistant Anda.</p>
-        
+
         <div>
           <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Target Pendapatan (Rp)</label>
           <div className="relative">
-            <input 
+            <input
               type="number"
               value={target}
               onChange={(e) => setTarget(Number(e.target.value))}
@@ -88,16 +88,16 @@ export function SetGoalModal({
 }
 
 // 2. Date Range Filter Modal
-export function DateFilterModal({ 
-  isOpen, 
-  onClose, 
-  onSelectRange, 
-  triggerToast 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSelectRange: (label: string) => void; 
-  triggerToast: (msg: string) => void 
+export function DateFilterModal({
+  isOpen,
+  onClose,
+  onSelectRange,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectRange: (label: string) => void;
+  triggerToast: (msg: string) => void
 }) {
   const ranges = [
     { label: 'Hari Ini (Today)', val: '4 Agt 2026' },
@@ -130,14 +130,14 @@ export function DateFilterModal({
 }
 
 // 3. Advanced Filter Modal
-export function FilterModal({ 
-  isOpen, 
-  onClose, 
-  triggerToast 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  triggerToast: (msg: string) => void 
+export function FilterModal({
+  isOpen,
+  onClose,
+  triggerToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  triggerToast: (msg: string) => void
 }) {
   const [selectedChannel, setSelectedChannel] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -157,11 +157,10 @@ export function FilterModal({
               <button
                 key={ch}
                 onClick={() => setSelectedChannel(ch)}
-                className={`p-2.5 rounded-xl font-bold border transition-all cursor-pointer ${
-                  selectedChannel === ch 
-                    ? 'bg-orange-500 text-white border-orange-500' 
+                className={`p-2.5 rounded-xl font-bold border transition-all cursor-pointer ${selectedChannel === ch
+                    ? 'bg-orange-500 text-white border-orange-500'
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                }`}
+                  }`}
               >
                 {ch}
               </button>
@@ -176,11 +175,10 @@ export function FilterModal({
               <button
                 key={st}
                 onClick={() => setSelectedStatus(st)}
-                className={`p-2.5 rounded-xl font-bold border transition-all cursor-pointer ${
-                  selectedStatus === st 
-                    ? 'bg-orange-500 text-white border-orange-500' 
+                className={`p-2.5 rounded-xl font-bold border transition-all cursor-pointer ${selectedStatus === st
+                    ? 'bg-orange-500 text-white border-orange-500'
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                }`}
+                  }`}
               >
                 {st}
               </button>
@@ -267,115 +265,259 @@ export function AllProductsModal({ isOpen, onClose }: { isOpen: boolean; onClose
   );
 }
 
-// 6. All Channels Modal
-export function AllChannelsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const channels = [
-    { 
-      name: 'WhatsApp Business API', 
-      pct: '45%', 
-      amount: 'Rp6.100.000', 
-      color: 'bg-emerald-500', 
-      icon: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-      fallback: '/assets/logo/whatsapp-for-business.webp'
-    },
-    { 
-      name: 'Shopee Seller Store', 
-      pct: '30%', 
-      amount: 'Rp4.100.000', 
-      color: 'bg-orange-500', 
-      icon: 'https://cdn.zegaai.site/assets/logo/shopee.png',
-      fallback: '/assets/logo/shopee.png'
-    },
-    { 
-      name: 'Instagram Direct', 
-      pct: '15%', 
-      amount: 'Rp2.000.000', 
-      color: 'bg-purple-500', 
-      icon: 'https://cdn.zegaai.site/assets/logo/instagram.png',
-      fallback: '/assets/logo/instagram.png'
-    },
-    { 
-      name: 'TikTok Shop Messaging', 
-      pct: '10%', 
-      amount: 'Rp1.300.000', 
-      color: 'bg-cyan-500', 
-      icon: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
-      fallback: '/assets/logo/tiktok.webp'
-    },
+// 6. All Channels Modal (Sub-View with Interactive SVG Donut Chart)
+export function AllChannelsModal({ isOpen, onClose, channelData = [] }: { isOpen: boolean; onClose: () => void; channelData?: any[] }) {
+  const defaultChannels = [
+    { channel_name: 'WhatsApp Business API', total_revenue_idr: 6100000, orders_count: 52, percentage: 45.0, conversion_rate: 5.8, color_hex: '#10b981', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
+    { channel_name: 'Shopee Seller Store', total_revenue_idr: 4100000, orders_count: 35, percentage: 30.0, conversion_rate: 4.2, color_hex: '#f97316', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
+    { channel_name: 'Instagram Direct', total_revenue_idr: 2000000, orders_count: 18, percentage: 15.0, conversion_rate: 3.4, color_hex: '#a855f7', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
+    { channel_name: 'TikTok Shop Messaging', total_revenue_idr: 1300000, orders_count: 11, percentage: 10.0, conversion_rate: 2.9, color_hex: '#06b6d4', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
   ];
 
-  return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Rincian Penjualan Per Channel">
-      <div className="space-y-3 text-xs">
-        {channels.map((c, i) => (
-          <div key={i} className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-            <div className="flex justify-between items-center font-bold">
-              <div className="flex items-center gap-2">
-                <img 
-                  src={c.icon} 
-                  onError={(e: any) => { e.target.onerror = null; e.target.src = c.fallback; }}
-                  alt={c.name} 
-                  className="size-4.5 object-contain rounded-md bg-white p-0.5 border border-slate-200 dark:border-slate-700" 
-                />
-                <span className="text-slate-900 dark:text-slate-100">{c.name}</span>
-              </div>
-              <span className="font-black text-slate-900 dark:text-slate-100">{c.amount}</span>
-            </div>
+  const channels = channelData.length ? channelData : defaultChannels;
+  const totalRev = channels.reduce((acc, c) => acc + (c.total_revenue_idr || c.amount || 0), 0);
 
-            <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-              <div className={`h-full ${c.color}`} style={{ width: c.pct }} />
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Rincian & Visualisasi Penjualan Per Channel">
+      <div className="space-y-5 text-xs font-sans">
+        {/* Interactive Donut Chart Visualizer */}
+        <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex flex-col md:flex-row items-center gap-6 justify-between">
+          <div className="relative size-36 shrink-0 flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="size-full -rotate-90">
+              {(() => {
+                let accumulatedPercent = 0;
+                return channels.map((c, idx) => {
+                  const pct = Number(c.percentage || 25);
+                  const strokeDasharray = `${pct} ${100 - pct}`;
+                  const strokeDashoffset = -accumulatedPercent;
+                  accumulatedPercent += pct;
+                  return (
+                    <circle
+                      key={idx}
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke={c.color_hex || '#10b981'}
+                      strokeWidth="16"
+                      strokeDasharray={strokeDasharray}
+                      strokeDashoffset={strokeDashoffset}
+                      pathLength="100"
+                      className="transition-all duration-500 hover:opacity-80 cursor-pointer"
+                    />
+                  );
+                });
+              })()}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+              <span className="text-[9px] uppercase font-black text-slate-400">Total Omset</span>
+              <span className="text-xs font-black text-slate-900 dark:text-slate-100">Rp{(totalRev / 1000000).toFixed(1)}M</span>
             </div>
           </div>
-        ))}
+
+          <div className="flex-1 space-y-2 w-full">
+            <div className="flex justify-between items-center pb-1 border-b border-slate-200/60 dark:border-slate-700/60 text-[10px] uppercase font-extrabold text-slate-400">
+              <span>Channel</span>
+              <span>Pangsa / Conversion</span>
+            </div>
+            {channels.map((c, i) => (
+              <div key={i} className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center gap-2">
+                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color_hex || '#10b981' }} />
+                  <span className="text-slate-800 dark:text-slate-200">{c.channel_name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-900 dark:text-slate-100 font-black">{c.percentage}%</span>
+                  <span className="text-[10px] text-slate-400 font-medium block">CR: {c.conversion_rate || '4.2'}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Detailed Channel Breakdown Cards */}
+        <div className="space-y-2.5">
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Breakdown Per Saluran Real-time:</h4>
+          {channels.map((c, i) => (
+            <div key={i} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={c.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'}
+                    alt={c.channel_name}
+                    className="size-6 object-contain rounded-lg bg-slate-50 p-0.5 border border-slate-200/60 dark:border-slate-700"
+                  />
+                  <div>
+                    <span className="font-black text-slate-900 dark:text-slate-100 text-xs block">{c.channel_name}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{c.orders_count || 30} Pesanan Selesai</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-slate-900 dark:text-slate-100 text-xs block">Rp{(c.total_revenue_idr || c.amount || 0).toLocaleString('id-ID')}</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Pangsa: {c.percentage}%</span>
+                </div>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${c.percentage}%`, backgroundColor: c.color_hex || '#10b981' }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </ModalBase>
   );
 }
 
-// 7. AI Report Modal
-export function AiReportModal({ 
-  isOpen, 
+// 6b. Sales By Source Modal
+export function SalesBySourceModal({ isOpen, onClose, sourceData = [] }: { isOpen: boolean; onClose: () => void; sourceData?: any[] }) {
+  const defaultSources = [
+    { source_name: 'WhatsApp Direct', channel_category: 'Messaging', impressions: 12500, clicks: 3200, conversions: 52, revenue_idr: 6100000, growth_pct: 18.5, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
+    { source_name: 'Shopee Live & Search', channel_category: 'Marketplace', impressions: 24100, clicks: 4800, conversions: 35, revenue_idr: 4100000, growth_pct: 14.2, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
+    { source_name: 'Instagram Reels Ads', channel_category: 'Social Media', impressions: 18400, clicks: 2100, conversions: 18, revenue_idr: 2000000, growth_pct: 12.0, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
+    { source_name: 'TikTok Shop Affiliate', channel_category: 'Short Video', impressions: 31200, clicks: 3900, conversions: 11, revenue_idr: 1300000, growth_pct: 22.4, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
+  ];
+
+  const sources = sourceData.length ? sourceData : defaultSources;
+
+  return (
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Sumber Trafik & Atribusi Penjualan">
+      <div className="space-y-4 text-xs font-sans">
+        <p className="text-slate-500 dark:text-slate-400 font-medium">Analisa dari mana datangnya calon pembeli dan performa konversi per sumber iklan & organik.</p>
+
+        <div className="space-y-3">
+          {sources.map((s, idx) => (
+            <div key={idx} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <img src={s.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt={s.source_name} className="size-6 object-contain rounded-lg bg-white p-0.5" />
+                  <div>
+                    <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{s.source_name}</h5>
+                    <span className="text-[10px] text-slate-400 font-medium">{s.channel_category}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-slate-900 dark:text-slate-100 text-xs block">Rp{(s.revenue_idr ?? s.total_revenue_idr ?? 0).toLocaleString('id-ID')}</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">↑ {s.growth_pct}% vs bln lalu</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-center text-[10px]">
+                <div>
+                  <span className="text-slate-400 block font-medium">Impressions</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{(s.impressions ?? 0).toLocaleString('id-ID')}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Klik Kontak</span>
+                  <span className="font-extrabold text-blue-600 dark:text-blue-400">{(s.clicks ?? 0).toLocaleString('id-ID')}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Konversi Pembeli</span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{s.conversions ?? s.buyers_count ?? 0} order</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalBase>
+  );
+}
+
+// 7. AI Executive Monthly Report Modal
+export function AiReportModal({
+  isOpen,
   onClose,
-  insights = [] 
-}: { 
-  isOpen: boolean; 
+  insights = [],
+  monthlyReport = null
+}: {
+  isOpen: boolean;
   onClose: () => void;
   insights?: any[];
+  monthlyReport?: any;
 }) {
+  const rawReport = Array.isArray(monthlyReport) ? monthlyReport[0] : monthlyReport;
+  const report = rawReport || {
+    period_month: 'Juli 2026',
+    total_revenue_idr: 13500000,
+    total_orders: 116,
+    avg_order_value_idr: 116379,
+    total_refund_idr: 250000,
+    repeat_customer_pct: 42.0,
+    returning_customer_val_idr: 5670000,
+    best_day_date: '22 Juli 2026',
+    best_day_revenue_idr: 920000,
+    ai_executive_summary: 'Performa penjualan Juli 2026 tumbuh 18% vs bulan lalu driven by WhatsApp Direct Conversions & Shopee Live Flash Sale.'
+  };
+
+  const totalRev = Number(report.total_revenue_idr || 13500000);
+  const totalOrders = Number(report.total_orders || 116);
+  const bestDayRev = Number(report.best_day_revenue_idr || 920000);
+  const totalRefund = Number(report.total_refund_idr || 250000);
+  const returningVal = Number(report.returning_customer_val_idr || 5670000);
+
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan AI Business Growth & Insights Realtime">
-      <div className="space-y-4 text-xs">
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800 border border-orange-200/80 dark:border-slate-700 space-y-2">
-          <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold">
-            <Sparkles size={16} />
-            <span>Rekomendasi AI Sales Optimization Swarm</span>
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Eksekutif Bulanan & AI Intelligence">
+      <div className="space-y-4 text-xs font-sans">
+        {/* Executive Overview Cards */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 space-y-1">
+            <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold block">TOTAL REVENUE ({report.period_month})</span>
+            <span className="text-base font-black text-slate-900 dark:text-slate-100">Rp{totalRev.toLocaleString('id-ID')}</span>
           </div>
-          <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-            Hasil analisa real-time dari 9Router Layer 5 Model Router Engine dan ZeroClaw Edge Daemon memperkirakan pertumbuhan omset signifikan jika strategi di bawah diterapkan.
-          </p>
+          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 space-y-1">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">PESANAN TERKONFIRMASI</span>
+            <span className="text-base font-black text-slate-900 dark:text-slate-100">{totalOrders} Transaksi</span>
+          </div>
         </div>
 
+        {/* Detailed Metrics Table */}
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Metrik Finansial & Retensi Bulanan:</h4>
+          <div className="space-y-1.5 text-xs font-medium">
+            <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-slate-500">Hari Penjualan Tertinggi (Best Day):</span>
+              <span className="font-bold text-emerald-600">{report.best_day_date} (Rp{report.best_day_revenue_idr?.toLocaleString('id-ID') || '920.000'})</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-slate-500">Total Pengembalian Dana (Refund):</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">Rp{report.total_refund_idr?.toLocaleString('id-ID') || '250.000'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-slate-500">Rasio Pembeli Berulang (Repeat Rate):</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">{report.repeat_customer_pct}%</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-slate-500">Nilai Omset Returning Customer:</span>
+              <span className="font-black text-orange-600 dark:text-orange-400">Rp{report.returning_customer_val_idr?.toLocaleString('id-ID') || '5.670.000'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Intelligence Insights Section */}
         <div className="space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-            <span>Rekomendasi AI Real-time ({insights.length} Insights):</span>
-          </h4>
-          
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div className="flex items-center justify-between">
+            <h4 className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <Sparkles size={14} className="text-orange-500" />
+              <span>Rekomendasi AI Intelligence ({insights.length} Insights):</span>
+            </h4>
+          </div>
+
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {insights.map((ins: any, idx: number) => (
-              <div key={ins.id || idx} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700 space-y-1.5">
+              <div key={ins.id || idx} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt="AI Logo" className="size-5 rounded-lg object-contain bg-white p-0.5" />
+                    <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png'} alt="AI Logo" className="size-5 rounded-lg object-contain bg-slate-50 p-0.5" />
                     <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{ins.headline}</span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/80 text-orange-600 border border-orange-200 dark:border-orange-900/60">
+                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/80 text-orange-600 border border-orange-200 dark:border-orange-900/60">
                     {ins.model_engine || '9Router'}
                   </span>
                 </div>
-                <p className="text-slate-600 dark:text-slate-300 text-[11px]">{ins.content}</p>
+                <p className="text-slate-600 dark:text-slate-300 text-[11px] font-medium">{ins.content}</p>
                 {ins.action_suggestion && (
                   <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 p-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
-                    💡 Aksi AI: {ins.action_suggestion}
+                    💡 Rekomendasi AI: {ins.action_suggestion}
                   </p>
                 )}
               </div>
@@ -485,11 +627,10 @@ export function DeploySalesSwarmModal({
                 key={m.engine}
                 type="button"
                 onClick={() => setSelectedEngine(m.engine)}
-                className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
-                  selectedEngine === m.engine 
-                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-500 ring-1 ring-orange-500' 
+                className={`p-3 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer ${selectedEngine === m.engine
+                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-500 ring-1 ring-orange-500'
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 <img src={m.icon} alt={m.engine} className="size-7 rounded-xl object-contain bg-white p-1 border border-slate-200 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -520,7 +661,7 @@ export function DeploySalesSwarmModal({
           disabled={isDeploying}
           className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+          {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
           <span>{isDeploying ? 'Deploying Model Swarm...' : 'Deploy Real AI Sales Swarm'}</span>
         </button>
       </div>

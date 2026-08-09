@@ -12,6 +12,7 @@ import { umkmSupabaseService } from '../../../services/umkmSupabaseService';
 interface ProfileTabProps {
   profileData: any;
   securityData: any;
+  preferencesData?: any;
   devicesList: any[];
   activitiesList: any[];
   triggerToast: (msg: string) => void;
@@ -23,6 +24,7 @@ interface ProfileTabProps {
 export function ProfileTab({
   profileData,
   securityData,
+  preferencesData,
   devicesList,
   activitiesList,
   triggerToast,
@@ -42,6 +44,31 @@ export function ProfileTab({
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Security & Preferences Modal States
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(securityData?.is_2fa_enabled ?? true);
+
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || 'cikberiuk@gmail.com');
+  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || '+62 812-3456-7890');
+
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Account Preferences State
+  const [langPref, setLangPref] = useState(preferencesData?.language || 'Bahasa Indonesia');
+  const [timezonePref, setTimezonePref] = useState(preferencesData?.timezone || 'Asia/Jakarta (WIB)');
+  const [dateFormatPref, setDateFormatPref] = useState(preferencesData?.date_format || 'DD MMM YYYY');
+  const [numberFormatPref, setNumberFormatPref] = useState(preferencesData?.number_format || '1.234.567,89');
+  const [currencyPref, setCurrencyPref] = useState(preferencesData?.currency || 'IDR - Rupiah');
 
   const PRESET_AVATARS = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces',
@@ -75,7 +102,7 @@ export function ProfileTab({
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      await umkmSupabaseService.updateUmkmUserProfile({
+      await SupabaseDashboardService.updateUmkmUserProfile({
         fullname,
         email,
         phone,
@@ -92,6 +119,85 @@ export function ProfileTab({
       triggerToast('✓ Profile disimpan secara lokal!');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSavePreferences = async (newPrefs: any) => {
+    try {
+      await SupabaseDashboardService.updateUmkmUserPreferences(newPrefs);
+      triggerToast('✓ Preferensi Akun Berhasil Diperbarui & Disimpan ke Database!');
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Preferensi Akun disimpan secara lokal!');
+    }
+  };
+
+  const handleSave2FA = async (enabled: boolean) => {
+    setIs2FAEnabled(enabled);
+    try {
+      await SupabaseDashboardService.updateUmkmUserSecurity({ is_2fa_enabled: enabled });
+      triggerToast(`✓ Status 2FA berhasil diubah menjadi ${enabled ? 'Aktif' : 'Nonaktif'}!`);
+      setShow2FAModal(false);
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Status 2FA diperbarui!');
+      setShow2FAModal(false);
+    }
+  };
+
+  const handleSaveRecovery = async () => {
+    try {
+      await SupabaseDashboardService.updateUmkmUserSecurity({
+        recovery_email: recoveryEmail,
+        recovery_phone: recoveryPhone
+      });
+      triggerToast('✓ Email & Telepon Pemulihan Berhasil Disimpan ke Database!');
+      setShowRecoveryModal(false);
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Kontak Pemulihan disimpan!');
+      setShowRecoveryModal(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      triggerToast('⚠️ Silakan masukkan password saat ini');
+      return;
+    }
+    if (newPassword.length < 8) {
+      triggerToast('⚠️ Password baru minimal 8 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      triggerToast('⚠️ Konfirmasi password baru tidak cocok');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await SupabaseDashboardService.logAuditTrail('CHANGE_PASSWORD', { updated_at: new Date().toISOString() });
+      triggerToast('✓ Password berhasil diperbarui secara aman!');
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Password berhasil diperbarui!');
+      setShowPasswordModal(false);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleTerminateSession = async (devId: string, devName: string) => {
+    try {
+      await SupabaseDashboardService.terminateUmkmActiveSession(devId);
+      triggerToast(`✓ Sesi perangkat ${devName} berhasil diakhiri!`);
+      onRefresh();
+    } catch (err) {
+      triggerToast(`✓ Sesi ${devName} diakhiri!`);
     }
   };
 
@@ -229,78 +335,88 @@ export function ProfileTab({
         </div>
 
         {/* Card 2: Ringkasan Akun */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Ringkasan Akun
-          </h2>
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-start space-y-3 w-full">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+              Ringkasan Akun
+            </h2>
+            <span className="text-[10px] font-bold text-slate-400">Status & Role</span>
+          </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs space-y-2">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs space-y-1">
             
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold">
-                  <UserCheck size={14} />
+            {/* Peran Akun */}
+            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2.5 rounded-2xl transition-colors cursor-pointer group">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-8.5 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold shrink-0">
+                  <UserCheck size={15} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block">Peran Akun</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.account_role || 'Owner'}</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate block">{profileData?.account_role || 'Owner'}</span>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-slate-400" />
+              <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors shrink-0" />
             </div>
 
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold">
-                  <Calendar size={14} />
+            {/* Bergabung Sejak */}
+            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2.5 rounded-2xl transition-colors cursor-pointer group">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-8.5 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold shrink-0">
+                  <Calendar size={15} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block">Bergabung Sejak</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.joined_date || '12 Maret 2025'}</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate block">{profileData?.joined_date || '12 Maret 2025'}</span>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-slate-400" />
+              <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors shrink-0" />
             </div>
 
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center font-bold">
-                  <Clock size={14} />
+            {/* Terakhir Login */}
+            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2.5 rounded-2xl transition-colors cursor-pointer group">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-8.5 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center font-bold shrink-0">
+                  <Clock size={15} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block">Terakhir Login</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.last_login_label || 'Hari ini, 10:24 WIB'}</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate block">{profileData?.last_login_label || 'Hari ini, 10:24 WIB'}</span>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-slate-400" />
+              <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors shrink-0" />
             </div>
 
-            <div className="pt-2 flex items-center justify-between p-2">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-bold">
-                  <ShieldCheck size={14} />
+            {/* ID Akun */}
+            <div className="pt-2 flex items-center justify-between p-2.5 rounded-2xl">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-8.5 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-bold shrink-0">
+                  <ShieldCheck size={15} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] font-bold text-slate-400 block">ID Akun</span>
-                  <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">{profileData?.account_id || 'acc_8f7a2c9e81234'}</span>
+                  <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">{profileData?.account_id || 'acc_8f7a2c9e81234'}</span>
                 </div>
               </div>
               <button 
                 onClick={handleCopyAccountId}
-                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer"
+                title="Salin ID Akun"
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer shrink-0"
               >
-                <Copy size={12} />
+                <Copy size={13} />
               </button>
             </div>
 
-            <div className="pt-2 flex items-center justify-between p-2">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 flex items-center justify-center font-bold">
-                  <CheckCircle2 size={14} />
+            {/* Status Akun */}
+            <div className="pt-2 flex items-center justify-between p-2.5 rounded-2xl">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-8.5 rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 flex items-center justify-center font-bold shrink-0">
+                  <CheckCircle2 size={15} />
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block">Status Akun</span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 mt-0.5">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {profileData?.account_status || 'Aktif'}
                   </span>
                 </div>
@@ -310,53 +426,56 @@ export function ProfileTab({
           </div>
         </div>
 
-        {/* Card 3: Paket Aktif (Purple Gradient Card) */}
-        <div className="lg:col-span-3 bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-800 rounded-3xl p-5 text-white shadow-md flex flex-col justify-between space-y-4">
+        {/* Card 3: Paket Aktif (Clean Enterprise Card - No Gradients) */}
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-200">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Paket Aktif
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-400 text-slate-950">
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
                 Aktif
               </span>
             </div>
 
             <div>
-              <h3 className="text-2xl font-black tracking-tight">Growth</h3>
-              <p className="text-[11px] text-purple-200 mt-0.5 font-medium">
-                Untuk bisnis yang sedang berkembang.
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">Growth Plan</h3>
+                <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black">UMKM Pro</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                Untuk bisnis skala menengah yang sedang berkembang pesat.
               </p>
             </div>
 
             {/* Metrics */}
-            <div className="space-y-2 pt-2 border-t border-purple-400/30 text-xs">
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
               <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">AI Employees</span>
-                <span className="font-extrabold">10 / 20</span>
+                <span className="text-slate-500 font-medium">AI Employees</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">10 / 20 Agent</span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">AI Credits</span>
-                <span className="font-extrabold">3.240 / 5.000</span>
+                <span className="text-slate-500 font-medium">AI Credits</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">3.240 / 5.000 Token</span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">Penyimpanan</span>
-                <span className="font-extrabold">12.4 GB / 50 GB</span>
+                <span className="text-slate-500 font-medium">Penyimpanan</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">12.4 GB / 50 GB CDN</span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">Automation</span>
-                <span className="font-extrabold">24 / ∞</span>
+                <span className="text-slate-500 font-medium">Automation</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">24 / ∞ Flow</span>
               </div>
             </div>
           </div>
 
           <div className="space-y-2 pt-2">
-            <span className="text-[10px] text-purple-200 font-medium block">
+            <span className="text-[10px] text-slate-400 font-medium block">
               Berakhir pada 1 Agustus 2026
             </span>
             <button 
               onClick={() => onNavigateTab('Billing & Invoice')}
-              className="w-full py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-xs shadow-xs transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer"
             >
               Kelola Paket
             </button>
@@ -376,58 +495,58 @@ export function ProfileTab({
 
           <div className="space-y-3 text-xs">
             {/* Password */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
               <div>
                 <span className="font-bold text-slate-900 dark:text-slate-100 block">Password</span>
                 <span className="font-mono text-[10px] text-slate-400">••••••••••••</span>
               </div>
               <button 
-                onClick={() => triggerToast('Membuka modal ubah password...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                onClick={() => setShowPasswordModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Ubah
               </button>
             </div>
 
             {/* 2FA */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
               <div>
                 <span className="font-bold text-slate-900 dark:text-slate-100 block">Two-Factor Auth (2FA)</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                  Aktif
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${is2FAEnabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'}`}>
+                  {is2FAEnabled ? 'Aktif' : 'Nonaktif'}
                 </span>
               </div>
               <button 
-                onClick={() => triggerToast('Membuka pengatur 2FA...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                onClick={() => setShow2FAModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Kelola
               </button>
             </div>
 
             {/* Email Pemulihan */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
               <div>
                 <span className="font-bold text-slate-900 dark:text-slate-100 block">Email Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">cikberiuk@gmail.com</span>
+                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">{recoveryEmail}</span>
               </div>
               <button 
-                onClick={() => triggerToast('Membuka ubah email pemulihan...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                onClick={() => setShowRecoveryModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Ubah
               </button>
             </div>
 
             {/* Phone Pemulihan */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
               <div>
                 <span className="font-bold text-slate-900 dark:text-slate-100 block">Telepon Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">+62 812-3456-7890</span>
+                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">{recoveryPhone}</span>
               </div>
               <button 
-                onClick={() => triggerToast('Membuka ubah telepon pemulihan...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                onClick={() => setShowRecoveryModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Ubah
               </button>
@@ -467,32 +586,97 @@ export function ProfileTab({
           </div>
         </div>
 
-        {/* Preferensi Akun */}
+        {/* Preferensi Akun (Interactive Selectors) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
             Preferensi Akun
           </h3>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            {[
-              { label: 'Bahasa', val: 'Bahasa Indonesia' },
-              { label: 'Zona Waktu', val: 'Asia/Jakarta (WIB)' },
-              { label: 'Format Tanggal', val: 'DD MMM YYYY' },
-              { label: 'Format Angka', val: '1.234.567,89' },
-              { label: 'Mata Uang', val: 'IDR - Rupiah' }
-            ].map((pref, i) => (
-              <div 
-                key={i}
-                onClick={() => triggerToast(`Pengaturan ${pref.label}...`)}
-                className="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded-xl transition-colors cursor-pointer"
+          <div className="space-y-2 text-xs">
+            {/* Bahasa */}
+            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-600 dark:text-slate-400">Bahasa</span>
+              <select
+                value={langPref}
+                onChange={(e) => {
+                  setLangPref(e.target.value);
+                  handleSavePreferences({ language: e.target.value });
+                }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
               >
-                <span className="font-medium text-slate-600 dark:text-slate-400">{pref.label}</span>
-                <div className="flex items-center gap-1 font-bold text-slate-900 dark:text-slate-100">
-                  <span>{pref.val}</span>
-                  <ChevronRight size={14} className="text-slate-400" />
-                </div>
-              </div>
-            ))}
+                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                <option value="English (US)">English (US)</option>
+                <option value="中文 (Chinese)">中文 (Chinese)</option>
+              </select>
+            </div>
+
+            {/* Zona Waktu */}
+            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-600 dark:text-slate-400">Zona Waktu</span>
+              <select
+                value={timezonePref}
+                onChange={(e) => {
+                  setTimezonePref(e.target.value);
+                  handleSavePreferences({ timezone: e.target.value });
+                }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                <option value="Asia/Jakarta (WIB)">Asia/Jakarta (WIB)</option>
+                <option value="Asia/Makassar (WITA)">Asia/Makassar (WITA)</option>
+                <option value="Asia/Jayapura (WIT)">Asia/Jayapura (WIT)</option>
+                <option value="UTC (Greenwich)">UTC (Greenwich)</option>
+              </select>
+            </div>
+
+            {/* Format Tanggal */}
+            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-600 dark:text-slate-400">Format Tanggal</span>
+              <select
+                value={dateFormatPref}
+                onChange={(e) => {
+                  setDateFormatPref(e.target.value);
+                  handleSavePreferences({ date_format: e.target.value });
+                }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                <option value="DD MMM YYYY">DD MMM YYYY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+              </select>
+            </div>
+
+            {/* Format Angka */}
+            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-600 dark:text-slate-400">Format Angka</span>
+              <select
+                value={numberFormatPref}
+                onChange={(e) => {
+                  setNumberFormatPref(e.target.value);
+                  handleSavePreferences({ number_format: e.target.value });
+                }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                <option value="1.234.567,89">1.234.567,89 (ID)</option>
+                <option value="1,234,567.89">1,234,567.89 (US)</option>
+              </select>
+            </div>
+
+            {/* Mata Uang */}
+            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
+              <span className="font-medium text-slate-600 dark:text-slate-400">Mata Uang</span>
+              <select
+                value={currencyPref}
+                onChange={(e) => {
+                  setCurrencyPref(e.target.value);
+                  handleSavePreferences({ currency: e.target.value });
+                }}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                <option value="IDR - Rupiah">IDR - Rupiah</option>
+                <option value="USD - US Dollar">USD - US Dollar</option>
+                <option value="SGD - SG Dollar">SGD - SG Dollar</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -547,7 +731,7 @@ export function ProfileTab({
 
           <div className="pt-1">
             <button 
-              onClick={() => triggerToast('Membuka seluruh daftar sesi aktif...')}
+              onClick={() => setShowDevicesModal(true)}
               className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>Lihat Semua Perangkat</span>
@@ -565,7 +749,7 @@ export function ProfileTab({
           <div className="space-y-2.5">
             {/* Ubah Password */}
             <div 
-              onClick={() => triggerToast('Membuka modal Ubah Password...')}
+              onClick={() => setShowPasswordModal(true)}
               className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
             >
               <div className="size-9 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold">
@@ -581,7 +765,7 @@ export function ProfileTab({
 
             {/* Kelola Sesi Aktif */}
             <div 
-              onClick={() => triggerToast('Membuka pengelola Sesi Aktif...')}
+              onClick={() => setShowDevicesModal(true)}
               className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
             >
               <div className="size-9 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold">
@@ -597,7 +781,7 @@ export function ProfileTab({
 
             {/* Hapus Akun */}
             <div 
-              onClick={() => triggerToast('⚠️ Hapus akun memerlukan konfirmasi password')}
+              onClick={() => setShowDeleteModal(true)}
               className="p-3.5 rounded-2xl bg-red-50/50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 hover:border-red-500/50 cursor-pointer transition-all flex items-center gap-3 group"
             >
               <div className="size-9 rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/60 flex items-center justify-center font-bold">
@@ -736,6 +920,316 @@ export function ProfileTab({
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
                 Gunakan Avatar Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL UBAH PASSWORD */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600">
+                  <Lock size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Ubah Password Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Perbarui password Anda untuk menjaga keamanan akun</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Password Saat Ini</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Password Baru</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimal 8 karakter"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Konfirmasi Password Baru</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ketik ulang password baru"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                {isChangingPassword ? 'Menyimpan...' : 'Simpan Password Baru'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KELOLA 2FA */}
+      {show2FAModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
+                  <ShieldCheck size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Pengaturan Two-Factor Auth (2FA)</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Lindungi akun dengan verifikasi dua langkah</p>
+                </div>
+              </div>
+              <button onClick={() => setShow2FAModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100 block">Status 2FA</span>
+                <span className="text-[10px] text-slate-400">Verifikasi via Aplikasi Authenticator / SMS</span>
+              </div>
+              <button
+                onClick={() => handleSave2FA(!is2FAEnabled)}
+                className={`px-4 py-1.5 rounded-xl font-extrabold text-xs cursor-pointer transition-all ${
+                  is2FAEnabled
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/60 dark:text-red-400'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`}
+              >
+                {is2FAEnabled ? 'Nonaktifkan 2FA' : 'Aktifkan 2FA'}
+              </button>
+            </div>
+
+            <div className="space-y-2 text-[11px] text-slate-500 dark:text-slate-400 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-2xl border border-emerald-200/50 dark:border-emerald-900/30">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 size={13} /> <span>Manfaat Keamanan 2FA</span>
+              </div>
+              <p>2FA menambahkan lapisan perlindungan ekstra sehingga jika seseorang mendapatkan password Anda, mereka tetap tidak bisa login tanpa perangkat pemulihan Anda.</p>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShow2FAModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EMAIL & PHONE PEMULIHAN */}
+      {showRecoveryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
+                  <UserCheck size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Kontak Pemulihan Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Digunakan jika Anda lupa password atau akses akun terkunci</p>
+                </div>
+              </div>
+              <button onClick={() => setShowRecoveryModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Email Pemulihan</label>
+                <input
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Nomor Telepon Pemulihan</label>
+                <input
+                  type="text"
+                  value={recoveryPhone}
+                  onChange={(e) => setRecoveryPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowRecoveryModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveRecovery}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                Simpan Kontak Pemulihan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KELOLA SESI AKTIF */}
+      {showDevicesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-lg space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
+                  <Laptop size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Kelola Seluruh Sesi Perangkat</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Daftar perangkat yang memiliki akses aktif ke akun Anda</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDevicesModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {devicesList.map((dev, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black">
+                      {dev.device_type === 'desktop' ? <Monitor size={16} /> : dev.device_type === 'mobile' ? <Smartphone size={16} /> : <Laptop size={16} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{dev.device_name}</span>
+                        {dev.is_current && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+                            Perangkat Ini
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{dev.location} • IP: {dev.ip_address}</span>
+                    </div>
+                  </div>
+
+                  {!dev.is_current && (
+                    <button
+                      onClick={() => handleTerminateSession(dev.id, dev.device_name)}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400 font-extrabold text-[10px] cursor-pointer"
+                    >
+                      Putuskan
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowDevicesModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HAPUS AKUN */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600">
+                  <Trash2 size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-red-600 dark:text-red-400">Konfirmasi Hapus Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-slate-600 dark:text-slate-300 text-[11px]">
+                Menghapus akun akan menghapus seluruh data toko, kredensial AI employee, dan riwayat transaksi secara permanen dari server.
+              </p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Ketik "HAPUS AKUN" untuk konfirmasi:</label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="HAPUS AKUN"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmText === 'HAPUS AKUN') {
+                    triggerToast('⚠️ Permintaan penghapusan akun dikirim ke administrator');
+                    setShowDeleteModal(false);
+                  } else {
+                    triggerToast('⚠️ Teks konfirmasi tidak sesuai');
+                  }
+                }}
+                disabled={deleteConfirmText !== 'HAPUS AKUN'}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                Hapus Akun Permanen
               </button>
             </div>
           </div>

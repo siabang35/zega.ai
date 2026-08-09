@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Mail, MessageSquare, Smartphone, Laptop, Clock, Moon, Check, RefreshCw } from 'lucide-react';
+import { 
+  Bell, Mail, MessageSquare, Smartphone, Laptop, Clock, Moon, Check, Edit2, X, Send, ShieldCheck
+} from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 
 interface NotificationsTabProps {
@@ -10,10 +12,10 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // States matching design mockup 2
+  // Channels
   const [inAppEnabled, setInAppEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
-  const [emailTarget, setEmailTarget] = useState('cikberluk@gmail.com');
+  const [emailTarget, setEmailTarget] = useState('cikberiuk@gmail.com');
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [whatsappTarget, setWhatsappTarget] = useState('+62 812-3456-7890');
   const [browserEnabled, setBrowserEnabled] = useState(true);
@@ -46,6 +48,11 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
   const [quietHoursEnd, setQuietHoursEnd] = useState('07:00');
   const [quietHoursFreq, setQuietHoursFreq] = useState('Setiap hari');
 
+  // Modal Edit Target State
+  const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
+  const [targetType, setTargetType] = useState<'Email' | 'WhatsApp' | 'SMS'>('Email');
+  const [targetInputValue, setTargetInputValue] = useState('');
+
   const loadSettings = async () => {
     try {
       setLoading(true);
@@ -76,6 +83,8 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         if (data.daily_summary_enabled !== undefined) setDailySummaryEnabled(data.daily_summary_enabled);
         if (data.daily_summary_time) setDailySummaryTime(data.daily_summary_time);
         if (data.weekly_summary_enabled !== undefined) setWeeklySummaryEnabled(data.weekly_summary_enabled);
+        if (data.weekly_summary_day) setWeeklySummaryDay(data.weekly_summary_day);
+        if (data.weekly_summary_time) setWeeklySummaryTime(data.weekly_summary_time);
 
         if (data.quiet_hours_enabled !== undefined) setQuietHoursEnabled(data.quiet_hours_enabled);
         if (data.quiet_hours_start) setQuietHoursStart(data.quiet_hours_start);
@@ -91,6 +100,10 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
 
   useEffect(() => {
     loadSettings();
+    const unsub = SupabaseDashboardService.subscribeToNotificationSettingsRealtime('11111111-1111-1111-1111-111111111111', () => {
+      loadSettings();
+    });
+    return () => unsub();
   }, []);
 
   const handleSave = async (overrides?: any) => {
@@ -122,6 +135,8 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         daily_summary_enabled: overrides?.daily_summary_enabled ?? dailySummaryEnabled,
         daily_summary_time: overrides?.daily_summary_time ?? dailySummaryTime,
         weekly_summary_enabled: overrides?.weekly_summary_enabled ?? weeklySummaryEnabled,
+        weekly_summary_day: overrides?.weekly_summary_day ?? weeklySummaryDay,
+        weekly_summary_time: overrides?.weekly_summary_time ?? weeklySummaryTime,
         quiet_hours_enabled: overrides?.quiet_hours_enabled ?? quietHoursEnabled,
         quiet_hours_start: overrides?.quiet_hours_start ?? quietHoursStart,
         quiet_hours_end: overrides?.quiet_hours_end ?? quietHoursEnd,
@@ -129,12 +144,46 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
       };
 
       await SupabaseDashboardService.updateUmkmNotificationSettings(payload);
-      triggerToast('✓ Pengaturan notifikasi berhasil disimpan!');
+      triggerToast('✓ Pengaturan notifikasi berhasil disimpan & tersinkronisasi!');
     } catch (e) {
-      triggerToast('✕ Gagal menyegarkan pengaturan notifikasi.');
+      triggerToast('✕ Gagal menyimpan pengaturan notifikasi.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const openEditTargetModal = (type: 'Email' | 'WhatsApp' | 'SMS') => {
+    setTargetType(type);
+    if (type === 'Email') setTargetInputValue(emailTarget);
+    else if (type === 'WhatsApp') setTargetInputValue(whatsappTarget);
+    else setTargetInputValue(smsTarget);
+    setIsTargetModalOpen(true);
+  };
+
+  const handleSaveTarget = async () => {
+    if (!targetInputValue.trim()) {
+      triggerToast('✕ Kolom tujuan notifikasi tidak boleh kosong!');
+      return;
+    }
+
+    if (targetType === 'Email') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(targetInputValue.trim())) {
+        triggerToast('✕ Format email tidak valid!');
+        return;
+      }
+      setEmailTarget(targetInputValue.trim());
+      await handleSave({ email_target: targetInputValue.trim() });
+    } else if (targetType === 'WhatsApp') {
+      setWhatsappTarget(targetInputValue.trim());
+      await handleSave({ whatsapp_target: targetInputValue.trim() });
+    } else if (targetType === 'SMS') {
+      setSmsTarget(targetInputValue.trim());
+      await handleSave({ sms_target: targetInputValue.trim() });
+    }
+
+    setIsTargetModalOpen(false);
+    triggerToast(`✓ Alamat notifikasi ${targetType} berhasil diperbarui!`);
   };
 
   const renderToggle = (checked: boolean, onChange: (val: boolean) => void) => (
@@ -151,26 +200,26 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Top Grid: Channel Notifikasi & Preferensi Notifikasi */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 1. Channel Notifikasi */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Bell size={16} className="text-orange-500" /> Channel Notifikasi
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kelola saluran untuk menerima notifikasi.
+              Kelola saluran untuk menerima notifikasi real-time dari sistem ZEGA AI.
             </p>
           </div>
 
           <div className="space-y-3.5 pt-1">
             {/* In-App */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center">
-                  <Bell size={15} />
+                <div className="size-9 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center border border-orange-100 dark:border-orange-900/40 shrink-0">
+                  <Bell size={16} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">In-App</h4>
@@ -184,18 +233,24 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* Email */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center">
-                  <Mail size={15} />
+                <div className="size-9 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center border border-blue-100 dark:border-blue-900/40 shrink-0">
+                  <Mail size={16} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Email</h4>
                   <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui email</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-slate-400 font-medium hidden sm:inline">{emailTarget}</span>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => openEditTargetModal('Email')}
+                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                >
+                  <span>{emailTarget}</span>
+                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                </button>
                 {renderToggle(emailEnabled, (val) => {
                   setEmailEnabled(val);
                   handleSave({ email_enabled: val });
@@ -204,18 +259,24 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* WhatsApp */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center">
-                  <MessageSquare size={15} />
+                <div className="size-9 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 shrink-0">
+                  <MessageSquare size={16} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">WhatsApp</h4>
                   <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui WhatsApp</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-slate-400 font-medium hidden sm:inline">{whatsappTarget}</span>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => openEditTargetModal('WhatsApp')}
+                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                >
+                  <span>{whatsappTarget}</span>
+                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                </button>
                 {renderToggle(whatsappEnabled, (val) => {
                   setWhatsappEnabled(val);
                   handleSave({ whatsapp_enabled: val });
@@ -224,10 +285,10 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* Browser */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center">
-                  <Laptop size={15} />
+                <div className="size-9 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center border border-purple-100 dark:border-purple-900/40 shrink-0">
+                  <Laptop size={16} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Browser</h4>
@@ -241,18 +302,24 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* SMS */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 flex items-center justify-center">
-                  <Smartphone size={15} />
+                <div className="size-9 rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">
+                  <Smartphone size={16} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">SMS</h4>
                   <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui SMS</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-slate-400 font-medium hidden sm:inline">{smsTarget}</span>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => openEditTargetModal('SMS')}
+                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                >
+                  <span>{smsTarget}</span>
+                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                </button>
                 {renderToggle(smsEnabled, (val) => {
                   setSmsEnabled(val);
                   handleSave({ sms_enabled: val });
@@ -263,13 +330,13 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         </div>
 
         {/* 2. Preferensi Notifikasi */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
               Preferensi Notifikasi
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pilih jenis notifikasi yang ingin Anda terima.
+              Pilih jenis event & aktivitas yang ingin Anda dapatkan alertnya.
             </p>
           </div>
 
@@ -277,7 +344,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             {/* AI & Automation */}
             <div className="space-y-2">
               <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">AI & Automation</h4>
-              <div className="space-y-2 text-xs">
+              <div className="space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 dark:text-slate-300">AI Employee menyelesaikan tugas</span>
                   {renderToggle(aiTaskDone, (val) => { setAiTaskDone(val); handleSave({ ai_task_done: val }); })}
@@ -296,7 +363,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             {/* Bisnis & Operasional */}
             <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Bisnis & Operasional</h4>
-              <div className="space-y-2 text-xs">
+              <div className="space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 dark:text-slate-300">Pesanan baru masuk</span>
                   {renderToggle(newOrder, (val) => { setNewOrder(val); handleSave({ new_order: val }); })}
@@ -318,8 +385,8 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
 
             {/* Sistem */}
             <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Sistem</h4>
-              <div className="space-y-2 text-xs">
+              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Sistem & Keamanan</h4>
+              <div className="space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 dark:text-slate-300">Update produk & fitur baru</span>
                   {renderToggle(productUpdates, (val) => { setProductUpdates(val); handleSave({ product_updates: val }); })}
@@ -341,7 +408,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
       {/* Bottom Grid: Jadwal Ringkasan & Quiet Hours */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 3. Jadwal Ringkasan */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Clock size={16} className="text-orange-500" /> Jadwal Ringkasan
@@ -352,44 +419,50 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
           </div>
 
           <div className="space-y-4 pt-1">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Kirim ringkasan harian</h4>
                 <p className="text-[10px] text-slate-400 font-medium">Terima ringkasan aktivitas penting setiap hari.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <select
                   value={dailySummaryTime}
                   onChange={(e) => { setDailySummaryTime(e.target.value); handleSave({ daily_summary_time: e.target.value }); }}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-[10px] font-bold cursor-pointer"
+                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
                   <option value="08:00 WIB">08:00 WIB</option>
+                  <option value="12:00 WIB">12:00 WIB</option>
                   <option value="18:00 WIB">18:00 WIB</option>
+                  <option value="21:00 WIB">21:00 WIB</option>
                 </select>
                 {renderToggle(dailySummaryEnabled, (val) => { setDailySummaryEnabled(val); handleSave({ daily_summary_enabled: val }); })}
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
               <div>
                 <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Kirim ringkasan mingguan</h4>
                 <p className="text-[10px] text-slate-400 font-medium">Terima ringkasan aktivitas setiap minggu.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
                 <select
                   value={weeklySummaryDay}
-                  onChange={(e) => setWeeklySummaryDay(e.target.value)}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-[10px] font-bold cursor-pointer"
+                  onChange={(e) => { setWeeklySummaryDay(e.target.value); handleSave({ weekly_summary_day: e.target.value }); }}
+                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
                   <option value="Senin">Senin</option>
+                  <option value="Rabu">Rabu</option>
                   <option value="Jumat">Jumat</option>
+                  <option value="Minggu">Minggu</option>
                 </select>
                 <select
                   value={weeklySummaryTime}
-                  onChange={(e) => setWeeklySummaryTime(e.target.value)}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-[10px] font-bold cursor-pointer"
+                  onChange={(e) => { setWeeklySummaryTime(e.target.value); handleSave({ weekly_summary_time: e.target.value }); }}
+                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
+                  <option value="08:00 WIB">08:00 WIB</option>
                   <option value="09:00 WIB">09:00 WIB</option>
+                  <option value="17:00 WIB">17:00 WIB</option>
                 </select>
                 {renderToggle(weeklySummaryEnabled, (val) => { setWeeklySummaryEnabled(val); handleSave({ weekly_summary_enabled: val }); })}
               </div>
@@ -398,7 +471,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         </div>
 
         {/* 4. Quiet Hours */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -411,35 +484,93 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             {renderToggle(quietHoursEnabled, (val) => { setQuietHoursEnabled(val); handleSave({ quiet_hours_enabled: val }); })}
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <select
               value={quietHoursStart}
-              onChange={(e) => setQuietHoursStart(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-xs font-bold cursor-pointer"
+              onChange={(e) => { setQuietHoursStart(e.target.value); handleSave({ quiet_hours_start: e.target.value }); }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
+              <option value="20:00">20:00</option>
+              <option value="21:00">21:00</option>
               <option value="22:00">22:00</option>
               <option value="23:00">23:00</option>
             </select>
             <span className="text-xs text-slate-400 font-bold">-</span>
             <select
               value={quietHoursEnd}
-              onChange={(e) => setQuietHoursEnd(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-xs font-bold cursor-pointer"
+              onChange={(e) => { setQuietHoursEnd(e.target.value); handleSave({ quiet_hours_end: e.target.value }); }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
+              <option value="06:00">06:00</option>
               <option value="07:00">07:00</option>
               <option value="08:00">08:00</option>
+              <option value="09:00">09:00</option>
             </select>
             <select
               value={quietHoursFreq}
-              onChange={(e) => setQuietHoursFreq(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-xs font-bold cursor-pointer"
+              onChange={(e) => { setQuietHoursFreq(e.target.value); handleSave({ quiet_hours_freq: e.target.value }); }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
               <option value="Setiap hari">Setiap hari</option>
-              <option value="Hari kerja">Hari kerja</option>
+              <option value="Hari kerja">Hari kerja (Senin - Jumat)</option>
+              <option value="Akhir pekan">Akhir pekan (Sabtu - Minggu)</option>
             </select>
           </div>
         </div>
       </div>
+
+      {/* --- MODAL EDIT CHANNEL TARGET --- */}
+      {isTargetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Send size={18} className="text-orange-500" />
+                <span>Ubah Tujuan Notifikasi {targetType}</span>
+              </h3>
+              <button onClick={() => setIsTargetModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs font-semibold">
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">
+                  {targetType === 'Email' ? 'Alamat Email Tujuan' : targetType === 'WhatsApp' ? 'Nomor WhatsApp Terhubung' : 'Nomor Handphone SMS'}
+                </label>
+                <input
+                  type={targetType === 'Email' ? 'email' : 'text'}
+                  value={targetInputValue}
+                  onChange={e => setTargetInputValue(e.target.value)}
+                  placeholder={targetType === 'Email' ? 'nama@domain.com' : '+62 812-xxxx-xxxx'}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-hidden focus:border-orange-500"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 text-[10.5px] text-blue-800 dark:text-blue-300">
+                <strong>Verifikasi Tujuan:</strong> Notifikasi sistem & alert mendesak akan langsung dikirim ke tujuan ini secara otomatis.
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsTargetModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTarget}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-sm shadow-orange-500/20"
+              >
+                Simpan Tujuan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

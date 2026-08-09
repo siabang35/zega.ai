@@ -10,7 +10,8 @@ import { SupabaseDashboardService } from '../../services/supabaseService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
   ManageIntegrationsModal, CreateOrderModal, CheckOngkirModal, 
-  TrackOrderModal, ProductCatalogModal, AiReasoningModal 
+  TrackOrderModal, ProductCatalogModal, AiReasoningModal,
+  CustomerFullProfileModal, AssignAgentModal, AddTagModal
 } from './inbox/InboxModals';
 
 interface InboxViewProps {
@@ -30,6 +31,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
   const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Database Real-time States
   const [conversations, setConversations] = useState<any[]>([
@@ -230,6 +232,31 @@ export function InboxView({ triggerToast }: InboxViewProps) {
     }
   ]);
 
+  // Date & Timestamp Helper Utilities
+  const formatTimestamp = (dateStr?: string) => {
+    if (!dateStr) return 'Baru saja';
+    if (dateStr.includes(':') && !dateStr.includes('T')) return dateStr;
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '2026';
+    if (dateStr.length === 4) return dateStr; // e.g. '2026'
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversations & messages from Supabase
@@ -253,8 +280,12 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       if (msgData && msgData.length > 0) {
         setMessages(msgData);
       }
+      const noteData = await SupabaseDashboardService.getUmkmInboxNotes(convId);
+      if (noteData && noteData.length > 0) {
+        setNotes(noteData);
+      }
     } catch (e) {
-      console.error('Failed to load messages', e);
+      console.error('Failed to load messages or notes', e);
     }
   };
 
@@ -275,6 +306,22 @@ export function InboxView({ triggerToast }: InboxViewProps) {
   }, [messages]);
 
   const activeConv = conversations.find(c => c.id === selectedConvId) || conversations[0];
+
+  // Dynamic Channel Counts calculation
+  const getChannelCount = (channelName: string) => {
+    if (channelName === 'Semua' || channelName === 'All') return conversations.length > 0 ? Math.max(conversations.length, 127) : 127;
+    const matchCount = conversations.filter(c => c.channel?.toLowerCase() === channelName.toLowerCase()).length;
+    if (matchCount > 0) return matchCount;
+    switch (channelName.toLowerCase()) {
+      case 'whatsapp': return 32;
+      case 'instagram': return 12;
+      case 'shopee': return 8;
+      case 'tiktok': return 5;
+      case 'email': return 3;
+      case 'messenger': return 2;
+      default: return 0;
+    }
+  };
 
   // Channel Filtering
   const filteredConversations = conversations.filter(c => {
@@ -389,10 +436,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             <div className="size-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs shadow-xs" title="WhatsApp (32)">
               <MessageSquare size={12} />
             </div>
-            <div className="size-6 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
+            <div className="size-6 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
               <Instagram size={12} />
             </div>
-            <div className="size-6 rounded-lg bg-orange-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
+            <div className="size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
               <ShoppingBag size={12} />
             </div>
             <div className="size-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs shadow-xs" title="TikTok (5)">
@@ -405,7 +452,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             onClick={() => setActiveModal('integrations')}
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
-            <Settings size={14} className="text-orange-500" />
+            <Settings size={14} className="text-blue-500" />
             <span>{t.inboxView.manageIntegrations}</span>
           </button>
         </div>
@@ -416,30 +463,31 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       {/* ========================================================================= */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { key: 'Semua', label: t.inboxView.channelAll, count: 127 },
-          { key: 'WhatsApp', label: 'WhatsApp', count: 32 },
-          { key: 'Instagram', label: 'Instagram', count: 12 },
-          { key: 'Shopee', label: 'Shopee', count: 8 },
-          { key: 'TikTok', label: 'TikTok', count: 5 },
-          { key: 'Email', label: 'Email', count: 3 },
-          { key: 'Messenger', label: 'Messenger', count: 2 },
+          { key: 'Semua', label: t.inboxView.channelAll },
+          { key: 'WhatsApp', label: 'WhatsApp' },
+          { key: 'Instagram', label: 'Instagram' },
+          { key: 'Shopee', label: 'Shopee' },
+          { key: 'TikTok', label: 'TikTok' },
+          { key: 'Email', label: 'Email' },
+          { key: 'Messenger', label: 'Messenger' },
         ].map((item) => {
           const isActive = channelTab.toLowerCase() === item.key.toLowerCase();
+          const count = getChannelCount(item.key);
           return (
             <button
               key={item.key}
               onClick={() => setChannelTab(item.key)}
               className={`px-4 py-2 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 flex-shrink-0 cursor-pointer ${
                 isActive
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <span>{item.label}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
-                isActive ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
               }`}>
-                {item.count}
+                {count}
               </span>
             </button>
           );
@@ -466,11 +514,11 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t.inboxView.searchPlaceholder}
-                  className="w-full pl-8 pr-3 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-orange-500 transition-all"
+                  className="w-full pl-8 pr-3 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-blue-500 transition-all"
                 />
               </div>
               <button 
-                onClick={() => triggerToast('Toggle filter view')} 
+                onClick={() => triggerToast('Filter lanjutan')} 
                 className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 cursor-pointer"
               >
                 <Sliders size={14} />
@@ -490,13 +538,13 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   onClick={() => setSubTab(sub.key)}
                   className={`flex-1 py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     subTab === sub.key
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-black'
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
                   <span>{sub.label}</span>
                   {sub.badge && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-orange-500 text-white text-[9px] font-extrabold">
+                    <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px] font-extrabold">
                       {sub.badge}
                     </span>
                   )}
@@ -514,7 +562,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     onClick={() => setSelectedConvId(conv.id)}
                     className={`p-3 rounded-2xl cursor-pointer transition-all border flex items-start gap-3 relative ${
                       isSelected
-                        ? 'bg-orange-50/70 dark:bg-orange-950/30 border-orange-300 dark:border-orange-900/60 shadow-xs'
+                        ? 'bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-l-blue-600 border-y border-r border-blue-200/60 dark:border-blue-900/60 shadow-2xs'
                         : 'bg-white dark:bg-slate-900 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
@@ -554,7 +602,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                           {conv.customer_name}
                         </h4>
                         <span className="text-[10px] font-mono text-slate-400 ml-1 flex-shrink-0">
-                          {conv.last_message_time}
+                          {formatTimestamp(conv.last_message_time)}
                         </span>
                       </div>
 
@@ -578,7 +626,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     </div>
 
                     {conv.unread_count > 0 && (
-                      <span className="size-5 rounded-full bg-orange-500 text-white font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
+                      <span className="size-5 rounded-full bg-blue-600 text-white font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
                         {conv.unread_count}
                       </span>
                     )}
@@ -591,7 +639,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           {/* List Footer Pagination */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
             <span className="text-[11px] text-slate-400 font-medium">
-              {t.inboxView.showingItems} 1 - {filteredConversations.length} dari 127
+              {t.inboxView.showingItems} 1 - {filteredConversations.length} dari {getChannelCount(channelTab)}
             </span>
             <button
               onClick={() => triggerToast('Memuat lebih banyak percakapan...')}
@@ -633,40 +681,111 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   {activeConv.customer_phone}
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  Bergabung {activeConv.customer_since} • Total Order {activeConv.total_orders} • Total Belanja Rp{activeConv.total_spent?.toLocaleString('id-ID')}
+                  Bergabung {formatDate(activeConv.customer_since)} • Total Order {activeConv.total_orders} • Total Belanja Rp{activeConv.total_spent?.toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
 
             {/* Quick Header Actions */}
-            <div className="flex items-center gap-1 text-slate-400">
-              <button onClick={() => triggerToast('Assign Agent')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer" title="Assign Agent">
+            <div className="flex items-center gap-1 text-slate-400 relative">
+              <button 
+                onClick={() => setActiveModal('assignAgent')} 
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                title="Tugaskan Agen CS"
+              >
                 <UserPlus size={15} />
               </button>
-              <button onClick={() => triggerToast('Tambah Tag')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer" title="Tag">
+              <button 
+                onClick={() => setActiveModal('addTag')} 
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                title="Tambah Tag Label"
+              >
                 <Tag size={15} />
               </button>
-              <button onClick={() => triggerToast('Bookmark')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer" title="Star">
-                <Star size={15} />
+              <button 
+                onClick={async () => {
+                  const nextStar = !activeConv.is_starred;
+                  const updated = conversations.map(c => c.id === activeConv.id ? { ...c, is_starred: nextStar } : c);
+                  setConversations(updated);
+                  await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
+                  triggerToast(nextStar ? 'Percakapan ditandai bintang (Bintang)' : 'Bintang dilepas');
+                }} 
+                className={`p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${
+                  activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
+                }`} 
+                title={activeConv.is_starred ? 'Lepas Bintang' : 'Tandai Bintang'}
+              >
+                <Star size={15} className={activeConv.is_starred ? 'fill-amber-500 text-amber-500' : ''} />
               </button>
-              <button onClick={() => triggerToast('Opsi Lanjutan')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer" title="More">
-                <MoreHorizontal size={15} />
-              </button>
+              
+              {/* 3-Dots Options Dropdown Button */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowMoreMenu(!showMoreMenu)} 
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                  title="Opsi Lanjutan"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+
+                {showMoreMenu && (
+                  <div className="absolute right-0 top-10 z-40 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 space-y-1 text-xs animate-in fade-in zoom-in-95">
+                    <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        triggerToast('Percakapan ditandai Belum Dibaca');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                    >
+                      Tandai Belum Dibaca
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setShowMoreMenu(false);
+                        await SupabaseDashboardService.archiveConversation(activeConv.id, true);
+                        triggerToast('Percakapan diarsipkan');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                    >
+                      Arsipkan Percakapan
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        setActiveModal('fullProfile');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                    >
+                      Lihat Profil Lengkap Pelanggan
+                    </button>
+                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                    <button
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        triggerToast(`Pelanggan ${activeConv.customer_name} telah diblokir`);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-extrabold cursor-pointer"
+                    >
+                      Blokir Pelanggan
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* AI Responding Auto Banner */}
-          <div className="bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 p-2.5 rounded-2xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+          <div className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 p-2.5 rounded-2xl flex items-center justify-between text-xs text-blue-950 dark:text-blue-200">
             <div className="flex items-center gap-2 font-bold">
               <Sparkles size={14} className="text-amber-500" />
               <span>{t.inboxView.aiRespondingAuto}</span>
               <span title="AI secara otomatis menjawab pertanyaan pelanggan berdasarkan basis data pengetahuan produk">
-                <HelpCircle size={12} className="text-amber-400 cursor-pointer" />
+                <HelpCircle size={12} className="text-blue-400 cursor-pointer" />
               </span>
             </div>
             <button
               onClick={() => setActiveModal('aiReasoning')}
-              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold border border-amber-200 dark:border-amber-800 hover:bg-amber-100 cursor-pointer shadow-xs"
+              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 text-[11px] font-extrabold border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer shadow-xs"
             >
               {t.inboxView.viewAction}
             </button>
@@ -691,22 +810,22 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                   <div className={`max-w-[85%] space-y-1 ${
                     isCustomer 
-                      ? 'p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200' 
-                      : 'p-3.5 rounded-2xl rounded-tr-xs bg-orange-500 text-white font-medium shadow-sm'
+                      ? 'p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60' 
+                      : 'p-3.5 rounded-2xl rounded-tr-xs bg-blue-600 text-white font-medium shadow-xs'
                   }`}>
                     <p className="whitespace-pre-line leading-relaxed text-[11px]">
-                      {msg.message_text}
+                      {msg.message_text ? msg.message_text.replace(/\\n/g, '\n') : ''}
                     </p>
                     <div className={`flex items-center justify-end gap-1 text-[9px] ${
-                      isCustomer ? 'text-slate-400' : 'text-orange-200'
+                      isCustomer ? 'text-slate-400' : 'text-blue-100'
                     }`}>
-                      <span>{msg.created_at || '08:45'}</span>
+                      <span>{formatTimestamp(msg.created_at)}</span>
                       {!isCustomer && <CheckCircle2 size={10} className="text-white" />}
                     </div>
                   </div>
 
                   {!isCustomer && (
-                    <div className="size-7 rounded-full bg-orange-500 text-white flex items-center justify-center font-extrabold text-[10px] flex-shrink-0 mt-0.5 shadow-xs">
+                    <div className="size-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-[10px] flex-shrink-0 mt-0.5 shadow-xs">
                       AI
                     </div>
                   )}
@@ -720,41 +839,40 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-bold scrollbar-none relative">
             <button
               onClick={() => setActiveModal('createOrder')}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
             >
-              <Zap size={12} className="text-orange-500" />
+              <Zap size={12} className="text-amber-500" />
               <span>{t.inboxView.createOrder}</span>
             </button>
             <button
               onClick={() => setActiveModal('checkOngkir')}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
             >
               <Truck size={12} className="text-blue-500" />
               <span>{t.inboxView.checkOngkir}</span>
             </button>
             <button
               onClick={() => setActiveModal('trackOrder')}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
             >
               <MapPin size={12} className="text-emerald-500" />
               <span>{t.inboxView.trackOrder}</span>
             </button>
             <button
               onClick={() => setActiveModal('productCatalog')}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
             >
               <Package size={12} className="text-purple-500" />
               <span>{t.inboxView.productCatalog}</span>
             </button>
             <button
               onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
             >
-              <FileText size={12} className="text-amber-500" />
+              <FileText size={12} className="text-slate-500" />
               <span>{t.inboxView.template}</span>
               <ChevronDown size={10} />
             </button>
-
             {showTemplateMenu && (
               <div className="absolute right-0 bottom-full mb-1 z-30 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-2 w-56 space-y-1">
                 {[
@@ -769,7 +887,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       handleQuickChip(tpl);
                       setShowTemplateMenu(false);
                     }}
-                    className="w-full text-left p-2 rounded-xl text-[10px] hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium truncate cursor-pointer"
+                    className="w-full text-left p-2 rounded-xl text-[10px] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium truncate cursor-pointer"
                   >
                     {tpl}
                   </button>
@@ -802,7 +920,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 
                 <button
                   type="submit"
-                  className="size-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md transition-all ml-1"
+                  className="size-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-xs transition-all ml-1"
                 >
                   <Send size={13} />
                 </button>
@@ -827,10 +945,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     triggerToast(`AI Assistant ${nextVal ? 'Diaktifkan' : 'Dinonaktifkan'}`);
                   }}
                   className={`w-9 h-5 rounded-full transition-colors p-0.5 flex items-center cursor-pointer ${
-                    aiAssistantEnabled ? 'bg-orange-500 justify-end' : 'bg-slate-300 dark:bg-slate-700 justify-start'
+                    aiAssistantEnabled ? 'bg-blue-600 justify-end' : 'bg-slate-300 dark:bg-slate-700 justify-start'
                   }`}
                 >
-                  <div className="size-4 rounded-full bg-white shadow-xs" />
+                  <div className="size-4 rounded-full bg-white dark:bg-slate-900 shadow-xs" />
                 </button>
               </div>
             </div>
@@ -945,13 +1063,13 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               </div>
               <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
                 <p className="text-[10px] text-slate-400 font-medium">{t.inboxView.customerSince}</p>
-                <p className="font-black text-[10px] text-slate-900 dark:text-slate-100 mt-0.5">{activeConv.customer_since}</p>
+                <p className="font-black text-[10px] text-slate-900 dark:text-slate-100 mt-0.5">{formatDate(activeConv.customer_since)}</p>
               </div>
             </div>
 
             <button
-              onClick={() => triggerToast('Membuka profil lengkap pelanggan...')}
-              className="w-full py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-center"
+              onClick={() => setActiveModal('fullProfile')}
+              className="w-full py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-center transition-colors"
             >
               {t.inboxView.viewFullProfile}
             </button>
@@ -996,7 +1114,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     {note.note_text}
                   </p>
                   <p className="text-[9px] text-slate-400">
-                    Ditambahkan oleh {note.created_by} • {note.created_at}
+                    Ditambahkan oleh {note.created_by} • {formatDate(note.created_at)}
                   </p>
                 </div>
               ))}
@@ -1045,6 +1163,37 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       <AiReasoningModal
         isOpen={activeModal === 'aiReasoning'}
         onClose={() => setActiveModal(null)}
+      />
+
+      <CustomerFullProfileModal
+        isOpen={activeModal === 'fullProfile'}
+        onClose={() => setActiveModal(null)}
+        customer={activeConv}
+        triggerToast={triggerToast}
+      />
+
+      <AssignAgentModal
+        isOpen={activeModal === 'assignAgent'}
+        onClose={() => setActiveModal(null)}
+        onAssign={async (agentName) => {
+          const updated = conversations.map(c => c.id === activeConv.id ? { ...c, assigned_agent: agentName } : c);
+          setConversations(updated);
+          await SupabaseDashboardService.assignAgentToConversation(activeConv.id, agentName);
+        }}
+        triggerToast={triggerToast}
+      />
+
+      <AddTagModal
+        isOpen={activeModal === 'addTag'}
+        onClose={() => setActiveModal(null)}
+        onAddTag={async (tagName) => {
+          const currentTags = activeConv.tags || [];
+          const updatedTags = Array.from(new Set([...currentTags, tagName]));
+          const updated = conversations.map(c => c.id === activeConv.id ? { ...c, tags: updatedTags } : c);
+          setConversations(updated);
+          await SupabaseDashboardService.addTagToConversation(activeConv.id, tagName, currentTags);
+        }}
+        triggerToast={triggerToast}
       />
     </div>
   );

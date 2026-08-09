@@ -69,6 +69,18 @@ export function UmkmDashboardContainer({
     marketplace: 'marketplace',
     billing: 'billing',
     settings: 'settings',
+    'settings/profile': 'settings',
+    'settings/team': 'settings',
+    'settings/integrations': 'settings',
+    'settings/ai-preferences': 'settings',
+    'settings/notifications': 'settings',
+    'settings/security': 'settings',
+    'settings/billing': 'settings',
+    'settings/api-keys': 'settings',
+    'settings/system': 'settings',
+    help: 'help',
+    support: 'help',
+    bantuan: 'help',
   };
 
   const slugToTabMap: Record<string, string> = {
@@ -131,6 +143,9 @@ export function UmkmDashboardContainer({
     'billing/history': 'billing',
     'billing/settings': 'billing',
     settings: 'settings',
+    help: 'help',
+    support: 'help',
+    bantuan: 'help',
   };
 
   const getInitialTab = () => {

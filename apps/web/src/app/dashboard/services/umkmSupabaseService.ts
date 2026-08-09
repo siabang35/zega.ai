@@ -33,7 +33,7 @@ export const umkmSupabaseService = {
     try {
       const getCdnUrl = (path?: string) => this.getCdnUrl(path);
 
-      const [storeRes, kpiRes, empRes, autoRes, timelineRes, intRes, knowRes] = await Promise.all([
+      const [storeRes, kpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
         safeQuery<any>(supabase.from('umkm_stores').select('*').eq('id', storeId).maybeSingle(), null),
         safeQuery<any>(supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(), null),
         safeQuery<any[]>(supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
@@ -41,6 +41,7 @@ export const umkmSupabaseService = {
         safeQuery<any[]>(supabase.from('umkm_timeline_events').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10), []),
         safeQuery<any[]>(supabase.from('umkm_integrations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
         safeQuery<any[]>(supabase.from('umkm_knowledge_docs').select('*').eq('store_id', storeId).order('created_at', { ascending: false }), []),
+        safeQuery<any[]>(supabase.from('umkm_transactions').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10), []),
       ]);
 
       const store = storeRes ? {
@@ -58,6 +59,7 @@ export const umkmSupabaseService = {
         })),
         automations: autoRes || [],
         timelineEvents: timelineRes || [],
+        transactions: trxRes || [],
         integrations: (intRes || []).map(item => ({
           ...item,
           icon_url: getCdnUrl(item.icon_url)
@@ -66,7 +68,26 @@ export const umkmSupabaseService = {
         error: null
       };
     } catch (err: any) {
-      return { store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], integrations: [], knowledgeDocs: [], error: null };
+      return { store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], transactions: [], integrations: [], knowledgeDocs: [], error: null };
+    }
+  },
+
+  // 1b. Fetch Dynamic Sales Summary (7d / 30d) via PostgreSQL Stored Procedure
+  async getUmkmSalesSummary(storeId: string = '11111111-1111-1111-1111-111111111111', days: number = 7) {
+    try {
+      const { data, error } = await supabase.rpc('fn_get_umkm_sales_summary', {
+        p_store_id: storeId,
+        p_days: days
+      });
+
+      if (error || !data || data.length === 0) return null;
+      return data.map((row: any) => ({
+        date: row.sales_date,
+        revenue: Number(row.revenue) || 0,
+        orders: Number(row.orders) || 0
+      }));
+    } catch (err) {
+      return null;
     }
   },
 

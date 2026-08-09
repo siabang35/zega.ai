@@ -343,7 +343,7 @@ export function CreateContentModal({
         <button
           onClick={handleGenerate}
           disabled={!title}
-          className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2"
         >
           <Sparkles size={16} /> Generate Konten AI
         </button>
