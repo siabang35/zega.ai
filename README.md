@@ -1,184 +1,328 @@
 # ZEGA
 
-[![CI Pipeline](https://github.com/siabang35/zega.ai/actions/workflows/ci.yml/badge.svg)](https://github.com/siabang35/zega.ai/actions/workflows/ci.yml)
-[![Automated Tests](https://img.shields.io/badge/Automated%20Tests-89%2F89%20PASS-brightgreen?style=flat-square&logo=jest)](docs/ZEGA_FINAL_HARDENING_REPORT.md)
-[![OWASP Guard](https://img.shields.io/badge/OWASP%20Prompt%20Injection-Level%203-blue?style=flat-square&logo=security)](docs/zeroclaw/SECURITY_THREAT_MODEL.md)
+## Zero-friction Enterprise Generative AI & Automation
+
+[![CI](https://github.com/siabang35/zega.ai/actions/workflows/ci.yml/badge.svg)](https://github.com/siabang35/zega.ai/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](package.json)
-[![Node Version](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
-[![Solana Devnet](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat-square&logo=solana&logoColor=white)](https://solana.com)
+[![Node](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
+[![Solana](https://img.shields.io/badge/Solana-Devnet-14F195?style=flat-square&logo=solana&logoColor=white)](https://solana.com)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)
 
-> Zero-friction Enterprise Generative AI & Automation (ZEGA) is an agentic execution platform for deploying, orchestrating, governing, and operating AI agents across business workflows.
+ZEGA is an agentic execution platform that lets organizations deploy, orchestrate, govern, and monetize AI agents across business workflows.
 
-**Current Repository Showcase**: A ZeroClaw + Solana Pay merchant workflow that demonstrates keyless agent interaction with Solana through ZEGA APIs.
-
----
-
-## Quick Reference & Navigation
-
-| Resource | Description & Direct Link |
-|---|---|
-| **Live Production Console** | [https://zegaai.site](https://zegaai.site) *(Solana Devnet Deployment)* |
-| **Bounty Showcase Document** | [`ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md`](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
-| **Forensic Security Self-Audit** | [`docs/ZEROCLAW_FORENSIC_AUDIT.md`](docs/ZEROCLAW_FORENSIC_AUDIT.md) *(Self-Assessed Score: 91/100 GO)* |
-| **Hardening & Test Report** | [`docs/ZEGA_FINAL_HARDENING_REPORT.md`](docs/ZEGA_FINAL_HARDENING_REPORT.md) *(89/89 Test Specs PASS)* |
-| **Upstream Integration Guide** | [`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) *(ZeroClaw Upstream PR #9806)* |
-| **Judge Reproducibility Manual** | [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
+The current repository includes a concrete, reproducible showcase: a **ZeroClaw + Solana Pay merchant workflow** demonstrating keyless agent-driven invoice generation, on-chain settlement verification, and human-in-the-loop refund governance — submitted for the [Superteam Brasil ZeroClaw bounty](https://superteam.fun/earn/listing/zeroclaw).
 
 ---
 
 ## Table of Contents
 
-- [What is Actually Implemented](#what-is-actually-implemented)
-- [ZeroClaw Integration Architecture](#zeroclaw-integration-architecture)
-- [Solana Pay Merchant Workflow](#solana-pay-merchant-workflow)
-- [Architecture & Trust Boundaries](#architecture--trust-boundaries)
-- [Security & Custody Model](#security--custody-model)
+- [What is ZEGA?](#what-is-zega)
+- [Product Thesis](#product-thesis)
+- [Architecture](#architecture)
+- [Core Capabilities](#core-capabilities)
+- [Agent Runtime: ZeroClaw Integration](#agent-runtime-zeroclaw-integration)
+- [ZeroClaw + Solana Showcase](#zeroclaw--solana-showcase)
+- [Custody Model](#custody-model)
+- [Security & Trust Boundaries](#security--trust-boundaries)
+- [Quickstart](#quickstart)
+- [Reproduce the ZeroClaw + Solana Demo](#reproduce-the-zeroclaw--solana-demo)
+- [Testing](#testing)
 - [Repository Structure](#repository-structure)
-- [Developer Quickstart](#developer-quickstart)
-- [ZeroClaw + Solana Quickstart](#zeroclaw--solana-quickstart)
-- [Reproducibility & Verification](#reproducibility--verification)
-- [Development Commands](#development-commands)
-- [Documentation Index](#documentation-index)
-- [Security & Vulnerability Reporting](#security--vulnerability-reporting)
 - [Project Status](#project-status)
-- [Why This Demonstration Matters](#why-this-demonstration-matters)
-- [Contributing & License](#contributing--license)
+- [Known Limitations](#known-limitations)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## What is Actually Implemented
+## What is ZEGA?
 
-| Capability | Status | Evidence Location |
+ZEGA provides infrastructure for running AI agents that interact with real business systems — not just generating text responses, but executing governed workflows with deterministic verification.
+
+The platform addresses a fundamental challenge: LLM reasoning is non-deterministic and should never be the sole authority over security-critical state transitions. ZEGA enforces a strict boundary between what an agent *proposes* and what the system *commits*, ensuring that financial settlement, approval decisions, and external actions are verified through deterministic backend logic rather than LLM-generated text.
+
+---
+
+## Product Thesis
+
+ZEGA's execution lifecycle spans five stages:
+
+| Stage | Description | Current Implementation Status |
 |---|---|---|
-| **ZeroClaw Rust Binary Integration** | ✅ Implemented | `docs/zeroclaw/config.toml` (ZeroClaw `v0.8.3` spec), `packages/zeroclaw-bridge/` |
-| **Telegram Channel Integration** | ✅ Implemented | `docs/zeroclaw/config.toml` (`[channels.telegram]`) |
-| **Solana Pay Invoice Generation** | ✅ Implemented | `solana-pay` Skill (`docs/zeroclaw/skills/solana-pay/`) |
-| **RPC Settlement Reconciliation** | ⚠️ Devnet Reference | `zeroclawSignatureMonitor.ts`, `zeroclaw.routes.ts` |
-| **Human-in-the-Loop Refund Governance** | ✅ Implemented | `refund-approval` SOP (`docs/zeroclaw/sops/refund-approval/`) |
-| **OWASP Level 3 Prompt Injection Guard** | ✅ Implemented | `settlementValidation.ts`, `prompt-injection.test.ts` |
-| **Local TypeScript Dev Harness** | ⚠️ Development-Only | `scripts/zeroclaw-daemon-harness.ts` (`pnpm zeroclaw:dev-harness`) |
-| **Mainnet USDC Settlement** | 🚧 Planned | Roadmap item |
+| **Deploy** | Provision and configure agent runtimes | ✅ ZeroClaw config, skill, and SOP provisioning |
+| **Orchestrate** | Coordinate multi-step agent workflows | ✅ SOP engine (cron triggers, channel triggers) |
+| **Govern** | Enforce security policies and human approval gates | ✅ Risk profiles, approval checkpoints, prompt injection guards |
+| **Execute** | Connect agents to external systems and blockchains | ✅ Solana Pay settlement, RPC pool management |
+| **Monetize** | Enable agent-driven revenue workflows | ⚠️ Demonstrated via Solana Pay invoicing (Devnet) |
 
 ---
 
-## ZeroClaw Integration Architecture
+## Architecture
 
-ZEGA integrates with the self-hosted ZeroClaw agent framework by establishing clear boundaries between component layers:
+```text
+┌─────────────────────────────────────┐
+│         Enterprise Users            │
+│   Merchant POS / Telegram / Webhook │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│     ZEGA Agentic Platform Layer     │
+│  React Console (apps/web)           │
+│  Fastify API    (apps/api)          │
+│  Governance / Security / RLS        │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Agent Runtime / Integrations      │
+│  ZeroClaw Rust Runtime (v0.8.3)     │
+│  Skills / SOPs / MCP Servers        │
+│  @zega/zeroclaw-bridge              │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Business Workflow Execution       │
+│  Invoice Generation                 │
+│  Settlement Verification            │
+│  Signature Monitoring               │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   External Systems                  │
+│  Solana Devnet / Supabase / R2 CDN  │
+└─────────────────────────────────────┘
+```
 
-1. **OFFICIAL ZEROCLAW RUST RUNTIME (Primary)**: Self-hosted [ZeroClaw Rust binary](https://github.com/zeroclaw-labs/zeroclaw) (`v0.8.3`) loaded with [`docs/zeroclaw/config.toml`](docs/zeroclaw/config.toml). Handles agent reasoning, SOP execution, and channel I/O.
-2. **ZEGA APPLICATION / API LAYER**: Fastify backend service providing Solana RPC pool management, invoice registry, signature monitoring, and Supabase RLS persistence.
-3. **ZEGA SKILLS**: Custom skill packages (`solana-pay`, `solana-blinks`, `merchant-memory`, `defi-guardian`) that teach ZeroClaw how to interact with ZEGA API endpoints.
-4. **ZEGA SOPS**: Structured Standard Operating Procedures (`payment-reconciliation`, `refund-approval`, `balance-alert`, `defi-guardian`).
-5. **DEVELOPMENT HARNESS (Fixture Only)**: Local TypeScript script ([`scripts/zeroclaw-daemon-harness.ts`](scripts/zeroclaw-daemon-harness.ts), executable via `pnpm zeroclaw:dev-harness`). **Classification: Development/test fixture only — not the production/bounty runtime.**
+ZEGA itself is a TypeScript monorepo (React 18 + Fastify). It integrates with the [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) Rust agent runtime as the primary agent execution engine for the demonstrated workflow. Solana serves as the blockchain execution and settlement rail.
 
-### Integration Architecture Diagram
+---
+
+## Core Capabilities
+
+| Category | Capability | Status | Evidence |
+|---|---|---|---|
+| **Agent Runtime** | ZeroClaw Rust binary integration via bridge client | ✅ Implemented | `packages/zeroclaw-bridge/`, `docs/zeroclaw/config.toml` |
+| **Workflow Engine** | Cron-triggered SOP (`payment-reconciliation`) | ✅ Implemented | `docs/zeroclaw/sops/payment-reconciliation/` |
+| **Workflow Engine** | Channel-triggered SOP (`refund-approval`) | ✅ Implemented | `docs/zeroclaw/sops/refund-approval/` |
+| **Governance** | Human-in-the-loop approval checkpoint (`quorum: 1`) | ✅ Implemented | `docs/zeroclaw/sops/refund-approval/SOP.md` |
+| **Governance** | Supervised risk profile (blacklists `transfer`, `sign_transaction`) | ✅ Implemented | `docs/zeroclaw/config.toml` |
+| **Security** | Prompt injection regex screening (defense-in-depth) | ✅ Implemented | `apps/api/src/utils/settlementValidation.ts` |
+| **Security** | HMAC-SHA256 webhook verification (timing-safe) | ✅ Implemented | `apps/api/src/routes/v1/zeroclaw.routes.ts` |
+| **Solana** | Solana Pay single-use reference key generation | ✅ Implemented | `docs/zeroclaw/skills/solana-pay/` |
+| **Solana** | RPC pool with circuit breaker failover | ✅ Implemented | `apps/api/src/services/solanaRpcManager.ts` |
+| **Solana** | Deterministic settlement verification (Base58, mint, freshness) | ⚠️ Devnet | `apps/api/src/services/zeroclawSignatureMonitor.ts` |
+| **Solana** | Atomic replay protection (`tx_signature UNIQUE`) | ✅ Implemented | `supabase/migrations/` |
+| **Enterprise UI** | Multi-tenant dashboard (Enterprise, UMKM, CRM) | ✅ Implemented | `apps/web/`, `apps/api/src/routes/v1/enterprise.routes.ts` |
+| **Channels** | Telegram, Webhook, WhatsApp configuration | ✅ Configured | `docs/zeroclaw/config.toml` |
+| **MCP** | Helius DAS (SSE) and SendAI Solana (stdio) MCP servers | ✅ Configured | `docs/zeroclaw/config.toml` |
+| **Local Testing** | TypeScript dev harness | 🧪 Dev Only | `scripts/zeroclaw-daemon-harness.ts` |
+| **Mainnet**| Production mainnet settlement | 🗺️ Planned | — |
+
+---
+
+## Agent Runtime: ZeroClaw Integration
+
+ZEGA integrates with ZeroClaw as a self-hosted agent execution runtime within ZEGA's broader execution architecture. ZeroClaw handles agent reasoning, channel I/O, SOP execution, and skill dispatch. ZEGA provides the application layer — API endpoints, Solana RPC management, settlement verification, and database persistence.
+
+### Component Hierarchy
+
+| Component | Role | Location |
+|---|---|---|
+| **ZeroClaw Rust Runtime** | Primary agent execution engine (official binary) | External: [zeroclaw-labs/zeroclaw](https://github.com/zeroclaw-labs/zeroclaw) |
+| **ZEGA API** | Application backend (invoices, settlement, RPC pool) | `apps/api/` |
+| **ZEGA Skills** | Teach ZeroClaw how to call ZEGA API endpoints | `docs/zeroclaw/skills/` |
+| **ZEGA SOPs** | Define multi-step workflow triggers and approval gates | `docs/zeroclaw/sops/` |
+| **@zega/zeroclaw-bridge** | TypeScript client for ZeroClaw gateway pairing | `packages/zeroclaw-bridge/` |
+| **Agent Config** | Runtime configuration (channels, risk profile, MCP, custody) | `docs/zeroclaw/config.toml` |
+| **Dev Harness** | Local HTTP mock for offline testing **(not the bounty runtime)** | `scripts/zeroclaw-daemon-harness.ts` |
+
+### Runtime vs. Development Harness
+
+**Primary bounty runtime**: The official ZeroClaw Rust binary (`v0.8.3`), installed via `curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash` and started with `zeroclaw agent`.
+
+**Development harness**: `scripts/zeroclaw-daemon-harness.ts` is a lightweight HTTP mock for offline unit testing. It does not execute real SOPs, does not load real skills, and provides no security guarantees. It is explicitly not the production or bounty demonstration path.
+
+---
+
+## ZeroClaw + Solana Showcase
+
+This showcase demonstrates one concrete ZEGA execution workflow using ZeroClaw + Solana, submitted for the **Superteam Brasil ZeroClaw bounty**. It is a demonstration of ZEGA's broader agentic execution thesis, not the complete definition of ZEGA.
+
+### Demonstrated Workflow
 
 ```text
 Merchant / Cashier
-   │
-   ▼
+      │
+      ▼
 Telegram / Webhook Channel
-   │
-   ▼
-Official ZeroClaw Rust Runtime (v0.8.3)
-   │
-   │ ZEGA Skill (solana-pay)
-   ▼
-ZEGA API (Fastify Backend)
-   │
-   ├── Invoice Creation & Single-Use Reference Keys
-   ├── Solana Pay URL & QR Payload Generation
-   ├── RPC Pool Manager (Alchemy, Helius, Solana Devnet)
-   └── Signature Monitoring & Settlement Verification
-            │
-            ▼
-        Solana Devnet
+      │
+      ▼
+ZeroClaw Rust Runtime (v0.8.3)
+      │
+      │ solana-pay Skill (HTTP call)
+      ▼
+ZEGA API (Fastify)
+      │
+      ├── Generates Solana Pay URL with single-use reference key
+      ├── Returns QR payload to ZeroClaw (<200 tokens)
+      │
+      ▼
+Customer Wallet (Phantom / Solflare)
+      │  Signs transaction on Solana Devnet (T1 Keyless)
+      ▼
+Solana Devnet
+      │
+      ▼
+payment-reconciliation SOP (Cron every 30s)
+      │
+      ├── getSignaturesForAddress(reference_key)
+      ├── getTransaction(tx_signature)
+      ├── Verifies: recipient pubkey, USDC mint, Base58 format, blockTime freshness
+      ├── Atomic UPSERT (on_conflict=tx_signature)
+      │
+      ▼
+Merchant Notification
+      "Invoice #412 paid ✓"
+```
+
+### Bounty Resources
+
+| Resource | Link |
+|---|---|
+| Bounty Showcase Document | [`ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md`](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
+| Judge Reproducibility Manual | [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
+| ZeroClaw Integration Guide | [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) |
+| Upstream PR Guide | [`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) (PR #9806) |
+| Live Console (Devnet) | [https://zegaai.site](https://zegaai.site) |
+
+---
+
+## Custody Model
+
+**Demonstrated custody tier: T1 (Build / Keyless).**
+
+The agent constructs payment requests but does not hold, generate, or expose private keys. The customer wallet signs the transaction.
+
+| Boundary | Design |
+|---|---|
+| Private key access | None. ZeroClaw and ZEGA API never access or store private keys. |
+| LLM context | Private keys are never passed to or accessible within the LLM context window. |
+| Transaction signing | Performed exclusively by the customer's wallet (Phantom / Solflare). |
+| Settlement authority | Deterministic backend verification against Solana on-chain state. |
+| Agent capability | Agent constructs unsigned Solana Pay URLs; cannot autonomously sign or transfer funds. |
+
+---
+
+## Security & Trust Boundaries
+
+| Control | Description | Location |
+|---|---|---|
+| **Risk Profile** | `supervised` profile blacklists `sendai-solana__transfer` and `sendai-solana__sign_transaction` | `docs/zeroclaw/config.toml` |
+| **Human Approval** | Refund requests require merchant approval (`checkpoint`, `quorum: 1`) | `docs/zeroclaw/sops/refund-approval/SOP.md` |
+| **Prompt Injection** | Regex-based defense-in-depth screening of untrusted payloads (not a complete defense; reduces attack surface as part of a layered approach) | `apps/api/src/utils/settlementValidation.ts` |
+| **Replay Protection** | `tx_signature UNIQUE` constraint + `on_conflict=tx_signature` atomic upsert | `supabase/migrations/` |
+| **Webhook HMAC** | Timing-safe HMAC-SHA256 signature verification (`crypto.timingSafeEqual`) | `apps/api/src/routes/v1/zeroclaw.routes.ts` |
+| **RPC Resilience** | Multi-provider pool (Alchemy, Helius, Solana Devnet) with circuit breaker cooldowns | `apps/api/src/services/solanaRpcManager.ts` |
+| **Settlement Rule** | LLM output is never authoritative over settlement state; only deterministic RPC verification commits database state | `apps/api/src/services/zeroclawSignatureMonitor.ts` |
+
+> **Note**: The forensic audit report (`docs/ZEROCLAW_FORENSIC_AUDIT.md`) represents an internal self-assessment. It should not be treated as a third-party audit certification. Independent security review is recommended before any production deployment.
+
+---
+
+## Quickstart
+
+### Prerequisites
+
+- **Node.js** `≥ 20` (enforced via `.nvmrc`)
+- **pnpm** `≥ 9.0.0` (enforced via `packageManager` in `package.json`)
+
+### Install & Run ZEGA
+
+```bash
+git clone https://github.com/siabang35/zega.ai.git
+cd ZEGA
+pnpm install
+cp .env.example .env   # Populate database, RPC, and API keys
+pnpm dev               # Starts web (localhost:5173) + API (localhost:3001)
+```
+
+### Verify
+
+```bash
+pnpm type-check   # TypeScript validation across all monorepo packages
+pnpm build        # Production build
+pnpm test         # Automated test suite
 ```
 
 ---
 
-## Solana Pay Merchant Workflow
+## Reproduce the ZeroClaw + Solana Demo
 
-The primary demonstration workflow executes across the following steps:
+### Step 1: Start ZEGA API
 
-1. **Command Trigger**: Merchant or customer issues a request via Telegram or Webhook (e.g., *"Charge Table 4, 15 USDC for 2x Espresso"*).
-2. **ZeroClaw Agent Processing**: ZeroClaw Rust runtime evaluates the prompt under the `supervised` risk profile.
-3. **Skill Execution**: ZeroClaw calls the `solana-pay` Skill, sending an HTTP request to ZEGA API to generate a single-use reference key.
-4. **Solana Pay Request**: ZEGA API returns a formatted `solana:` URL and QR payload (response-shaped `<200 tokens`).
-5. **Customer Wallet Signing**: Customer scans the QR code using Phantom or Solflare and signs the transaction directly on Solana Devnet (**Tier 1 Keyless Agent** — agent holds no keys).
-6. **RPC Reference Polling**: `payment-reconciliation` SOP polls Solana Devnet RPC every 30s using `getSignaturesForAddress(reference_key)`.
-7. **Deterministic Settlement Verification**: ZEGA API queries `getTransaction(tx_signature)`, confirming recipient pubkey, USDC mint (`4zMMC9...`), signature format, and blockTime freshness (<72h).
-8. **Atomic Database Persistence**: Settlement data is UPSERTed into Supabase (`tx_signature UNIQUE`), triggering `trg_sync_invoice_to_settlement`.
-9. **Merchant Notification**: ZeroClaw notifies the merchant channel of successful settlement (*"Invoice #412 paid ✓"*).
-
----
-
-## Architecture & Trust Boundaries
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Cashier as Merchant POS / Cashier
-    participant Agent as ZeroClaw Agent (v0.8.3)
-    participant Skill as solana-pay Skill
-    participant Wallet as Customer Wallet (Phantom)
-    participant RPC as Solana Devnet RPC Pool
-    participant SOP as payment-reconciliation SOP
-    participant DB as Supabase PostgreSQL
-
-    Cashier->>Agent: "Charge Table 4, 15 USDC for 2x Espresso"
-    Agent->>Skill: Request Solana Pay URL with unique reference key
-    Skill-->>Agent: Returns URL & QR payload (shaped <200 tokens)
-    Agent-->>Cashier: Displays Solana Pay QR & Reference Key
-    Customer Wallet->>RPC: Scans QR & signs transaction on-chain (T1 Keyless)
-    loop Cron Every 30s
-        SOP->>RPC: getSignaturesForAddress(reference_key)
-        RPC-->>SOP: Returns transaction signature & slot
-        SOP->>RPC: getTransaction(tx_signature)
-        RPC-->>SOP: Confirms recipient pubkey & USDC amount
-        SOP->>DB: Atomic UPSERT into zeroclaw_solana_settlements (on_conflict=tx_signature)
-        DB-->>SOP: Triggers trg_sync_invoice_to_settlement
-    end
-    SOP-->>Agent: Settlement verified on-chain
-    Agent-->>Cashier: "Invoice #412 paid ✓ (0.32 USDC, Slot 480463344)"
+```bash
+pnpm dev:api
 ```
 
-### Trust Boundary Isolation
+### Step 2: Install and Start ZeroClaw Rust Runtime
 
-| Architectural Component | Authority & Responsibility | Trust Classification |
-|---|---|---|
-| **LLM / User Input** | Generates text prompts & invokes skills | **Untrusted Input** (Screened by OWASP regex guard) |
-| **ZeroClaw Agent Runtime** | Executes SOP steps & skill HTTP calls | **Supervised Agent** (`transfer` capability blacklisted) |
-| **Customer Wallet** | Signs transaction on Solana Devnet | **Client-Side Signer** (Keyless to ZeroClaw & ZEGA) |
-| **Solana Devnet Ledger** | Immutable records of transactions and slots | **Public State Anchor** (Queried via RPC pool) |
-| **ZEGA Backend API** | Verifies USDC mint, signature format, blockTime | **Deterministic Authority** (Enforces database state) |
+```bash
+curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
+cp docs/zeroclaw/config.toml ~/.zeroclaw/config.toml
+zeroclaw agent
+```
 
-> 📌 **Core Security Rule: LLM Output is Not Settlement Authority**  
-> Large Language Models (LLMs) propose actions and summarize operational state, but they are **never authoritative** over financial or database state. An agent cannot mark an invoice as paid simply by outputting text. Settlement is exclusively determined by deterministic backend RPC verification against on-chain transaction state.
+### Step 3: Connect Telegram Channel
+
+Configure your Telegram bot token in `config.toml` under `[channels.telegram]`.
+
+### Step 4: Send a Merchant Command
+
+Via Telegram (or webhook), send:
+
+> "Charge Table 4, 15 USDC for 2x Espresso"
+
+### Step 5: Pay & Verify
+
+1. Scan the returned Solana Pay QR with Phantom or Solflare.
+2. Sign the transaction on Solana Devnet.
+3. Wait for the `payment-reconciliation` SOP to detect and verify the settlement.
+4. Merchant receives confirmation via channel.
+
+### Development-Only Harness
+
+For offline testing without the Rust binary:
+
+```bash
+pnpm zeroclaw:dev-harness   # Starts mock on http://127.0.0.1:4242
+```
+
+This is a TypeScript HTTP mock. It does not execute real SOPs, does not load skills, and is not the bounty demonstration path.
+
+> Full step-by-step instructions: [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md)
 
 ---
 
-## Security & Custody Model
+## Testing
 
-### Custody Tier: T1 (Keyless Build)
+The repository includes 4 test suites in `apps/api/src/__tests__/`:
 
-- **Zero Private Key Access**: ZeroClaw and ZEGA API do not store, hold, or access merchant private keys.
-- **LLM Private Key Exclusion**: Private keys are never provided to or accessible by the LLM context window.
-- **No Autonomous Agent Signing**: The agent cannot autonomously sign customer payments or transfer merchant funds.
-- **Client-Side Signing**: Transactions are signed exclusively by customer wallets (Phantom / Solflare).
-- **Deterministic Verification**: Settlement status is driven by on-chain RPC lookup, not LLM text generation.
+| Test File | Coverage Area |
+|---|---|
+| `payment-verification.test.ts` | Solana Pay amount validation, signature format, USDC mint enforcement |
+| `prompt-injection.test.ts` | OWASP-pattern prompt injection detection |
+| `settlement-integration.test.ts` | Settlement freshness, replay protection, state machine invariants |
+| `vault-settlement.test.ts` | Base58 exhaustive validation, T1 custody invariants, demo mode boundaries |
 
-### Security Controls Matrix
+Run locally:
 
-| Domain | Control Description | Evidence File Path |
-|---|---|---|
-| **Risk Profile** | `supervised` profile explicitly blacklists `transfer` and `sign_transaction` | [`docs/zeroclaw/config.toml`](docs/zeroclaw/config.toml) |
-| **Human Checkpoints** | `kind: checkpoint`, `policy: merchant-refund`, `quorum: 1` human approval gate | [`docs/zeroclaw/sops/refund-approval/SOP.md`](docs/zeroclaw/sops/refund-approval/SOP.md) |
-| **Prompt Injection Defense** | Level 3 regex threat guard screens untrusted input payloads before processing | [`apps/api/src/utils/settlementValidation.ts`](apps/api/src/utils/settlementValidation.ts) |
-| **Replay Protection** | PostgreSQL `tx_signature UNIQUE` constraint + API `on_conflict=tx_signature` | [`20260809140000_...sql`](supabase/migrations/20260809140000_fix_vault_settlements_persistence_and_sorting.sql) |
-| **Webhook Integrity** | Timing-safe HMAC-SHA256 signature verification (`crypto.timingSafeEqual`) | [`zeroclaw.routes.ts`](apps/api/src/routes/v1/zeroclaw.routes.ts) |
-| **RPC Resilience** | Provider pool (Alchemy, Helius, Solana Devnet) with circuit breakers | [`solanaRpcPool.ts`](apps/api/src/services/solanaRpcPool.ts) |
+```bash
+pnpm test
+```
+
+These are unit and integration tests exercising validation logic, security guards, and database contract invariants. They do not require external RPC connections or a running ZeroClaw instance.
+
+CI executes these tests automatically on push to `master`/`main`/`develop` via `.github/workflows/ci.yml`.
 
 ---
 
@@ -187,178 +331,81 @@ sequenceDiagram
 ```text
 ZEGA/
 ├── apps/
-│   ├── web/                  # React 18 + Vite + Tailwind CSS Console Frontend
-│   └── api/                  # Fastify + TypeScript Backend Service
+│   ├── web/                    # React 18 + Vite + Tailwind CSS Console
+│   └── api/                    # Fastify + TypeScript Backend
 │       └── src/
-│           ├── routes/v1/    # API Routes (Auth, ZeroClaw, Settlements, Enterprise, UMKM)
-│           ├── services/     # Solana RPC Pool, Signature Monitor, R2 CDN Storage
-│           └── utils/        # Settlement Validation & OWASP Threat Screening
+│           ├── routes/v1/      # API Routes (auth, zeroclaw, enterprise, umkm, payment, ...)
+│           ├── services/       # Solana RPC Manager, Signature Monitor, R2 Storage
+│           ├── utils/          # Settlement Validation, OWASP Guards
+│           └── __tests__/      # Automated Test Suites
 ├── packages/
-│   ├── zeroclaw-bridge/      # Standalone Typed Gateway Bridge Package (@zega/zeroclaw-bridge)
-│   ├── shared/               # Shared Type Definitions & Constants
-│   ├── supabase/             # Database Client Factory & Type Schema Mappings
-│   └── config/               # Shared Tooling Configurations (ESLint, TypeScript)
-├── supabase/migrations/      # Database Schema Migrations & Atomic Triggers
+│   ├── zeroclaw-bridge/        # @zega/zeroclaw-bridge — typed gateway client
+│   ├── shared/                 # Shared type definitions
+│   ├── supabase/               # Database client factory & types
+│   └── config/                 # Shared ESLint & TypeScript configs
 ├── docs/
-│   ├── ZEROCLAW_FORENSIC_AUDIT.md     # 🛡️ Self-Assessed Forensic Audit (Score 91/100)
-│   ├── ZEGA_FINAL_HARDENING_REPORT.md # 🔒 System Hardening Matrix (89/89 Tests PASS)
-│   └── zeroclaw/
-│       ├── config.toml                # Agent Configuration (T1 Custody, Supervised Profile)
-│       ├── sops/                      # 4 Stock SOP Definitions (TOML + MD)
-│       └── skills/                    # 4 Stock Skill Specifications (Frontmatter MD)
-├── scripts/
-│   └── zeroclaw-daemon-harness.ts     # Local Dev/Test Daemon Harness (Fixture Only)
-└── .github/workflows/ci.yml  # GitHub Actions CI Workflow
+│   ├── zeroclaw/               # ZeroClaw config, skills, SOPs, guides
+│   ├── PRD/                    # Product requirement documents
+│   └── *.md                    # Audit reports, hardening reports
+├── scripts/                    # ZeroClaw dev harness, verification scripts
+├── supabase/migrations/        # Database schema & triggers
+└── .github/workflows/ci.yml    # CI pipeline
 ```
-
----
-
-## Developer Quickstart
-
-### Prerequisites
-- **Node.js**: `≥ 20.0.0`
-- **pnpm**: `≥ 9.0.0` (enforced via `packageManager` in `package.json`)
-
-### 1. Clone & Install Dependencies
-
-```bash
-git clone https://github.com/siabang35/zega.ai.git
-cd ZEGA
-pnpm install
-```
-
-### 2. Configure Environment
-
-Copy the environment template and populate required database and RPC keys:
-
-```bash
-cp .env.example .env
-```
-
-### 3. Run Development Servers
-
-```bash
-pnpm dev
-```
-- **Web Frontend**: `http://localhost:5173`
-- **API Backend**: `http://localhost:3001`
-
-### 4. Run Automated Verification Suite
-
-```bash
-pnpm type-check   # TypeScript type validation across all 6 monorepo packages
-pnpm build        # Build monorepo production bundles
-pnpm test         # Execute 89-test verification suite
-```
-
----
-
-## ZeroClaw + Solana Quickstart
-
-### Primary Path: Production ZeroClaw Rust Binary
-
-1. Obtain the official ZeroClaw Rust binary (`v0.8.3`):
-   ```bash
-   git clone https://github.com/zeroclaw-labs/zeroclaw.git
-   cd zeroclaw
-   cargo build --release
-   ```
-2. Copy ZEGA agent configuration and SOPs:
-   - Copy [`docs/zeroclaw/config.toml`](docs/zeroclaw/config.toml) to your ZeroClaw directory.
-   - Copy SOPs from [`docs/zeroclaw/sops/`](docs/zeroclaw/sops/) to your ZeroClaw SOPs directory.
-3. Start the ZeroClaw Rust daemon:
-   ```bash
-   ./target/release/zeroclaw --config docs/zeroclaw/config.toml
-   ```
-
-### Secondary Path: Local Development Harness *(Development / Test Fixture Only)*
-
-For rapid local testing without building the Rust binary:
-
-```bash
-pnpm zeroclaw:dev-harness
-```
-*Note: This script launches a simulated TypeScript daemon harness on `http://127.0.0.1:4242` for offline unit testing only.*
-
-> 📘 **Step-by-Step Judge Reproducibility Manual:** [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md)
-
----
-
-## Reproducibility & Verification
-
-| Verification Step | Executed Command | Expected Result | Verification Reference |
-|---|---|---|---|
-| **1. Static Type-Check** | `pnpm type-check` | 6/6 monorepo packages pass with 0 errors | Monorepo root |
-| **2. Production Build** | `pnpm build` | 6/6 Turbo build tasks complete successfully | Monorepo root |
-| **3. Automated Test Suite** | `pnpm test` | **89 / 89 test specs PASS** across 15 suites | `apps/api/src/__tests__/` |
-| **4. RPC Pool Status** | `GET /v1/zeroclaw/rpc-pool/status` | Returns provider pool health metrics | `zeroclaw.routes.ts` |
-| **5. Local Dev Harness** | `pnpm zeroclaw:dev-harness` | Starts gateway harness on port 4242 | `zeroclaw-daemon-harness.ts` |
-
----
-
-## Development Commands
-
-| Command | Action | Execution Target |
-|---|---|---|
-| `pnpm dev` | Starts React frontend & Fastify backend concurrently | Monorepo root |
-| `pnpm dev:web` | Starts React frontend dev server | `@zega/web` |
-| `pnpm dev:api` | Starts Fastify backend dev server | `@zega/api` |
-| `pnpm build` | Compiles production bundles via Turborepo | All packages |
-| `pnpm type-check` | Runs `tsc --noEmit` across all packages | All packages |
-| `pnpm test` | Runs automated unit and integration test suite | `@zega/api` |
-| `pnpm zeroclaw:dev-harness` | Executes local dev/test daemon harness | Local script |
-
----
-
-## Documentation Index
-
-| Topic | Document Title & Relative Link |
-|---|---|
-| **Self-Assessed Audit** | [`docs/ZEROCLAW_FORENSIC_AUDIT.md`](docs/ZEROCLAW_FORENSIC_AUDIT.md) *(Self-Assessed Score: 91/100)* |
-| **Hardening Matrix** | [`docs/ZEGA_FINAL_HARDENING_REPORT.md`](docs/ZEGA_FINAL_HARDENING_REPORT.md) *(89/89 Test Specs PASS)* |
-| **Bounty Showcase** | [`ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md`](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
-| **ZeroClaw Integration** | [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) |
-| **Upstream Guide** | [`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) *(ZeroClaw Upstream PR #9806)* |
-| **Security Threat Model** | [`docs/zeroclaw/SECURITY_THREAT_MODEL.md`](docs/zeroclaw/SECURITY_THREAT_MODEL.md) |
-| **Operator Guide** | [`docs/zeroclaw/AGENT_OPERATOR_GUIDE.md`](docs/zeroclaw/AGENT_OPERATOR_GUIDE.md) |
-| **RPC Failover Spec** | [`docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md`](docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) |
-
----
-
-## Security & Vulnerability Reporting
-
-Security is an integral part of ZEGA's architecture:
-- Do not disclose security vulnerabilities publicly.
-- Please submit security disclosures via email or open a private repository security advisory.
-- Review our threat model and security boundaries in [`docs/zeroclaw/SECURITY_THREAT_MODEL.md`](docs/zeroclaw/SECURITY_THREAT_MODEL.md).
-
-*Note: The forensic audit report in `docs/ZEROCLAW_FORENSIC_AUDIT.md` represents an internal self-assessed forensic security audit and should not be treated as a third-party audit firm certification.*
 
 ---
 
 ## Project Status
 
-| Functional Area | Current Status | Technical Notes |
+| Area | Status | Notes |
 |---|---|---|
-| **Platform Monorepo** | Active Development | TypeScript 5.x, Fastify, React 18, Supabase RLS |
-| **ZeroClaw Integration** | Reference Implementation | Tested against official ZeroClaw `v0.8.3` Rust binary |
-| **Solana Settlement Engine** | Devnet Reference | Reference-key polling on Solana Devnet |
-| **Automated Test Suite** | **89 / 89 PASS** | 100% pass rate across API and security test suites |
-| **Mainnet Production** | Planned / Roadmap | Mainnet USDC settlement planned for future release |
+| ZEGA Platform Monorepo | Active Development | TypeScript 5.x, Fastify, React 18, Supabase RLS |
+| ZeroClaw Integration | Reference Implementation | Configured for ZeroClaw v0.8.3 Rust runtime |
+| Solana Settlement | Devnet Reference | Reference-key polling on Solana Devnet |
+| Automated Tests | Passing | Unit and integration tests across 4 test suites |
+| Mainnet Deployment | Planned | Mainnet USDC settlement is a future milestone |
+| Enterprise Features | Active Development | Multi-tenant dashboard, CRM, billing modules |
 
 ---
 
-## Why This Demonstration Matters
+## Known Limitations
 
-This reference implementation demonstrates a critical pattern for Web3 agentic systems:
-
-It enforces a strict separation between **non-deterministic AI reasoning** and **deterministic on-chain settlement verification**. The agent can construct unsigned payment requests and summarize merchant telemetry, but on-chain transactions and backend RPC verification remain the sole authority over settlement state.
+- **Solana Devnet only**: Settlement verification operates on Devnet. Mainnet deployment requires independent security review and is not currently claimed.
+- **Prompt injection defense is defense-in-depth**: Regex-based pattern screening reduces attack surface but is not a complete mitigation against all prompt injection techniques.
+- **MCP trust boundary**: Helius and SendAI MCP servers are third-party services; their availability and correctness are outside ZEGA's control.
+- **Development harness is not production**: The TypeScript daemon harness simulates ZeroClaw API endpoints but does not execute real SOPs, skills, or provide runtime security guarantees.
+- **Self-assessed audit**: The forensic audit report is an internal self-assessment, not a third-party certification.
+- **RPC availability**: Settlement verification depends on Solana RPC provider availability and is subject to rate limiting and network conditions.
 
 ---
 
-## Contributing & License
+## Documentation
 
-Contributions are welcome! Please ensure `pnpm type-check` and `pnpm test` pass cleanly before submitting a Pull Request.
+| Topic | Document |
+|---|---|
+| ZeroClaw Integration Guide | [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) |
+| Security Threat Model | [`docs/zeroclaw/SECURITY_THREAT_MODEL.md`](docs/zeroclaw/SECURITY_THREAT_MODEL.md) |
+| Agent Operator Guide | [`docs/zeroclaw/AGENT_OPERATOR_GUIDE.md`](docs/zeroclaw/AGENT_OPERATOR_GUIDE.md) |
+| ZeroClaw Version Matrix | [`docs/zeroclaw/ZEROCLAW_VERSION.md`](docs/zeroclaw/ZEROCLAW_VERSION.md) |
+| Bounty Reproducibility | [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
+| Self-Assessed Audit | [`docs/ZEROCLAW_FORENSIC_AUDIT.md`](docs/ZEROCLAW_FORENSIC_AUDIT.md) |
+| Hardening Report | [`docs/ZEGA_FINAL_HARDENING_REPORT.md`](docs/ZEGA_FINAL_HARDENING_REPORT.md) |
+| RPC Failover Spec | [`docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md`](docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) |
+| Bounty Showcase | [`ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md`](ZEROCLAW_SOLANA_BOUNTY_SHOWCASE.md) |
+| Upstream Integration | [`docs/book/src/integrations/zega-ai.md`](docs/book/src/integrations/zega-ai.md) (PR #9806) |
 
-This project is licensed under the [AGPL-3.0 License](LICENSE).  
-Copyright © 2026 ZEGA AI ([zegaai.site](https://zegaai.site)).
+---
+
+## Contributing
+
+Contributions are welcome.
+
+1. Fork and create a feature branch.
+2. Ensure `pnpm type-check` and `pnpm test` pass.
+3. Open a Pull Request with a clear description.
+
+---
+
+## License
+
+Licensed under [AGPL-3.0](LICENSE).
+Copyright © 2026 ZEGA AI.
