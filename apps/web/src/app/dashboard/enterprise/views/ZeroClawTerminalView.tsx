@@ -122,6 +122,7 @@ export interface GeneratedInvoice {
   customerTarget?: string;
   channelType?: 'telegram' | 'whatsapp' | string;
   tx_signature?: string;
+  settlement_status?: string;
   isDemo?: boolean;
   is_demo?: boolean;
 }
@@ -242,6 +243,7 @@ export function ZeroClawTerminalView({
 
   const [rightPanelTab, setRightPanelTab] = useState<'settlements' | 'invoices'>('settlements');
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<'ALL' | 'LUNAS' | 'PENDING' | 'UNDERPAID' | 'OVERPAID'>('ALL');
   const lastInvoiceFingerprintRef = useRef<string>('');
 
   // Customer In-Chat Channel Registration & Auto-Dispatch State
@@ -3031,6 +3033,19 @@ export function ZeroClawTerminalView({
                         <span>Sync DB & CDN</span>
                       </button>
 
+                      <select
+                        value={invoiceStatusFilter}
+                        onChange={(e) => setInvoiceStatusFilter(e.target.value as any)}
+                        className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                        title="Filter Tagihan berdasarkan Status Pembayaran"
+                      >
+                        <option value="ALL">Semua Status</option>
+                        <option value="LUNAS">🟢 Pembayaran Lunas</option>
+                        <option value="PENDING">⏳ Belum Lunas</option>
+                        <option value="UNDERPAID">🟡 Pembayaran Kurang</option>
+                        <option value="OVERPAID">🔵 Refund / Overpaid</option>
+                      </select>
+
                       <input
                         type="text"
                         placeholder="Cari tagihan..."
@@ -3055,7 +3070,24 @@ export function ZeroClawTerminalView({
                       </div>
                     ) : (
                       generatedInvoicesHistory
-                        .filter(inv => !invoiceSearchQuery || inv.memo.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || inv.amount.includes(invoiceSearchQuery))
+                        .filter(inv => {
+                          const matchesSearch = !invoiceSearchQuery || inv.memo.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || inv.amount.includes(invoiceSearchQuery);
+                          if (!matchesSearch) return false;
+
+                          if (invoiceStatusFilter === 'LUNAS') {
+                            return inv.status === 'FINISHED (EXACT)' || inv.status === 'FINISHED' || inv.status === 'SETTLED' || inv.settlement_status === 'settled_exact' || inv.settlement_status === 'confirmed';
+                          }
+                          if (invoiceStatusFilter === 'PENDING') {
+                            return inv.status === 'ACTIVE' || inv.status === 'Active QR' || inv.status === 'PENDING' || !inv.status || inv.settlement_status === 'pending';
+                          }
+                          if (invoiceStatusFilter === 'UNDERPAID') {
+                            return inv.status === 'UNDERPAID' || inv.settlement_status === 'settled_underpaid';
+                          }
+                          if (invoiceStatusFilter === 'OVERPAID') {
+                            return inv.status === 'OVERPAID' || inv.settlement_status === 'settled_overpaid';
+                          }
+                          return true;
+                        })
                         .map((inv) => {
                           const isSelected = generatedUrl === inv.solanaPayUrl;
                           return (

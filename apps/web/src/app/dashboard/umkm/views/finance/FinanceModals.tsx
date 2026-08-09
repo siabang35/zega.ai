@@ -370,14 +370,15 @@ export function FilterModal({
   triggerToast: (msg: string) => void 
 }) {
   const [selectedCurrency, setSelectedCurrency] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All');
 
   const handleApply = () => {
-    triggerToast(`Filter keuangan diterapkan: Currency=${selectedCurrency}`);
+    triggerToast(`Filter keuangan diterapkan: Currency=${selectedCurrency}, Status=${selectedStatus}`);
     onClose();
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Filter Performa Keuangan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Filter Performa Keuangan & Status Pembayaran">
       <div className="space-y-4 text-xs">
         <div>
           <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">Filter Mata Uang</label>
@@ -388,7 +389,7 @@ export function FilterModal({
                 onClick={() => setSelectedCurrency(c)}
                 className={`p-2.5 rounded-xl font-bold border transition-all cursor-pointer ${
                   selectedCurrency === c 
-                    ? 'bg-emerald-500 text-white border-emerald-500' 
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -398,9 +399,34 @@ export function FilterModal({
           </div>
         </div>
 
+        <div>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">Filter Status Pembayaran</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'All', label: 'Semua Status' },
+              { id: 'LUNAS', label: '🟢 Pembayaran Lunas' },
+              { id: 'PENDING', label: '⏳ Belum Lunas' },
+              { id: 'UNDERPAID', label: '🟡 Pembayaran Kurang' },
+              { id: 'OVERPAID', label: '🔵 Overpaid / Refund' }
+            ].map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSelectedStatus(s.id)}
+                className={`p-2.5 rounded-xl font-bold border text-[11px] transition-all cursor-pointer ${
+                  selectedStatus === s.id 
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={handleApply}
-          className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold cursor-pointer shadow-md"
+          className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold cursor-pointer shadow-md transition-all"
         >
           Terapkan Filter
         </button>

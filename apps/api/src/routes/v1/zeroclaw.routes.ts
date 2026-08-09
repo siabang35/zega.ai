@@ -1188,8 +1188,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             });
           }
 
-          // Freshness check: reject transactions older than 72 hours
-          if (txBlockTime) {
+          // Freshness check: reject transactions older than 72 hours (except in demo/dev test mode)
+          if (txBlockTime && !isDemo) {
             const txAge = Date.now() / 1000 - txBlockTime;
             const MAX_TX_AGE_SECONDS = 72 * 60 * 60; // 72 hours
             if (txAge > MAX_TX_AGE_SECONDS) {
@@ -1310,8 +1310,26 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           excessAmount = validAmountUsdc - expectedAmount;
         }
 
-        // Update matching pending invoice status in DB
+        // Update matching pending invoice status in zeroclaw_invoices DB
         if (referenceKey) {
+          await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              status: statusDbString === 'confirmed' ? 'FINISHED (EXACT)' : statusDbString.toUpperCase(),
+              settlement_status: settlementStatus,
+              tx_signature: effectiveSig,
+              paid_amount_usdc: validAmountUsdc,
+              shortage_amount: shortageAmount,
+              excess_amount: excessAmount,
+              updated_at: new Date().toISOString()
+            })
+          }).catch(() => { });
+
           await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?reference_key=eq.${encodeURIComponent(referenceKey)}`, {
             method: 'PATCH',
             headers: {
@@ -1502,8 +1520,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/settlement/list ── Fetch Partitioned Settlements (Demo Public vs Authenticated Private)
   fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string; isDemo?: string } }>('/settlement/list', async (request, reply) => {
-    const { userId, merchantPubkey } = request.query || {};
-    const isDemoBool = false;
+    const { userId, merchantPubkey, isDemo } = request.query || {};
+    const isDemoBool = isDemo === 'true';
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -1519,11 +1537,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const userEmailEnc = encodeURIComponent(userId || 'user@zegaai.site');
 
           if (merchantEnc) {
-            queryParam = `is_demo=eq.false&merchant_pubkey=eq.${merchantEnc}&${queryParam}`;
+            queryParam = `is_demo=eq.false&or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userUuid || ''})&${queryParam}`;
           } else if (userUuid) {
             queryParam = `is_demo=eq.false&or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc})&${queryParam}`;
           } else {
-            queryParam = `is_demo=eq.false&buyer_email=eq.${userEmailEnc}&${queryParam}`;
+            queryParam = `is_demo=eq.false&${queryParam}`;
           }
         }
 
@@ -1553,11 +1571,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             timeAgo: 'Just now'
           }));
 
+          const combinedData = [...mappedEvents];
+          reconciledEvents.forEach((memEvt: any) => {
+            if (!combinedData.some(e => e.signature === memEvt.signature || e.id === memEvt.id)) {
+              combinedData.push(memEvt);
+            }
+          });
+
           return reply.send({
             success: true,
             partition: isDemoBool ? 'public_demo' : 'private_authenticated',
-            count: mappedEvents.length,
-            data: mappedEvents
+            count: combinedData.length,
+            data: combinedData
           });
         }
       } catch (err) {
@@ -1568,8 +1593,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       partition: isDemoBool ? 'public_demo' : 'private_authenticated',
-      count: 0,
-      data: []
+      count: reconciledEvents.length,
+      data: reconciledEvents
     });
   });
   // ── POST /v1/zeroclaw/settlement/check-payment ── Multi-Layer Real-Time Payment Checker & Telegram Auto-Dispatch

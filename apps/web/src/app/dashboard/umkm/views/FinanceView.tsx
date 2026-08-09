@@ -45,8 +45,52 @@ interface FinanceViewProps {
 }
 
 export function FinanceView({ triggerToast, isGuest, userEmail, userName }: FinanceViewProps) {
-  const { t } = useLanguage();
-  const [activeFinanceTab, setActiveFinanceTab] = useState<'overview' | 'zeroclaw'>('overview');
+  const getInitialTab = (): 'overview' | 'zeroclaw' => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = (params.get('tab') || params.get('subtab') || params.get('view') || '').toLowerCase();
+      if (tabParam === 'zeroclaw' || tabParam === 'terminal' || tabParam === 'solana') {
+        return 'zeroclaw';
+      }
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#zeroclaw' || hash === '#terminal' || hash === '#solana') {
+        return 'zeroclaw';
+      }
+    }
+    return 'overview';
+  };
+
+  const [activeFinanceTab, setActiveFinanceTab] = useState<'overview' | 'zeroclaw'>(getInitialTab);
+
+  const handleTabChange = (tab: 'overview' | 'zeroclaw') => {
+    setActiveFinanceTab(tab);
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      if (tab === 'zeroclaw') {
+        url.searchParams.set('tab', 'zeroclaw');
+      } else {
+        url.searchParams.set('tab', 'overview');
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = (params.get('tab') || params.get('subtab') || params.get('view') || '').toLowerCase();
+        if (tabParam === 'zeroclaw' || tabParam === 'terminal' || tabParam === 'solana') {
+          setActiveFinanceTab('zeroclaw');
+        } else if (tabParam === 'overview' || !tabParam) {
+          setActiveFinanceTab('overview');
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [currencyMode, setCurrencyMode] = useState<'USDC' | 'IDR'>('USDC');
   const [periodLabel, setPeriodLabel] = useState('1 Jul - 31 Jul 2026');
   const [cashflowTab, setCashflowTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
@@ -434,7 +478,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold">
             <button
               type="button"
-              onClick={() => setActiveFinanceTab('overview')}
+              onClick={() => handleTabChange('overview')}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                 activeFinanceTab === 'overview'
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm font-black'
@@ -445,7 +489,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             </button>
             <button
               type="button"
-              onClick={() => setActiveFinanceTab('zeroclaw')}
+              onClick={() => handleTabChange('zeroclaw')}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFinanceTab === 'zeroclaw'
                   ? 'bg-emerald-600 text-white shadow-sm font-black'
@@ -789,7 +833,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                       </div>
                       <button
                         type="button"
-                        onClick={() => setActiveFinanceTab('zeroclaw')}
+                        onClick={() => handleTabChange('zeroclaw')}
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
                       >
                         <QrCode size={12} />
@@ -864,7 +908,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 })()}
 
                 <button
-                  onClick={() => setActiveFinanceTab('zeroclaw')}
+                  onClick={() => handleTabChange('zeroclaw')}
                   className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-md transition-all"
                 >
                   Buka Terminal →
