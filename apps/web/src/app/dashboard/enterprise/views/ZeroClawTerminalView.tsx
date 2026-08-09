@@ -310,7 +310,29 @@ export function ZeroClawTerminalView({
     qr_payload_hash?: string;
     audit_signature?: string;
     security_flags?: any;
-  }>>([]);
+  }>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const key = userEmail ? `zeroclaw_withdrawals_${userEmail}` : 'zeroclaw_withdrawals_guest';
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) { }
+    }
+    return [];
+  });
+
+  // Save withdrawHistory to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const key = userEmail ? `zeroclaw_withdrawals_${userEmail}` : 'zeroclaw_withdrawals_guest';
+        localStorage.setItem(key, JSON.stringify(withdrawHistory));
+      } catch (e) { }
+    }
+  }, [withdrawHistory, userEmail]);
 
   // Invoices & Payment Generator State
   const [invoiceAmount, setInvoiceAmount] = useState('500.00');
@@ -566,14 +588,14 @@ export function ZeroClawTerminalView({
   // Fetch Real-time Withdrawal History for Active Merchant Wallet (With Direct Supabase DB Failover)
   const fetchWithdrawalHistory = async () => {
     if (!activeMerchantWallet) return;
-    let fetched = false;
+    let fetchedRows: any[] = [];
+
     try {
       const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/list?merchantPubkey=${encodeURIComponent(activeMerchantWallet)}&userId=${encodeURIComponent(userEmail || '')}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.withdrawals)) {
-          setWithdrawHistory(json.withdrawals);
-          fetched = true;
+          fetchedRows = json.withdrawals;
         }
       }
     } catch (e) {
@@ -581,7 +603,7 @@ export function ZeroClawTerminalView({
     }
 
     // 🛡️ Direct Supabase DB Query Fallback when API Server on 3001 is offline
-    if (!fetched && supabase) {
+    if (fetchedRows.length === 0 && supabase) {
       try {
         const { data: wRows } = await supabase
           .from('zeroclaw_withdrawals')
@@ -591,7 +613,7 @@ export function ZeroClawTerminalView({
           .limit(50);
 
         if (wRows && Array.isArray(wRows)) {
-          const mapped = wRows.map(r => ({
+          fetchedRows = wRows.map(r => ({
             id: r.id,
             user_id: r.user_id,
             merchant_pubkey: r.merchant_pubkey,
@@ -612,11 +634,34 @@ export function ZeroClawTerminalView({
             r2_cdn_proof_url: r.r2_cdn_proof_url,
             created_at: r.created_at,
           }));
-          setWithdrawHistory(mapped);
         }
       } catch (dbErr) {
         // Silent fallback
       }
+    }
+
+    if (fetchedRows.length > 0) {
+      setWithdrawHistory(prev => {
+        const map = new Map<string, any>();
+        prev.forEach(w => {
+          const key = w.reference_key || w.tx_signature || w.id;
+          if (key) map.set(key, w);
+        });
+
+        fetchedRows.forEach(r => {
+          const key = r.reference_key || r.referenceKey || r.tx_signature || r.id;
+          if (key) {
+            const existing = map.get(key);
+            map.set(key, { ...existing, ...r });
+          }
+        });
+
+        return Array.from(map.values()).sort((a, b) => {
+          const timeA = new Date(a.created_at || 0).getTime();
+          const timeB = new Date(b.created_at || 0).getTime();
+          return timeB - timeA; // Newest at top
+        });
+      });
     }
   };
 
@@ -768,6 +813,22 @@ export function ZeroClawTerminalView({
           securityLayers: txObj.securityLayers,
           createdAt: txObj.createdAt || new Date().toISOString(),
         });
+        const newWithdrawalRecord = {
+          id: txObj.id || `wd_${Date.now()}`,
+          destination_address: withdrawDestAddress.trim(),
+          amount: numericAmt,
+          token_symbol: withdrawToken,
+          tx_signature: txObj.txSignature || txObj.referenceKey,
+          reference_key: txObj.referenceKey,
+          status: 'completed',
+          r2_cdn_proof_url: txObj.r2CdnProofUrl,
+          created_at: txObj.createdAt || new Date().toISOString(),
+          otp_verified: true,
+          audit_signature: txObj.auditSignature,
+          security_flags: txObj.securityFlags,
+        };
+
+        setWithdrawHistory(prev => [newWithdrawalRecord, ...prev.filter(w => w.id !== newWithdrawalRecord.id)]);
         setWithdrawStep('SUCCESS');
         setWithdrawOtpInput('');
         fetchWithdrawalHistory();
@@ -3401,7 +3462,16 @@ export function ZeroClawTerminalView({
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                        {withdrawHistory.map((item) => {
+                        {[...withdrawHistory]
+                          .sort((a, b) => {
+                            const timeA = new Date(a.created_at || 0).getTime();
+                            const timeB = new Date(b.created_at || 0).getTime();
+                            if (isNaN(timeA) || isNaN(timeB) || timeA === timeB) {
+                              return (b.id || '').localeCompare(a.id || '');
+                            }
+                            return timeB - timeA; // Newest at top
+                          })
+                          .map((item) => {
                           const isExpanded = expandedHistoryId === item.id;
                           const explorerUrl = item.tx_signature
                             ? `https://explorer.solana.com/tx/${item.tx_signature}?cluster=devnet`
