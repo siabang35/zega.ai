@@ -167,6 +167,7 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | UMKM CRM Full-Stack Real-Time Telemetry Spec | `docs/PRD/39-UMKM-CRM-FULLSTACK-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
 | UMKM AI Marketplace Modernization Spec | `docs/PRD/40-UMKM-AI-MARKETPLACE-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
 | UMKM Billing Overview Modernization Spec | `docs/PRD/41-UMKM-BILLING-OVERVIEW-MODERNIZATION-AND-REALTIME-TELEMETRY-SPEC.md` | Documented & Verified |
+| ZeroClaw Secure Withdrawal Vault & Barcode QR Audit Spec | `docs/PRD/42-ZEROCLAW-SECURE-WITHDRAWAL-VAULT-AND-QR-BARCODE-AUDIT-SPEC.md` | Documented & Verified |
 | Marketplace Overview SQL Migration 75 | `supabase/migrations/sql_umkm/75_umkm_marketplace_overview_realtime.sql` | Executed & RLS/RPC Ready |
 | Billing Invoices SQL Migration 83 | `supabase/migrations/sql_umkm/83_umkm_billing_invoices_realtime.sql` | Executed & Deduplication Ready |
 | Billing Overview RPC SQL Migration 84 | `supabase/migrations/sql_umkm/84_umkm_billing_overview_realtime.sql` | Executed & RPC Ready |

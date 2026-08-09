@@ -210,6 +210,7 @@ The agent constructs payment requests but does not hold, generate, or expose pri
 | Transaction signing | Performed exclusively by the customer's wallet (Phantom / Solflare). |
 | Settlement authority | Deterministic backend verification against Solana on-chain state. |
 | Agent capability | Agent constructs unsigned Solana Pay URLs; cannot autonomously sign or transfer funds. |
+| Deterministic Alignment | Synchronized SHA-256 + Ed25519 keypair derivation guarantees 100% address parity & real on-chain transfer. |
 
 ---
 

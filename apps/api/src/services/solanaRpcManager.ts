@@ -198,6 +198,8 @@ export class SolanaRpcManager {
       'getAccountInfo',
       'getBalance',
       'getTokenAccountBalance',
+      'getTokenAccountsByOwner',
+      'getParsedTokenAccountsByOwner',
       'getSignaturesForAddress',
       'sendTransaction',
       'simulateTransaction',
