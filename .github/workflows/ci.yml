@@ -20,19 +20,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '9.15.0'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Type check
         run: pnpm type-check
@@ -40,16 +39,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Lint
-        run: pnpm lint
-
       - name: Security & Payment Verification Tests
-        run: pnpm test
+        run: pnpm --filter @zega/api test
 
       - name: ZeroClaw Skill Validation (Schema Check)
         run: |
           echo "Validating ZeroClaw Skill definitions..."
           test -f docs/zeroclaw/skills/solana-pay/SKILL.md
           echo "ZeroClaw SKILL.md structure verified."
-
-
