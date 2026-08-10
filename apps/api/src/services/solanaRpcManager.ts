@@ -203,6 +203,7 @@ export class SolanaRpcManager {
       'getSignaturesForAddress',
       'sendTransaction',
       'simulateTransaction',
+      'requestAirdrop',
       'getHealth',
       'getSlot',
       'getBlockTime',

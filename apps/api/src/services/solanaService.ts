@@ -24,18 +24,6 @@ export class SolanaService {
   private static USDC_MINT_DEVNET = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
   /**
-   * Derives a deterministic Solana merchant keypair from user email using SHA-256 HKDF-like seed.
-   */
-  static deriveMerchantWallet(email: string): { keypair: Keypair; publicKey: string } {
-    const cleanEmail = email.toLowerCase().trim();
-    const seed = createHash('sha256')
-      .update(`zeroclaw_merchant_solana_v2_${cleanEmail}`)
-      .digest();
-    const keypair = Keypair.fromSeed(seed);
-    return { keypair, publicKey: keypair.publicKey.toBase58() };
-  }
-
-  /**
    * Generates a unique Base58 Solana Pay reference key.
    */
   static generateReferenceKey(): string {
@@ -69,10 +57,14 @@ export class SolanaService {
       const pubkey = new PublicKey(merchantPubkey);
 
       // 1. Fetch SOL Balance
-      const lamports = await solanaRpcManager.callRpc<number>('getBalance', [pubkey.toBase58()]);
-      if (typeof lamports === 'number') {
-        availableSolLamports = BigInt(lamports);
-        solBalance = lamports / LAMPORTS_PER_SOL;
+      const lamports = await solanaRpcManager.callRpc<any>('getBalance', [pubkey.toBase58()]);
+      const rawLamports = typeof lamports === 'number'
+        ? lamports
+        : (typeof lamports?.value === 'number' ? lamports.value : 0);
+
+      if (rawLamports > 0) {
+        availableSolLamports = BigInt(rawLamports);
+        solBalance = rawLamports / LAMPORTS_PER_SOL;
       }
 
       // 2. Fetch USDC SPL Token Balance

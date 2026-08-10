@@ -7246,21 +7246,40 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * Enterprise Privy Wallet Auto-Provisioning & Linking
    */
-  async ensureUserPrivyWallet(email: string, walletAddress?: string) {
+  async ensureUserPrivyWallet(email: string, walletAddress?: string, privyUserId?: string) {
     if (!email) return null;
     const cleanEmail = email.toLowerCase().trim();
     try {
-      // 1. Try calling Supabase RPC fn_ensure_user_privy_wallet
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('fn_ensure_user_privy_wallet', {
-        p_email: cleanEmail,
-        p_wallet_address: walletAddress || null
-      });
-
-      if (!rpcErr && rpcData) {
-        return rpcData;
+      // 1. Call Backend API /v1/auth/privy-sync for zero-trust Privy Cloud auto-provisioning
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      try {
+        const res = await fetch(`${apiUrl}/v1/auth/privy-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            walletAddress: (walletAddress && !walletAddress.startsWith('privy_sol_')) ? walletAddress.trim() : undefined,
+            privyUserId: privyUserId || undefined
+          })
+        });
+        if (res.ok) {
+          const syncJson = await res.json();
+          const syncedAddress = syncJson?.data?.walletAddress;
+          const { data: synced } = await supabase
+            .from('privy_wallets')
+            .select('*')
+            .eq('email', cleanEmail)
+            .maybeSingle();
+          if (synced) return synced;
+          if (syncedAddress) {
+            return { email: cleanEmail, wallet_address: syncedAddress, chain: 'solana', wallet_type: 'privy_keyless_embedded', status: 'active', is_primary: true };
+          }
+        }
+      } catch (err) {
+        console.warn('Backend privy-sync endpoint warning:', err);
       }
 
-      // 2. Direct fallback lookup/upsert if RPC is not yet executed
+      // 2. Direct fallback lookup if backend call is unavailable
       const { data: existing } = await supabase
         .from('privy_wallets')
         .select('*')
@@ -7271,12 +7290,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         return existing;
       }
 
-      const dummyAddress = walletAddress || `privy_sol_${Math.random().toString(36).substring(2, 15)}`;
+      if (!walletAddress || walletAddress.startsWith('privy_sol_')) {
+        return null; // Production Security Guard: Do NOT insert synthetic fallback address
+      }
+
       const { data: inserted } = await supabase
         .from('privy_wallets')
         .upsert({
           email: cleanEmail,
-          wallet_address: dummyAddress,
+          wallet_address: walletAddress.trim(),
+          privy_user_id: privyUserId || null,
           chain: 'solana',
           wallet_type: 'privy_keyless_embedded',
           status: 'active',

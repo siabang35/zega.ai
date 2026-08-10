@@ -232,8 +232,21 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     return () => unsubscribe();
   }, []);
 
-  const activeMerchantWallet = PrivyWalletService.getEmbeddedSolanaWallet(userEmail || '').address;
-  const shortMerchantWallet = activeMerchantWallet ? `${activeMerchantWallet.substring(0, 6)}...${activeMerchantWallet.substring(activeMerchantWallet.length - 6)}` : 'CikBeriuk...XYZ123';
+  const [activeMerchantWallet, setActiveMerchantWallet] = useState<string>('');
+
+  useEffect(() => {
+    if (userEmail) {
+      SupabaseDashboardService.ensureUserPrivyWallet(userEmail).then((privyWallet) => {
+        if (privyWallet && privyWallet.wallet_address) {
+          setActiveMerchantWallet(privyWallet.wallet_address);
+        }
+      }).catch((err) => {
+        console.warn('ensureUserPrivyWallet resolution note:', err);
+      });
+    }
+  }, [userEmail]);
+
+  const shortMerchantWallet = activeMerchantWallet ? `${activeMerchantWallet.substring(0, 6)}...${activeMerchantWallet.substring(activeMerchantWallet.length - 6)}` : 'Memuat Vault...';
 
   const handleCopyWallet = () => {
     navigator.clipboard.writeText(activeMerchantWallet || 'CikBeriuk...XYZ123');

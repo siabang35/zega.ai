@@ -7,6 +7,7 @@ import { TurnstileService } from '../../services/turnstileService.js';
 import { OtpStore } from '../../services/otpStore.js';
 import { SupabaseService } from '../../services/supabaseService.js';
 import { logger } from '../../utils/logger.js';
+import { upsertPrivyWalletToDb } from './zeroclaw.routes.js';
 
 /**
  * FOUNDATION HARDENING — Parse superadmin emails from explicit env configuration.
@@ -364,6 +365,8 @@ export async function authRoutes(app: FastifyInstance) {
     const privySyncSchema = z.object({
       email: z.string().email(),
       fullName: z.string().optional(),
+      walletAddress: z.string().optional(),
+      privyUserId: z.string().optional(),
       // SECURITY: role is NOT accepted from client — derived server-side only
       provider: z.enum(['email', 'google', 'github']).default('email'),
     });
@@ -413,7 +416,9 @@ export async function authRoutes(app: FastifyInstance) {
     if (privyAppId && privyAppSecret) {
       try {
         const authHeader = 'Basic ' + Buffer.from(`${privyAppId}:${privyAppSecret}`).toString('base64');
-        const res = await fetch('https://auth.privy.io/api/v1/users', {
+        
+        // 1. Attempt POST https://auth.privy.io/api/v1/users (Privy Server API Docs)
+        const createRes = await fetch('https://auth.privy.io/api/v1/users', {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
@@ -435,14 +440,107 @@ export async function authRoutes(app: FastifyInstance) {
           }),
         });
 
-        if (res.ok) {
-          privyCloudUser = await res.json();
+        if (createRes.ok) {
+          privyCloudUser = await createRes.json();
         } else {
-          const errText = await res.text();
-          console.warn('Privy REST API note (User may already exist):', res.status, errText);
+          // 2. If user already exists, fetch existing user profile from Privy Server API by DID or Email
+          try {
+            const targetId = body.privyUserId || (body.email ? `email/${encodeURIComponent(body.email)}` : null);
+            if (targetId) {
+              const getRes = await fetch(`https://auth.privy.io/api/v1/users/${targetId}`, {
+                headers: {
+                  'Authorization': authHeader,
+                  'privy-app-id': privyAppId,
+                }
+              });
+              if (getRes.ok) {
+                privyCloudUser = await getRes.json();
+              }
+            }
+          } catch {}
+
+          // 3. If existing Privy user lacks a Solana embedded wallet, provision it now via Privy Server API
+          if (privyCloudUser && privyCloudUser.id) {
+            const hasSolanaWallet = privyCloudUser.wallets?.some((w: any) => w.chain_type === 'solana');
+            if (!hasSolanaWallet) {
+              try {
+                const addWalletRes = await fetch(`https://auth.privy.io/api/v1/users/${privyCloudUser.id}/wallets`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': authHeader,
+                    'privy-app-id': privyAppId,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    chain_type: 'solana'
+                  })
+                });
+                if (addWalletRes.ok) {
+                  const newWalletData: any = await addWalletRes.json();
+                  if (newWalletData?.address) {
+                    if (!privyCloudUser.wallets) privyCloudUser.wallets = [];
+                    privyCloudUser.wallets.push({ chain_type: 'solana', address: newWalletData.address });
+                  }
+                }
+              } catch {}
+            }
+          }
         }
       } catch (e: any) {
         console.warn('Privy REST API network note:', e.message);
+      }
+    }
+
+    // Extract wallet address and DID user ID and auto-upsert to Supabase privy_wallets
+    const resolvedWalletAddress = body.walletAddress ||
+      privyCloudUser?.wallets?.find((w: any) => w.chain_type === 'solana')?.address ||
+      privyCloudUser?.linked_accounts?.find((a: any) => a.type === 'wallet' && a.chain_type === 'solana')?.address;
+
+    const resolvedPrivyUserId = body.privyUserId || privyCloudUser?.id || null;
+
+    // Auto-provision Supabase Auth user in auth.users if not present
+    let supabaseAuthUserId: string | null = null;
+    const supabaseAdmin = SupabaseService.getClient();
+    if (supabaseAdmin) {
+      try {
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+        const found = existingUser?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
+        if (found) {
+          supabaseAuthUserId = found.id;
+        } else {
+          const { data: created } = await supabaseAdmin.auth.admin.createUser({
+            email: normalizedEmail,
+            email_confirm: true,
+            user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
+          });
+          if (created?.user?.id) {
+            supabaseAuthUserId = created.user.id;
+          }
+        }
+      } catch (e: any) {
+        console.warn('Supabase Auth user auto-provision note:', e?.message);
+      }
+    }
+
+    if (resolvedWalletAddress) {
+      await upsertPrivyWalletToDb(body.email, resolvedWalletAddress);
+    }
+
+    // Fetch canonical immutable wallet address from privy_wallets DB
+    let finalWalletAddress = resolvedWalletAddress || null;
+    if (supabaseAdmin) {
+      try {
+        const { data: dbWallet } = await supabaseAdmin
+          .from('privy_wallets')
+          .select('wallet_address')
+          .eq('email', normalizedEmail)
+          .eq('chain', 'solana')
+          .maybeSingle();
+        if (dbWallet?.wallet_address) {
+          finalWalletAddress = dbWallet.wallet_address;
+        }
+      } catch (e: any) {
+        console.warn('Canonical Privy wallet lookup note:', e?.message);
       }
     }
 
@@ -452,6 +550,7 @@ export async function authRoutes(app: FastifyInstance) {
         email: body.email,
         role: derivedRole,
         privyCloudUser,
+        walletAddress: finalWalletAddress,
         message: `User ${body.email} synchronized to Privy Official Cloud & Solana Embedded Wallet created.`,
       },
     };

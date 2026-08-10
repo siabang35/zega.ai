@@ -181,15 +181,16 @@ export class ZeroClawSignatureMonitorService {
       }
 
       const statusItem = statusResult?.value?.[0];
+      const effectiveTx = txResult?.value || txResult;
 
-      if (!statusItem && !txResult) {
+      if (!statusItem && !effectiveTx) {
         return null; // Not found on-chain
       }
 
-      let slot = statusItem?.slot || txResult?.slot || 0;
-      let blockTime = txResult?.blockTime || null;
+      let slot = statusItem?.slot || effectiveTx?.slot || 0;
+      let blockTime = effectiveTx?.blockTime || null;
       let confirmationStatus = statusItem?.confirmationStatus || 'confirmed';
-      let err = statusItem?.err || txResult?.meta?.err || null;
+      let err = statusItem?.err || effectiveTx?.meta?.err || null;
       let sender: string | null = null;
       let recipient: string | null = null;
       let amountUsdc = 0;
@@ -198,9 +199,9 @@ export class ZeroClawSignatureMonitorService {
       let mint: string | null = null;
       const referenceKeys: string[] = [];
 
-      if (txResult && txResult.transaction) {
-        const message = txResult.transaction.message;
-        const meta = txResult.meta;
+      if (effectiveTx && effectiveTx.transaction) {
+        const message = effectiveTx.transaction.message;
+        const meta = effectiveTx.meta;
         const accountKeys = message?.accountKeys || [];
         for (const k of accountKeys) {
           const kStr = typeof k === 'string' ? k : k?.pubkey;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
+import { SupabaseDashboardService } from '../../services/supabaseService';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
 import { getApiBase } from '../../../../config/api';
@@ -249,7 +250,16 @@ export function ZeroClawTerminalView({
   const [activeMerchantWallet, setActiveMerchantWallet] = useState<string>(() => deriveEmbeddedWallet(userEmail));
 
   useEffect(() => {
-    setActiveMerchantWallet(deriveEmbeddedWallet(userEmail));
+    if (userEmail) {
+      SupabaseDashboardService.ensureUserPrivyWallet(userEmail).then((privyWallet) => {
+        if (privyWallet && privyWallet.wallet_address) {
+          setActiveMerchantWallet(privyWallet.wallet_address);
+        }
+      }).catch((err) => {
+        console.warn('ensureUserPrivyWallet resolution note:', err);
+      });
+    }
+
     // 🧹 Purge legacy zeroclaw localStorage keys to enforce 100% fresh real-time fetching from backend & Supabase DB
     if (typeof window !== 'undefined') {
       try {
@@ -800,14 +810,14 @@ export function ZeroClawTerminalView({
       const json = await res.json();
       if (res.ok && json.success) {
         onTriggerToast(`✅ ${json.message || 'Penarikan 7-Layer Berhasil!'}`);
-        setWithdrawModalAlert({ type: 'success', title: 'Penarikan Berhasil', message: json.message || `Penarikan sebesar ${numericAmt} ${withdrawToken} berhasil diproses.` });
         const txObj = json.withdrawal || {};
+        const realTxSig = txObj.txSignature || txObj.tx_signature || null;
         setSuccessfulTxData({
           id: txObj.id || `wd_${Date.now()}`,
-          txSignature: txObj.txSignature || `wd_tx_${Date.now()}`,
+          txSignature: realTxSig || undefined,
           referenceKey: txObj.referenceKey,
           solanaPayUrl: txObj.solanaPayUrl,
-          explorerUrl: txObj.explorerUrl || `https://explorer.solana.com/address/${withdrawDestAddress}?cluster=devnet`,
+          explorerUrl: realTxSig ? `https://explorer.solana.com/tx/${realTxSig}?cluster=devnet` : `https://explorer.solana.com/address/${withdrawDestAddress}?cluster=devnet`,
           auditSignature: txObj.auditSignature || `hmac_sha256_${Date.now()}`,
           r2CdnProofUrl: txObj.r2CdnProofUrl,
           amount: numericAmt,
@@ -824,7 +834,7 @@ export function ZeroClawTerminalView({
           destination_address: withdrawDestAddress.trim(),
           amount: numericAmt,
           token_symbol: withdrawToken,
-          tx_signature: txObj.txSignature || txObj.referenceKey,
+          tx_signature: realTxSig,
           reference_key: txObj.referenceKey,
           status: 'completed',
           r2_cdn_proof_url: txObj.r2CdnProofUrl,
