@@ -164,26 +164,18 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
       }
 
       try {
-        const apiBase = typeof window !== 'undefined' && (window.location.hostname.includes('zegaai.site') || window.location.hostname.includes('render.com'))
+        const apiBase = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site')
           ? 'https://zega-ai.onrender.com'
-          : '';
+          : (typeof window !== 'undefined' && window.location.port === '3000' ? 'http://localhost:3001' : '');
 
-        const res = await fetch(`${apiBase}/v1/zeroclaw/settlement/list?isDemo=false`);
+        const res = await fetch(`${apiBase}/v1/zeroclaw/settlement/check?reference=${encodeURIComponent(params.reference)}`);
         if (res.ok) {
           const json = await res.json();
-          if (json.data && Array.isArray(json.data)) {
-            const found = json.data.find((evt: any) =>
-              evt.signature?.includes(params.reference) ||
-              evt.memo?.includes(params.reference) ||
-              evt.id?.includes(params.reference)
-            );
-
-            if (found) {
-              setPaymentStatus(found.settlementStatus || 'settled_exact');
-              setSettlementDetails(found);
-              setIsPolling(false);
-              clearInterval(intervalId);
-            }
+          if (json.success && json.settled) {
+            setPaymentStatus(json.settlementStatus || 'settled_exact');
+            setSettlementDetails(json.data || { signature: json.signature, status: 'completed' });
+            setIsPolling(false);
+            if (intervalId) clearInterval(intervalId);
           }
         }
       } catch { /* graceful fallback */ }
@@ -461,17 +453,23 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-emerald-300">PEMBAYARAN BERHASIL & LUNAS (EXACT)</p>
                 <p className="text-[11px] text-emerald-400/90 font-medium">Lunas 100% & Terkonfirmasi On-Chain di Solana</p>
-                {settlementDetails?.signature && (
-                  <a
-                    href={`https://explorer.solana.com/tx/${settlementDetails.signature}?cluster=devnet`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono underline text-emerald-300 hover:text-white"
-                  >
-                    <span>Tx Signature: {settlementDetails.signature.slice(0, 16)}...</span>
-                    <ExternalLink className="size-3" />
-                  </a>
-                )}
+                {(() => {
+                  const rawSig = settlementDetails?.signature || settlementDetails?.tx_signature;
+                  const isValidTxSig = typeof rawSig === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(rawSig.trim());
+                  if (!isValidTxSig) return null;
+                  const cleanSig = rawSig.trim();
+                  return (
+                    <a
+                      href={`https://explorer.solana.com/tx/${cleanSig}?cluster=devnet`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono underline text-emerald-300 hover:text-white"
+                    >
+                      <span>Tx Signature: {cleanSig.slice(0, 16)}...</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  );
+                })()}
               </div>
             </div>
           ) : paymentStatus === 'settled_underpaid' ? (

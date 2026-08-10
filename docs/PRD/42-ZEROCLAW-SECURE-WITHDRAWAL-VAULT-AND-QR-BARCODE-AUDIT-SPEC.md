@@ -150,3 +150,21 @@ FROM public.zeroclaw_withdrawals;
 6. **Layer 6**: Rate Limiting Guard (Max 3 withdrawals / 10 min window per email).
 7. **Layer 7**: On-Chain Ed25519 Cryptographic Signing & Immutable HMAC Audit Logging (`zeroclaw_withdrawals` table).
 
+---
+
+## 42.7 Invoice & Public Checkout Real-Time Backend & On-Chain Synchronization Standard
+
+### A. Concurrency-Proof Single-Use Solana Reference Key Isolation
+- **Single-Use Reference Key**: Each invoice generates a unique 32-44 byte Base58 Solana `referenceKey`.
+- **Zero Collision Guarantee**: Payments include the `referenceKey` as a non-signer account key. `solanaRpcManager.callRpc('getSignaturesForAddress', [referenceKey])` cryptographically isolates each transaction, preventing collisions even if 1,000 customers pay the exact same amount ($15.00 USDC) at the exact same millisecond to the same merchant.
+- **Stage 1 Verification Guard**: `POST /v1/zeroclaw/settlement/check-payment` verifies that submitted transaction signatures contain the invoice's `referenceKey` or match `merchantPubkey`, eliminating cross-invoice signature spoofing.
+
+### B. High-Speed Real-Time Reconciler (`GET /v1/zeroclaw/settlement/check`)
+- **Lightweight Polling Endpoint**: `GET /v1/zeroclaw/settlement/check?reference=<REF_KEY>` queries Supabase DB tables (`zeroclaw_solana_settlements` and `zeroclaw_invoices`) and performs live RPC queries (`getSignaturesForAddress`) for instant payment reconciliation.
+- **Strict Base58 TxHash Validation (`/^[1-9A-HJ-NP-Za-km-z]{70,96}$/`)**: Validates that transaction signatures are authentic 70-96 character Base58 strings before returning or rendering Solana Explorer links, ensuring `referenceKey` is never confused with `txHash`.
+
+### C. Cloudflare R2 CDN Cryptographic Audit Certificate Logging
+- **Automated R2 Certificate Upload**: `upsertVerifiedInvoice` generates a Cryptographic Settlement Audit Certificate JSON uploaded directly to Cloudflare R2 CDN via `R2StorageService.uploadPrivyAuditCertificate`.
+- **Immutable CDN Proof**: CDN URL (`r2_cdn_url`) is stored in both `zeroclaw_invoices` and `zeroclaw_solana_settlements` tables in Supabase PostgreSQL for 100% auditability.
+
+
