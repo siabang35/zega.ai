@@ -29,13 +29,15 @@ const MAX_TX_AGE_SECONDS = 72 * 60 * 60;
 /** OWASP Anti-Prompt-Injection regex patterns */
 export const INJECTION_PATTERNS: RegExp[] = [
   /override\s+safety/i,
+  /prompt\s+override/i,
+  /grant\s+admin\s+access/i,
   /bypass\s+safety/i,
   /bypass\s+approval/i,
   /refund\s+without\s+verification/i,
   /force\s+payout/i,
-  /ignore\s+previous\s+instructions/i,
+  /ignore\s+(all\s+)?previous\s+instructions/i,
   /transfer\s+all\s+funds/i,
-  /system\s+prompt\s+leak/i,
+  /system\s+prompt\s+(leak|override)/i,
   /disregard\s+(all\s+)?prior\s+instructions/i,
   /you\s+are\s+now\s+in\s+developer\s+mode/i,
   /do\s+anything\s+now/i,

@@ -55,13 +55,16 @@ export async function registerPlugins(app: FastifyInstance) {
       const isAllowedDomain =
         /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
         origin.endsWith('.zegaai.site') ||
-        origin.endsWith('.zega.ai') ||
-        origin.endsWith('.vercel.app') ||
-        origin.endsWith('.onrender.com') ||
-        origin.endsWith('.pages.dev') ||
-        origin.endsWith('.netlify.app');
+        origin.endsWith('.zega.ai');
+        // SECURITY (F-07 FIX): Removed wildcard hosting-provider subdomains
+        // (*.vercel.app, *.onrender.com, *.netlify.app, *.pages.dev)
+        // These allowed any attacker-deployed site to make authenticated requests.
 
-      const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+      // SECURITY (F-003 FIX): Localhost origins are ONLY allowed in development mode.
+      // In production, any local process could otherwise make authenticated cross-origin requests.
+      const isLocalhost =
+        envConfig.NODE_ENV !== 'production' &&
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
       if (isConfigured || isAllowedDomain || isLocalhost) {
         return cb(null, true);
@@ -100,13 +103,25 @@ export async function registerPlugins(app: FastifyInstance) {
     },
   });
 
+  app.decorate('authenticate', async (request: any, reply: any) => {
+    try {
+      await request.jwtVerify();
+    } catch (err) {
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
+      });
+    }
+  });
+
   // ── 5. Rate Limiting ──
   await app.register(fastifyRateLimit, {
     max: 100,
     timeWindow: '1 minute',
     keyGenerator: (req) => {
-      // Rate limit by authenticated user, or by IP for anonymous
-      return (req.headers['x-forwarded-for'] as string) || req.ip;
+      // SECURITY (F-08 FIX): Use Fastify's trusted request.ip (respects trustProxy config)
+      // NOT the raw X-Forwarded-For header which is attacker-spoofable
+      return req.ip;
     },
     errorResponseBuilder: (_req, context) => ({
       success: false,
@@ -200,10 +215,21 @@ export async function registerPlugins(app: FastifyInstance) {
     });
   }
 
-  // ── 7. Global Error Handler ──
-  app.setErrorHandler((err, _request, reply) => {
+  // ── 7. Global OWASP Error Handler (F-020 FIX) ──
+  app.setErrorHandler((err, request, reply) => {
+    const correlationId = (request.raw as any)?.correlationId || (request.headers['x-correlation-id'] as string) || (request.headers['x-request-id'] as string) || request.id || 'unknown';
+    const timestamp = new Date().toISOString();
+
     if (err instanceof ZegaError) {
-      return reply.status(err.statusCode).send(err.toJSON());
+      const json = err.toJSON();
+      return reply.status(err.statusCode).send({
+        ...json,
+        error: {
+          ...json.error,
+          correlationId,
+          timestamp,
+        },
+      });
     }
 
     // Cast for property access (Fastify enriches errors with these fields)
@@ -217,6 +243,8 @@ export async function registerPlugins(app: FastifyInstance) {
           code: 'VALIDATION_ERROR',
           message: error.message,
           statusCode: 400,
+          correlationId,
+          timestamp,
           details: { validation: error.validation },
         },
       });
@@ -230,25 +258,34 @@ export async function registerPlugins(app: FastifyInstance) {
           code: 'RATE_LIMIT_EXCEEDED',
           message: error.message,
           statusCode: 429,
+          correlationId,
+          timestamp,
         },
       });
     }
 
-    // Unexpected errors — log and return generic 500
-    app.log.error(error, 'Unhandled error');
+    // Unexpected errors — log with correlationId and return OWASP safe envelope
+    app.log.error({ err: error, correlationId }, 'Unhandled server exception');
     return reply.status(500).send({
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
         message: envConfig.NODE_ENV === 'production' ? 'Internal server error' : error.message,
         statusCode: 500,
+        correlationId,
+        timestamp,
       },
     });
   });
 
-  // ── 8. Request ID Decoration ──
-  app.addHook('onRequest', async (request) => {
-    request.headers['x-request-id'] = request.headers['x-request-id'] || request.id;
+  // ── 8. Request Correlation ID Propagation Hook (F-018 FIX) ──
+  app.addHook('onRequest', async (request, reply) => {
+    const incomingCorrelationId = (request.headers['x-correlation-id'] || request.headers['x-request-id'] || request.id) as string;
+    const correlationId = String(incomingCorrelationId).trim();
+    request.headers['x-correlation-id'] = correlationId;
+    request.headers['x-request-id'] = correlationId;
+    (request.raw as any).correlationId = correlationId;
+    reply.header('x-correlation-id', correlationId);
   });
 
   app.log.info('✅ All core plugins registered');

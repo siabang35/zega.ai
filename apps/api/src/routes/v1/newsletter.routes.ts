@@ -135,10 +135,11 @@ export async function newsletterRoutes(app: FastifyInstance) {
     }
   );
 
-  /** POST /v1/newsletter/dispatch-report — Real Executive Email Dispatcher */
+  /** POST /v1/newsletter/dispatch-report — Real Executive Email Dispatcher (Auth Required) */
   app.post(
     '/dispatch-report',
     {
+      onRequest: [app.authenticate],
       schema: {
         tags: ['Reports'],
         summary: 'Dispatch real executive sales & performance email report via Brevo/SMTP',

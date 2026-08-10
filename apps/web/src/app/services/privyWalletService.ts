@@ -135,11 +135,8 @@ export class PrivyWalletService {
       hashBytes[i * 4 + 3] = hash[i] & 0xff;
     }
 
-    try {
-      return Keypair.fromSeed(hashBytes).publicKey.toBase58();
-    } catch {
-      return this.encodeBase58(hashBytes);
-    }
+    const keypair = Keypair.fromSeed(hashBytes);
+    return keypair.publicKey.toBase58();
   }
 
   /**

@@ -242,11 +242,15 @@ export function ZeroClawTerminalView({
   const accountMode: 'demo' | 'authenticated' = 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    const targetEmail = email || userEmail || '';
+    const targetEmail = (email || userEmail || '').toLowerCase().trim();
     return PrivyWalletService.getEmbeddedSolanaWallet(targetEmail).address;
   };
 
-  const activeMerchantWallet = deriveEmbeddedWallet(userEmail);
+  const [activeMerchantWallet, setActiveMerchantWallet] = useState<string>(() => deriveEmbeddedWallet(userEmail));
+
+  useEffect(() => {
+    setActiveMerchantWallet(deriveEmbeddedWallet(userEmail));
+  }, [userEmail]);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
@@ -260,6 +264,7 @@ export function ZeroClawTerminalView({
   const [withdrawStep, setWithdrawStep] = useState<'FORM' | 'OTP' | 'SUCCESS'>('FORM');
   const [withdrawOtpInput, setWithdrawOtpInput] = useState('');
   const [otpDispatchedNotice, setOtpDispatchedNotice] = useState<string | null>(null);
+  const [withdrawModalAlert, setWithdrawModalAlert] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; title?: string; message: string } | null>(null);
   const [withdrawDestAddress, setWithdrawDestAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('10.00');
   const [withdrawToken, setWithdrawToken] = useState<'USDC' | 'SOL'>('USDC');
@@ -479,14 +484,17 @@ export function ZeroClawTerminalView({
 
   // Fetch real SOL & USDC balances from Solana Devnet RPC & Supabase DB Fallback
   const fetchOnChainBalances = async () => {
-    if (!activeMerchantWallet) return;
+    if (!activeMerchantWallet || activeMerchantWallet.length < 32) return;
     let fetched = false;
 
     try {
-      const res = await fetch(`${API_BASE}/v1/zeroclaw/balance?address=${encodeURIComponent(activeMerchantWallet)}`);
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/balance?address=${encodeURIComponent(activeMerchantWallet)}&userId=${encodeURIComponent(userEmail || '')}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
+          if (json.merchantWallet && typeof json.merchantWallet === 'string' && json.merchantWallet.length >= 32) {
+            setActiveMerchantWallet(json.merchantWallet);
+          }
           if (typeof json.solBalance === 'string') setSolBalance(json.solBalance);
           if (typeof json.usdcBalance === 'string') setUsdcBalance(json.usdcBalance);
           fetched = true;
@@ -499,7 +507,6 @@ export function ZeroClawTerminalView({
     // 🛡️ Failover: Direct Solana Devnet RPC when local API is unreachable
     if (!fetched) {
       try {
-        // SOL Balance via direct RPC
         const rpcRes = await fetch('https://api.devnet.solana.com', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -513,7 +520,6 @@ export function ZeroClawTerminalView({
           }
         }
 
-        // SPL USDC Token Balance via direct RPC getTokenAccountsByOwner
         const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
         const tokenRpcRes = await fetch('https://api.devnet.solana.com', {
           method: 'POST',
@@ -720,14 +726,22 @@ export function ZeroClawTerminalView({
 
   // Step 1: Request 6-Digit Email OTP Passcode for Withdrawal Verification
   const handleRequestWithdrawOtp = async () => {
+    setWithdrawModalAlert(null);
     if (!withdrawDestAddress || withdrawDestAddress.trim().length < 32) {
+      setWithdrawModalAlert({ type: 'warning', title: 'Alamat Tidak Valid', message: 'Masukkan Alamat Solana (Base58 32-44 Karakter) yang valid!' });
       onTriggerToast('⚠️ Masukkan Alamat Solana (Base58 32-44 Karakter) yang valid!');
       return;
     }
     const numericAmt = parseFloat(withdrawAmount) || 0;
     if (numericAmt <= 0) {
+      setWithdrawModalAlert({ type: 'warning', title: 'Nominal Tidak Valid', message: 'Jumlah penarikan harus lebih besar dari 0!' });
       onTriggerToast('⚠️ Jumlah penarikan harus lebih besar dari 0!');
       return;
+    }
+
+    const availableBal = parseFloat(withdrawToken === 'USDC' ? usdcBalance : solBalance) || 0;
+    if (availableBal > 0 && numericAmt > availableBal * 1.5) {
+      onTriggerToast(`ℹ️ Memeriksa saldo vault live on-chain untuk penarikan ${numericAmt} ${withdrawToken}...`);
     }
 
     setWithdrawLoading(true);
@@ -750,11 +764,15 @@ export function ZeroClawTerminalView({
       if (res.ok && json.success) {
         onTriggerToast(`📩 Kode OTP dikirim ke ${userEmail}! Periksa kotak masuk/spam.`);
         setOtpDispatchedNotice(json.message);
+        setWithdrawModalAlert({ type: 'success', title: 'Kode OTP Terkirim', message: `Kode 6-digit dikirim ke ${userEmail}. Silakan periksa inbox/spam.` });
         setWithdrawStep('OTP');
       } else {
-        onTriggerToast(`⚠️ Gagal Kirim OTP: ${json.message || json.error || 'Server Error'}`);
+        const errMsg = json.message || json.error || 'Server Error';
+        setWithdrawModalAlert({ type: 'error', title: 'Gagal Mengirim OTP', message: errMsg });
+        onTriggerToast(`⚠️ Gagal Kirim OTP: ${errMsg}`);
       }
     } catch (err) {
+      setWithdrawModalAlert({ type: 'error', title: 'Kesalahan Jaringan', message: 'Gagal terhubung ke API gateway OTP.' });
       onTriggerToast('⚠️ Gagal terhubung ke API gateway OTP.');
     } finally {
       setWithdrawLoading(false);
@@ -764,17 +782,17 @@ export function ZeroClawTerminalView({
   // Step 2: Submit 6-Digit OTP and Execute Vault Withdrawal
   const handleExecuteWithdrawal = async () => {
     if (!withdrawOtpInput || withdrawOtpInput.trim().length !== 6) {
+      setWithdrawModalAlert({ type: 'warning', title: 'Kode OTP Inkomplit', message: 'Masukkan 6-digit kode OTP verifikasi yang dikirim ke email!' });
       onTriggerToast('⚠️ Masukkan 6-digit kode OTP verifikasi yang dikirim ke email!');
       return;
     }
     const numericAmt = parseFloat(withdrawAmount) || 0;
 
     setWithdrawLoading(true);
+    setWithdrawModalAlert(null);
     onTriggerToast(`🔒 Mengirim Penarikan Multi-Layer Terverifikasi (${numericAmt} ${withdrawToken})...`);
 
     try {
-      const resolvedTxSig = await resolveLatestSolanaDevnetSignature(withdrawDestAddress.trim(), activeMerchantWallet).catch(() => '');
-
       const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -788,13 +806,13 @@ export function ZeroClawTerminalView({
           qrScanned,
           qrDeviceId: 'cam_web_embedded_01',
           qrPayloadHash: qrPayloadHash || (withdrawDestAddress ? 'hash_' + withdrawDestAddress.slice(0, 8) : null),
-          txSignature: resolvedTxSig || undefined,
         })
       });
 
       const json = await res.json();
       if (res.ok && json.success) {
         onTriggerToast(`✅ ${json.message || 'Penarikan 7-Layer Berhasil!'}`);
+        setWithdrawModalAlert({ type: 'success', title: 'Penarikan Berhasil', message: json.message || `Penarikan sebesar ${numericAmt} ${withdrawToken} berhasil diproses.` });
         const txObj = json.withdrawal || {};
         setSuccessfulTxData({
           id: txObj.id || `wd_${Date.now()}`,
@@ -836,9 +854,11 @@ export function ZeroClawTerminalView({
       } else {
         const errorMsg = json.message || json.error || 'Terjadi kesalahan pada verifikasi penarikan.';
         const layerInfo = json.securityLayer ? ` (Layer ${json.securityLayer})` : '';
+        setWithdrawModalAlert({ type: 'error', title: `Penarikan Gagal${layerInfo}`, message: errorMsg });
         onTriggerToast(`⚠️ Penarikan Gagal${layerInfo}: ${errorMsg}`);
       }
     } catch (err) {
+      setWithdrawModalAlert({ type: 'error', title: 'Kesalahan Jaringan', message: 'Terjadi kesalahan jaringan saat memproses penarikan.' });
       onTriggerToast('⚠️ Terjadi kesalahan jaringan saat memproses penarikan.');
     } finally {
       setWithdrawLoading(false);
@@ -4887,46 +4907,93 @@ checkpoint = "human_approval_on_refund"`}
               </div>
             </div>
 
+            {/* Inline Modal Card Alert Banner — Never Covered, Never Floating */}
+            {withdrawModalAlert && (
+              <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${
+                withdrawModalAlert.type === 'error'
+                  ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                  : withdrawModalAlert.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                  : withdrawModalAlert.type === 'warning'
+                  ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                  : 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-300 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200'
+              }`}>
+                {withdrawModalAlert.type === 'error' && <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />}
+                {withdrawModalAlert.type === 'success' && <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
+                {withdrawModalAlert.type === 'warning' && <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
+                {withdrawModalAlert.type === 'info' && <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  {withdrawModalAlert.title && <h5 className="font-extrabold text-xs">{withdrawModalAlert.title}</h5>}
+                  <p className="leading-relaxed font-medium">{withdrawModalAlert.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWithdrawModalAlert(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
             {withdrawStep === 'FORM' ? (
               <>
-                <div className="space-y-3 pt-1">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>Pilih Aset Token:</span>
-                    </label>
+                <div className="space-y-3.5 pt-1">
+                  {/* Token Asset Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <label>Pilih Aset Token:</label>
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <span>Saldo Real Vault:</span>
+                        <strong className="text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                          {withdrawToken === 'USDC' ? usdcBalance : solBalance} {withdrawToken}
+                        </strong>
+                      </span>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setWithdrawToken('USDC')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${withdrawToken === 'USDC'
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-between ${withdrawToken === 'USDC'
                           ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400 border-blue-500 ring-1 ring-blue-500/50'
                           : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
-                        <img src={getR2CdnUrl('/assets/logo/usdc.webp')} alt="USDC" className="size-4 object-contain" />
-                        <span>USDC Token</span>
+                        <div className="flex items-center gap-2">
+                          <img src={getR2CdnUrl('/assets/logo/usdc.webp')} alt="USDC" className="size-4 object-contain" />
+                          <span>USDC Token</span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-blue-100/80 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold border border-blue-200 dark:border-blue-800">
+                          {usdcBalance}
+                        </span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setWithdrawToken('SOL')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${withdrawToken === 'SOL'
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-between ${withdrawToken === 'SOL'
                           ? 'bg-emerald-50 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 border-emerald-500 ring-1 ring-emerald-500/50'
                           : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
-                        <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="SOL" className="size-4 object-contain" />
-                        <span>SOL Native</span>
+                        <div className="flex items-center gap-2">
+                          <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="SOL" className="size-4 object-contain" />
+                          <span>SOL Native</span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-emerald-100/80 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-200 dark:border-emerald-800">
+                          {solBalance}
+                        </span>
                       </button>
                     </div>
                   </div>
 
+                  {/* Solana Destination Address Input */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                       <label className="flex items-center gap-1.5">
-                        <span>Alamat Solana Tujuan (Base58):</span>
+                        <span>Alamat Tujuan Solana (Base58):</span>
                         {qrScanned && (
                           <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                            📷 Scanned via QR
+                            📷 Scanned QR
                           </span>
                         )}
                       </label>
@@ -4937,57 +5004,51 @@ checkpoint = "human_approval_on_refund"`}
                           className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer font-bold"
                         >
                           <QrCode size={12} />
-                          <span>Scan QR / Barcode</span>
+                          <span>Scan QR</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleScanDestinationWallet()}
                           disabled={scanLoading || !withdrawDestAddress || withdrawDestAddress.length < 32}
-                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50 font-bold"
                         >
                           <Search size={11} className={scanLoading ? 'animate-spin' : ''} />
-                          <span>{scanLoading ? 'Scanning...' : 'Scan RPC'}</span>
+                          <span>{scanLoading ? 'Checking...' : 'Cek RPC'}</span>
                         </button>
                       </div>
                     </div>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={withdrawDestAddress}
-                        onChange={(e) => {
-                          setWithdrawDestAddress(e.target.value);
-                          setScannedWalletInfo(null);
-                          setQrScanned(false);
-                        }}
-                        placeholder="Tempel Alamat Wallet Solana (Base58 Key)"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={withdrawDestAddress}
+                      onChange={(e) => {
+                        setWithdrawDestAddress(e.target.value);
+                        setScannedWalletInfo(null);
+                        setQrScanned(false);
+                      }}
+                      placeholder="Tempel Alamat Solana (Base58 Public Key)"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
 
                     {scannedWalletInfo && (
-                      <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-slate-950 border border-emerald-300 dark:border-blue-500/30 font-mono text-[11px] space-y-1 animate-in fade-in duration-150">
-                        <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400 font-bold">
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 size={12} /> Live RPC Verified:
-                          </span>
-                          <span>{scannedWalletInfo.solBalance} SOL</span>
-                        </div>
-                        <div className="text-slate-600 dark:text-slate-400 text-[10px]">
-                          Tipe Akun: <span className="text-slate-900 dark:text-slate-200">{scannedWalletInfo.accountType}</span>
-                        </div>
+                      <div className="p-2 rounded-xl bg-emerald-50 dark:bg-slate-950 border border-emerald-300 dark:border-blue-500/30 font-mono text-[11px] flex items-center justify-between text-emerald-700 dark:text-emerald-400 font-bold">
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 size={12} /> RPC Verified
+                        </span>
+                        <span>{scannedWalletInfo.solBalance} SOL</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      <label>Jumlah Penarikan ({withdrawToken}):</label>
+                  {/* Amount Input */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <label>Nominal ({withdrawToken}):</label>
                       <button
                         type="button"
                         onClick={() => setWithdrawAmount(withdrawToken === 'USDC' ? usdcBalance : solBalance)}
-                        className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold cursor-pointer"
                       >
-                        Gunakan Saldo Max
+                        Gunakan Max Saldo ({withdrawToken === 'USDC' ? usdcBalance : solBalance})
                       </button>
                     </div>
                     <input
@@ -4996,26 +5057,23 @@ checkpoint = "human_approval_on_refund"`}
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
                       placeholder="10.00"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm font-mono text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-sm font-mono font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 text-[11px] text-blue-800 dark:text-blue-300 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <ShieldCheck size={14} className="text-blue-600 dark:text-blue-400" />
-                    <span>OWASP V3 Multi-Layer Email OTP Guard</span>
-                  </div>
-                  <p className="leading-relaxed text-blue-700/80 dark:text-blue-200/70">
-                    Kode 6-digit OTP verifikasi akan dikirim ke email pengguna ({userEmail}) sebelum transfer dieksekusi.
-                  </p>
+                {/* Compact OWASP Badge */}
+                <div className="p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 text-[11px] text-blue-700 dark:text-blue-300 flex items-center gap-2 font-semibold">
+                  <ShieldCheck size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span>OWASP V3 Guard: Kode OTP 6-digit akan dikirim ke {userEmail}</span>
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                {/* Modal Footer Actions */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setShowWithdrawModal(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
@@ -5028,12 +5086,12 @@ checkpoint = "human_approval_on_refund"`}
                     {withdrawLoading ? (
                       <>
                         <RefreshCw size={14} className="animate-spin" />
-                        <span>Mengirim OTP...</span>
+                        <span>Mengirim...</span>
                       </>
                     ) : (
                       <>
                         <Send size={14} />
-                        <span>Verifikasi Email OTP ➔</span>
+                        <span>Verifikasi OTP ➔</span>
                       </>
                     )}
                   </button>
@@ -5043,22 +5101,50 @@ checkpoint = "human_approval_on_refund"`}
               <>
                 <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 space-y-3">
                   <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300 font-bold text-xs">
-                    <ShieldCheck size={18} className="text-emerald-500 dark:text-emerald-400 animate-pulse" />
-                    <span>Verifikasi Email OTP (OWASP V3)</span>
+                    <ShieldCheck size={16} className="text-emerald-500 dark:text-emerald-400" />
+                    <span>Verifikasi OTP ({userEmail})</span>
                   </div>
-                  <p className="text-xs text-indigo-700 dark:text-indigo-200/80 leading-relaxed">
-                    Kode verifikasi 6-digit telah dikirim ke <strong className="text-slate-900 dark:text-white">{userEmail}</strong> untuk mengotorisasi penarikan <strong className="text-emerald-600 dark:text-emerald-400">{withdrawAmount} {withdrawToken}</strong> ke <span className="font-mono text-slate-800 dark:text-slate-300">{withdrawDestAddress.slice(0, 6)}...{withdrawDestAddress.slice(-4)}</span>.
+                  <p className="text-xs text-indigo-700 dark:text-indigo-200/80 leading-relaxed font-medium">
+                    Masukkan kode 6-digit yang dikirim ke email untuk mengotorisasi penarikan <strong className="text-emerald-600 dark:text-emerald-400">{withdrawAmount} {withdrawToken}</strong>.
                   </p>
 
+                  {/* 🛡️ In-Card OTP Alert Notification — Always Visible, Never Covered */}
+                  {withdrawModalAlert && (
+                    <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${
+                      withdrawModalAlert.type === 'error'
+                        ? 'bg-rose-100 dark:bg-rose-950/90 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-100 font-bold'
+                        : withdrawModalAlert.type === 'success'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/90 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 font-bold'
+                        : withdrawModalAlert.type === 'warning'
+                        ? 'bg-amber-100 dark:bg-amber-950/90 border-amber-400 dark:border-amber-700 text-amber-900 dark:text-amber-100 font-bold'
+                        : 'bg-indigo-100 dark:bg-indigo-950/90 border-indigo-400 dark:border-indigo-700 text-indigo-900 dark:text-indigo-100 font-bold'
+                    }`}>
+                      {withdrawModalAlert.type === 'error' && <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />}
+                      {withdrawModalAlert.type === 'success' && <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
+                      {withdrawModalAlert.type === 'warning' && <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
+                      {withdrawModalAlert.type === 'info' && <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        {withdrawModalAlert.title && <h5 className="font-extrabold text-xs">{withdrawModalAlert.title}</h5>}
+                        <p className="leading-relaxed text-xs">{withdrawModalAlert.message}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawModalAlert(null)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+
                   <div className="space-y-1 pt-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">Kode OTP 6-Digit:</label>
                     <input
                       type="text"
                       maxLength={6}
                       value={withdrawOtpInput}
                       onChange={(e) => setWithdrawOtpInput(e.target.value.replace(/\D/g, ''))}
                       placeholder="123456"
-                      className="w-full px-4 py-3 rounded-xl border-2 border-indigo-400 dark:border-indigo-500/60 bg-slate-50 dark:bg-slate-950 text-center font-mono text-xl tracking-widest text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-4 py-2.5 rounded-xl border-2 border-indigo-400 dark:border-indigo-500/60 bg-slate-50 dark:bg-slate-950 text-center font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
@@ -5067,7 +5153,7 @@ checkpoint = "human_approval_on_refund"`}
                   <button
                     type="button"
                     onClick={() => setWithdrawStep('FORM')}
-                    className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
                   >
                     ← Kembali
                   </button>
@@ -5077,7 +5163,7 @@ checkpoint = "human_approval_on_refund"`}
                       type="button"
                       onClick={handleRequestWithdrawOtp}
                       disabled={withdrawLoading}
-                      className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+                      className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
                     >
                       Kirim Ulang OTP
                     </button>
@@ -5095,7 +5181,7 @@ checkpoint = "human_approval_on_refund"`}
                       ) : (
                         <>
                           <CheckCircle2 size={14} />
-                          <span>Eksekusi Transfer Vault</span>
+                          <span>Proses Penarikan</span>
                         </>
                       )}
                     </button>
@@ -5103,148 +5189,100 @@ checkpoint = "human_approval_on_refund"`}
                 </div>
               </>
             ) : (
-              /* Step 3: SUCCESS View — On-Chain & ZeroClaw Telemetry Dropdown Card */
+              /* Step 3: SUCCESS View — Professional Enterprise Grade Receipt */
               <div className="space-y-4 text-slate-900 dark:text-slate-100">
-                <div className="text-center space-y-1.5 py-2">
-                  <div className="size-12 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/40 animate-in zoom-in-75 duration-300">
-                    <CheckCircle2 size={24} />
+                <div className="text-center space-y-1 py-1">
+                  <div className="size-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/40">
+                    <CheckCircle2 size={22} />
                   </div>
-                  <h4 className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">
-                    Penarikan Vault Berhasil Dieksekusi!
+                  <h4 className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+                    Penarikan Berhasil
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
-                    Dana sejumlah <strong className="text-slate-900 dark:text-white font-extrabold">{successfulTxData?.amount} {successfulTxData?.tokenSymbol}</strong> telah ditransfer ke:
+                    <strong className="text-slate-900 dark:text-white font-extrabold">{successfulTxData?.amount} {successfulTxData?.tokenSymbol}</strong> dikirim ke:
                   </p>
-                  <p className="font-mono text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 p-2 rounded-xl border border-indigo-200 dark:border-indigo-800/80 break-all select-all font-bold">
+                  <p className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/80 font-bold truncate max-w-full">
                     {successfulTxData?.destinationAddress}
                   </p>
                 </div>
 
-                {/* Dropdown Page / Accordion: On-Chain & Telemetry Details */}
+                {/* Dropdown Accordion: Audit & Telemetry Details */}
                 <details className="group border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950/80 overflow-hidden" open>
-                  <summary className="px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900 flex items-center justify-between text-xs font-extrabold text-slate-800 dark:text-slate-200 cursor-pointer select-none border-b border-slate-200 dark:border-slate-800">
+                  <summary className="px-3 py-2 bg-slate-100 dark:bg-slate-900 flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer select-none border-b border-slate-200 dark:border-slate-800">
                     <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                       <ShieldCheck size={14} />
-                      <span>🔍 Rincian Audit On-Chain & ZeroClaw Telemetry</span>
+                      <span>Rincian Transaksi & Telemetri</span>
                     </span>
                     <ChevronDown size={14} className="transition-transform group-open:rotate-180 text-slate-400" />
                   </summary>
 
-                  <div className="p-3.5 space-y-2.5 text-xs font-mono text-slate-700 dark:text-slate-300">
+                  <div className="p-3 space-y-2.5 text-xs font-mono text-slate-700 dark:text-slate-300">
                     {/* Solana Tx Hash Signature */}
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans font-semibold">
-                        <span>Solana Tx Hash Signature / Reference Key:</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans font-bold">
+                        <span>Tx Hash Signature:</span>
                         <button
                           type="button"
                           onClick={() => {
                             if (successfulTxData?.txSignature) {
                               navigator.clipboard.writeText(successfulTxData.txSignature);
-                              onTriggerToast('📋 Signature / Key berhasil disalin!');
+                              onTriggerToast('📋 Signature berhasil disalin!');
                             }
                           }}
                           className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
                         >
-                          <Copy size={11} /> Salin Key
+                          <Copy size={11} /> Salin Hash
                         </button>
                       </div>
-                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
                         {successfulTxData?.txSignature}
                       </div>
                     </div>
 
-                    {/* Solana Pay Transfer Request URL (if present) */}
-                    {successfulTxData?.solanaPayUrl && (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans font-semibold">
-                          <span>Solana Pay Transfer Request URL:</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (successfulTxData?.solanaPayUrl) {
-                                navigator.clipboard.writeText(successfulTxData.solanaPayUrl);
-                                onTriggerToast('📋 Solana Pay URL berhasil disalin!');
-                              }
-                            }}
-                            className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <Copy size={11} /> Copy Solana Pay URL
-                          </button>
-                        </div>
-                        <div className="p-2 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-[10px] break-all select-all font-bold text-indigo-700 dark:text-indigo-300 font-mono">
-                          {successfulTxData.solanaPayUrl}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 7-Layer Multi-Layer Security Status Badges */}
-                    <div className="space-y-1.5 pt-1 border-t border-slate-200 dark:border-slate-800/80 font-sans">
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                        <ShieldCheck size={13} className="text-emerald-500" />
-                        <span>Verifikasi Keamanan 7-Layer (Anti-Hacking Protocol):</span>
+                    {/* Compact Security Badges */}
+                    <div className="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-800 font-sans">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Status Keamanan:
                       </span>
-                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L1 Email OTP: PASSED
-                        </div>
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L2 Ownership: PASSED
-                        </div>
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L3 Base58 Dest: PASSED
-                        </div>
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L4 On-Chain Bal: PASSED
-                        </div>
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L5 Anti-Replay: PASSED
-                        </div>
-                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={11} /> L6 Rate Limit: PASSED
-                        </div>
+                      <div className="flex flex-wrap gap-1 text-[10px]">
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L1 OTP
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L2 Vault Ownership
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L3 Base58
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L4 Balance
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L5 Anti-Replay
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L6 Rate Limit
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
+                          ✓ L7 HMAC Audit
+                        </span>
                       </div>
                     </div>
 
-                    {/* ZeroClaw HMAC Audit Signature */}
-                    <div className="space-y-1">
-                      <span className="text-[11px] text-slate-500 font-sans font-semibold">Layer 7: ZeroClaw HMAC SHA-256 Audit Signature:</span>
-                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-slate-600 dark:text-slate-400">
-                        {successfulTxData?.auditSignature || 'hmac_sha256_verified_zeroclaw_v3'}
-                      </div>
-                    </div>
-
-                    {/* QR Code Scan Metadata */}
-                    {successfulTxData?.qrScanned && (
-                      <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 flex items-center justify-between text-[11px] font-sans">
-                        <span className="flex items-center gap-1 text-indigo-700 dark:text-indigo-400 font-bold">
-                          📷 Scanned via QR Barcode Camera
-                        </span>
-                        <span className="font-mono text-[10px] text-indigo-500 truncate max-w-[140px]">
-                          Hash: {successfulTxData.qrPayloadHash || 'verified'}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Cloudflare R2 Proof Link & Security Badges */}
-                    <div className="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-800/80 font-sans text-[11px]">
-                      {successfulTxData?.r2CdnProofUrl ? (
+                    {/* R2 CDN Proof Link */}
+                    {successfulTxData?.r2CdnProofUrl && (
+                      <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 font-sans flex items-center justify-between">
                         <a
                           href={successfulTxData.r2CdnProofUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1"
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-bold text-[11px] flex items-center gap-1"
                         >
-                          <ExternalLink size={12} /> Proof Certificate (Cloudflare R2 CDN)
+                          <ExternalLink size={12} /> Resi CDN Bukti Transfer (JSON)
                         </a>
-                      ) : (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={12} /> OWASP Anti-Replay Passed
-                        </span>
-                      )}
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 font-bold">
-                        Zero-Trust Risk Score: 0.00
-                      </span>
-                    </div>
+                        <span className="text-[10px] text-slate-400 font-mono">Verified</span>
+                      </div>
+                    )}
                   </div>
                 </details>
 

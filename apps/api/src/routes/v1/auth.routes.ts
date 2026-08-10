@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { envConfig } from '../../config/env.js';
@@ -158,8 +159,8 @@ export async function authRoutes(app: FastifyInstance) {
         }
       }
 
-      // 2. Generate 6-digit OTP in OtpStore
-      const otp = OtpStore.createOtp(body.email, body.fullName, body.audienceSegment);
+      // 2. Generate 6-digit OTP in OtpStore (F-006 FIX: async DB-backed)
+      const otp = await OtpStore.createOtp(body.email, body.fullName, body.audienceSegment);
 
       // 3. Send Transactional OTP Email via Brevo API
       const emailResult = await BrevoService.sendOtpEmail({
@@ -189,7 +190,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
   );
 
-  /** POST /v1/auth/verify-otp — Step 2: Verify OTP, sync Supabase Profile, and issue JWT */
+  /** POST /v1/auth/verify-otp — Step 2: Verify OTP, sync Supabase Profile, issue JWT + Refresh Token */
   app.post('/verify-otp', async (request, reply) => {
     const body = verifyOtpSchema.parse(request.body);
 
@@ -206,8 +207,8 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 1. Verify OTP with OtpStore
-    const verification = OtpStore.verifyOtp(body.email, body.otp);
+    // 1. Verify OTP with OtpStore (F-006 FIX: async DB-backed)
+    const verification = await OtpStore.verifyOtp(body.email, body.otp);
 
     if (!verification.valid) {
       await SupabaseService.logAuditEvent({
@@ -234,7 +235,6 @@ export async function authRoutes(app: FastifyInstance) {
     let fullName = body.fullName || verification.metadata?.fullName || normalizedEmail.split('@')[0];
 
     // FOUNDATION HARDENING (F-ARCH-14): Superadmin list from EXPLICIT env config only.
-    // No hardcoded fallback — if SUPERADMIN_EMAILS is not configured, nobody gets superadmin.
     const configuredSuperAdmins = getConfiguredSuperAdmins();
 
     if (configuredSuperAdmins.length > 0 && configuredSuperAdmins.includes(normalizedEmail)) {
@@ -266,12 +266,22 @@ export async function authRoutes(app: FastifyInstance) {
       companyName: body.companyName,
     });
 
-    const userId = dbProfile?.id || crypto.randomUUID();
+    // SECURITY (F-012 FIX): Fail-closed if DB is unavailable
+    const userId = dbProfile?.id;
+    if (!userId) {
+      logger.error({ email: normalizedEmail }, '[Auth] FAIL-CLOSED: Cannot issue JWT — DB profile upsert returned no ID.');
+      return reply.status(503).send({
+        success: false,
+        error: {
+          code: 'AUTH_SERVICE_UNAVAILABLE',
+          message: 'Authentication service is temporarily unavailable. Please try again.',
+          statusCode: 503,
+        },
+      });
+    }
 
-    // 4. Issue Signed JWT Access Token
-    // FOUNDATION HARDENING: Reduced from 8h to 1h for smaller breach window.
-    // A refresh token mechanism should be added for seamless session extension.
-    const token = app.jwt.sign(
+    // 4. Issue Signed JWT Access Token (1h) + Cryptographic Refresh Token (7 days) (F-005 FIX)
+    const accessToken = app.jwt.sign(
       {
         sub: userId,
         email: normalizedEmail,
@@ -279,6 +289,28 @@ export async function authRoutes(app: FastifyInstance) {
       },
       { expiresIn: '1h' }
     );
+
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(accessToken).digest('hex');
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
+    // Persist session to public.sessions table (F-010 & F-005 FIX)
+    const supabase = SupabaseService.getClient();
+    if (supabase) {
+      try {
+        await supabase.from('sessions').insert({
+          user_id: userId,
+          token_hash: tokenHash,
+          refresh_token_hash: refreshTokenHash,
+          user_agent: request.headers['user-agent'] || null,
+          ip_address: request.ip,
+          expires_at: expiresAt,
+        });
+      } catch (err) {
+        logger.warn({ err, userId }, '[Auth] Failed to persist session to DB');
+      }
+    }
 
     // 5. Log OWASP Audit Event
     await SupabaseService.logAuditEvent({
@@ -290,20 +322,30 @@ export async function authRoutes(app: FastifyInstance) {
       payloadSummary: `Role: ${role}, FullName: ${fullName}`,
     });
 
-    // 6. Set Secure OWASP HTTP-Only Cookie
-    reply.setCookie('__zega_token', token, {
+    // 6. Set Secure OWASP Cookies for Access & Refresh Tokens
+    reply.setCookie('__zega_token', accessToken, {
       httpOnly: true,
       secure: envConfig.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
-      maxAge: 1 * 3600, // FOUNDATION HARDENING: 1h to match JWT expiry
+      maxAge: 3600, // 1 hour
+    });
+
+    reply.setCookie('__zega_refresh', refreshToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/v1/auth/refresh',
+      maxAge: 7 * 24 * 3600, // 7 days
     });
 
     return {
       success: true,
       data: {
-        accessToken: token,
-        expiresIn: 3600, // FOUNDATION HARDENING: 1h
+        accessToken,
+        refreshToken,
+        expiresIn: 3600,
+        refreshExpiresIn: 604800,
         tokenType: 'Bearer',
         user: {
           id: userId,
@@ -571,18 +613,163 @@ export async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  /** POST /v1/auth/logout — Clear session */
-  app.post('/logout', async (_request, reply) => {
+  /** POST /v1/auth/refresh — Refresh Access Token using Refresh Token (F-005 FIX) */
+  app.post('/refresh', async (request, reply) => {
+    const refreshSchema = z.object({
+      refreshToken: z.string().optional(),
+    });
+
+    const body = refreshSchema.parse(request.body || {});
+    // Accept refresh token from request body or signed httpOnly cookie
+    const refreshToken = body.refreshToken || (request.cookies as any)?.__zega_refresh;
+
+    if (!refreshToken) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'REFRESH_TOKEN_REQUIRED', message: 'Refresh token is required.', statusCode: 401 },
+      });
+    }
+
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const supabase = SupabaseService.getClient();
+
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 },
+      });
+    }
+
+    // Lookup session in public.sessions table
+    const { data: session, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('refresh_token_hash', refreshTokenHash)
+      .maybeSingle();
+
+    if (error || !session || session.is_revoked) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'INVALID_REFRESH_TOKEN', message: 'Refresh token is invalid or has been revoked.', statusCode: 401 },
+      });
+    }
+
+    if (new Date(session.expires_at).getTime() < Date.now()) {
+      // Mark expired session as revoked
+      await supabase.from('sessions').update({ is_revoked: true, revoke_reason: 'expired' }).eq('id', session.id);
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'REFRESH_TOKEN_EXPIRED', message: 'Refresh token has expired. Please log in again.', statusCode: 401 },
+      });
+    }
+
+    // Fetch profile to verify user role and identity
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, role, full_name')
+      .eq('id', session.user_id)
+      .maybeSingle();
+
+    if (!profile) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'Associated user account not found.', statusCode: 401 },
+      });
+    }
+
+    // Revoke current session (Token Rotation security pattern)
+    await supabase
+      .from('sessions')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'rotated' })
+      .eq('id', session.id);
+
+    // Issue NEW Access Token (1h) + NEW Refresh Token (7d)
+    const newAccessToken = app.jwt.sign(
+      {
+        sub: session.user_id,
+        email: profile.email,
+        role: profile.role,
+      },
+      { expiresIn: '1h' }
+    );
+
+    const newRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newAccessToken).digest('hex');
+    const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    const newExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
+    await supabase.from('sessions').insert({
+      user_id: session.user_id,
+      token_hash: newTokenHash,
+      refresh_token_hash: newRefreshTokenHash,
+      user_agent: request.headers['user-agent'] || null,
+      ip_address: request.ip,
+      expires_at: newExpiresAt,
+    });
+
+    reply.setCookie('__zega_token', newAccessToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 3600,
+    });
+
+    reply.setCookie('__zega_refresh', newRefreshToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/v1/auth/refresh',
+      maxAge: 7 * 24 * 3600,
+    });
+
+    return {
+      success: true,
+      data: {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        expiresIn: 3600,
+        refreshExpiresIn: 604800,
+        tokenType: 'Bearer',
+      },
+    };
+  });
+
+  /** POST /v1/auth/logout — Revoke session and clear cookies (F-010 FIX) */
+  app.post('/logout', async (request, reply) => {
+    const supabase = SupabaseService.getClient();
+    const token = (request.cookies as any)?.__zega_token || request.headers.authorization?.replace('Bearer ', '');
+    const refreshToken = (request.cookies as any)?.__zega_refresh;
+
+    if (supabase) {
+      try {
+        if (token) {
+          const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+          await supabase
+            .from('sessions')
+            .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'user_logout' })
+            .eq('token_hash', tokenHash);
+        }
+        if (refreshToken) {
+          const refreshHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+          await supabase
+            .from('sessions')
+            .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'user_logout' })
+            .eq('refresh_token_hash', refreshHash);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[Auth] Logout session revocation warning');
+      }
+    }
+
     reply.clearCookie('__zega_token', { path: '/' });
     reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
-    return { success: true, data: { message: 'Session terminated' } };
+    return { success: true, data: { message: 'Session terminated and revoked.' } };
   });
 
   /** POST /v1/auth/signout — Alias for /logout */
-  app.post('/signout', async (_request, reply) => {
-    reply.clearCookie('__zega_token', { path: '/' });
-    reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
-    return { success: true, data: { message: 'Session terminated' } };
+  app.post('/signout', async (request, reply) => {
+    return app.inject({ method: 'POST', url: '/v1/auth/logout', headers: request.headers, payload: request.body as any });
   });
 
   /** GET /v1/auth/me — Get current user */

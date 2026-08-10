@@ -1,7 +1,22 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- Migration 94: UMKM User Profile, Security & Account Preferences Realtime Schema
 -- Enterprise Schema & Supabase Real-Time Setup for Overview & Profile Sub-Menu
+-- ═══════════════════════════════════════════════════════════════════════════════
 
--- 1. User Profiles Table
+-- 1. Drop Legacy Single-Column Unique Constraints (uk_store_profile) if present from earlier migration 21
+DO $$
+BEGIN
+    -- Drop legacy single-column unique constraint on store_id to allow multi-user profiles per store
+    ALTER TABLE IF EXISTS public.umkm_user_profiles DROP CONSTRAINT IF EXISTS uk_store_profile;
+    DROP INDEX IF EXISTS public.uk_umkm_user_profiles_store;
+
+    ALTER TABLE IF EXISTS public.umkm_user_security DROP CONSTRAINT IF EXISTS uk_store_security;
+    DROP INDEX IF EXISTS public.uk_umkm_security_settings_store;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Legacy constraint cleanup note: %', SQLERRM;
+END $$;
+
+-- 2. User Profiles Table
 CREATE TABLE IF NOT EXISTS public.umkm_user_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -17,11 +32,24 @@ CREATE TABLE IF NOT EXISTS public.umkm_user_profiles (
     joined_date VARCHAR(50) DEFAULT '12 Maret 2025',
     account_status VARCHAR(50) DEFAULT 'Aktif',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT umkm_user_profiles_store_email_unique UNIQUE(store_id, email)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2. Security Table (2FA, Recovery Contact, Password Audit)
+-- Ensure composite unique constraint (store_id, email)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'umkm_user_profiles_store_email_unique'
+    ) THEN
+        ALTER TABLE public.umkm_user_profiles 
+        ADD CONSTRAINT umkm_user_profiles_store_email_unique UNIQUE (store_id, email);
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Composite unique constraint setup note: %', SQLERRM;
+END $$;
+
+-- 3. Security Table (2FA, Recovery Contact, Password Audit)
 CREATE TABLE IF NOT EXISTS public.umkm_user_security (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -31,11 +59,23 @@ CREATE TABLE IF NOT EXISTS public.umkm_user_security (
     recovery_phone VARCHAR(50),
     last_password_changed_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT umkm_user_security_store_email_unique UNIQUE(store_id, email)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3. Account Preferences Table
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'umkm_user_security_store_email_unique'
+    ) THEN
+        ALTER TABLE public.umkm_user_security 
+        ADD CONSTRAINT umkm_user_security_store_email_unique UNIQUE (store_id, email);
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Security composite constraint setup note: %', SQLERRM;
+END $$;
+
+-- 4. Account Preferences Table
 CREATE TABLE IF NOT EXISTS public.umkm_user_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -45,11 +85,23 @@ CREATE TABLE IF NOT EXISTS public.umkm_user_preferences (
     number_format VARCHAR(50) DEFAULT '1.234.567,89',
     currency VARCHAR(50) DEFAULT 'IDR - Rupiah',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT umkm_user_preferences_store_unique UNIQUE(store_id)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. Active Sessions Table
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'umkm_user_preferences_store_unique'
+    ) THEN
+        ALTER TABLE public.umkm_user_preferences 
+        ADD CONSTRAINT umkm_user_preferences_store_unique UNIQUE (store_id);
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Preferences unique constraint setup note: %', SQLERRM;
+END $$;
+
+-- 5. Active Sessions Table
 CREATE TABLE IF NOT EXISTS public.umkm_active_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_id UUID NOT NULL REFERENCES public.umkm_stores(id) ON DELETE CASCADE,
@@ -62,7 +114,7 @@ CREATE TABLE IF NOT EXISTS public.umkm_active_sessions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Indexing & Unique Constraints for high-performance querying and ON CONFLICT resolution
+-- Indexing & Unique Constraints for high-performance querying
 CREATE UNIQUE INDEX IF NOT EXISTS umkm_user_profiles_store_email_idx ON public.umkm_user_profiles(store_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS umkm_user_security_store_email_idx ON public.umkm_user_security(store_id, email);
 CREATE UNIQUE INDEX IF NOT EXISTS umkm_user_preferences_store_idx ON public.umkm_user_preferences(store_id);
@@ -94,10 +146,88 @@ BEGIN
     END IF;
 END $$;
 
--- SEED DEMO PRODUCTION DATA FOR DEMO STORE '11111111-1111-1111-1111-111111111111'
+-- 6. RPC Function: Dynamic Get or Create User Profile for Active Authenticated Session
+CREATE OR REPLACE FUNCTION public.fn_get_or_create_umkm_user_profile(
+    p_store_id UUID,
+    p_email VARCHAR(150),
+    p_fullname VARCHAR(150) DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+    v_profile RECORD;
+    v_security RECORD;
+    v_pref RECORD;
+    v_name VARCHAR(150);
+BEGIN
+    v_name := COALESCE(p_fullname, split_part(p_email, '@', 1));
+
+    -- Upsert Profile
+    INSERT INTO public.umkm_user_profiles (
+        store_id, fullname, email, phone, job_title, store_name, description, avatar_url, account_id, account_role, joined_date, account_status
+    ) VALUES (
+        p_store_id,
+        v_name,
+        p_email,
+        '+62 812-3456-7890',
+        'Owner',
+        'Toko ' || INITCAP(v_name),
+        'Toko resmi ZEGA AI platform.',
+        '/assets/avatars/user-avatar.jpg',
+        'acc_' || substr(md5(p_email), 1, 12),
+        'Owner',
+        '12 Maret 2025',
+        'Aktif'
+    ) ON CONFLICT (store_id, email) DO UPDATE SET
+        updated_at = NOW()
+    RETURNING * INTO v_profile;
+
+    -- Upsert Security
+    INSERT INTO public.umkm_user_security (
+        store_id, email, is_2fa_enabled, recovery_email, recovery_phone
+    ) VALUES (
+        p_store_id,
+        p_email,
+        true,
+        p_email,
+        '+62 812-3456-7890'
+    ) ON CONFLICT (store_id, email) DO UPDATE SET
+        updated_at = NOW()
+    RETURNING * INTO v_security;
+
+    -- Fetch Preferences
+    SELECT * INTO v_pref FROM public.umkm_user_preferences WHERE store_id = p_store_id LIMIT 1;
+
+    RETURN jsonb_build_object(
+        'profile', to_jsonb(v_profile),
+        'security', to_jsonb(v_security),
+        'preferences', to_jsonb(v_pref)
+    );
+END;
+$$;
+
+-- SEED PRODUCTION DEMO DATA FOR BOTH siabang35@gmail.com AND cikberiuk@gmail.com
 INSERT INTO public.umkm_user_profiles (
     store_id, fullname, email, phone, job_title, store_name, description, avatar_url, account_id, account_role, joined_date, account_status
-) VALUES (
+) VALUES 
+(
+    '11111111-1111-1111-1111-111111111111',
+    'siabang35',
+    'siabang35@gmail.com',
+    '+62 812-3456-7890',
+    'Owner',
+    'Toko SiAbang 35',
+    'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.',
+    '/assets/avatars/user-avatar.jpg',
+    'acc_siabang35_8f7a',
+    'Owner',
+    '12 Maret 2025',
+    'Aktif'
+),
+(
     '11111111-1111-1111-1111-111111111111',
     'Cik Beriuk',
     'cikberiuk@gmail.com',
@@ -110,7 +240,8 @@ INSERT INTO public.umkm_user_profiles (
     'Owner',
     '12 Maret 2025',
     'Aktif'
-) ON CONFLICT (store_id, email) DO UPDATE SET
+)
+ON CONFLICT (store_id, email) DO UPDATE SET
     fullname = EXCLUDED.fullname,
     phone = EXCLUDED.phone,
     job_title = EXCLUDED.job_title,
@@ -121,13 +252,22 @@ INSERT INTO public.umkm_user_profiles (
 
 INSERT INTO public.umkm_user_security (
     store_id, email, is_2fa_enabled, recovery_email, recovery_phone
-) VALUES (
+) VALUES 
+(
+    '11111111-1111-1111-1111-111111111111',
+    'siabang35@gmail.com',
+    true,
+    'siabang35@gmail.com',
+    '+62 812-3456-7890'
+),
+(
     '11111111-1111-1111-1111-111111111111',
     'cikberiuk@gmail.com',
     true,
     'cikberiuk@gmail.com',
     '+62 812-3456-7890'
-) ON CONFLICT (store_id, email) DO UPDATE SET
+)
+ON CONFLICT (store_id, email) DO UPDATE SET
     is_2fa_enabled = EXCLUDED.is_2fa_enabled,
     recovery_email = EXCLUDED.recovery_email,
     recovery_phone = EXCLUDED.recovery_phone,

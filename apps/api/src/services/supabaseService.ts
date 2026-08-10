@@ -57,6 +57,51 @@ class SupabaseBackendService {
   }
 
   /**
+   * FOUNDATION HARDENING (F-004 FIX): User-Scoped Supabase Client
+   *
+   * Creates a Supabase client using the ANON KEY + user's JWT token,
+   * which means RLS policies are ENFORCED at the database layer.
+   *
+   * Use this for ALL tenant-scoped queries where data isolation matters:
+   *   - agents, workflows, sandboxes, integrations, memory store
+   *   - any table with `user_id`-based RLS policies
+   *
+   * The service-role client (`getClient()`) should ONLY be used for:
+   *   - Admin operations (audit logs, rate limits)
+   *   - Profile upserts during authentication
+   *   - Operations that intentionally bypass RLS
+   *
+   * @param userJwt - The user's verified JWT token from the request
+   * @returns SupabaseClient with RLS enforced, or null if not configured
+   */
+  public getUserScopedClient(userJwt: string): SupabaseClient | null {
+    const url = process.env.SUPABASE_URL || envConfig.SUPABASE_URL;
+    const anonKey = process.env.SUPABASE_ANON_KEY || envConfig.SUPABASE_ANON_KEY;
+
+    if (!url || !anonKey || url.includes('placeholder') || anonKey.includes('placeholder')) {
+      logger.warn('[SupabaseService] Cannot create user-scoped client — URL or ANON_KEY missing/placeholder');
+      return null;
+    }
+
+    try {
+      return createClient(url, anonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${userJwt}`,
+          },
+        },
+      });
+    } catch (err) {
+      logger.warn({ err }, '[SupabaseService] Failed to create user-scoped Supabase client');
+      return null;
+    }
+  }
+
+  /**
    * Upsert user profile into public.profiles table upon OTP verification or Quick Demo
    */
   async upsertProfile({
@@ -352,14 +397,18 @@ class SupabaseBackendService {
   private localRateLimitMap = new Map<string, { count: number; expiresAt: number }>();
 
   /**
-   * OWASP Anti-Throttling Rate Limit Check (Fail-Closed Architecture)
-   * Falls back to in-memory sliding window rate limiter on database error.
+   * OWASP Anti-Throttling Rate Limit Check (F-013 FIX: Distributed DB-Backed Architecture)
+   * Tries RPC check_rate_limit -> falls back to direct query on public.rate_limits table -> falls back to bounded memory map.
    */
   async checkRateLimit(identifier: string, action: string, maxRequests = 100, windowSeconds = 60): Promise<boolean> {
     const supabase = this.getClient();
+    const rateKey = `rate_${identifier.trim().toLowerCase()}_${action}`;
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
 
     if (supabase) {
       try {
+        // 1. Try RPC procedure if installed
         const { data, error } = await supabase.rpc('check_rate_limit', {
           p_identifier: identifier,
           p_action: action,
@@ -370,24 +419,58 @@ class SupabaseBackendService {
         if (!error && typeof data === 'boolean') {
           return data;
         }
-        logger.warn({ error, action, identifier }, '[SupabaseService] check_rate_limit RPC error, invoking fail-closed memory fallback');
+
+        // 2. Direct table check on public.rate_limits (F-013 FIX)
+        const expiresAtIso = new Date(nowMs + windowSeconds * 1000).toISOString();
+        const { data: currentEntry } = await supabase
+          .from('rate_limits')
+          .select('points, expires_at')
+          .eq('key', rateKey)
+          .gt('expires_at', nowIso)
+          .maybeSingle();
+
+        if (!currentEntry) {
+          await supabase.from('rate_limits').upsert({
+            key: rateKey,
+            points: 1,
+            window_start: nowIso,
+            expires_at: expiresAtIso,
+          });
+          return true;
+        }
+
+        if (currentEntry.points >= maxRequests) {
+          logger.warn({ rateKey, points: currentEntry.points, maxRequests }, '[SupabaseService] Distributed DB rate limit exceeded');
+          return false;
+        }
+
+        await supabase
+          .from('rate_limits')
+          .update({ points: currentEntry.points + 1 })
+          .eq('key', rateKey);
+
+        return true;
       } catch (err) {
-        logger.warn({ err, action, identifier }, '[SupabaseService] check_rate_limit RPC exception, invoking fail-closed memory fallback');
+        logger.warn({ err, action, identifier }, '[SupabaseService] Rate limit DB error, invoking fail-closed memory fallback');
       }
     }
 
-    // Fail-Closed Fallback: Local Memory Sliding-Window Rate Limiter
-    const key = `${identifier}:${action}`;
-    const now = Date.now();
-    const entry = this.localRateLimitMap.get(key);
+    // 3. Fail-Closed Fallback: Bounded Local Memory Sliding-Window Rate Limiter (F-015 FIX)
+    const entry = this.localRateLimitMap.get(rateKey);
 
-    if (!entry || entry.expiresAt <= now) {
-      this.localRateLimitMap.set(key, { count: 1, expiresAt: now + windowSeconds * 1000 });
+    if (!entry || entry.expiresAt <= nowMs) {
+      // Prune stale entries if map exceeds 2,000 items
+      if (this.localRateLimitMap.size > 2000) {
+        for (const [k, v] of this.localRateLimitMap.entries()) {
+          if (v.expiresAt <= nowMs) this.localRateLimitMap.delete(k);
+        }
+      }
+      this.localRateLimitMap.set(rateKey, { count: 1, expiresAt: nowMs + windowSeconds * 1000 });
       return true;
     }
 
     if (entry.count >= maxRequests) {
-      logger.warn({ key, count: entry.count, maxRequests }, '[SupabaseService] Fail-closed memory rate limit exceeded');
+      logger.warn({ rateKey, count: entry.count, maxRequests }, '[SupabaseService] Fail-closed memory rate limit exceeded');
       return false; // FAIL CLOSED
     }
 

@@ -29,6 +29,64 @@ export async function registerRoutes(app: FastifyInstance) {
     uptime: process.uptime(),
   }));
 
+  // F-019 FIX: Telemetry & Metrics Endpoint (/v1/health/telemetry)
+  app.get('/v1/health/telemetry', async (request) => {
+    const memoryUsage = process.memoryUsage();
+    const rssMb = Math.round((memoryUsage.rss / 1024 / 1024) * 100) / 100;
+    const heapUsedMb = Math.round((memoryUsage.heapUsed / 1024 / 1024) * 100) / 100;
+    const heapTotalMb = Math.round((memoryUsage.heapTotal / 1024 / 1024) * 100) / 100;
+
+    const { solanaRpcManager } = await import('../services/solanaRpcManager.js');
+    const { SupabaseService } = await import('../services/supabaseService.js');
+
+    const rpcPoolStatus = solanaRpcManager.getPoolStatus();
+    const dbHealthy = await SupabaseService.healthCheck();
+
+    const correlationId = (request.raw as any)?.correlationId || (request.headers['x-correlation-id'] as string) || request.id;
+
+    // Log snapshot to DB asynchronously
+    const supabase = SupabaseService.getClient();
+    if (supabase) {
+      (async () => {
+        try {
+          await supabase.from('health_telemetry_logs').insert({
+            node_id: process.env.NODE_ID || 'api-node-1',
+            memory_rss_mb: rssMb,
+            memory_heap_used_mb: heapUsedMb,
+            rpc_pool_healthy_count: rpcPoolStatus.activeHealthyCount,
+            rpc_pool_cooldown_count: rpcPoolStatus.inCooldownCount,
+            db_pool_healthy: dbHealthy,
+            metrics_json: {
+              uptimeSeconds: Math.round(process.uptime()),
+              totalProviders: rpcPoolStatus.totalProviders,
+              cachedItemsCount: rpcPoolStatus.cachedItemsCount,
+              inFlightRequestsCount: rpcPoolStatus.inFlightRequestsCount,
+            },
+          });
+        } catch {
+          // Non-blocking background log capture
+        }
+      })();
+    }
+
+    return {
+      status: 'healthy',
+      service: 'zega-api',
+      correlationId,
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.round(process.uptime()),
+      memory: {
+        rssMb,
+        heapUsedMb,
+        heapTotalMb,
+      },
+      database: {
+        healthy: dbHealthy,
+      },
+      rpcPool: rpcPoolStatus,
+    };
+  });
+
   // ── Swagger UI Aliases (Development Only) ──
   const isProduction =
     process.env.NODE_ENV === 'production' ||

@@ -32,18 +32,51 @@ export function ProfileTab({
   onNavigateTab,
   onUpdateAvatar
 }: ProfileTabProps) {
+  // Session fallback helper
+  const getSessionUserFallback = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const mock = localStorage.getItem('zega_mock_session');
+        if (mock) {
+          const parsed = JSON.parse(mock);
+          const email = parsed?.user?.email || parsed?.email || '';
+          const fullname = parsed?.user?.user_metadata?.full_name || parsed?.fullName || (email ? email.split('@')[0] : '');
+          return { email, fullname };
+        }
+      } catch (e) {}
+    }
+    return { email: '', fullname: '' };
+  };
+
+  const sessionFallback = getSessionUserFallback();
+
   // Form input states
-  const [fullname, setFullname] = useState(profileData?.fullname || 'Cik Beriuk');
-  const [email, setEmail] = useState(profileData?.email || 'cikberiuk@gmail.com');
+  const [fullname, setFullname] = useState(profileData?.fullname || sessionFallback.fullname || 'Rubycapa Capa');
+  const [email, setEmail] = useState(profileData?.email || sessionFallback.email || 'rubycapacapa@gmail.com');
   const [phone, setPhone] = useState(profileData?.phone || '+62 812-3456-7890');
   const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Owner');
-  const [storeName, setStoreName] = useState(profileData?.store_name || 'Toko CikCik Beriuk');
+  const [storeName, setStoreName] = useState(profileData?.store_name || (fullname ? `Toko ${fullname}` : 'Toko Saya'));
   const [description, setDescription] = useState(profileData?.description || 'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.');
   const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || '/assets/avatars/user-avatar.jpg');
   const [isSaving, setIsSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Synchronize form states when props update asynchronously
+  React.useEffect(() => {
+    if (profileData) {
+      if (profileData.fullname) setFullname(profileData.fullname);
+      if (profileData.email) setEmail(profileData.email);
+      if (profileData.phone) setPhone(profileData.phone);
+      if (profileData.job_title) setJobTitle(profileData.job_title);
+      if (profileData.store_name) setStoreName(profileData.store_name);
+      if (profileData.description) setDescription(profileData.description);
+      if (profileData.avatar_url || profileData.avatar_path) {
+        setAvatarUrl(profileData.avatar_url || profileData.avatar_path);
+      }
+    }
+  }, [profileData]);
 
   // Security & Preferences Modal States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -56,8 +89,16 @@ export function ProfileTab({
   const [is2FAEnabled, setIs2FAEnabled] = useState(securityData?.is_2fa_enabled ?? true);
 
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || 'cikberiuk@gmail.com');
-  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || '+62 812-3456-7890');
+  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || email || 'rubycapacapa@gmail.com');
+  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || phone || '+62 812-3456-7890');
+
+  React.useEffect(() => {
+    if (securityData) {
+      if (securityData.is_2fa_enabled !== undefined) setIs2FAEnabled(securityData.is_2fa_enabled);
+      if (securityData.recovery_email) setRecoveryEmail(securityData.recovery_email);
+      if (securityData.recovery_phone) setRecoveryPhone(securityData.recovery_phone);
+    }
+  }, [securityData]);
 
   const [showDevicesModal, setShowDevicesModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -69,6 +110,16 @@ export function ProfileTab({
   const [dateFormatPref, setDateFormatPref] = useState(preferencesData?.date_format || 'DD MMM YYYY');
   const [numberFormatPref, setNumberFormatPref] = useState(preferencesData?.number_format || '1.234.567,89');
   const [currencyPref, setCurrencyPref] = useState(preferencesData?.currency || 'IDR - Rupiah');
+
+  React.useEffect(() => {
+    if (preferencesData) {
+      if (preferencesData.language) setLangPref(preferencesData.language);
+      if (preferencesData.timezone) setTimezonePref(preferencesData.timezone);
+      if (preferencesData.date_format) setDateFormatPref(preferencesData.date_format);
+      if (preferencesData.number_format) setNumberFormatPref(preferencesData.number_format);
+      if (preferencesData.currency) setCurrencyPref(preferencesData.currency);
+    }
+  }, [preferencesData]);
 
   const PRESET_AVATARS = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces',

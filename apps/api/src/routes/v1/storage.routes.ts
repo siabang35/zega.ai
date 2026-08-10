@@ -2,6 +2,19 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { R2StorageService } from '../../services/r2StorageService.js';
 import { SupabaseService } from '../../services/supabaseService.js';
+import { populatePrincipal } from '../../middleware/requestContext.js';
+
+/**
+ * ZEGA AI — Storage Routes
+ *
+ * Cloudflare R2 CDN storage endpoints for file uploads and presigned URLs.
+ *
+ * Authorization Model (EA-01 FIX):
+ *   Upload and presigned-url endpoints now use the standard
+ *   app.authenticate + populatePrincipal middleware chain.
+ *   Upload folder paths are tenant-scoped to prevent cross-tenant
+ *   file access (EA-02).
+ */
 
 const presignedUrlSchema = z.object({
   filename: z.string().min(1),
@@ -45,7 +58,7 @@ export async function storageRoutes(app: FastifyInstance) {
           timestamp: new Date().toISOString(),
           supabase: {
             status: supabaseStatus,
-            url: process.env.SUPABASE_URL || 'Not Configured',
+            url: 'configured',
           },
           cloudflareR2: {
             status: r2Health.success ? 'connected' : 'error',
@@ -59,10 +72,12 @@ export async function storageRoutes(app: FastifyInstance) {
     }
   );
 
-  /** POST /v1/storage/upload — Best-Practice Image Upload to Cloudflare R2 CDN */
+  /** POST /v1/storage/upload — Upload to R2 CDN (Auth + Tenant-Scoped) */
   app.post(
     '/upload',
     {
+      onRequest: [app.authenticate],
+      preHandler: [populatePrincipal],
       schema: {
         tags: ['Storage & System'],
         summary: 'Upload Image / Asset to Cloudflare R2 CDN',
@@ -100,10 +115,18 @@ export async function storageRoutes(app: FastifyInstance) {
         });
       }
 
+      // EA-02 FIX: Tenant-scoped upload path to prevent cross-tenant collision
+      const principal = request.principal;
+      const tenantFolder = principal?.organizationId
+        ? `org/${principal.organizationId}/images`
+        : principal?.userId
+          ? `user/${principal.userId}/images`
+          : 'images';
+
       const uploadResult = await R2StorageService.uploadFile({
         content: buffer,
         contentType: data.mimetype,
-        folder: 'images',
+        folder: tenantFolder,
       });
 
       return {
@@ -119,10 +142,12 @@ export async function storageRoutes(app: FastifyInstance) {
     }
   );
 
-  /** POST /v1/storage/presigned-url — Generate Presigned Upload URL for Direct Client R2 Uploads */
+  /** POST /v1/storage/presigned-url — Presigned Upload URL (Auth + Tenant-Scoped) */
   app.post(
     '/presigned-url',
     {
+      onRequest: [app.authenticate],
+      preHandler: [populatePrincipal],
       schema: {
         tags: ['Storage & System'],
         summary: 'Generate Presigned R2 Upload URL',
@@ -132,10 +157,18 @@ export async function storageRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const body = presignedUrlSchema.parse(request.body);
 
+      // EA-02 FIX: Ensure folder path is tenant-scoped
+      const principal = request.principal;
+      const tenantFolder = principal?.organizationId
+        ? `org/${principal.organizationId}/${body.folder}`
+        : principal?.userId
+          ? `user/${principal.userId}/${body.folder}`
+          : body.folder;
+
       const result = await R2StorageService.generatePresignedUploadUrl({
         filename: body.filename,
         contentType: body.contentType,
-        folder: body.folder,
+        folder: tenantFolder,
       });
 
       return {

@@ -134,7 +134,7 @@ describe('FH-04: JWT Expiry — Reduced Breach Window', () => {
   });
 
   it('cookie maxAge matches JWT expiry (1h = 3600s)', () => {
-    assert.ok(authSource.includes('maxAge: 1 * 3600'), 'Cookie maxAge must be 1h');
+    assert.ok(authSource.includes('maxAge: 3600') || authSource.includes('maxAge: 1 * 3600'), 'Cookie maxAge must be 1h');
     assert.ok(!authSource.includes('maxAge: 8 * 3600'), 'Old 8h cookie maxAge must be removed');
   });
 
@@ -307,5 +307,35 @@ describe('FH-08: Architectural Invariant — No Secrets in Env Defaults', () => 
   it('COOKIE_SECRET has NO default value', () => {
     assert.ok(!envSource.includes("COOKIE_SECRET: z.string().min(32).default("), 'COOKIE_SECRET must not have a default');
     assert.ok(!envSource.includes('zega-ai-dev-cookie-secret'), 'Old dev cookie secret must not exist');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FH-09: P3 Observability & Maintainability
+// ═══════════════════════════════════════════════════════════════════════
+describe('FH-09: Observability & Maintainability — Correlation & Telemetry', () => {
+  const pluginsSource = readSource('../plugins/index.ts');
+  const routesSource = readSource('../routes/index.ts');
+  const p3MigrationSource = readSource('../../../../supabase/migrations/20260810070000_p3_observability_maintainability.sql');
+
+  it('plugins/index.ts sets x-correlation-id response header', () => {
+    assert.ok(pluginsSource.includes("reply.header('x-correlation-id', correlationId)"), 'Must attach x-correlation-id header');
+  });
+
+  it('plugins/index.ts error handler includes correlationId & timestamp', () => {
+    assert.ok(pluginsSource.includes('correlationId,'), 'Error envelope must contain correlationId');
+    assert.ok(pluginsSource.includes('timestamp,'), 'Error envelope must contain timestamp');
+  });
+
+  it('routes/index.ts exposes /v1/health/telemetry endpoint', () => {
+    assert.ok(routesSource.includes("app.get('/v1/health/telemetry'"), 'Must expose telemetry endpoint');
+    assert.ok(routesSource.includes('memoryUsage'), 'Must monitor memory usage');
+    assert.ok(routesSource.includes('rpcPoolStatus'), 'Must report RPC pool status');
+  });
+
+  it('P3 SQL migration creates health_telemetry_logs table with RLS', () => {
+    assert.ok(p3MigrationSource.includes('health_telemetry_logs'), 'Must create health_telemetry_logs table');
+    assert.ok(p3MigrationSource.includes('ENABLE ROW LEVEL SECURITY'), 'Must enable RLS on telemetry table');
+    assert.ok(p3MigrationSource.includes('cleanup_expired_telemetry_logs'), 'Must include retention cleanup procedure');
   });
 });

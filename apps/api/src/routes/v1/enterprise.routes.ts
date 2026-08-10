@@ -1,8 +1,24 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { envConfig } from '../../config/env.js';
 import { SupabaseService } from '../../services/supabaseService.js';
+import { populatePrincipal } from '../../middleware/requestContext.js';
 
 export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
+  // SECURITY (F-15/F-16 FIX): Require authentication for ALL enterprise routes
+  fastify.addHook('onRequest', async (request, reply) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for enterprise endpoints.', statusCode: 401 },
+      });
+    }
+  });
+
+  // EA-01 FIX: Populate principal context for authorization decisions
+  fastify.addHook('preHandler', populatePrincipal);
+
   /**
    * GET /v1/enterprise/copilot/health
    */
@@ -12,14 +28,15 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
     const openrouterKey = envConfig.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
     const geminiKey = envConfig.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
+    // SECURITY (F-15 FIX): Do NOT expose API key prefixes — only report configured/missing status
     return reply.send({
       success: true,
       service: 'zega-enterprise-copilot',
       providers: {
-        huggingface_deepseek: { configured: hfKey.length > 5, keyPrefix: hfKey ? `${hfKey.substring(0, 5)}...` : 'MISSING' },
-        groq: { configured: groqKey.length > 5, keyPrefix: groqKey ? `${groqKey.substring(0, 6)}...` : 'MISSING' },
-        openrouter: { configured: openrouterKey.length > 5, keyPrefix: openrouterKey ? `${openrouterKey.substring(0, 8)}...` : 'MISSING' },
-        gemini: { configured: geminiKey.length > 5, keyPrefix: geminiKey ? `${geminiKey.substring(0, 6)}...` : 'MISSING' },
+        huggingface_deepseek: { configured: hfKey.length > 5 },
+        groq: { configured: groqKey.length > 5 },
+        openrouter: { configured: openrouterKey.length > 5 },
+        gemini: { configured: geminiKey.length > 5 },
       },
       timestamp: new Date().toISOString(),
     });
