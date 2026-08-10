@@ -250,6 +250,16 @@ export function ZeroClawTerminalView({
 
   useEffect(() => {
     setActiveMerchantWallet(deriveEmbeddedWallet(userEmail));
+    // 🧹 Purge legacy zeroclaw localStorage keys to enforce 100% fresh real-time fetching from backend & Supabase DB
+    if (typeof window !== 'undefined') {
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('zeroclaw_withdrawals') || key.startsWith('zeroclaw_invoices')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) { }
+    }
   }, [userEmail]);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -315,29 +325,7 @@ export function ZeroClawTerminalView({
     qr_payload_hash?: string;
     audit_signature?: string;
     security_flags?: any;
-  }>>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const key = userEmail ? `zeroclaw_withdrawals_${userEmail}` : 'zeroclaw_withdrawals_guest';
-        const saved = localStorage.getItem(key);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) { }
-    }
-    return [];
-  });
-
-  // Save withdrawHistory to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const key = userEmail ? `zeroclaw_withdrawals_${userEmail}` : 'zeroclaw_withdrawals_guest';
-        localStorage.setItem(key, JSON.stringify(withdrawHistory));
-      } catch (e) { }
-    }
-  }, [withdrawHistory, userEmail]);
+  }>>(() => []);
 
   // Invoices & Payment Generator State
   const [invoiceAmount, setInvoiceAmount] = useState('500.00');
@@ -872,43 +860,7 @@ export function ZeroClawTerminalView({
     return /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(trimmed) ? trimmed : undefined;
   };
 
-  const [generatedInvoicesHistory, setGeneratedInvoicesHistory] = useState<GeneratedInvoice[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const key = userEmail ? `zeroclaw_invoices_${userEmail}` : 'zeroclaw_invoices_guest';
-        const saved = localStorage.getItem(key);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed
-              .filter((inv: any) => 
-                !inv.isDemo && !inv.is_demo &&
-                (inv.merchantWallet === activeMerchantWallet || (inv.solanaPayUrl && inv.solanaPayUrl.includes(activeMerchantWallet)))
-              )
-              .map((inv: any) => ({
-                ...inv,
-                tx_signature: sanitizeTxSig(inv.tx_signature)
-              }));
-          }
-        }
-      } catch (e) { }
-    }
-    return [];
-  });
-
-  // Save generatedInvoicesHistory to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const key = userEmail ? `zeroclaw_invoices_${userEmail}` : 'zeroclaw_invoices_guest';
-        const filtered = generatedInvoicesHistory.filter((inv: any) => 
-          !inv.isDemo && !inv.is_demo &&
-          (inv.merchantWallet === activeMerchantWallet || (inv.solanaPayUrl && inv.solanaPayUrl.includes(activeMerchantWallet)))
-        );
-        localStorage.setItem(key, JSON.stringify(filtered));
-      } catch (e) { }
-    }
-  }, [generatedInvoicesHistory, userEmail, activeMerchantWallet]);
+  const [generatedInvoicesHistory, setGeneratedInvoicesHistory] = useState<GeneratedInvoice[]>(() => []);
 
   // Fetch persistent invoices from Supabase Master Database & Cloudflare R2 CDN
   const fetchDbInvoices = async () => {

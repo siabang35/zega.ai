@@ -67,20 +67,21 @@ export class PrivyWalletService {
    * Uses SHA-256 seed expansion matching Backend Keypair (8Ydw8DVmJ9zDZb85cT42a1Gu47KWpEEhPQpZdeup9CtN)
    */
   public static deriveSolanaPublicKey(email: string): string {
-    const seedStr = `privy_keyless_solana_v1_${(email || 'user@zegaai.site').toLowerCase().trim()}`;
+    const cleanEmail = (email || 'user@zegaai.site').toLowerCase().trim();
+    const seedStr = `privy_keyless_solana_v1_${cleanEmail}`;
     
-    // Exact SHA-256 implementation matching Node's createHash('sha256')
-    function rightRotate(value: number, amount: number) {
-      return (value >>> amount) | (value << (32 - amount));
+    // Standard UTF-8 encode matching Node.js createHash('sha256').update(seedStr).digest()
+    const encoder = new TextEncoder();
+    const data = encoder.encode(seedStr);
+
+    // Compute standard SHA-256 hash using WebCrypto / Sync fallback
+    let hashBytes = new Uint8Array(32);
+    if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+      // Async hash handled in getEmbeddedSolanaWallet, sync fallback uses Uint8Array buffer
     }
-    let i: number, j: number;
-    const words: number[] = [];
-    const asciiBitLength = seedStr.length * 8;
-    let hash = [
-      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
-    ];
-    const k = [
+
+    // Standard SHA-256 block processing
+    const K = [
       0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
       0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
       0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -91,48 +92,65 @@ export class PrivyWalletService {
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    for (i = 0; i < seedStr.length; i++) {
-      words[i >> 2] |= seedStr.charCodeAt(i) << ((3 - i % 4) * 8);
-    }
-    words[asciiBitLength >> 5] |= 0x80 << (24 - asciiBitLength % 32);
-    words[(((asciiBitLength + 64) >> 9) << 4) + 15] = asciiBitLength;
+    let H = [
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
 
-    for (j = 0; j < words.length; j += 16) {
-      const w = words.slice(j, j + 16);
-      const oldHash = hash.slice(0);
+    const l = data.length;
+    const bitLen = l * 8;
+    const kLen = (55 - l % 64 + 64) % 64;
+    const padded = new Uint8Array(l + 1 + kLen + 8);
+    padded.set(data);
+    padded[l] = 0x80;
+    
+    const view = new DataView(padded.buffer);
+    view.setUint32(padded.length - 4, bitLen, false);
 
-      for (i = 0; i < 64; i++) {
-        const w15 = w[i - 15], w2 = w[i - 2];
-        const a = hash[0], e = hash[4];
-        const temp1 = hash[7]
-          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-          + ((e & hash[5]) ^ ((~e) & hash[6]))
-          + k[i]
-          + (w[i] = (i < 16) ? w[i] : (
-              w[i - 16]
-              + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
-              + w[i - 7]
-              + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
-            ) | 0
-          );
-        const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
-          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-
-        hash = [(temp1 + temp2) | 0].concat(hash);
-        hash[4] = (hash[4] + temp1) | 0;
+    for (let offset = 0; offset < padded.length; offset += 64) {
+      const W = new Uint32Array(64);
+      for (let t = 0; t < 16; t++) {
+        W[t] = view.getUint32(offset + t * 4, false);
+      }
+      for (let t = 16; t < 64; t++) {
+        const s0 = ((W[t - 15] >>> 7) | (W[t - 15] << 25)) ^ ((W[t - 15] >>> 18) | (W[t - 15] << 14)) ^ (W[t - 15] >>> 3);
+        const s1 = ((W[t - 2] >>> 17) | (W[t - 2] << 15)) ^ ((W[t - 2] >>> 19) | (W[t - 2] << 13)) ^ (W[t - 2] >>> 10);
+        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
       }
 
-      for (i = 0; i < 8; i++) {
-        hash[i] = (hash[i] + oldHash[i]) | 0;
+      let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+
+      for (let t = 0; t < 64; t++) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        const ch = (e & f) ^ ((~e) & g);
+        const temp1 = (h + S1 + ch + K[t] + W[t]) | 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const temp2 = (S0 + maj) | 0;
+
+        h = g;
+        g = f;
+        f = e;
+        e = (d + temp1) | 0;
+        d = c;
+        c = b;
+        b = a;
+        a = (temp1 + temp2) | 0;
       }
+
+      H[0] = (H[0] + a) | 0;
+      H[1] = (H[1] + b) | 0;
+      H[2] = (H[2] + c) | 0;
+      H[3] = (H[3] + d) | 0;
+      H[4] = (H[4] + e) | 0;
+      H[5] = (H[5] + f) | 0;
+      H[6] = (H[6] + g) | 0;
+      H[7] = (H[7] + h) | 0;
     }
 
-    const hashBytes = new Uint8Array(32);
-    for (i = 0; i < 8; i++) {
-      hashBytes[i * 4] = (hash[i] >>> 24) & 0xff;
-      hashBytes[i * 4 + 1] = (hash[i] >>> 16) & 0xff;
-      hashBytes[i * 4 + 2] = (hash[i] >>> 8) & 0xff;
-      hashBytes[i * 4 + 3] = hash[i] & 0xff;
+    const outView = new DataView(hashBytes.buffer);
+    for (let i = 0; i < 8; i++) {
+      outView.setUint32(i * 4, H[i], false);
     }
 
     const keypair = Keypair.fromSeed(hashBytes);
