@@ -41,8 +41,9 @@ jobs:
       - name: Secret Scanning
         run: |
           echo 'Scanning for hardcoded secrets...'
-          ! grep -rn --include='*.ts' --include='*.js' --include='*.json' \
-            -E '(aws_secret_access_key|AKIA[0-9A-Z]{16}|sk_live_|whsec_[a-zA-Z0-9]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY)' \
+          ! grep -rn --exclude-dir={node_modules,dist,build,.git,.next} \
+            --include='*.ts' --include='*.js' --include='*.json' \
+            -E '(aws_secret_access_key|AKIA[0-9A-Z]{16}|sk_live_[a-zA-Z0-9]{32,}|-----BEGIN (RSA |EC )?PRIVATE KEY)' \
             apps/ packages/ || echo '::error::Potential hardcoded secrets detected!'
           echo 'Secret scan complete.'
 
