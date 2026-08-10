@@ -368,15 +368,21 @@ export async function executeOnChainSolanaWithdrawal(params: {
       const sourceAtaAccountInfo = await solanaRpcManager.callRpc<{ value: any }>('getAccountInfo', [sourceAta.toBase58(), { encoding: 'jsonParsed' }]).catch(() => null);
 
       if (!sourceAtaAccountInfo || !sourceAtaAccountInfo.value) {
-        logger.info({ pubkey: merchantKeypair.publicKey.toBase58(), sourceAta: sourceAta.toBase58() }, 'Auto-initializing Merchant vault USDC Associated Token Account (ATA) on Devnet');
-        tx.add(
-          createAssociatedTokenAccountInstruction(
-            merchantKeypair.publicKey,
-            sourceAta,
-            merchantKeypair.publicKey,
-            usdcMint
-          )
-        );
+        // Source ATA doesn't exist — merchant wallet has never received USDC on-chain
+        return {
+          success: false,
+          error: `Saldo USDC on-chain di wallet merchant (${merchantKeypair.publicKey.toBase58().slice(0, 8)}...) adalah 0. Wallet belum pernah menerima USDC di Solana Devnet. Saldo yang ditampilkan berasal dari invoice database, bukan dari dana on-chain. Silakan kirim USDC ke wallet merchant terlebih dahulu.`
+        };
+      }
+
+      // Verify source ATA has sufficient USDC balance on-chain
+      const sourceAtaParsed = sourceAtaAccountInfo.value?.data?.parsed?.info;
+      const sourceAtaBalance = parseFloat(sourceAtaParsed?.tokenAmount?.uiAmountString || '0');
+      if (sourceAtaBalance < amount) {
+        return {
+          success: false,
+          error: `Saldo USDC on-chain tidak mencukupi. On-chain: ${sourceAtaBalance.toFixed(2)} USDC, Diminta: ${amount} USDC. Saldo database mungkin lebih tinggi dari saldo on-chain aktual.`
+        };
       }
 
       // Check if recipient ATA exists via solanaRpcManager pool

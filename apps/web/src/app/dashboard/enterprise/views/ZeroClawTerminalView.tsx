@@ -5108,35 +5108,6 @@ checkpoint = "human_approval_on_refund"`}
                     Masukkan kode 6-digit yang dikirim ke email untuk mengotorisasi penarikan <strong className="text-emerald-600 dark:text-emerald-400">{withdrawAmount} {withdrawToken}</strong>.
                   </p>
 
-                  {/* 🛡️ In-Card OTP Alert Notification — Always Visible, Never Covered */}
-                  {withdrawModalAlert && (
-                    <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${
-                      withdrawModalAlert.type === 'error'
-                        ? 'bg-rose-100 dark:bg-rose-950/90 border-rose-400 dark:border-rose-700 text-rose-900 dark:text-rose-100 font-bold'
-                        : withdrawModalAlert.type === 'success'
-                        ? 'bg-emerald-100 dark:bg-emerald-950/90 border-emerald-400 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 font-bold'
-                        : withdrawModalAlert.type === 'warning'
-                        ? 'bg-amber-100 dark:bg-amber-950/90 border-amber-400 dark:border-amber-700 text-amber-900 dark:text-amber-100 font-bold'
-                        : 'bg-indigo-100 dark:bg-indigo-950/90 border-indigo-400 dark:border-indigo-700 text-indigo-900 dark:text-indigo-100 font-bold'
-                    }`}>
-                      {withdrawModalAlert.type === 'error' && <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />}
-                      {withdrawModalAlert.type === 'success' && <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
-                      {withdrawModalAlert.type === 'warning' && <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
-                      {withdrawModalAlert.type === 'info' && <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
-                      <div className="space-y-0.5 flex-1 min-w-0">
-                        {withdrawModalAlert.title && <h5 className="font-extrabold text-xs">{withdrawModalAlert.title}</h5>}
-                        <p className="leading-relaxed text-xs">{withdrawModalAlert.message}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setWithdrawModalAlert(null)}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer shrink-0"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
-
                   <div className="space-y-1 pt-1">
                     <input
                       type="text"
