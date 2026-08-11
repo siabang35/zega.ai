@@ -829,12 +829,6 @@ function AuthModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    if (isLocal) {
-      setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
-      return;
-    }
-
     let widgetId: string | null = null;
 
     const renderTurnstile = () => {
@@ -847,6 +841,7 @@ function AuthModal({
               setTurnstileToken(token);
             },
             'error-callback': () => {
+              console.warn("Turnstile widget error fallback triggered");
               setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
             },
             'expired-callback': () => {
@@ -864,10 +859,10 @@ function AuthModal({
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.defer = true;
-      script.onload = () => setTimeout(renderTurnstile, 200);
+      script.onload = () => setTimeout(renderTurnstile, 150);
       document.head.appendChild(script);
     } else {
-      setTimeout(renderTurnstile, 150);
+      setTimeout(renderTurnstile, 100);
     }
 
     return () => {
