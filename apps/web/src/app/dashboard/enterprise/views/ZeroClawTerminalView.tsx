@@ -254,7 +254,11 @@ export function ZeroClawTerminalView({
     | 'PRIVY_AUTHENTICATED'
     | 'WALLET_LOADING'
     | 'READY_TO_SIGN'
-    | 'PASSWORDLESS_INIT_FAILED'
+    | 'PRIVY_ORIGIN_NOT_ALLOWED'
+    | 'PRIVY_CSP_BLOCKED'
+    | 'PRIVY_PASSWORDLESS_INIT_FAILED'
+    | 'PRIVY_SESSION_REQUIRED'
+    | 'PRIVY_SIGNING_FAILED'
     | 'OTP_SEND_FAILED'
     | 'OTP_INVALID'
     | 'OTP_EXPIRED'
@@ -329,6 +333,18 @@ export function ZeroClawTerminalView({
     activeAuthAttemptIdRef.current = authAttemptId;
     activeAuthAttemptsCountRef.current = 1;
 
+    if (typeof window !== 'undefined') {
+      const privyAppIdConfigured = (import.meta as any)?.env?.VITE_PRIVY_APP_ID || 'cms9cnybp002k0bl7ts2nm8ra';
+      console.log('[PRIVY ORIGIN DIAGNOSTIC]', {
+        'window.location.origin': window.location.origin,
+        'window.location.protocol': window.location.protocol,
+        'window.location.host': window.location.host,
+        'window.location.hostname': window.location.hostname,
+        environment: (import.meta as any)?.env?.MODE || 'production',
+        privyAppIdConfigured: privyAppIdConfigured ? `***${privyAppIdConfigured.slice(-6)}` : 'none',
+      });
+    }
+
     console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] INITIALIZING_PASSWORDLESS_FLOW: Dispatching sendCode...`);
 
     otpRequestInFlight.current = true;
@@ -364,11 +380,28 @@ export function ZeroClawTerminalView({
       const msg = err?.message || String(err);
       passwordlessFlowInitializedRef.current = false;
       otpRequestActiveRef.current = false;
-      setPrivyAuthState('OTP_SEND_FAILED');
-      if (!msg.includes('already sent') && !msg.includes('wait')) {
-        setPrivyOtpErrorMsg(msg || 'Tidak dapat mengirim kode OTP. Silakan periksa kembali email Anda.');
+
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+      const isOriginError = msg.toLowerCase().includes('origin not allowed') || msg.includes('403');
+      const isCspError = msg.toLowerCase().includes('content security policy') || msg.toLowerCase().includes('csp');
+
+      if (isOriginError) {
+        setPrivyAuthState('PRIVY_ORIGIN_NOT_ALLOWED');
+        const diagnosticMsg = `[PRIVY_ORIGIN_NOT_ALLOWED] Origin domain (${currentOrigin}) belum di-allowlist di Privy Dashboard untuk Privy App ID (cms9cnybp002k0bl7ts2nm8ra). Silakan tambahkan ${currentOrigin} di Allowed Origins & Allowed Domains (Frame Ancestors).`;
+        console.error(diagnosticMsg);
+        setPrivyOtpErrorMsg(diagnosticMsg);
+      } else if (isCspError) {
+        setPrivyAuthState('PRIVY_CSP_BLOCKED');
+        const diagnosticMsg = `[PRIVY_CSP_BLOCKED] Komunikasi frame/network Privy diblokir oleh Content Security Policy.`;
+        console.error(diagnosticMsg);
+        setPrivyOtpErrorMsg(diagnosticMsg);
       } else {
-        otpDispatchedForWithdrawalRef.current = withdrawalId;
+        setPrivyAuthState('OTP_SEND_FAILED');
+        if (!msg.includes('already sent') && !msg.includes('wait')) {
+          setPrivyOtpErrorMsg(msg || 'Tidak dapat mengirim kode OTP. Silakan periksa kembali email Anda.');
+        } else {
+          otpDispatchedForWithdrawalRef.current = withdrawalId;
+        }
       }
       setShowPrivyOtpModal(true);
     } finally {
@@ -376,6 +409,7 @@ export function ZeroClawTerminalView({
       otpRequestInFlight.current = false;
       activeAuthAttemptsCountRef.current = 0;
     }
+
   };
 
   const handleVerifyPrivyOtpAndResume = async (e?: React.FormEvent) => {
