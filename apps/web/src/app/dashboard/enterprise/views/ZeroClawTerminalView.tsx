@@ -282,11 +282,13 @@ export function ZeroClawTerminalView({
   const passwordlessFlowInitializedRef = useRef<boolean>(false);
   const otpRequestActiveRef = useRef<boolean>(false);
   const currentWithdrawalIdRef = useRef<string | null>(null);
+  const authorizedWithdrawalIdRef = useRef<string | null>(null);
   const activeAuthAttemptIdRef = useRef<string | null>(null);
   const activeVerificationAttemptIdRef = useRef<string | null>(null);
   const activeAuthAttemptsCountRef = useRef<number>(0);
   const otpDispatchedForWithdrawalRef = useRef<string | null>(null);
   const verificationInProgressRef = useRef<boolean>(false);
+  const withdrawalExecutionInFlightRef = useRef<boolean>(false);
 
   const otpRequestInFlight = useRef(false);
   const otpSentTimestampRef = useRef<number>(0);
@@ -412,7 +414,7 @@ export function ZeroClawTerminalView({
 
   };
 
-  const handleVerifyPrivyOtpAndResume = async (e?: React.FormEvent) => {
+  const handleVerifyPrivyOtpAndResume = async (e?: React.FormEvent, overrideCode?: string) => {
     if (e) e.preventDefault();
 
     if (verificationInProgressRef.current) {
@@ -420,9 +422,10 @@ export function ZeroClawTerminalView({
       return;
     }
 
-    const cleanCode = privyOtpCodeInput.trim();
-    if (cleanCode.length !== 6) {
-      setPrivyOtpErrorMsg('Kode OTP Privy harus 6 digit angka.');
+    const rawCode = overrideCode !== undefined ? overrideCode : privyOtpCodeInput;
+    const cleanCode = (rawCode || '').trim().replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setPrivyOtpErrorMsg('OTP must contain 6 digits.');
       return;
     }
 
@@ -458,15 +461,15 @@ export function ZeroClawTerminalView({
 
       // OTP VERIFICATION SUCCESS: Privy session established
       privyOtpVerifiedRef.current = true;
+      authorizedWithdrawalIdRef.current = withdrawalId;
       setPrivyOtpVerified(true);
       setPrivyAuthState('PRIVY_AUTHENTICATED');
       console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] VERIFY_SUCCESS & PRIVY_AUTHENTICATED`);
 
-      onTriggerToast('🟢 Otorisasi Wallet Berhasil! Menunggu SDK menyelesaikan sesi...');
+      onTriggerToast('🟢 Otorisasi Wallet Berhasil! Memproses penandatanganan penarikan...');
       setShowPrivyOtpModal(false);
       setPrivyOtpCodeInput('');
-      // CRITICAL: NO automatic resend, NO calling sendPrivyEmailCode, NO login()!
-      // State settlement effect below will proceed once Privy SDK exposes the wallet.
+      handleExecuteWithdrawal();
     } catch (err: any) {
       console.error(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] VERIFY_FAILURE:`, err);
       const underlyingError = err?.message || String(err || 'Verification failed');
@@ -575,17 +578,7 @@ export function ZeroClawTerminalView({
       setPrivyAuthState('AUTH_REQUIRED');
     }
 
-    // Auto-resume pending withdrawal intent if present and SDK/wallet is ready
-    if (pendingWithdrawalRef.current && (authenticated || privyOtpVerifiedRef.current)) {
-      const activeSigner = (solanaWallets || []).find(
-        (w: any) => w && w.address === activeMerchantWallet && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')
-      ) || (solanaWallets || [])[0];
-
-      if (activeSigner || typeof privySignSolanaHook === 'function') {
-        console.log('[PRIVY-AUTH] Privy SDK settled & wallet ready. Resuming pending withdrawal intent:', pendingWithdrawalRef.current.withdrawalId);
-        handleExecuteWithdrawal();
-      }
-    }
+    // Auto-resume note: handleVerifyPrivyOtpAndResume invokes handleExecuteWithdrawal() directly upon OTP verification success.
   }, [privyReady, authenticated, privyOtpVerified, solanaWallets, activeMerchantWallet]);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -651,7 +644,19 @@ export function ZeroClawTerminalView({
     qr_payload_hash?: string;
     audit_signature?: string;
     security_flags?: any;
-  }>>(() => []);
+  }>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const key = `zeroclaw_withdraw_history_${userEmail || 'default'}`;
+        const cached = localStorage.getItem(key);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
 
   // Invoices & Payment Generator State
   const [invoiceAmount, setInvoiceAmount] = useState('500.00');
@@ -907,11 +912,11 @@ export function ZeroClawTerminalView({
 
   // Fetch Real-time Withdrawal History for Active Merchant Wallet (With Direct Supabase DB Failover)
   const fetchWithdrawalHistory = async () => {
-    if (!activeMerchantWallet) return;
+    if (!activeMerchantWallet && !userEmail) return;
     let fetchedRows: any[] = [];
 
     try {
-      const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/list?merchantPubkey=${encodeURIComponent(activeMerchantWallet)}&userId=${encodeURIComponent(userEmail || '')}`);
+      const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/list?merchantPubkey=${encodeURIComponent(activeMerchantWallet || '')}&userId=${encodeURIComponent(userEmail || '')}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.withdrawals)) {
@@ -925,10 +930,16 @@ export function ZeroClawTerminalView({
     // 🛡️ Direct Supabase DB Query Fallback when API Server on 3001 is offline
     if (fetchedRows.length === 0 && supabase) {
       try {
-        const { data: wRows } = await supabase
-          .from('zeroclaw_withdrawals')
-          .select('*')
-          .or(`merchant_pubkey.eq.${activeMerchantWallet},user_id.eq.${userEmail}`)
+        let query = supabase.from('zeroclaw_withdrawals').select('*');
+        if (activeMerchantWallet && userEmail) {
+          query = query.or(`merchant_pubkey.eq.${activeMerchantWallet},user_id.eq.${userEmail}`);
+        } else if (activeMerchantWallet) {
+          query = query.eq('merchant_pubkey', activeMerchantWallet);
+        } else if (userEmail) {
+          query = query.eq('user_id', userEmail);
+        }
+
+        const { data: wRows } = await query
           .order('created_at', { ascending: false })
           .limit(50);
 
@@ -976,11 +987,20 @@ export function ZeroClawTerminalView({
           }
         });
 
-        return Array.from(map.values()).sort((a, b) => {
+        const sorted = Array.from(map.values()).sort((a, b) => {
           const timeA = new Date(a.created_at || 0).getTime();
           const timeB = new Date(b.created_at || 0).getTime();
           return timeB - timeA; // Newest at top
         });
+
+        if (typeof window !== 'undefined' && (userEmail || activeMerchantWallet)) {
+          try {
+            const key = `zeroclaw_withdraw_history_${userEmail || 'default'}`;
+            localStorage.setItem(key, JSON.stringify(sorted));
+          } catch (e) {}
+        }
+
+        return sorted;
       });
     }
   };
@@ -1103,6 +1123,12 @@ export function ZeroClawTerminalView({
 
   // Step 2: Prepare Unsigned Transaction, Sign with Privy Provider, and Execute Vault Withdrawal
   const handleExecuteWithdrawal = async () => {
+    if (withdrawalExecutionInFlightRef.current) {
+      console.log('[WITHDRAW] Withdrawal execution already in flight. Ignoring duplicate call.');
+      return;
+    }
+    withdrawalExecutionInFlightRef.current = true;
+
     const numericAmt = parseFloat(withdrawAmount) || 0;
 
     setWithdrawLoading(true);
@@ -1196,10 +1222,15 @@ export function ZeroClawTerminalView({
         return;
       }
 
-      const isPrivyAuthorized = Boolean(authenticated || privyOtpVerifiedRef.current || privyOtpVerified);
+      const currentIntentId = pendingWithdrawalRef.current?.withdrawalId || currentWithdrawalIdRef.current;
+      const isPrivyAuthorized = Boolean(
+        privyOtpVerifiedRef.current &&
+        currentIntentId &&
+        authorizedWithdrawalIdRef.current === currentIntentId
+      );
 
       if (!isPrivyAuthorized) {
-        const withdrawalId = pendingWithdrawalRef.current?.withdrawalId || currentWithdrawalIdRef.current || `wd_${Date.now()}`;
+        const withdrawalId = currentIntentId || `wd_${Date.now()}`;
         currentWithdrawalIdRef.current = withdrawalId;
 
         console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] Privy user is unauthenticated. Otorisasi Privy diperlukan.`);
@@ -1517,6 +1548,9 @@ export function ZeroClawTerminalView({
 
         onTriggerToast(`✍️ Transaksi Privy Embedded Wallet Berhasil Ditandatangan!`);
       } catch (signErr: any) {
+        pendingWithdrawalRef.current = null;
+        currentWithdrawalIdRef.current = null;
+        authorizedWithdrawalIdRef.current = null;
         const signErrMsg = signErr?.message || String(signErr);
         const isUserCancel = signErrMsg.toLowerCase().includes('reject') || signErrMsg.toLowerCase().includes('cancel') || signErrMsg.toLowerCase().includes('batal');
 
@@ -1555,8 +1589,13 @@ export function ZeroClawTerminalView({
 
       const json = await res.json();
       if (res.ok && json.success) {
-        // Clear pending intent upon successful execution
+        // Clear pending intent and authorization refs upon successful execution
         pendingWithdrawalRef.current = null;
+        currentWithdrawalIdRef.current = null;
+        authorizedWithdrawalIdRef.current = null;
+        otpDispatchedForWithdrawalRef.current = null;
+        privyOtpVerifiedRef.current = false;
+        setPrivyOtpVerified(false);
 
         onTriggerToast(`✅ ${json.message || 'Penarikan 7-Layer Berhasil!'}`);
         const txObj = json.withdrawal || {};
@@ -1595,12 +1634,16 @@ export function ZeroClawTerminalView({
         };
 
         setWithdrawHistory(prev => [newWithdrawalRecord, ...prev.filter(w => w.id !== newWithdrawalRecord.id)]);
+        setWithdrawModalAlert(null);
         setWithdrawStep('SUCCESS');
         setWithdrawOtpInput('');
 
         fetchWithdrawalHistory();
         fetchOnChainBalances();
       } else {
+        pendingWithdrawalRef.current = null;
+        currentWithdrawalIdRef.current = null;
+        authorizedWithdrawalIdRef.current = null;
         const isAuthError = json.error === 'PRIVY_AUTHORIZATION_UNAVAILABLE';
         const errorMsg = isAuthError
           ? 'Penarikan belum dapat diproses. Sistem signing wallet sedang tidak tersedia. Silakan coba lagi.'
@@ -1612,6 +1655,7 @@ export function ZeroClawTerminalView({
     } catch (err: any) {
       setWithdrawModalAlert({ type: 'error', title: 'Kesalahan Sistem', message: `Terjadi kesalahan saat memproses penarikan: ${err?.message || err}` });
     } finally {
+      withdrawalExecutionInFlightRef.current = false;
       setWithdrawLoading(false);
     }
   };
@@ -5619,7 +5663,7 @@ checkpoint = "human_approval_on_refund"`}
             </div>
 
             {/* Inline Modal Card Alert Banner — Never Covered, Never Floating */}
-            {withdrawModalAlert && (
+            {withdrawModalAlert && withdrawStep !== 'SUCCESS' && (
               <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${withdrawModalAlert.type === 'error'
                 ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
                 : withdrawModalAlert.type === 'success'
@@ -5996,8 +6040,9 @@ checkpoint = "human_approval_on_refund"`}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '');
                     setPrivyOtpCodeInput(val);
+                    setPrivyOtpErrorMsg(null);
                     if (val.length === 6 && !privyOtpSubmitting) {
-                      setTimeout(() => handleVerifyPrivyOtpAndResume(), 50);
+                      setTimeout(() => handleVerifyPrivyOtpAndResume(undefined, val), 50);
                     }
                   }}
                   placeholder=""
@@ -6071,7 +6116,6 @@ checkpoint = "human_approval_on_refund"`}
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
-              <span className="font-bold text-slate-600 font-sans tracking-tight">privy</span>
             </div>
 
           </div>

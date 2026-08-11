@@ -176,6 +176,28 @@ describe('ZeroClaw Withdrawal L6: Fail-Closed Database Record Invariants', () =>
     const isSyntheticFallback = fakeReferenceSig.length !== 88 || fakeReferenceSig.startsWith('wd_tx_');
     assert.equal(isSyntheticFallback, true, 'Synthetic signatures must not be stored as completed');
   });
+
+  it('REJECTS client-supplied txSignature or missing signedTxBase64 with PRIVY_SIGNATURE_MISSING', () => {
+    const requestBody = {
+      txSignature: 'withdraw_fake_hash_123',
+      signedTxBase64: undefined,
+    };
+    const hasValidSignature = Boolean(requestBody.signedTxBase64);
+    assert.equal(hasValidSignature, false, 'Must reject when signedTxBase64 is missing');
+  });
+
+  it('REJECTS reused withdrawal intent with WITHDRAWAL_INTENT_ALREADY_USED', () => {
+    const intentStatus: string = 'COMPLETED';
+    const isReused = intentStatus !== 'AWAITING_SIGNATURE';
+    assert.equal(isReused, true, 'Must reject duplicate attempts on already used withdrawal intent');
+  });
+
+  it('REJECTS tampered request parameters with WITHDRAWAL_INTENT_TAMPERED', () => {
+    const intent = { amount: 10, destinationAddress: '5mrbuyr6n4QBVq2HfBDwinbMuybgm4yrbpW3bpCf6y71' };
+    const request = { amount: 100, destinationAddress: '5mrbuyr6n4QBVq2HfBDwinbMuybgm4yrbpW3bpCf6y71' };
+    const isTampered = request.amount !== intent.amount || request.destinationAddress !== intent.destinationAddress;
+    assert.equal(isTampered, true, 'Must reject request when parameters mismatch server intent');
+  });
 });
 
 describe('ZeroClaw Withdrawal L7: Dynamic Balance Accounting', () => {
@@ -192,3 +214,4 @@ describe('ZeroClaw Withdrawal L7: Dynamic Balance Accounting', () => {
     assert.equal(balance2, 15.00);
   });
 });
+

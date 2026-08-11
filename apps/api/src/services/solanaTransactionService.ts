@@ -21,6 +21,7 @@ import {
   createTransferInstruction,
   getMint,
 } from '@solana/spl-token';
+import { createHash } from 'crypto';
 import { solanaRpcManager } from './solanaRpcManager.js';
 import { logger } from '../utils/logger.js';
 import { envConfig } from '../config/env.js';
@@ -446,6 +447,122 @@ export async function estimateTransactionFee(params: { asset?: string }) {
   };
 }
 
+export interface FingerprintParams {
+  feePayer: string;
+  sender: string;
+  recipient: string;
+  amountBaseUnits: string;
+  asset: 'SOL' | 'USDC' | 'SPL';
+  tokenMint?: string;
+}
+
+export function computeTransactionFingerprint(params: FingerprintParams): string {
+  const normalized = {
+    feePayer: params.feePayer.trim(),
+    sender: params.sender.trim(),
+    recipient: params.recipient.trim(),
+    amountBaseUnits: params.amountBaseUnits.trim(),
+    asset: params.asset,
+    tokenMint: (params.tokenMint || '').trim(),
+  };
+  return createHash('sha256')
+    .update(JSON.stringify(normalized))
+    .digest('hex');
+}
+
+export interface VerificationResult {
+  valid: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+  signerPubkey?: string;
+  feePayer?: string;
+  fingerprint?: string;
+}
+
+export function verifySignedTransaction(
+  signedTxBase64: string,
+  expectedFeePayer: string,
+  expectedFingerprintParams?: FingerprintParams
+): VerificationResult {
+  if (!signedTxBase64 || typeof signedTxBase64 !== 'string') {
+    return { valid: false, errorCode: 'SIGNATURE_MISSING', errorMessage: 'Signed transaction string is missing or invalid.' };
+  }
+
+  let tx: Transaction;
+  try {
+    const rawBuffer = Buffer.from(signedTxBase64.trim(), 'base64');
+    if (rawBuffer.length === 0) {
+      return { valid: false, errorCode: 'SIGNATURE_INVALID', errorMessage: 'Signed transaction buffer is empty.' };
+    }
+    tx = Transaction.from(rawBuffer);
+  } catch (err: any) {
+    return { valid: false, errorCode: 'TRANSACTION_INVALID', errorMessage: `Failed to deserialize transaction: ${err.message}` };
+  }
+
+  if (!tx.feePayer) {
+    return { valid: false, errorCode: 'FEE_PAYER_MISSING', errorMessage: 'Transaction is missing a fee payer.' };
+  }
+
+  const feePayerStr = tx.feePayer.toBase58();
+  if (feePayerStr !== expectedFeePayer.trim()) {
+    return { valid: false, errorCode: 'SIGNER_MISMATCH', errorMessage: `Fee payer "${feePayerStr}" does not match expected server wallet "${expectedFeePayer}".` };
+  }
+
+  let isSigValid = false;
+  try {
+    isSigValid = tx.verifySignatures();
+  } catch {
+    isSigValid = false;
+  }
+
+  if (!isSigValid) {
+    return { valid: false, errorCode: 'SIGNATURE_INVALID', errorMessage: 'Cryptographic Ed25519 signature verification failed.' };
+  }
+
+  let extractedAmountBaseUnits: string | null = null;
+  for (const ix of tx.instructions) {
+    if (ix.programId.equals(SystemProgram.programId)) {
+      if (ix.data.length >= 12 && ix.data.readUInt32LE(0) === 2) {
+        const lamports = ix.data.readBigUInt64LE(4);
+        extractedAmountBaseUnits = lamports.toString();
+        break;
+      }
+    } else if (ix.programId.toBase58() === 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') {
+      if (ix.data.length >= 9 && ix.data[0] === 3) {
+        const rawAmount = ix.data.readBigUInt64LE(1);
+        extractedAmountBaseUnits = rawAmount.toString();
+        break;
+      }
+    }
+  }
+
+  if (expectedFingerprintParams) {
+    const expectedFingerprint = computeTransactionFingerprint(expectedFingerprintParams);
+    const actualFingerprint = computeTransactionFingerprint({
+      feePayer: feePayerStr,
+      sender: expectedFingerprintParams.sender,
+      recipient: expectedFingerprintParams.recipient,
+      amountBaseUnits: extractedAmountBaseUnits || expectedFingerprintParams.amountBaseUnits,
+      asset: expectedFingerprintParams.asset,
+      tokenMint: expectedFingerprintParams.tokenMint,
+    });
+
+    if (extractedAmountBaseUnits && extractedAmountBaseUnits !== expectedFingerprintParams.amountBaseUnits) {
+      return { valid: false, errorCode: 'WITHDRAWAL_INTENT_MISMATCH', errorMessage: 'Transaction instruction amount mismatches prepared server intent.' };
+    }
+
+    if (expectedFingerprint !== actualFingerprint) {
+      return { valid: false, errorCode: 'WITHDRAWAL_INTENT_MISMATCH', errorMessage: 'Transaction parameters or instructions mismatch prepared server intent.' };
+    }
+  }
+
+  return {
+    valid: true,
+    signerPubkey: feePayerStr,
+    feePayer: feePayerStr,
+  };
+}
+
 export const SolanaTransactionService = {
   safeConvertToBaseUnits,
   validatePublicKey,
@@ -457,6 +574,8 @@ export const SolanaTransactionService = {
   confirmTransactionSignature,
   parseAndVerifyTransaction,
   estimateTransactionFee,
+  computeTransactionFingerprint,
+  verifySignedTransaction,
 };
 
 export const solanaTransactionService = SolanaTransactionService;

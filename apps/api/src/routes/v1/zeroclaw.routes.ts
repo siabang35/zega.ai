@@ -21,6 +21,7 @@ import { OtpStore } from '../../services/otpStore.js';
 import { BrevoService } from '../../services/brevoService.js';
 import { zeroClawSignatureMonitor } from '../../services/zeroclawSignatureMonitor.js';
 import { solanaRpcManager } from '../../services/solanaRpcManager.js';
+import { solanaTransactionService } from '../../services/solanaTransactionService.js';
 import { PrivyService } from '../../services/privyService.js';
 import { logger } from '../../utils/logger.js';
 import { envConfig } from '../../config/env.js';
@@ -3210,17 +3211,41 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
 interface ServerWithdrawalIntent {
   withdrawalId: string;
+  authorizationAttemptId: string;
   userEmail: string;
   merchantPubkey: string;
   destinationAddress: string;
   amount: number;
+  amountBaseUnits: string;
   tokenSymbol: 'USDC' | 'SOL';
   createdAt: number;
   expiresAt: number;
-  status: 'AWAITING_SIGNATURE' | 'COMPLETED' | 'EXPIRED';
+  preparedFingerprint: string;
+  status: 'AWAITING_SIGNATURE' | 'CONSUMED' | 'COMPLETED' | 'FAILED' | 'EXPIRED';
 }
 
 const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
+
+function resolveAuthenticatedUser(request: any): string | null {
+  const principal = request.principal;
+  if (principal && (principal.email || principal.userId)) {
+    return principal.email || principal.userId;
+  }
+  const jwtUser = request.user;
+  if (jwtUser && (jwtUser.email || jwtUser.sub)) {
+    return jwtUser.email || jwtUser.sub;
+  }
+  const isDev = process.env.NODE_ENV !== 'production' && envConfig.NODE_ENV !== 'production';
+  const headerUserId = request.headers['x-user-id'] as string;
+  const headerEmail = request.headers['x-user-email'] as string;
+  if (isDev && (headerUserId || headerEmail)) {
+    return (headerUserId || headerEmail).trim();
+  }
+  if (isDev) {
+    return 'user@zegaai.site';
+  }
+  return null;
+}
 
   // ── POST /v1/zeroclaw/withdraw/prepare ── Prepare Unsigned Solana Transaction for Privy Embedded Wallet Signing
   fastify.post<{
@@ -3232,8 +3257,18 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
       tokenSymbol: 'USDC' | 'SOL';
     }
   }>('/withdraw/prepare', async (request, reply) => {
-    const { userId, merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC' } = request.body || {};
-    const userEmail = userId || 'user@zegaai.site';
+    const authenticatedUser = resolveAuthenticatedUser(request);
+    if (!authenticatedUser) {
+      return reply.status(401).send({
+        success: false,
+        error: 'AUTHENTICATION_REQUIRED',
+        securityLayer: 1,
+        message: 'Akses Ditolak: Diperlukan sesi otentikasi server yang sah.'
+      });
+    }
+
+    const { merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC' } = request.body || {};
+    const userEmail = authenticatedUser;
     const amountVal = Number(amount) || 0;
     const USDC_MINT_STR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
@@ -3274,6 +3309,18 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
         error: 'Invalid Privy Merchant Wallet',
         message: 'Alamat Privy embedded wallet merchant tidak valid.'
       });
+    }
+
+    if (merchantPubkey && merchantPubkey.trim() !== cleanMerchant) {
+      const isOwned = await isMerchantWalletOwnedByUser(userEmail, merchantPubkey.trim());
+      if (!isOwned) {
+        return reply.status(403).send({
+          success: false,
+          error: 'WALLET_OWNERSHIP_MISMATCH',
+          securityLayer: 2,
+          message: 'Akses Ditolak: Wallet merchant tidak sesuai dengan wallet resmi pemilik email.'
+        });
+      }
     }
 
     if (cleanDest === cleanMerchant) {
@@ -3370,23 +3417,37 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
 
     const unsignedTxBase64 = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
     const withdrawalId = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+    const authorizationAttemptId = `auth_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
 
-    // Store server-side withdrawal intent for anti-tampering verification
+    const amountBaseUnits = solanaTransactionService.safeConvertToBaseUnits(amountVal.toString(), tokenSymbol).toString();
+    const preparedFingerprint = solanaTransactionService.computeTransactionFingerprint({
+      feePayer: cleanMerchant,
+      sender: cleanMerchant,
+      recipient: cleanDest,
+      amountBaseUnits,
+      asset: tokenSymbol,
+    });
+
+    // Store server-side withdrawal intent for anti-tampering & single-use authorization verification
     serverWithdrawalIntents.set(withdrawalId, {
       withdrawalId,
+      authorizationAttemptId,
       userEmail,
       merchantPubkey: cleanMerchant,
       destinationAddress: cleanDest,
       amount: amountVal,
+      amountBaseUnits,
       tokenSymbol,
       createdAt: Date.now(),
       expiresAt: Date.now() + 5 * 60 * 1000,
+      preparedFingerprint,
       status: 'AWAITING_SIGNATURE'
     });
 
     return reply.send({
       success: true,
       withdrawalId,
+      authorizationAttemptId,
       unsignedTxBase64,
       feePayer: cleanMerchant,
       destinationAddress: cleanDest,
@@ -3497,10 +3558,21 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
       signedTxBase64?: string;
       referenceKey?: string;
       withdrawalId?: string;
+      authorizationAttemptId?: string;
     }
   }>('/withdraw', async (request, reply) => {
-    const { userId, merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC', otp, qrScanned = false, qrDeviceId = 'cam_device_default', qrPayloadHash, txSignature: clientTxSignature, signedTxBase64, withdrawalId: reqWithdrawalId } = request.body || {};
-    const userEmail = userId || 'user@zegaai.site';
+    const authenticatedUser = resolveAuthenticatedUser(request);
+    if (!authenticatedUser) {
+      return reply.status(401).send({
+        success: false,
+        error: 'AUTHENTICATION_REQUIRED',
+        securityLayer: 1,
+        message: 'Akses Ditolak: Diperlukan sesi otentikasi server yang sah.'
+      });
+    }
+
+    const { merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC', otp, qrScanned = false, qrDeviceId = 'cam_device_default', qrPayloadHash, txSignature: clientTxSignature, signedTxBase64, withdrawalId: reqWithdrawalId, authorizationAttemptId: reqAuthAttemptId } = request.body || {};
+    const userEmail = authenticatedUser;
     const amountVal = Number(amount) || 0;
     const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -3539,12 +3611,30 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
       });
     }
 
-    if (intent.status !== 'AWAITING_SIGNATURE') {
+    if (reqAuthAttemptId && intent.authorizationAttemptId !== reqAuthAttemptId) {
+      return reply.status(400).send({
+        success: false,
+        error: 'AUTHORIZATION_ATTEMPT_MISMATCH',
+        securityLayer: 0,
+        message: 'Identifier otorisasi tidak sesuai dengan sesi penarikan ini.'
+      });
+    }
+
+    if (intent.status === 'CONSUMED') {
+      return reply.status(400).send({
+        success: false,
+        error: 'AUTHORIZATION_ALREADY_CONSUMED',
+        securityLayer: 0,
+        message: 'Otorisasi penarikan ini sudah pernah digunakan. Reuse otorisasi diblokir.'
+      });
+    }
+
+    if (intent.status === 'COMPLETED') {
       return reply.status(400).send({
         success: false,
         error: 'WITHDRAWAL_INTENT_ALREADY_USED',
         securityLayer: 0,
-        message: 'Sesi transaksi penarikan ini sudah pernah diproses. Permintaan duplikat diblokir.'
+        message: 'Sesi transaksi penarikan ini telah diselesaikan sebelumnya. Permintaan duplikat diblokir.'
       });
     }
 
@@ -3575,7 +3665,8 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
       });
     }
 
-    // Intent validation passed — intent remains AWAITING_SIGNATURE until RPC broadcast succeeds
+    // Single-use authorization lock: Mark as CONSUMED immediately upon processing attempt
+    intent.status = 'CONSUMED';
 
     // ═══════════════════════════════════════════════════════════════
     // LAYER 1: Authenticated ZEGA Session & Intent Security Guard
@@ -3753,30 +3844,31 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 5: Anti-Replay SHA-256 Hash Guard (15-second deduplication window)
+    // LAYER 5: Real Operation Idempotency & Active Processing Lock
     // ═══════════════════════════════════════════════════════════════
-    const antiReplayHash = createHash('sha256')
-      .update(`${userEmail}_${effectiveMerchant}_${cleanDest}_${amountVal}_${tokenSymbol}_${Math.floor(Date.now() / 15000)}`)
-      .digest('hex');
-
-    if (antiReplayHashSet.has(antiReplayHash)) {
+    // True Idempotency: Duplicate check is based on operation identity (withdrawalId / idempotencyKey / active intent lock),
+    // NOT on a blanket 15-second timestamp window. A completed withdrawal NEVER blocks a new legitimate withdrawal intent.
+    const activeLockKey = `lock_${userEmail}_${reqWithdrawalId}`;
+    if (antiReplayHashSet.has(activeLockKey)) {
       await SupabaseService.logAuditEvent({
         userId: userEmail,
         ipAddress: request.ip,
         action: 'ZEROCLAW_WITHDRAWAL_REPLAY_BLOCKED',
         resource: '/v1/zeroclaw/withdraw',
-        statusCode: 429,
-        payloadSummary: `Layer 5 BLOCKED: Duplicate withdrawal request detected. Hash: ${antiReplayHash.slice(0, 16)}...`,
+        statusCode: 409,
+        payloadSummary: `Layer 5 BLOCKED: Active in-flight processing lock for withdrawal intent ${reqWithdrawalId}`,
       });
 
-      return reply.status(429).send({
+      return reply.status(409).send({
         success: false,
-        error: 'Duplicate Request Blocked',
+        error: 'DUPLICATE_REQUEST_IN_PROGRESS',
         securityLayer: 5,
-        message: 'Permintaan penarikan duplikat terdeteksi. Mohon tunggu 15 detik sebelum mencoba lagi.'
+        message: 'Permintaan penarikan untuk sesi ini sedang diproses. Silakan tunggu hingga transaksi selesai.'
       });
     }
-    antiReplayHashSet.add(antiReplayHash);
+
+    // Set active in-flight processing lock
+    antiReplayHashSet.add(activeLockKey);
 
     // ═══════════════════════════════════════════════════════════════
     // LAYER 6: Rate Limiting (Max 3 withdrawals per 10-minute window per user)
@@ -3818,7 +3910,7 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
     // ═══════════════════════════════════════════════════════════════
     // LAYER 7: Privy SDK Cryptographic Signature Verification, Pre-Submission Local Verification & RPC Broadcast
     // ═══════════════════════════════════════════════════════════════
-    const withdrawalId = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+    const withdrawalId = reqWithdrawalId;
     const referenceKey = generateSolanaPayReferenceKey();
 
     let onChainResult: { success: boolean; txSignature?: string; error?: string };
@@ -3826,9 +3918,31 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
     if (!signedTxBase64) {
       return reply.status(400).send({
         success: false,
-        error: 'Signed Transaction Required',
+        error: 'PRIVY_SIGNATURE_MISSING',
         securityLayer: 7,
         message: 'Transaksi penarikan WAJIB ditandatangani oleh Privy Embedded Wallet via Privy SDK.'
+      });
+    }
+
+    // Verify transaction signature and intent fingerprint
+    const intentVerification = solanaTransactionService.verifySignedTransaction(
+      signedTxBase64,
+      effectiveMerchant,
+      {
+        feePayer: effectiveMerchant,
+        sender: effectiveMerchant,
+        recipient: cleanDest,
+        amountBaseUnits: intent.amountBaseUnits,
+        asset: tokenSymbol,
+      }
+    );
+
+    if (!intentVerification.valid) {
+      return reply.status(400).send({
+        success: false,
+        error: intentVerification.errorCode || 'SIGNATURE_INVALID',
+        securityLayer: 7,
+        message: intentVerification.errorMessage || 'Verifikasi tanda tangan transaksi gagal.'
       });
     }
 
@@ -3844,7 +3958,7 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
     } catch (err: any) {
       return reply.status(400).send({
         success: false,
-        error: 'Invalid Signed Transaction',
+        error: 'PRIVY_SIGNATURE_INVALID',
         securityLayer: 7,
         message: `Format transaksi ter-encode base64 tidak valid: ${err?.message}`
       });
@@ -3901,7 +4015,7 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
       logger.error({ resolvedMerchantAddress, cleanDest, amountVal }, '❌ Local Pre-Submission Cryptographic Signature Verification Failed');
       return reply.status(400).send({
         success: false,
-        error: 'PRIVY_CLIENT_SIGNATURE_REQUIRED',
+        error: 'PRIVY_SIGNATURE_INVALID',
         securityLayer: 7,
         message: `Penarikan Non-Custodial Murni (Layer 7):\nTransaksi belum memiliki tanda tangan kriptografi sah dari Privy wallet [${resolvedMerchantAddress.slice(0, 8)}...]. Harap setujui penandatanganan penarikan pada Privy SDK di browser Anda.`
       });
@@ -4006,6 +4120,14 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
     }
 
     const realTxSig = onChainResult.txSignature;
+
+    // Release active in-flight processing lock upon terminal completion
+    antiReplayHashSet.delete(activeLockKey);
+    intent.status = 'COMPLETED';
+
+    const antiReplayHash = createHash('sha256')
+      .update(`${userEmail}:${effectiveMerchant}:${cleanDest}:${amountVal}:${tokenSymbol}:${withdrawalId}`)
+      .digest('hex');
 
     const auditSignature = createHmac('sha256', process.env.ZEROCLAW_HMAC_SECRET || 'zeroclaw_audit_key_v1')
       .update(`${withdrawalId}:${userEmail}:${cleanDest}:${amountVal}:${tokenSymbol}:${antiReplayHash}:${realTxSig}`)
@@ -4163,16 +4285,14 @@ const serverWithdrawalIntents = new Map<string, ServerWithdrawalIntent>();
 
     if (supabaseUrl && supabaseKey) {
       try {
-        const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
-        const userEmailEnc = encodeURIComponent(userId || '');
         let queryParam = 'order=created_at.desc&limit=50';
 
-        if (merchantEnc && userId) {
-          queryParam = `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userEmailEnc})&${queryParam}`;
-        } else if (merchantEnc) {
-          queryParam = `merchant_pubkey=eq.${merchantEnc}&${queryParam}`;
+        if (merchantPubkey && userId) {
+          queryParam = `or=(merchant_pubkey.eq.${merchantPubkey},user_id.eq.${userId})&${queryParam}`;
+        } else if (merchantPubkey) {
+          queryParam = `merchant_pubkey=eq.${merchantPubkey}&${queryParam}`;
         } else if (userId) {
-          queryParam = `user_id=eq.${userEmailEnc}&${queryParam}`;
+          queryParam = `user_id=eq.${userId}&${queryParam}`;
         }
 
         const dbRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals?${queryParam}`, {
