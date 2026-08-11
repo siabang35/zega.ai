@@ -1630,8 +1630,12 @@ SUCCESS
       if (json.success) {
         setPaymentCheckResult(json);
         if (json.paid) {
-          const foundSig = json.matchedEvent?.signature || (sigToVerify.length >= 70 ? sigToVerify : undefined);
-          if (foundSig && foundSig.length >= 70 && foundSig.length <= 96 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
+          const backendSig = json.matchedEvent?.signature || json.signature;
+          const foundSig = (backendSig && typeof backendSig === 'string' && backendSig.length >= 70 && backendSig.length <= 96 && !backendSig.startsWith('gen_inv_') && !backendSig.startsWith('inv_'))
+            ? backendSig.trim()
+            : undefined;
+
+          if (foundSig) {
             setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'paid', tx_signature: foundSig } : prev);
           }
           setGeneratedInvoicesHistory((prev: GeneratedInvoice[]) =>

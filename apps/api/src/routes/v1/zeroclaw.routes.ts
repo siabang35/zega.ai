@@ -2296,14 +2296,51 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         if (directParsed && directParsed.isVerified && !directParsed.err) {
           // 🛡️ Concurrency & Anti-Spoofing Guard: Verify transaction signature actually contains the target referenceKey or merchant wallet
           const refKeysInTx = directParsed.referenceKeys || [];
-          const isRefMatch = effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL')
-            ? (refKeysInTx.includes(effectiveRefKey) || (directParsed.memo && directParsed.memo.includes(effectiveRefKey)))
+          const hasRefKey = Boolean(effectiveRefKey && effectiveRefKey.length >= 32 && !effectiveRefKey.startsWith('REF-GENERAL'));
+          const isRefMatch = hasRefKey
+            ? (refKeysInTx.includes(effectiveRefKey) || Boolean(directParsed.memo && directParsed.memo.includes(effectiveRefKey)))
             : true;
           const isMerchantMatch = merchantPubkey && merchantPubkey.length >= 32
             ? (directParsed.recipient === merchantPubkey || directParsed.sender === merchantPubkey)
             : true;
 
-          if (isRefMatch || isMerchantMatch) {
+          // Strict Anti-Spoofing Match Rule:
+          // 1. If invoice has a reference key and tx contains it -> MATCH
+          // 2. If general reference key (REF-GENERAL) and tx matches merchant -> MATCH
+          // 3. If invoice has reference key, but tx lacks reference key -> ONLY MATCH if tx went to merchant, amount is valid, and tx is UNCLAIMED by another invoice.
+          let isMatchValid = false;
+          if (hasRefKey && isRefMatch) {
+            isMatchValid = true;
+          } else if (!hasRefKey && isMerchantMatch) {
+            isMatchValid = true;
+          } else if (hasRefKey && !isRefMatch) {
+            const hasOtherRefKeys = refKeysInTx.length > 0;
+            if (!hasOtherRefKeys && isMerchantMatch) {
+              const recAmt = directParsed.amountUsdc > 0 ? directParsed.amountUsdc : (directParsed.amountSol > 0 ? directParsed.amountSol : 0);
+              const amountMatches = validExpectedAmountUsdc <= 0 || (recAmt >= validExpectedAmountUsdc - 0.05);
+              if (amountMatches) {
+                let isAlreadyClaimed = false;
+                if (supabaseUrl && supabaseKey) {
+                  try {
+                    const claimCheck = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?tx_signature=eq.${encodeURIComponent(providedTxSig)}&select=id,reference_key`, {
+                      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+                    });
+                    if (claimCheck && claimCheck.ok) {
+                      const cRows = (await claimCheck.json()) as any[];
+                      if (Array.isArray(cRows) && cRows.length > 0 && cRows[0].reference_key !== effectiveRefKey) {
+                        isAlreadyClaimed = true;
+                      }
+                    }
+                  } catch { }
+                }
+                if (!isAlreadyClaimed) {
+                  isMatchValid = true;
+                }
+              }
+            }
+          }
+
+          if (isMatchValid) {
             const recAmt = directParsed.amountUsdc > 0 ? directParsed.amountUsdc : (directParsed.amountSol > 0 ? directParsed.amountSol : (validExpectedAmountUsdc > 0 ? validExpectedAmountUsdc : 15.00));
 
             let settlementStatus = 'settled_exact';
