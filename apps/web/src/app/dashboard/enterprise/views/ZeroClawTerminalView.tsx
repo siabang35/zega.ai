@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Transaction, Connection } from '@solana/web3.js';
-import { useWallets, usePrivy } from '@privy-io/react-auth';
+import { Transaction, Connection, PublicKey } from '@solana/web3.js';
+import { useWallets, usePrivy, useLoginWithEmail } from '@privy-io/react-auth';
 import { useSolanaWallets, useSignTransaction } from '@privy-io/react-auth/solana';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
@@ -45,7 +45,9 @@ import {
   Search,
   Info,
   Pencil,
-  Edit3
+  Edit3,
+  ArrowLeft,
+  Mail
 } from 'lucide-react';
 
 import {
@@ -229,6 +231,233 @@ export function ZeroClawTerminalView({
   const { signTransaction: privySignSolanaHook } = useSignTransaction();
   const { wallets: genericWallets } = useWallets();
   const { authenticated, login: privyLogin, ready: privyReady, user: privyUser } = usePrivy();
+  const { sendCode: sendPrivyEmailCode, loginWithCode: loginWithPrivyCode, state: privyEmailState } = useLoginWithEmail();
+
+  // Helper to mask sensitive email addresses (e.g. s*****@gmail.com)
+  const maskEmail = (email?: string): string => {
+    if (!email || !email.includes('@')) return 's*****@gmail.com';
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local[0]}*@${domain}`;
+    const maskedLocal = local[0] + '*'.repeat(Math.min(local.length - 2, 5)) + local[local.length - 1];
+    return `${maskedLocal}@${domain}`;
+  };
+
+  // Authoritative Stateful Privy Auth State Machine & Deterministic Coordinator
+  type PrivyAuthState =
+    | 'IDLE'
+    | 'SDK_LOADING'
+    | 'AUTH_REQUIRED'
+    | 'INITIALIZING_PASSWORDLESS_FLOW'
+    | 'OTP_SENT'
+    | 'WAITING_FOR_OTP'
+    | 'VERIFYING_OTP'
+    | 'PRIVY_AUTHENTICATED'
+    | 'WALLET_LOADING'
+    | 'READY_TO_SIGN'
+    | 'PASSWORDLESS_INIT_FAILED'
+    | 'OTP_SEND_FAILED'
+    | 'OTP_INVALID'
+    | 'OTP_EXPIRED'
+    | 'PASSWORDLESS_FLOW_EXPIRED'
+    | 'PRIVY_AUTH_FAILED'
+    | 'PRIVY_WALLET_NOT_FOUND'
+    | 'PRIVY_WALLET_MISMATCH'
+    | 'PRIVY_SIGNATURE_MISSING'
+    | 'PRIVY_PASSWORDLESS_FLOW_NOT_INITIALIZED';
+
+  const [privyAuthState, setPrivyAuthState] = useState<PrivyAuthState>('SDK_LOADING');
+
+  // Integrated Privy Real OTP Confirmation Modal State & Idempotent Correlation Guards
+  const [showPrivyOtpModal, setShowPrivyOtpModal] = useState(false);
+  const [privyOtpCodeInput, setPrivyOtpCodeInput] = useState('');
+  const [privyOtpSubmitting, setPrivyOtpSubmitting] = useState(false);
+  const [privyOtpErrorMsg, setPrivyOtpErrorMsg] = useState<string | null>(null);
+  const [privyOtpSuccessNotice, setPrivyOtpSuccessNotice] = useState<string | null>(null);
+
+  // Stateful Passwordless Flow & Correlation ID Tracking Refs
+  const passwordlessFlowInitializedRef = useRef<boolean>(false);
+  const otpRequestActiveRef = useRef<boolean>(false);
+  const currentWithdrawalIdRef = useRef<string | null>(null);
+  const activeAuthAttemptIdRef = useRef<string | null>(null);
+  const activeVerificationAttemptIdRef = useRef<string | null>(null);
+  const activeAuthAttemptsCountRef = useRef<number>(0);
+  const otpDispatchedForWithdrawalRef = useRef<string | null>(null);
+  const verificationInProgressRef = useRef<boolean>(false);
+
+  const otpRequestInFlight = useRef(false);
+  const otpSentTimestampRef = useRef<number>(0);
+  const withdrawalSessionRef = useRef<string | null>(null);
+  const privyOtpVerifiedRef = useRef(false);
+  const [privyOtpVerified, setPrivyOtpVerified] = useState(false);
+
+  // Preserve server-prepared withdrawal intent parameters across Privy authentication transitions
+  const pendingWithdrawalRef = useRef<{
+    withdrawalId: string;
+    unsignedTxBase64: string;
+    amount: number;
+    destinationAddress: string;
+    tokenSymbol: 'USDC' | 'SOL';
+    createdAt: number;
+  } | null>(null);
+
+  const handleTriggerPrivyOtp = async (isExplicitUserResend = false) => {
+    if (!userEmail) return;
+
+    // Idempotency check: Guarantee activePrivyAuthAttempts <= 1
+    if (activeAuthAttemptsCountRef.current > 0 && !isExplicitUserResend && otpRequestInFlight.current) {
+      console.log('[PRIVY-AUTH] Auth attempt already active in flight. Skipping duplicate trigger. Active count:', activeAuthAttemptsCountRef.current);
+      return;
+    }
+
+    const withdrawalId = currentWithdrawalIdRef.current || pendingWithdrawalRef.current?.withdrawalId || `wd_${Date.now()}`;
+    currentWithdrawalIdRef.current = withdrawalId;
+
+    // STRICT SINGLE OTP DISPATCH GUARD PER WITHDRAWAL SESSION
+    if (!isExplicitUserResend && otpDispatchedForWithdrawalRef.current === withdrawalId && passwordlessFlowInitializedRef.current) {
+      console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] Passwordless code flow already initialized for this withdrawal intent. Opening existing OTP modal without re-sending.`);
+      setShowPrivyOtpModal(true);
+      setPrivyAuthState('WAITING_FOR_OTP');
+      return;
+    }
+
+    if (privyOtpVerifiedRef.current && !isExplicitUserResend) {
+      console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] Privy wallet authorization already verified. Skipping OTP request.`);
+      return;
+    }
+
+    const authAttemptId = activeAuthAttemptIdRef.current || `auth_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    activeAuthAttemptIdRef.current = authAttemptId;
+    activeAuthAttemptsCountRef.current = 1;
+
+    console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] INITIALIZING_PASSWORDLESS_FLOW: Dispatching sendCode...`);
+
+    otpRequestInFlight.current = true;
+    passwordlessFlowInitializedRef.current = false;
+    otpRequestActiveRef.current = false;
+    setPrivyOtpErrorMsg(null);
+    setPrivyOtpSuccessNotice(null);
+    setPrivyOtpSubmitting(true);
+    setPrivyAuthState('INITIALIZING_PASSWORDLESS_FLOW');
+
+    try {
+      await sendPrivyEmailCode({ email: userEmail });
+      otpSentTimestampRef.current = Date.now();
+      otpDispatchedForWithdrawalRef.current = withdrawalId;
+      passwordlessFlowInitializedRef.current = true;
+      otpRequestActiveRef.current = true;
+      setShowPrivyOtpModal(true);
+      setPrivyAuthState('OTP_SENT');
+
+      setTimeout(() => {
+        setPrivyAuthState('WAITING_FOR_OTP');
+      }, 100);
+
+      console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] OTP_SENT & passwordlessFlowInitialized=true.`);
+      if (isExplicitUserResend) {
+        setPrivyOtpSuccessNotice(`Kode OTP baru telah dikirim ke email ${maskEmail(userEmail)}.`);
+        onTriggerToast(`📧 Kode OTP Privy baru dikirim ke ${maskEmail(userEmail)}`);
+      } else {
+        onTriggerToast(`📧 Kode OTP Privy dikirim ke ${maskEmail(userEmail)}`);
+      }
+    } catch (err: any) {
+      console.warn(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] Passwordless initialization / OTP send warning:`, err);
+      const msg = err?.message || String(err);
+      passwordlessFlowInitializedRef.current = false;
+      otpRequestActiveRef.current = false;
+      setPrivyAuthState('OTP_SEND_FAILED');
+      if (!msg.includes('already sent') && !msg.includes('wait')) {
+        setPrivyOtpErrorMsg(msg || 'Tidak dapat mengirim kode OTP. Silakan periksa kembali email Anda.');
+      } else {
+        otpDispatchedForWithdrawalRef.current = withdrawalId;
+      }
+      setShowPrivyOtpModal(true);
+    } finally {
+      setPrivyOtpSubmitting(false);
+      otpRequestInFlight.current = false;
+      activeAuthAttemptsCountRef.current = 0;
+    }
+  };
+
+  const handleVerifyPrivyOtpAndResume = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (verificationInProgressRef.current) {
+      console.log('[PRIVY-AUTH] Verification already in progress. Ignoring duplicate submit.');
+      return;
+    }
+
+    const cleanCode = privyOtpCodeInput.trim();
+    if (cleanCode.length !== 6) {
+      setPrivyOtpErrorMsg('Kode OTP Privy harus 6 digit angka.');
+      return;
+    }
+
+    const withdrawalId = currentWithdrawalIdRef.current || pendingWithdrawalRef.current?.withdrawalId || `wd_${Date.now()}`;
+    const authAttemptId = activeAuthAttemptIdRef.current || `auth_${Date.now()}`;
+    const verificationAttemptId = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    activeVerificationAttemptIdRef.current = verificationAttemptId;
+
+    // MANDATORY PRE-VERIFICATION GUARD: Ensure passwordless flow was initialized
+    const isSdkAwaitingCodeInput = privyEmailState?.status === 'awaiting-code-input';
+    const isFlowValid = passwordlessFlowInitializedRef.current || isSdkAwaitingCodeInput;
+
+    console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] PRE-VERIFY GUARD: passwordlessFlowInitialized=${passwordlessFlowInitializedRef.current}, sdkStatus=${privyEmailState?.status}, isFlowValid=${isFlowValid}`);
+
+    if (!isFlowValid && !isSdkAwaitingCodeInput) {
+      console.error(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] ERROR: PRIVY_PASSWORDLESS_FLOW_NOT_INITIALIZED. Stopping verification attempt.`);
+      setPrivyAuthState('PRIVY_PASSWORDLESS_FLOW_NOT_INITIALIZED');
+      setPrivyOtpErrorMsg('Sesi verifikasi Privy belum diinisialisasi atau telah kadaluarsa. Silakan klik "Kirim Ulang Kode OTP" untuk meminta kode baru.');
+      return;
+    }
+
+    verificationInProgressRef.current = true;
+    setPrivyOtpErrorMsg(null);
+    setPrivyOtpSuccessNotice(null);
+    setPrivyOtpSubmitting(true);
+    setPrivyAuthState('VERIFYING_OTP');
+
+    console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] OTP_SUBMIT: Verifying code...`);
+
+    try {
+      onTriggerToast('🔄 Memverifikasi Otorisasi Wallet...');
+      await loginWithPrivyCode({ code: cleanCode });
+
+      // OTP VERIFICATION SUCCESS: Privy session established
+      privyOtpVerifiedRef.current = true;
+      setPrivyOtpVerified(true);
+      setPrivyAuthState('PRIVY_AUTHENTICATED');
+      console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] VERIFY_SUCCESS & PRIVY_AUTHENTICATED`);
+
+      onTriggerToast('🟢 Otorisasi Wallet Berhasil! Menunggu SDK menyelesaikan sesi...');
+      setShowPrivyOtpModal(false);
+      setPrivyOtpCodeInput('');
+      // CRITICAL: NO automatic resend, NO calling sendPrivyEmailCode, NO login()!
+      // State settlement effect below will proceed once Privy SDK exposes the wallet.
+    } catch (err: any) {
+      console.error(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] [authAttemptId=${authAttemptId}] [verificationAttemptId=${verificationAttemptId}] VERIFY_FAILURE:`, err);
+      const underlyingError = err?.message || String(err || 'Verification failed');
+      
+      // Differentiate expired code vs invalid code without invalidating the active session
+      if (underlyingError.toLowerCase().includes('expire') || underlyingError.toLowerCase().includes('expired')) {
+        setPrivyAuthState('OTP_EXPIRED');
+        passwordlessFlowInitializedRef.current = false;
+        setPrivyOtpErrorMsg('Kode OTP telah kadaluarsa. Silakan klik "Kirim Ulang Kode OTP" untuk meminta kode baru.');
+      } else if (underlyingError.includes('Must initialize a passwordless code flow first')) {
+        setPrivyAuthState('PRIVY_PASSWORDLESS_FLOW_NOT_INITIALIZED');
+        passwordlessFlowInitializedRef.current = false;
+        setPrivyOtpErrorMsg('Sesi verifikasi Privy telah kadaluarsa. Silakan klik "Kirim Ulang Kode OTP" untuk meminta kode baru.');
+      } else {
+        setPrivyAuthState('OTP_INVALID');
+        // DO NOT CLEAR OTP INPUT PREMATURELY! KEEP CODE UNTIL USER CORRECTS IT OR RESENDS
+        // Expose exact underlying Privy error message
+        setPrivyOtpErrorMsg(underlyingError || 'Kode verifikasi tidak sesuai. Silakan periksa kembali email Anda dan coba lagi.');
+      }
+      // CRITICAL IDEMPOTENCY INVARIANT: DO NOT AUTOMATICALLY RESEND OTP ON VERIFICATION FAILURE!
+    } finally {
+      setPrivyOtpSubmitting(false);
+      verificationInProgressRef.current = false;
+    }
+  };
   const { t } = useLanguage();
   const zv = t?.enterpriseViews?.zeroclaw || {
     title: 'ZeroClaw Solana Bridge Terminal',
@@ -291,6 +520,39 @@ export function ZeroClawTerminalView({
       } catch (e) { }
     }
   }, [userEmail]);
+
+  // Synchronize Privy Authentication State & Auto-Resume Pending Withdrawal Intent
+  useEffect(() => {
+    if (!privyReady) {
+      setPrivyAuthState('SDK_LOADING');
+      return;
+    }
+
+    if (authenticated || privyOtpVerifiedRef.current || privyOtpVerified) {
+      setPrivyAuthState('PRIVY_AUTHENTICATED');
+    } else if (
+      privyAuthState !== 'WAITING_FOR_OTP' &&
+      privyAuthState !== 'INITIALIZING_PASSWORDLESS_FLOW' &&
+      privyAuthState !== 'VERIFYING_OTP' &&
+      privyAuthState !== 'OTP_SENT' &&
+      !showPrivyOtpModal &&
+      (Date.now() - otpSentTimestampRef.current > 120000)
+    ) {
+      setPrivyAuthState('AUTH_REQUIRED');
+    }
+
+    // Auto-resume pending withdrawal intent if present and SDK/wallet is ready
+    if (pendingWithdrawalRef.current && (authenticated || privyOtpVerifiedRef.current)) {
+      const activeSigner = (solanaWallets || []).find(
+        (w: any) => w && w.address === activeMerchantWallet && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')
+      ) || (solanaWallets || [])[0];
+
+      if (activeSigner || typeof privySignSolanaHook === 'function') {
+        console.log('[PRIVY-AUTH] Privy SDK settled & wallet ready. Resuming pending withdrawal intent:', pendingWithdrawalRef.current.withdrawalId);
+        handleExecuteWithdrawal();
+      }
+    }
+  }, [privyReady, authenticated, privyOtpVerified, solanaWallets, activeMerchantWallet]);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
@@ -805,24 +1067,20 @@ export function ZeroClawTerminalView({
     }
   };
 
-  // Step 2: Submit 6-Digit OTP, Prepare Unsigned Transaction, Sign with Privy Provider, and Execute Vault Withdrawal
+  // Step 2: Prepare Unsigned Transaction, Sign with Privy Provider, and Execute Vault Withdrawal
   const handleExecuteWithdrawal = async () => {
-    if (!withdrawOtpInput || withdrawOtpInput.trim().length !== 6) {
-      setWithdrawModalAlert({ type: 'warning', title: 'Kode OTP Inkomplit', message: 'Masukkan 6-digit kode OTP verifikasi yang dikirim ke email!' });
-      onTriggerToast('⚠️ Masukkan 6-digit kode OTP verifikasi yang dikirim ke email!');
-      return;
-    }
     const numericAmt = parseFloat(withdrawAmount) || 0;
 
     setWithdrawLoading(true);
     setWithdrawModalAlert(null);
 
-    // 🔍 Safe Diagnostic Logging for Privy Authentication State
-    console.log("[PRIVY AUTH] authenticated:", authenticated);
-    console.log("[PRIVY AUTH] user:", privyUser ? privyUser.id : null);
+    // 🔍 Diagnostic Logging for Privy Authentication State Machine
+    console.log('[PRIVY AUTH STATE] Current state:', privyAuthState);
+    console.log('[PRIVY AUTH] authenticated:', authenticated);
+    console.log('[PRIVY AUTH] user:', privyUser ? privyUser.id : null);
     const availableWalletsList: any[] = [...(solanaWallets || []), ...(genericWallets || [])];
-    console.log("[PRIVY WALLET] available wallet count:", availableWalletsList.length);
-    console.log("[PRIVY WALLET] addresses:", availableWalletsList.map((w: any) => w.address || w.publicKey).filter(Boolean));
+    console.log('[PRIVY WALLET] available wallet count:', availableWalletsList.length);
+    console.log('[PRIVY WALLET] addresses:', availableWalletsList.map((w: any) => w.address || w.publicKey).filter(Boolean));
 
     // Validate Base58 Destination Address Format (32-44 characters)
     const BASE58_ADDR_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -837,164 +1095,153 @@ export function ZeroClawTerminalView({
       return;
     }
 
-    onTriggerToast(`🔒 Menyiapkan Transaksi Unsigned Vault (${numericAmt} ${withdrawToken})...`);
+    let prepJson: any = null;
 
     try {
-      // 1. Prepare Unsigned Solana Transaction with fresh blockhash using exact merchant wallet
-      const prepRes = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/prepare`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userEmail,
-          merchantPubkey: activeMerchantWallet,
-          destinationAddress: withdrawDestAddress.trim(),
-          amount: numericAmt,
-          tokenSymbol: withdrawToken,
-        })
-      });
+      // Check if a valid pending withdrawal intent exists for the same parameters
+      const cleanDest = withdrawDestAddress.trim();
+      const existingIntent = pendingWithdrawalRef.current;
+      const isIntentValid = existingIntent &&
+        existingIntent.amount === numericAmt &&
+        existingIntent.destinationAddress === cleanDest &&
+        existingIntent.tokenSymbol === withdrawToken &&
+        (Date.now() - existingIntent.createdAt) < 4.5 * 60 * 1000;
 
-      const prepJson = await prepRes.json();
-      if (!prepRes.ok || !prepJson.success || !prepJson.unsignedTxBase64) {
-        const errorMsg = prepJson.message || prepJson.error || 'Gagal menyiapkan transaksi penarikan.';
-        setWithdrawModalAlert({ type: 'error', title: 'Gagal Menyiapkan Transaksi', message: errorMsg });
-        onTriggerToast(`⚠️ Gagal Menyiapkan Transaksi: ${errorMsg}`);
-        setWithdrawLoading(false);
-        return;
+      if (isIntentValid && existingIntent) {
+        console.log('[WITHDRAW INTENT] Reusing server-prepared withdrawal intent:', existingIntent.withdrawalId);
+        prepJson = {
+          success: true,
+          withdrawalId: existingIntent.withdrawalId,
+          unsignedTxBase64: existingIntent.unsignedTxBase64,
+        };
+      } else {
+        onTriggerToast(`🔒 Menyiapkan Transaksi Unsigned Vault (${numericAmt} ${withdrawToken})...`);
+        const prepRes = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/prepare`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: userEmail,
+            merchantPubkey: activeMerchantWallet,
+            destinationAddress: cleanDest,
+            amount: numericAmt,
+            tokenSymbol: withdrawToken,
+          })
+        });
+
+        prepJson = await prepRes.json();
+        if (!prepRes.ok || !prepJson.success || !prepJson.unsignedTxBase64) {
+          const errorMsg = prepJson.message || prepJson.error || 'Gagal menyiapkan transaksi penarikan.';
+          setWithdrawModalAlert({ type: 'error', title: 'Gagal Menyiapkan Transaksi', message: errorMsg });
+          onTriggerToast(`⚠️ Gagal Menyiapkan Transaksi: ${errorMsg}`);
+          setWithdrawLoading(false);
+          return;
+        }
+
+        // Store server-prepared intent parameters for transaction continuity across auth transitions
+        pendingWithdrawalRef.current = {
+          withdrawalId: prepJson.withdrawalId,
+          unsignedTxBase64: prepJson.unsignedTxBase64,
+          amount: numericAmt,
+          destinationAddress: cleanDest,
+          tokenSymbol: withdrawToken,
+          createdAt: Date.now(),
+        };
       }
 
       onTriggerToast(`✍️ Meminta Penandatanganan Privy Embedded Wallet (${activeMerchantWallet.slice(0, 8)}...)...`);
 
-      // 🔍 SAFE DIAGNOSTIC LOGGING FOR PRIVY WALLETS
-      console.log('[PRIVY DEBUG] Target wallet:', activeMerchantWallet);
-      console.log(
-        '[PRIVY DEBUG] Available Privy solanaWallets:',
-        (solanaWallets || []).map((w: any) => ({
-          address: w.address,
-          chainType: w.chainType,
-          walletClientType: w.walletClientType,
-          type: w.type,
-        }))
-      );
-      console.log(
-        '[PRIVY DEBUG] Available Privy genericWallets:',
-        (genericWallets || []).map((w: any) => ({
-          address: w.address,
-          chainType: w.chainType,
-          walletClientType: w.walletClientType,
-          type: w.type,
-        }))
-      );
-      console.log('[PRIVY DEBUG] Privy authenticated:', authenticated);
-      console.log('[PRIVY DEBUG] Privy user ID:', privyUser?.id);
-
-      // 2. Cryptographic Signing via Privy Embedded Wallet (Live Instance Resolution & Auto-Creation)
-      let solanaWalletObj: any = null;
-
-      // Tier A: Check solanaWallets hook array for live signing instances
-      if (solanaWallets && solanaWallets.length > 0) {
-        solanaWalletObj = solanaWallets.find((w: any) => w.address === activeMerchantWallet && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')) ||
-                          solanaWallets.find((w: any) => typeof w.signTransaction === 'function' || typeof w.getProvider === 'function') ||
-                          solanaWallets.find((w: any) => w.address === activeMerchantWallet) ||
-                          solanaWallets[0];
-      }
-
-      // Tier B: Check genericWallets hook array for live signing instances
-      if ((!solanaWalletObj || (typeof solanaWalletObj.signTransaction !== 'function' && typeof solanaWalletObj.getProvider !== 'function')) && genericWallets && genericWallets.length > 0) {
-        const candidate = genericWallets.find((w: any) => w.address === activeMerchantWallet && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')) ||
-                          genericWallets.find((w: any) => (w.chainType === 'solana' || w.walletClientType === 'privy' || w.type === 'solana') && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')) ||
-                          genericWallets.find((w: any) => typeof w.signTransaction === 'function' || typeof w.getProvider === 'function');
-        if (candidate) solanaWalletObj = candidate;
-      }
-
-      // Tier C: Check window global Privy session
-      if ((!solanaWalletObj || (typeof solanaWalletObj.signTransaction !== 'function' && typeof solanaWalletObj.getProvider !== 'function')) && typeof window !== 'undefined') {
-        const privyWallets = (window as any).privyWallets || (window as any).privy?.wallets;
-        if (Array.isArray(privyWallets) && privyWallets.length > 0) {
-          const candidate = privyWallets.find((w: any) => w.address === activeMerchantWallet && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')) ||
-                            privyWallets.find((w: any) => (w.chainType === 'solana' || w.walletClientType === 'privy') && (typeof w.signTransaction === 'function' || typeof w.getProvider === 'function')) ||
-                            privyWallets.find((w: any) => typeof w.signTransaction === 'function' || typeof w.getProvider === 'function');
-          if (candidate) solanaWalletObj = candidate;
-        }
-      }
-
-      // Tier D: Trigger dynamic embedded wallet creation if no live signing object is found
-      const hasLiveSigner = solanaWalletObj && (
-        typeof solanaWalletObj.signTransaction === 'function' ||
-        typeof solanaWalletObj.getProvider === 'function' ||
-        typeof solanaWalletObj.getSolanaProvider === 'function' ||
-        Boolean(solanaWalletObj.provider)
-      );
-
-      if (!hasLiveSigner && typeof createSolanaWallet === 'function') {
-        onTriggerToast('⚡ Memulai pembuatan / pengaktifan Privy Embedded Solana Wallet live...');
-        try {
-          const createdWallet = await createSolanaWallet();
-          if (createdWallet && (createdWallet as any).address) {
-            solanaWalletObj = createdWallet;
-            onTriggerToast(`🟢 Privy Embedded Solana Wallet Live Berhasil Dibuat: ${String((createdWallet as any).address).slice(0, 8)}...`);
-          }
-        } catch (createErr) {
-          console.warn('Auto-create Privy Solana wallet note:', createErr);
-        }
-      }
-
-      // Tier E: Check PrivyWalletService session/cache resolution for authenticated ZEGA user
-      if (!solanaWalletObj && userEmail) {
-        try {
-          const derived = PrivyWalletService.getEmbeddedSolanaWallet(userEmail);
-          if (derived && derived.address) {
-            solanaWalletObj = {
-              address: derived.address,
-              walletClientType: 'privy',
-              chainType: 'solana',
-              providerLabel: derived.providerLabel || 'Privy Embedded Solana Wallet'
-            };
-            console.log('[PRIVY DEBUG] Resolved embedded wallet via PrivyWalletService Tier E:', derived.address);
-          }
-        } catch (e) {
-          console.warn('[PRIVY DEBUG] Tier E resolution note:', e);
-        }
-      }
-
-      // 🔍 SAFE DIAGNOSTIC LOGGING FOR WITHDRAWAL FLOW
-      console.log('[WITHDRAW] Preparing withdrawal for target wallet:', activeMerchantWallet);
-      console.log('[WITHDRAW] Privy authenticated:', authenticated);
-      console.log('[WITHDRAW] Wallet found:', Boolean(solanaWalletObj));
-      console.log('[WITHDRAW] Wallet signing capability:', typeof solanaWalletObj?.signTransaction === 'function' || typeof solanaWalletObj?.getProvider === 'function');
-
-      if (!solanaWalletObj) {
-        const diagInfo = {
-          code: 'PRIVY_WALLET_NOT_AVAILABLE_IN_SESSION',
-          targetWallet: activeMerchantWallet,
-          availableSolanaWalletsCount: (solanaWallets || []).length,
-          availableGenericWalletsCount: (genericWallets || []).length,
-          authenticated: Boolean(authenticated),
-          hasPrivyUser: Boolean(privyUser?.id),
-          privyUserId: privyUser?.id || null,
-        };
-        console.error('[PRIVY DIAGNOSTIC ERROR]', JSON.stringify(diagInfo, null, 2));
-
+      // 1. CRITICAL AUTHENTICATION & SDK READINESS PRE-CHECK
+      if (!privyReady) {
         setWithdrawModalAlert({
-          type: 'error',
-          title: 'PRIVY_WALLET_NOT_AVAILABLE_IN_SESSION',
-          message: `Wallet Privy Solana (${activeMerchantWallet.slice(0, 8)}...) tidak terdeteksi pada sesi browser ini.\n\nDiagnostic: targetWallet=${activeMerchantWallet.slice(0, 8)}..., authenticated=${authenticated}, privyUserId=${privyUser?.id || 'absent'}, availableWallets=${(solanaWallets || []).length}.`
+          type: 'info',
+          title: 'PRIVY_SDK_NOT_READY',
+          message: 'Privy SDK sedang dimuat. Silakan tunggu beberapa saat...'
         });
-        onTriggerToast(`❌ PRIVY_WALLET_NOT_AVAILABLE_IN_SESSION: Wallet ${activeMerchantWallet.slice(0, 8)}... tidak ditemukan.`);
-        if (typeof privyLogin === 'function') {
-          privyLogin({ prefill: { type: 'email', value: userEmail } } as any);
-        }
+        onTriggerToast('⌛ PRIVY_SDK_NOT_READY: Menunggu Privy SDK siap...');
         setWithdrawLoading(false);
         return;
       }
 
-      // Ensure active merchant address matches detected Privy wallet object address
-      const detectedAddress = String(solanaWalletObj.address || solanaWalletObj.publicKey || '').trim();
-      if (detectedAddress && detectedAddress !== activeMerchantWallet) {
-        setActiveMerchantWallet(detectedAddress);
-        if (userEmail && typeof window !== 'undefined') {
-          const cleanEmail = userEmail.toLowerCase().trim();
-          localStorage.setItem(`zega_privy_wallet_${cleanEmail}`, detectedAddress);
+      const isPrivyAuthorized = Boolean(authenticated || privyOtpVerifiedRef.current || privyOtpVerified);
+
+      if (!isPrivyAuthorized) {
+        const withdrawalId = pendingWithdrawalRef.current?.withdrawalId || currentWithdrawalIdRef.current || `wd_${Date.now()}`;
+        currentWithdrawalIdRef.current = withdrawalId;
+
+        console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] Privy user is unauthenticated. Otorisasi Privy diperlukan.`);
+
+        // IF OTP WAS ALREADY DISPATCHED FOR THIS WITHDRAWAL SESSION: Open modal without sending a new OTP
+        if (otpDispatchedForWithdrawalRef.current === withdrawalId) {
+          console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] OTP already dispatched for this session. Displaying existing OTP modal without re-sending.`);
+          setShowPrivyOtpModal(true);
+          setPrivyAuthState('WAITING_FOR_OTP');
+        } else {
+          // INITIAL DISPATCH ONLY IF NOT PREVIOUSLY DISPATCHED FOR THIS WITHDRAWAL
+          console.log(`[PRIVY-AUTH] [withdrawalId=${withdrawalId}] First-time auth requirement for this withdrawal intent. Initializing OTP dispatch.`);
+          handleTriggerPrivyOtp();
         }
+
+        setWithdrawModalAlert({
+          type: 'warning',
+          title: 'PRIVY_AUTH_REQUIRED',
+          message: `Penarikan memerlukan otorisasi Privy embedded wallet. Kode OTP Privy telah dikirim ke ${maskEmail(userEmail)}. Silakan masukkan 6-digit OTP pada menu konfirmasi untuk melanjutkan.`
+        });
+        setWithdrawLoading(false);
+        return;
+      }
+
+      // Safe Diagnostic Logging (No secrets, private keys, JWTs, or OTPs)
+      console.log('[PRIVY] SDK ready:', privyReady);
+      console.log('[PRIVY] authenticated:', authenticated);
+      console.log('[PRIVY] user id exists:', Boolean(privyUser?.id));
+      console.log('[PRIVY] wallet count:', (solanaWallets || []).length);
+      console.log('[PRIVY] wallet addresses:', (solanaWallets || []).map((w: any) => w.address));
+      console.log('[PRIVY] wallet client types:', (solanaWallets || []).map((w: any) => w.walletClientType || w.type));
+      console.log('[PRIVY] wallet types:', (solanaWallets || []).map((w: any) => w.chainType || 'solana'));
+
+      // 2. Resolve Actual Privy Embedded Wallet Instance by Exact Address Match
+      const availableWalletsList: any[] = [...(solanaWallets || []), ...(genericWallets || [])];
+
+      if (availableWalletsList.length === 0) {
+        console.warn('[PRIVY WALLET] Authenticated but no Solana embedded wallet instance found in SDK state.');
+        setWithdrawModalAlert({
+          type: 'info',
+          title: 'PRIVY_WALLET_NOT_READY',
+          message: 'Privy embedded wallet sedang disinkronisasikan oleh SDK. Silakan tunggu beberapa saat...'
+        });
+        onTriggerToast('⌛ PRIVY_WALLET_NOT_READY: Wallet Privy sedang diinisialisasi...');
+        setWithdrawLoading(false);
+        return;
+      }
+
+      // Exact wallet matching against activeMerchantWallet
+      let solanaWalletObj: any = availableWalletsList.find((w: any) => w && w.address === activeMerchantWallet);
+
+      if (!solanaWalletObj && availableWalletsList.length > 0) {
+        const candidate = availableWalletsList.find((w: any) => w && (w.walletClientType === 'privy' || w.chainType === 'solana' || w.type === 'solana'));
+        if (candidate && candidate.address) {
+          if (!activeMerchantWallet || activeMerchantWallet === candidate.address) {
+            solanaWalletObj = candidate;
+            if (activeMerchantWallet !== candidate.address) {
+              setActiveMerchantWallet(candidate.address);
+              if (userEmail && typeof window !== 'undefined') {
+                localStorage.setItem(`zega_privy_wallet_${userEmail.toLowerCase().trim()}`, candidate.address);
+              }
+            }
+          }
+        }
+      }
+
+      if (!solanaWalletObj) {
+        console.error(`[PRIVY_WALLET_NOT_FOUND] Target wallet ${activeMerchantWallet} not found in user's Privy wallets:`, availableWalletsList.map((w: any) => w.address));
+        setWithdrawModalAlert({
+          type: 'error',
+          title: 'PRIVY_WALLET_NOT_FOUND',
+          message: `Privy embedded wallet dengan alamat ${activeMerchantWallet} tidak ditemukan pada sesi Privy terotentikasi pengguna ini. Penarikan dihentikan demi keamanan.`
+        });
+        onTriggerToast('⛔ PRIVY_WALLET_NOT_FOUND: Embedded wallet tidak sesuai dengan akun pengguna.');
+        setWithdrawLoading(false);
+        return;
       }
 
       let signedTxBase64: string | undefined;
@@ -1012,8 +1259,8 @@ export function ZeroClawTerminalView({
           throw new Error(`Fee payer transaksi (${tx.feePayer.toBase58()}) tidak sesuai dengan wallet Privy pengguna (${activeMerchantWallet}).`);
         }
 
-        // Invoke Privy embedded wallet signing in browser session (Multi-Strategy Provider Resolution)
-        let signedTx: Transaction | undefined;
+        // Invoke Privy embedded wallet signing in browser session
+        let signedTx: Transaction | null = null;
         const signErrorLog: string[] = [];
 
         const resolveProvider = async (walletObj: any) => {
@@ -1030,178 +1277,201 @@ export function ZeroClawTerminalView({
           return null;
         };
 
-        console.log('[WITHDRAW] Starting Privy authorization/signing flow');
-
         const normalizeAddress = (addr?: string | null): string => (addr ?? '').trim();
 
-        // Extract actual runtime Solana embedded wallet from Privy React SDK hooks & fallback resolution
-        const runtimeSolanaWallets = (solanaWallets || []).filter(
-          (w: any) => w && (w.chainType === 'solana' || !w.chainType) && w.walletClientType === 'privy'
-        );
+        // Primary Privy wallet resolved from exact match
+        const primaryPrivyWallet: any = solanaWalletObj;
+        const privyWalletAddress = normalizeAddress(primaryPrivyWallet?.address || activeMerchantWallet);
 
-        const runtimeWalletMatch = (solanaWallets || []).find(
-          (w: any) => w && normalizeAddress(w.address) === normalizeAddress(activeMerchantWallet)
-        ) || runtimeSolanaWallets[0] || solanaWalletObj;
+        // Helper to check if a transaction object has valid non-null Ed25519 signatures
+        const checkIsSigned = (t: any): boolean => {
+          if (!t) return false;
+          if (Array.isArray(t.signatures)) {
+            return t.signatures.some((s: any) => s && s.signature !== null && s.signature !== undefined && s.signature.length > 0);
+          }
+          return false;
+        };
 
-        const effectiveSigningAddress = normalizeAddress(
-          runtimeWalletMatch?.address || solanaWalletObj?.address || activeMerchantWallet
-        );
+        // Self-contained Base58 string decoder for raw Ed25519 signature strings
+        const decodeBase58 = (str: string): Uint8Array => {
+          const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+          const map: { [c: string]: number } = {};
+          for (let i = 0; i < ALPHABET.length; i++) map[ALPHABET[i]] = i;
+          const bytes = [0];
+          for (let i = 0; i < str.length; i++) {
+            const c = str[i];
+            if (!(c in map)) continue;
+            let carry = map[c];
+            for (let j = 0; j < bytes.length; j++) {
+              const val = bytes[j] * 58 + carry;
+              bytes[j] = val & 0xff;
+              carry = val >> 8;
+            }
+            while (carry > 0) {
+              bytes.push(carry & 0xff);
+              carry = carry >> 8;
+            }
+          }
+          for (let i = 0; i < str.length && str[i] === '1'; i++) {
+            bytes.push(0);
+          }
+          return new Uint8Array(bytes.reverse());
+        };
 
-        // Safe Diagnostic Precheck Logging
-        console.log('[PRIVY SIGN PRECHECK]', {
-          authenticated: Boolean(authenticated),
-          privyUserId: privyUser?.id || null,
-          walletCount: (solanaWallets || []).length,
-          wallets: (solanaWallets || []).map((w: any) => ({
-            address: w?.address,
-            chainType: w?.chainType,
-            walletClientType: w?.walletClientType,
-            walletType: w?.walletType
-          })),
-          expectedWalletAddress: activeMerchantWallet,
-          effectiveSigningAddress,
-          transactionFeePayer: tx.feePayer?.toBase58(),
-          targetWalletFound: Boolean(effectiveSigningAddress)
-        });
-
-        // Strategy 0: Official Privy React Hook signTransaction from @privy-io/react-auth/solana
-        if (!signedTx && typeof privySignSolanaHook === 'function' && effectiveSigningAddress) {
-          const solConn = new Connection('https://api.devnet.solana.com', 'confirmed');
-
-          // Attempt 0A: Effective resolved signing address (e.g. J8V6QvAf...)
+        // Helper to attach a raw 64-byte signature to tx
+        const attachRawSignature = (rawSig: Uint8Array | Buffer | string, baseTx: Transaction): Transaction | null => {
           try {
-            console.log('[WITHDRAW] Attempting Strategy 0A: privySignSolanaHook with effectiveSigningAddress:', effectiveSigningAddress);
-            const hookRes = await privySignSolanaHook({
+            let sigBytes: Uint8Array;
+            if (typeof rawSig === 'string') {
+              if (rawSig.length === 88 || rawSig.length === 87) {
+                // Base58 signature string
+                sigBytes = decodeBase58(rawSig);
+              } else {
+                sigBytes = Uint8Array.from(atob(rawSig), c => c.charCodeAt(0));
+              }
+            } else {
+              sigBytes = rawSig;
+            }
+
+            if (sigBytes && sigBytes.length === 64) {
+              const feePayerKey = baseTx.feePayer || new PublicKey(activeMerchantWallet);
+              baseTx.addSignature(feePayerKey, Buffer.from(sigBytes));
+              if (checkIsSigned(baseTx)) return baseTx;
+            }
+          } catch (e: any) {
+            console.warn('[WITHDRAW] Failed to attach raw signature:', e?.message || e);
+          }
+          return null;
+        };
+
+        // Helper to extract signed Transaction from any Privy SDK return payload
+        const extractSignedTx = (res: any, baseTx: Transaction): Transaction | null => {
+          if (!res) return null;
+          if (res instanceof Transaction && checkIsSigned(res)) return res;
+          
+          // Check if payload is a raw 64-byte signature array/buffer
+          if ((res instanceof Uint8Array || ArrayBuffer.isView(res)) && res.byteLength === 64) {
+            const attached = attachRawSignature(res as Uint8Array, baseTx);
+            if (attached) return attached;
+          }
+
+          // Check if payload is full serialized transaction bytes
+          if (res instanceof Uint8Array || ArrayBuffer.isView(res)) {
+            try {
+              const parsed = Transaction.from(res as Uint8Array);
+              if (checkIsSigned(parsed)) return parsed;
+            } catch {}
+          }
+
+          if (res.transaction) {
+            const extracted = extractSignedTx(res.transaction, baseTx);
+            if (extracted) return extracted;
+          }
+          if (res.signedTransaction) {
+            const extracted = extractSignedTx(res.signedTransaction, baseTx);
+            if (extracted) return extracted;
+          }
+
+          // Check for signature string or Uint8Array fields
+          if (res.signature) {
+            const attached = attachRawSignature(res.signature, baseTx);
+            if (attached) return attached;
+          }
+
+          return null;
+        };
+
+        const solConn = new Connection('https://api.devnet.solana.com', 'confirmed');
+
+        // Strategy 0A: Direct signTransaction on primaryPrivyWallet object
+        if (!signedTx && primaryPrivyWallet && typeof (primaryPrivyWallet as any).signTransaction === 'function') {
+          try {
+            console.log('[WITHDRAW] Strategy 0A: primaryPrivyWallet.signTransaction(tx) on wallet:', primaryPrivyWallet.address);
+            const res0 = await (primaryPrivyWallet as any).signTransaction(tx);
+            signedTx = extractSignedTx(res0, tx) || (checkIsSigned(tx) ? tx : null);
+          } catch (e0: any) {
+            signErrorLog.push(`PrimaryWallet S0A (${primaryPrivyWallet.address || 'unknown'}): ${e0?.message || e0}`);
+          }
+        }
+
+        // Strategy 0B: Direct signTransaction on provider obtained via getSolanaProvider / getProvider
+        if (!signedTx && primaryPrivyWallet) {
+          try {
+            const provider = await resolveProvider(primaryPrivyWallet);
+            if (provider && typeof provider.signTransaction === 'function') {
+              console.log('[WITHDRAW] Strategy 0B: provider.signTransaction(tx) via resolved provider');
+              const res0b = await provider.signTransaction(tx);
+              signedTx = extractSignedTx(res0b, tx) || (checkIsSigned(tx) ? tx : null);
+            }
+          } catch (e0b: any) {
+            signErrorLog.push(`ResolvedProvider S0B: ${e0b?.message || e0b}`);
+          }
+        }
+
+        // Strategy 1: Official Privy React Hook signTransaction(tx, { address }) with exact wallet address
+        if (!signedTx && typeof privySignSolanaHook === 'function' && privyWalletAddress) {
+          try {
+            console.log('[WITHDRAW] Strategy 1: privySignSolanaHook({ transaction: tx, address }) with privyWalletAddress:', privyWalletAddress);
+            const hookRes = await (privySignSolanaHook as any)({
               transaction: tx,
               connection: solConn,
-              address: effectiveSigningAddress
+              address: privyWalletAddress
             });
-            if (hookRes) {
-              signedTx = hookRes instanceof Transaction ? hookRes : (hookRes as any).transaction || hookRes;
-              if (signedTx && signedTx.signatures && signedTx.signatures.some((s: any) => s.signature !== null)) {
-                console.log('[WITHDRAW] Strategy 0A: privySignSolanaHook succeeded!');
-              }
-            }
-          } catch (hookErrA: any) {
-            console.warn('[WITHDRAW] Strategy 0A note:', hookErrA?.message || hookErrA);
-            signErrorLog.push(`useSignTransaction(${effectiveSigningAddress}): ${hookErrA?.message || hookErrA}`);
-          }
-
-          // Attempt 0B: Default HD index 0 (omit address parameter) if Attempt 0A produced no signature
-          if (!signedTx || !signedTx.signatures?.some((s: any) => s.signature !== null)) {
-            try {
-              console.log('[WITHDRAW] Attempting Strategy 0B: privySignSolanaHook with default HD index 0...');
-              const hookRes = await privySignSolanaHook({
-                transaction: tx,
-                connection: solConn
-              });
-              if (hookRes) {
-                signedTx = hookRes instanceof Transaction ? hookRes : (hookRes as any).transaction || hookRes;
-                if (signedTx && signedTx.signatures && signedTx.signatures.some((s: any) => s.signature !== null)) {
-                  console.log('[WITHDRAW] Strategy 0B: privySignSolanaHook succeeded!');
-                }
-              }
-            } catch (hookErrB: any) {
-              console.warn('[WITHDRAW] Strategy 0B note:', hookErrB?.message || hookErrB);
-              signErrorLog.push(`useSignTransaction(default): ${hookErrB?.message || hookErrB}`);
-            }
+            signedTx = extractSignedTx(hookRes, tx) || (checkIsSigned(tx) ? tx : null);
+          } catch (e1: any) {
+            signErrorLog.push(`Hook S1 (${privyWalletAddress}): ${e1?.message || e1}`);
           }
         }
 
-        // If signing did not produce a signature and Privy session is unauthenticated, prompt for Privy verification
-        if ((!signedTx || !signedTx.signatures?.some((s: any) => s.signature !== null)) && !authenticated) {
-          if (typeof privyLogin === 'function' && userEmail) {
-            onTriggerToast('🔑 Membuka otentikasi verifikasi wallet Privy...');
-            try {
-              privyLogin({ prefill: { type: 'email', value: userEmail } });
-            } catch (loginErr) {
-              console.warn('[PRIVY LOGIN TRIGGER WARN]', loginErr);
-            }
-            setWithdrawModalAlert({
-              type: 'warning',
-              title: 'Verifikasi Otorisasi Wallet Privy',
-              message: 'Sesi Privy wallet memerlukan otorisasi. Jendela verifikasi Privy telah dibuka dengan email Anda pre-filled. Silakan selesaikan verifikasi untuk melanjutkan penarikan.'
-            });
-            setWithdrawLoading(false);
-            return;
+        // Strategy 2: privySignSolanaHook(tx, { address })
+        if (!signedTx && typeof privySignSolanaHook === 'function' && privyWalletAddress) {
+          try {
+            console.log('[WITHDRAW] Strategy 2: privySignSolanaHook(tx, { address }) with privyWalletAddress:', privyWalletAddress);
+            const hookRes = await (privySignSolanaHook as any)(tx, { address: privyWalletAddress });
+            signedTx = extractSignedTx(hookRes, tx) || (checkIsSigned(tx) ? tx : null);
+          } catch (e2: any) {
+            signErrorLog.push(`Hook S2 (${privyWalletAddress}): ${e2?.message || e2}`);
           }
         }
 
-        const resolvedProvider = await resolveProvider(solanaWalletObj);
+        // Strategy 3: privySignSolanaHook(tx) default
+        if (!signedTx && typeof privySignSolanaHook === 'function') {
+          try {
+            console.log('[WITHDRAW] Strategy 3: privySignSolanaHook(tx)');
+            const hookRes = await (privySignSolanaHook as any)(tx);
+            signedTx = extractSignedTx(hookRes, tx) || (checkIsSigned(tx) ? tx : null);
+          } catch (e3: any) {
+            signErrorLog.push(`Hook S3: ${e3?.message || e3}`);
+          }
+        }
+
+        // Strategy 4: solanaWalletObj or provider signTransaction(tx)
+        const resolvedProvider = solanaWalletObj ? await resolveProvider(solanaWalletObj) : null;
         const candidateTargets = [solanaWalletObj, resolvedProvider, solanaWalletObj?.adapter].filter(Boolean);
 
         for (const target of candidateTargets) {
           if (signedTx) break;
 
-          // Strategy 1: Direct signTransaction(tx)
           if (typeof target.signTransaction === 'function') {
             try {
-              console.log('[WITHDRAW] Starting transaction signing with target.signTransaction(tx)');
+              console.log('[WITHDRAW] Strategy 4: target.signTransaction(tx)');
               const res = await target.signTransaction(tx);
-              if (res) {
-                signedTx = res instanceof Transaction ? res : (res.transaction || res);
-                if (signedTx && signedTx.signatures) {
-                  console.log('[WITHDRAW] Privy authorization completed');
-                  console.log('[WITHDRAW] Signature received successfully');
-                  break;
-                }
-              }
+              signedTx = extractSignedTx(res, tx) || (checkIsSigned(tx) ? tx : null);
             } catch (err: any) {
               signErrorLog.push(`signTransaction(tx): ${err?.message || err}`);
             }
           }
-
-          // Strategy 2: signTransaction({ transaction: tx })
-          if (!signedTx && typeof target.signTransaction === 'function') {
-            try {
-              const res = await target.signTransaction({ transaction: tx });
-              if (res) {
-                signedTx = res instanceof Transaction ? res : (res.transaction || res);
-                if (signedTx && signedTx.signatures) break;
-              }
-            } catch (err: any) {
-              signErrorLog.push(`signTransaction({tx}): ${err?.message || err}`);
-            }
-          }
-
-          // Strategy 3: signAllTransactions([tx])
-          if (!signedTx && typeof target.signAllTransactions === 'function') {
-            try {
-              const resList = await target.signAllTransactions([tx]);
-              if (Array.isArray(resList) && resList.length > 0) {
-                signedTx = resList[0];
-                if (signedTx && signedTx.signatures) break;
-              }
-            } catch (err: any) {
-              signErrorLog.push(`signAllTransactions: ${err?.message || err}`);
-            }
-          }
-
-          // Strategy 4: target.request({ method: 'signTransaction', params: ... })
-          if (!signedTx && typeof target.request === 'function') {
-            try {
-              const res = await target.request({
-                method: 'signTransaction',
-                params: { transaction: prepJson.unsignedTxBase64 }
-              });
-              if (res && res.transaction) {
-                const bStr = atob(res.transaction);
-                const bArr = Uint8Array.from(bStr, c => c.charCodeAt(0));
-                signedTx = Transaction.from(bArr);
-                if (signedTx) break;
-              }
-            } catch (err: any) {
-              signErrorLog.push(`request(signTransaction): ${err?.message || err}`);
-            }
-          }
         }
 
-        if (!signedTx) {
-          throw new Error(`PRIVY_SIGNING_API_UNAVAILABLE: Penandatanganan wallet Privy gagal: Metode signTransaction tidak tersedia pada provider wallet Privy embedded (${signErrorLog.join('; ') || 'Privy embedded wallet provider tidak merespon'}).`);
+        // Check if tx was signed in-place as fallback
+        if (!signedTx && checkIsSigned(tx)) {
+          signedTx = tx;
         }
-        
-        if (!signedTx || !signedTx.signatures || signedTx.signatures.length === 0 || !signedTx.signatures.some((s: any) => s.signature !== null)) {
-          throw new Error('PRIVY_SIGNATURE_MISSING: Privy Embedded Wallet mengembalikan transaksi tanpa tanda tangan (unsigned).');
+
+        if (!signedTx || !checkIsSigned(signedTx)) {
+          console.error('[WITHDRAW] All signing strategies failed:', signErrorLog);
+          const diagnosticStr = signErrorLog.length > 0 ? ` (Detail: ${signErrorLog.join('; ')})` : '';
+          throw new Error(`PRIVY_SIGNATURE_MISSING: Privy Embedded Wallet mengembalikan transaksi tanpa tanda tangan.${diagnosticStr}`);
         }
 
         const serializedBytes = signedTx.serialize();
@@ -1211,48 +1481,11 @@ export function ZeroClawTerminalView({
         }
         signedTxBase64 = btoa(binary);
 
-        if (!signedTxBase64) {
-          throw new Error('PRIVY_SIGNATURE_MISSING: Transaksi bertanda tangan tidak ditemukan.');
-        }
-
-        console.log(`=== AUTH ===
-[AUTH DEBUG]
-ZEGA authenticated: ${Boolean(userEmail)}
-ZEGA user email: ${userEmail}
-Privy authenticated: ${Boolean(authenticated)}
-Privy user: ${privyUser?.id || 'absent'}
-
-=== WALLET ===
-[PRIVY WALLET DEBUG]
-Wallet: ${activeMerchantWallet}
-Wallet type: embedded_solana
-Wallet client type: privy
-Wallet found: ${Boolean(solanaWalletObj)}
-Signer match: ${activeMerchantWallet === tx.feePayer?.toBase58()}
-
-=== TRANSACTION ===
-[TX DEBUG]
-Transaction type: legacy
-Required signer: ${tx.feePayer?.toBase58()}
-
-=== SIGNING ===
-[SIGN DEBUG]
-Official Privy signing API used: useSignTransaction (@privy-io/react-auth/solana)
-Provider method used: privySignSolanaHook / signTransaction
-Signature received: ${Boolean(signedTx && signedTx.signatures?.some((s: any) => s.signature !== null))}
-Signature valid: true
-
-=== SUBMISSION ===
-[SUBMIT DEBUG]
-Signed transaction exists: ${Boolean(signedTxBase64)}
-Backend verification: PENDING
-Solana broadcast: PENDING`);
-
         onTriggerToast(`✍️ Transaksi Privy Embedded Wallet Berhasil Ditandatangan!`);
       } catch (signErr: any) {
         const signErrMsg = signErr?.message || String(signErr);
         const isUserCancel = signErrMsg.toLowerCase().includes('reject') || signErrMsg.toLowerCase().includes('cancel') || signErrMsg.toLowerCase().includes('batal');
-        
+
         setWithdrawModalAlert({
           type: 'error',
           title: isUserCancel ? 'Penandatanganan Transaksi Dibatalkan' : 'Gagal Menandatangani Transaksi',
@@ -1267,7 +1500,7 @@ Solana broadcast: PENDING`);
 
       onTriggerToast(`🔒 Mengirim Transaksi Terverifikasi ke Gateway On-Chain...`);
 
-      // 3. Submit Signed Transaction & OTP for Server-Side Signature Verification & Broadcast
+      // 3. Submit Signed Transaction for Server-Side Signature Verification & Broadcast
       const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1279,6 +1512,7 @@ Solana broadcast: PENDING`);
           tokenSymbol: withdrawToken,
           otp: withdrawOtpInput.trim(),
           signedTxBase64,
+          withdrawalId: prepJson.withdrawalId,
           qrScanned,
           qrDeviceId: 'cam_web_embedded_01',
           qrPayloadHash: qrPayloadHash || (withdrawDestAddress ? 'hash_' + withdrawDestAddress.slice(0, 8) : null),
@@ -1287,6 +1521,9 @@ Solana broadcast: PENDING`);
 
       const json = await res.json();
       if (res.ok && json.success) {
+        // Clear pending intent upon successful execution
+        pendingWithdrawalRef.current = null;
+
         onTriggerToast(`✅ ${json.message || 'Penarikan 7-Layer Berhasil!'}`);
         const txObj = json.withdrawal || {};
         const realTxSig = txObj.txSignature || txObj.tx_signature || null;
@@ -1307,6 +1544,7 @@ Solana broadcast: PENDING`);
           securityLayers: txObj.securityLayers,
           createdAt: txObj.createdAt || new Date().toISOString(),
         });
+
         const newWithdrawalRecord = {
           id: txObj.id || `wd_${Date.now()}`,
           destination_address: withdrawDestAddress.trim(),
@@ -1326,56 +1564,6 @@ Solana broadcast: PENDING`);
         setWithdrawStep('SUCCESS');
         setWithdrawOtpInput('');
 
-        // 🔍 REQUIRED DIAGNOSTIC OUTPUT
-        const currentWalletsList: any[] = [...(solanaWallets || []), ...(genericWallets || [])];
-        const walletAddrs = currentWalletsList.map((w: any) => w.address || w.publicKey).filter(Boolean);
-        console.log(`
-=== PRIVY SESSION ===
-
-Frontend:
-http://localhost:5173
-
-Privy App ID:
-cms9cnybp002k0bl7ts2nm8ra
-
-authenticated:
-${authenticated}
-
-privyUserId:
-${privyUser?.id || 'absent'}
-
-Embedded Wallet Count:
-${currentWalletsList.length}
-
-Wallet Addresses:
-${JSON.stringify(walletAddrs)}
-
-Target Wallet:
-${activeMerchantWallet}
-
-Target Wallet Found:
-${Boolean(solanaWalletObj)}
-
-=== WITHDRAW ===
-
-Prepare:
-PASS
-
-Signing:
-PASS
-
-Signature:
-PRESENT
-
-Submit:
-PASS
-
-Backend Verification:
-PASS
-
-Solana Transaction:
-SUCCESS
-        `);
         fetchWithdrawalHistory();
         fetchOnChainBalances();
       } else {
@@ -1387,9 +1575,8 @@ SUCCESS
         setWithdrawModalAlert({ type: 'error', title: `Penarikan Gagal${layerInfo}`, message: errorMsg });
         onTriggerToast(`⚠️ Penarikan Gagal${layerInfo}: ${errorMsg}`);
       }
-    } catch (err) {
-      setWithdrawModalAlert({ type: 'error', title: 'Kesalahan Jaringan', message: 'Terjadi kesalahan jaringan saat memproses penarikan.' });
-      onTriggerToast('⚠️ Terjadi kesalahan jaringan saat memproses penarikan.');
+    } catch (err: any) {
+      setWithdrawModalAlert({ type: 'error', title: 'Kesalahan Sistem', message: `Terjadi kesalahan saat memproses penarikan: ${err?.message || err}` });
     } finally {
       setWithdrawLoading(false);
     }
@@ -5413,7 +5600,7 @@ checkpoint = "human_approval_on_refund"`}
                 {withdrawModalAlert.type === 'info' && <Info size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
                 <div className="space-y-0.5 flex-1 min-w-0">
                   {withdrawModalAlert.title && <h5 className="font-extrabold text-xs">{withdrawModalAlert.title}</h5>}
-                  <p className="leading-relaxed font-medium">{withdrawModalAlert.message}</p>
+                  <p className="leading-relaxed font-medium">{typeof withdrawModalAlert.message === 'string' ? withdrawModalAlert.message : String(withdrawModalAlert.message || '')}</p>
                 </div>
                 <button
                   type="button"
@@ -5551,10 +5738,10 @@ checkpoint = "human_approval_on_refund"`}
                   </div>
                 </div>
 
-                {/* Compact OWASP Badge */}
+                {/* Compact Security & Privy Wallet Authorization Badge */}
                 <div className="p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 text-[11px] text-blue-700 dark:text-blue-300 flex items-center gap-2 font-semibold">
                   <ShieldCheck size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span>OWASP V3 Guard: Kode OTP 6-digit akan dikirim ke {userEmail}</span>
+                  <span>Otorisasi Privy Embedded Wallet — Penarikan Non-Custodial Terproteksi</span>
                 </div>
 
                 {/* Modal Footer Actions */}
@@ -5568,84 +5755,22 @@ checkpoint = "human_approval_on_refund"`}
                   </button>
                   <button
                     type="button"
-                    onClick={handleRequestWithdrawOtp}
+                    onClick={handleExecuteWithdrawal}
                     disabled={withdrawLoading || !withdrawDestAddress || withdrawDestAddress.length < 32}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-blue-600/20 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {withdrawLoading ? (
                       <>
                         <RefreshCw size={14} className="animate-spin" />
-                        <span>Mengirim...</span>
+                        <span>Memproses...</span>
                       </>
                     ) : (
                       <>
                         <Send size={14} />
-                        <span>Verifikasi OTP ➔</span>
+                        <span>Proses Penarikan ➔</span>
                       </>
                     )}
                   </button>
-                </div>
-              </>
-            ) : withdrawStep === 'OTP' ? (
-              <>
-                <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 space-y-3">
-                  <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300 font-bold text-xs">
-                    <ShieldCheck size={16} className="text-emerald-500 dark:text-emerald-400" />
-                    <span>Verifikasi OTP ({userEmail})</span>
-                  </div>
-                  <p className="text-xs text-indigo-700 dark:text-indigo-200/80 leading-relaxed font-medium">
-                    Masukkan kode 6-digit yang dikirim ke email untuk mengotorisasi penarikan <strong className="text-emerald-600 dark:text-emerald-400">{withdrawAmount} {withdrawToken}</strong>.
-                  </p>
-
-                  <div className="space-y-1 pt-1">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={withdrawOtpInput}
-                      onChange={(e) => setWithdrawOtpInput(e.target.value.replace(/\D/g, ''))}
-                      placeholder="123456"
-                      className="w-full px-4 py-2.5 rounded-xl border-2 border-indigo-400 dark:border-indigo-500/60 bg-slate-50 dark:bg-slate-950 text-center font-mono text-lg font-bold tracking-widest text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setWithdrawStep('FORM')}
-                    className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    ← Kembali
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRequestWithdrawOtp}
-                      disabled={withdrawLoading}
-                      className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
-                    >
-                      Kirim Ulang OTP
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExecuteWithdrawal}
-                      disabled={withdrawLoading || withdrawOtpInput.length !== 6}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {withdrawLoading ? (
-                        <>
-                          <RefreshCw size={14} className="animate-spin" />
-                          <span>Memproses...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={14} />
-                          <span>Proses Penarikan</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
                 </div>
               </>
             ) : (
@@ -5773,6 +5898,148 @@ checkpoint = "human_approval_on_refund"`}
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Pixel-Perfect Official Privy OTP Verification Modal (Matching Reference UI - No Gradients) */}
+      {showPrivyOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-8 max-w-[400px] w-full shadow-2xl relative text-slate-900 flex flex-col items-center">
+            
+            {/* Top Back & Close Buttons */}
+            <button
+              type="button"
+              onClick={() => setShowPrivyOtpModal(false)}
+              className="absolute top-5 left-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={16} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPrivyOtpModal(false)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Top Mail Circle Icon */}
+            <div className="w-16 h-16 rounded-full bg-indigo-50/70 flex items-center justify-center mb-6 mt-2">
+              <Mail className="w-8 h-8 text-indigo-900" />
+            </div>
+
+            {/* Title & Email Instructions */}
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2 text-center">
+              Enter confirmation code
+            </h3>
+            
+            <p className="text-sm text-slate-600 leading-relaxed text-center max-w-[310px] mb-6">
+              Please check <span className="font-bold text-slate-900 font-mono">{userEmail ? maskEmail(userEmail) : 'your email'}</span> for an email from privy.io and enter your code below.
+            </p>
+
+            {privyOtpSuccessNotice && (
+              <div className="w-full p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2.5 mb-4 text-left font-medium">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{privyOtpSuccessNotice}</span>
+              </div>
+            )}
+
+            {privyOtpErrorMsg && (
+              <div className="w-full p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 mb-4 text-left font-medium">
+                <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{privyOtpErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyPrivyOtpAndResume} className="w-full flex flex-col items-center">
+              {/* 6-Digit Rounded Input Boxes matching screenshot */}
+              <div className="relative w-full max-w-[320px] mb-6">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={privyOtpCodeInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setPrivyOtpCodeInput(val);
+                    if (val.length === 6 && !privyOtpSubmitting) {
+                      setTimeout(() => handleVerifyPrivyOtpAndResume(), 50);
+                    }
+                  }}
+                  placeholder=""
+                  autoFocus
+                  className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                />
+                <div className="grid grid-cols-6 gap-2">
+                  {[0, 1, 2, 3, 4, 5].map((idx) => {
+                    const char = privyOtpCodeInput[idx] || '';
+                    const isFocused = privyOtpCodeInput.length === idx || (idx === 5 && privyOtpCodeInput.length === 6);
+                    return (
+                      <div
+                        key={idx}
+                        className={`h-13 rounded-xl border flex items-center justify-center font-mono font-bold text-xl transition-all ${
+                          char
+                            ? 'border-2 border-slate-900 bg-white text-slate-900 shadow-sm'
+                            : isFocused
+                            ? 'border-2 border-slate-900 bg-white text-slate-900 shadow-sm'
+                            : 'border border-slate-200 bg-white text-slate-400'
+                        }`}
+                      >
+                        {char || (isFocused ? <span className="w-1.5 h-5 bg-slate-900 animate-pulse rounded-sm" /> : '')}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Didn't get an email? Resend code */}
+              <div className="text-xs text-slate-500 mb-8 flex items-center justify-center gap-1.5 font-medium">
+                <span>Didn't get an email?</span>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerPrivyOtp(true)}
+                  disabled={privyOtpSubmitting}
+                  className="text-indigo-600 hover:text-indigo-700 font-semibold cursor-pointer disabled:opacity-50 transition-colors inline-flex items-center gap-1"
+                >
+                  {privyOtpSubmitting && <RefreshCw size={11} className="animate-spin" />}
+                  <span>Resend code</span>
+                </button>
+              </div>
+
+              {/* Submit Action Button */}
+              <button
+                type="submit"
+                disabled={privyOtpSubmitting || privyOtpCodeInput.trim().length !== 6}
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed mb-6"
+              >
+                {privyOtpSubmitting ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Verifying Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    <span>Verify & Continue</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Footer - Protected by Privy Branding */}
+            <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium pt-2 border-t border-slate-100 w-full">
+              <span>Protected by</span>
+              <img 
+                src="/assets/logo/privy-logo.png" 
+                alt="privy" 
+                className="h-4 object-contain inline-block opacity-80"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+              <span className="font-bold text-slate-600 font-sans tracking-tight">privy</span>
+            </div>
+
           </div>
         </div>
       )}

@@ -52,6 +52,7 @@ import {
   Zap,
 } from "lucide-react";
 import { CookieConsent } from "./components/CookieConsent";
+import { PrivyAuthBridge } from "./components/auth/PrivyAuthBridge";
 import { TermsOfService } from "./pages/TermsOfService";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { PublicCheckoutView } from "./pages/PublicCheckoutView";
@@ -4064,6 +4065,7 @@ function AppContent() {
 export default function App() {
   return (
     <LanguageProvider>
+      <PrivyAuthBridge />
       <AppContent />
     </LanguageProvider>
   );

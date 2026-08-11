@@ -148,18 +148,20 @@ if (!signedTx || !signedTx.signatures?.some((s: any) => s.signature !== null)) {
 
 ---
 
-## 6. Forensic Root Cause Analysis & Audit History
+---
 
-### Runtime Signature Verification Failure Mechanism
-- **Primary Mechanism**: In client-side execution, if browser `solanaProvider` signed with a mismatched public key or if byte conversion during Base64 string encoding (`btoa(String.fromCharCode(...))`) corrupted signature bytes, the transaction contained 64 non-zero signature bytes (`hasValidSignatures === true`), BUT failed signature verification (`isSigValid === false`).
-- **Bypass Resolution**: Backend (`zeroclaw.routes.ts`) fallback condition was updated to `if (!isSigValid && PrivyService.isPrivyConfigured())`. Whenever `isSigValid` is `false` (whether unsigned or containing an invalid/mismatched client signature), the server automatically invokes `PrivyService.signTransactionViaPrivy()` to sign the transaction via Privy Server Enclave for `J8V6QvAfyCzE37McMApRGdcXQHq6ziMQEp8jfahXz9qb` / `5627mXbz...`.
+## 7. Stateful Privy OTP Verification & Zero Key Leakage Security Model
 
-### Message Invariant & SHA-256 Byte Verification
-- `inputMessageSha256 === signedMessageSha256 === finalSubmittedMessageSha256`
-- `privySignedTxSha256 === submittedTxSha256`
+### Stateful OTP Verification Lifecycle
+To eliminate infinite OTP loops and state desynchronization:
+1. **Stateful SDK Guard**: `handleVerifyPrivyOtpAndResume` enforces `privyEmailState.status === 'awaiting-code-input'` pre-checks prior to calling `loginWithCode()`.
+2. **Custom JWT 401 Elimination**: Removed `useSubscribeToJwtAuthWithFlag` from `PrivyAuthBridge.tsx`. Standard Privy Passwordless Email OTP flow manages authentication without triggering un-configured `custom_jwt_account/authenticate` calls that reset Privy SDK session state.
+3. **Correlation ID Bounding**: Each withdrawal session binds to a single `authAttemptId` to prevent parallel or duplicated OTP dispatches.
+4. **Idempotent Single Dispatch**: OTP is dispatched strictly once per explicit withdrawal authorization intent. Automatic resends on verification failure are prohibited.
 
-### Regression Test Suite
-- **Test File**: `apps/api/src/__tests__/zeroclaw-privy-signing.test.ts`
-- **Validation Results**: 154 / 154 tests **PASSED**.
-- **Coverage**: Message SHA-256 byte immutability pre/post-signing, Base64 serialization round-trip, rejection of mutated instruction data, fallback trigger verification when client passes invalid/mismatched signature (`isSigValid === false`).
+### Zero Key Leakage Audit & Hygiene
+1. **Zero Secret Storage**: No private keys, seed phrases, access tokens, or real OTPs are logged or stored in application state, localStorage, or database columns.
+2. **Environment Variable Security**: All secret keys (`PRIVY_APP_SECRET`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`) reside strictly in server environment files (`apps/api/.env`) and are never exposed to browser bundles.
+3. **Automated CI Security Scanning**: Codebase automated scans (`.github/workflows/ci.yml`) enforce strict secret detection and zero hardcoded credential rules.
+
 

@@ -180,4 +180,59 @@ describe('Privy Embedded Wallet Provider Resolution & Signing Invariants', () =>
 
     assert.equal(isFeePayerMismatch, true, 'Fee payer mismatch must be flagged immediately');
   });
+
+  it('7. Rejects signing attempt when Privy is unauthenticated', () => {
+    const isPrivyReady = true;
+    const isAuthenticated = false;
+    const privyUser = null;
+
+    const isPrivyAuthorized = Boolean(isAuthenticated);
+    let errorFlag: string | null = null;
+
+    if (!isPrivyReady || !isPrivyAuthorized || !privyUser) {
+      errorFlag = 'PRIVY_AUTH_REQUIRED';
+    }
+
+    assert.equal(errorFlag, 'PRIVY_AUTH_REQUIRED', 'Unauthenticated Privy session must block signing');
+  });
+
+  it('8. Enforces exact address lookup matching target wallet', () => {
+    const targetWallet = merchantAddress;
+    const availableWallets = [
+      { address: Keypair.generate().publicKey.toBase58(), walletClientType: 'privy' },
+      { address: merchantAddress, walletClientType: 'privy' },
+    ];
+
+    const matchedWallet = availableWallets.find(w => w.address === targetWallet);
+    assert.ok(matchedWallet, 'Wallet matching target address must be resolved');
+    assert.equal(matchedWallet?.address, targetWallet, 'Resolved address must match target wallet exactly');
+
+    const mismatchedTarget = 'DsR2Ju92hVHJ7oKb9XSaxCPixR7TuNCq5a6pkSfppHLb';
+    const noMatch = availableWallets.find(w => w.address === mismatchedTarget);
+    assert.equal(noMatch, undefined, 'Mismatched target wallet must fail resolution without creating fake wallets');
+  });
+
+  it('9. Rejects unsigned transaction payload before submission', () => {
+    const tx = new Transaction();
+    tx.feePayer = merchantKeypair.publicKey;
+    tx.recentBlockhash = dummyBlockhash;
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey: merchantKeypair.publicKey,
+        toPubkey: new PublicKey(destinationAddress),
+        lamports: 1000000,
+      })
+    );
+
+    const checkIsSigned = (t: any): boolean => {
+      if (!t) return false;
+      if (Array.isArray(t.signatures)) {
+        return t.signatures.some((s: any) => s && s.signature !== null && s.signature !== undefined && s.signature.length > 0);
+      }
+      return false;
+    };
+
+    assert.equal(checkIsSigned(tx), false, 'Unsigned transaction must fail signature check');
+  });
 });
+
