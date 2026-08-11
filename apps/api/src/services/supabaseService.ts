@@ -544,3 +544,4 @@ class SupabaseBackendService {
 }
 
 export const SupabaseService = new SupabaseBackendService();
+export const supabaseService = SupabaseService;

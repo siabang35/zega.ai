@@ -114,6 +114,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const { zeroclawRoutes } = await import('./v1/zeroclaw.routes.js');
       const { umkmRoutes } = await import('./v1/umkm.routes.js');
       const { enterpriseRoutes } = await import('./v1/enterprise.routes.js');
+      const { walletRoutes } = await import('./v1/wallet.routes.js');
 
       v1.register(authRoutes, { prefix: '/auth' });
       v1.register(agentRoutes, { prefix: '/agents' });
@@ -124,9 +125,25 @@ export async function registerRoutes(app: FastifyInstance) {
       v1.register(zeroclawRoutes, { prefix: '/zeroclaw' });
       v1.register(umkmRoutes, { prefix: '/umkm' });
       v1.register(enterpriseRoutes, { prefix: '/enterprise' });
+      v1.register(walletRoutes, { prefix: '/wallet' });
     },
     { prefix: '/v1' },
   );
+
+  // ── Standardized /api top-level routes ──
+  const { apiWalletRoutes } = await import('./v1/apiWallet.routes.js');
+  const { transactionRoutes } = await import('./v1/transaction.routes.js');
+  const { webhookRoutes } = await import('./v1/webhook.routes.js');
+  const { invoiceRoutes } = await import('./v1/invoice.routes.js');
+  const { paymentRoutes } = await import('./v1/payment.routes.js');
+  const { withdrawalRoutes } = await import('./v1/withdrawal.routes.js');
+
+  app.register(apiWalletRoutes);
+  app.register(transactionRoutes);
+  app.register(webhookRoutes);
+  app.register(invoiceRoutes);
+  app.register(paymentRoutes);
+  app.register(withdrawalRoutes);
 
   app.log.info('✅ All routes registered');
 }

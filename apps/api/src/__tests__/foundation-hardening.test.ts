@@ -163,19 +163,16 @@ describe('FH-05: Keypair Derivation — Production/Mainnet Block', () => {
     assert.ok(zeroclawSource.includes("rpcUrl.includes('api.solana.com')"), 'Must detect official mainnet');
   });
 
-  it('derive32SeedFromEmail calls assertDevnetOnly', () => {
-    // Find the function and verify it calls the guard
-    const fnStart = zeroclawSource.indexOf('function derive32SeedFromEmail');
-    const fnBody = zeroclawSource.slice(fnStart, fnStart + 500);
-    assert.ok(fnBody.includes('assertDevnetOnly'), 'derive32SeedFromEmail must call assertDevnetOnly');
+  it('derive32SeedFromEmail is purged for security', () => {
+    assert.ok(!zeroclawSource.includes('function derive32SeedFromEmail'), 'derive32SeedFromEmail MUST be purged');
   });
 
-  it('derivePrivyEmbeddedSolanaKeypair calls assertDevnetOnly', () => {
+  it('derivePrivyEmbeddedSolanaKeypair is permanently disabled/purged', () => {
     const fnStart = zeroclawSource.indexOf('function derivePrivyEmbeddedSolanaKeypair') || 
                     zeroclawSource.indexOf('export function derivePrivyEmbeddedSolanaKeypair');
-    assert.ok(fnStart > 0, 'derivePrivyEmbeddedSolanaKeypair must exist');
+    assert.ok(fnStart > 0, 'derivePrivyEmbeddedSolanaKeypair stub must exist for backward compatibility');
     const fnBody = zeroclawSource.slice(fnStart, fnStart + 500);
-    assert.ok(fnBody.includes('assertDevnetOnly'), 'derivePrivyEmbeddedSolanaKeypair must call assertDevnetOnly');
+    assert.ok(fnBody.includes('SECURITY INVARIANT VIOLATION'), 'derivePrivyEmbeddedSolanaKeypair must throw SECURITY INVARIANT VIOLATION');
   });
 
   it('derivePrivyEmbeddedSolanaWallet calls assertDevnetOnly', () => {
@@ -190,14 +187,7 @@ describe('FH-05: Keypair Derivation — Production/Mainnet Block', () => {
       !zeroclawSource.includes('function rightRotate(value: number, amount: number)'),
       'Custom SHA-256 rightRotate MUST be removed — use Node.js crypto'
     );
-    // Verify native createHash is used instead
-    const deriveFnStart = zeroclawSource.indexOf('function derive32SeedFromEmail');
-    const deriveFnBody = zeroclawSource.slice(deriveFnStart, deriveFnStart + 400);
-    assert.ok(deriveFnBody.includes("createHash('sha256')"), 'Must use native crypto.createHash');
-  });
-
-  it('functions are marked @deprecated in JSDoc', () => {
-    assert.ok(zeroclawSource.includes('@deprecated SECURITY RISK'), 'Functions must have @deprecated JSDoc');
+    assert.ok(zeroclawSource.includes("createHash('sha256')"), 'Must use native crypto.createHash');
   });
 
   it('deprecation counter tracks total derivation calls', () => {

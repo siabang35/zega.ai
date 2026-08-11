@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IdempotencyService } from '../services/idempotencyService.js';
 import { EncryptionService } from '../services/encryptionService.js';
-import { InvoiceService } from '../services/invoiceService.js';
+import { InvoiceService } from '../services/InvoiceService.js';
 
 describe('LEVEL-5: Empirical Load & High-Concurrency Benchmark Suite', () => {
   it('benchmarks high-concurrency AES-256-GCM encryption & decryption throughput (1,000 ops)', async () => {

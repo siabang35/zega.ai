@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { EncryptionService, CryptographicError } from '../services/encryptionService.js';
-import { InvoiceService } from '../services/invoiceService.js';
+import { InvoiceService } from '../services/InvoiceService.js';
 import { solanaRpcManager } from '../services/solanaRpcManager.js';
 
 describe('LEVEL-6: Fault Injection & Chaos Resilience Suite', () => {

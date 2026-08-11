@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Transaction } from '@solana/web3.js';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { PrivyWalletService } from '../../../services/privyWalletService';
 import { SupabaseDashboardService } from '../../services/supabaseService';
@@ -243,17 +244,30 @@ export function ZeroClawTerminalView({
   const accountMode: 'demo' | 'authenticated' = 'authenticated';
 
   const deriveEmbeddedWallet = (email?: string): string => {
-    const targetEmail = (email || userEmail || '').toLowerCase().trim();
-    return PrivyWalletService.getEmbeddedSolanaWallet(targetEmail).address;
+    try {
+      const targetEmail = (email || userEmail || '').toLowerCase().trim();
+      if (typeof window !== 'undefined' && Array.isArray((window as any)?.privyWallets)) {
+        const resolved = PrivyWalletService.resolveSolanaWallet((window as any).privyWallets);
+        if (resolved?.address) return resolved.address;
+      }
+      const wallet = PrivyWalletService.getEmbeddedSolanaWallet(targetEmail);
+      return wallet?.address || '';
+    } catch {
+      return '';
+    }
   };
 
   const [activeMerchantWallet, setActiveMerchantWallet] = useState<string>(() => deriveEmbeddedWallet(userEmail));
 
   useEffect(() => {
     if (userEmail) {
-      SupabaseDashboardService.ensureUserPrivyWallet(userEmail).then((privyWallet) => {
+      const cleanEmail = userEmail.toLowerCase().trim();
+      SupabaseDashboardService.ensureUserPrivyWallet(cleanEmail).then((privyWallet) => {
         if (privyWallet && privyWallet.wallet_address) {
           setActiveMerchantWallet(privyWallet.wallet_address);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`zega_privy_wallet_${cleanEmail}`, privyWallet.wallet_address);
+          }
         }
       }).catch((err) => {
         console.warn('ensureUserPrivyWallet resolution note:', err);
@@ -777,7 +791,7 @@ export function ZeroClawTerminalView({
     }
   };
 
-  // Step 2: Submit 6-Digit OTP and Execute Vault Withdrawal
+  // Step 2: Submit 6-Digit OTP, Prepare Unsigned Transaction, Sign with Privy Provider, and Execute Vault Withdrawal
   const handleExecuteWithdrawal = async () => {
     if (!withdrawOtpInput || withdrawOtpInput.trim().length !== 6) {
       setWithdrawModalAlert({ type: 'warning', title: 'Kode OTP Inkomplit', message: 'Masukkan 6-digit kode OTP verifikasi yang dikirim ke email!' });
@@ -788,9 +802,84 @@ export function ZeroClawTerminalView({
 
     setWithdrawLoading(true);
     setWithdrawModalAlert(null);
-    onTriggerToast(`🔒 Mengirim Penarikan Multi-Layer Terverifikasi (${numericAmt} ${withdrawToken})...`);
+
+    // Validate Base58 Destination Address Format (32-44 characters)
+    const BASE58_ADDR_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    if (!withdrawDestAddress || !BASE58_ADDR_REGEX.test(withdrawDestAddress.trim())) {
+      setWithdrawModalAlert({
+        type: 'error',
+        title: 'Alamat Tujuan Tidak Valid',
+        message: 'Masukkan alamat Public Key Solana (Base58) yang valid (32-44 karakter).'
+      });
+      onTriggerToast('⚠️ Alamat tujuan Solana (Base58) tidak valid.');
+      setWithdrawLoading(false);
+      return;
+    }
+
+    onTriggerToast(`🔒 Menyiapkan Transaksi Unsigned Vault (${numericAmt} ${withdrawToken})...`);
 
     try {
+      // 1. Prepare Unsigned Solana Transaction with fresh blockhash using exact merchant wallet
+      const prepRes = await fetch(`${API_BASE}/v1/zeroclaw/withdraw/prepare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userEmail,
+          merchantPubkey: activeMerchantWallet,
+          destinationAddress: withdrawDestAddress.trim(),
+          amount: numericAmt,
+          tokenSymbol: withdrawToken,
+        })
+      });
+
+      const prepJson = await prepRes.json();
+      if (!prepRes.ok || !prepJson.success || !prepJson.unsignedTxBase64) {
+        const errorMsg = prepJson.message || prepJson.error || 'Gagal menyiapkan transaksi penarikan.';
+        setWithdrawModalAlert({ type: 'error', title: 'Gagal Menyiapkan Transaksi', message: errorMsg });
+        onTriggerToast(`⚠️ Gagal Menyiapkan Transaksi: ${errorMsg}`);
+        setWithdrawLoading(false);
+        return;
+      }
+
+      onTriggerToast(`✍️ Meminta Penandatanganan Privy Embedded Wallet...`);
+
+      // 2. Cryptographic Signing via Privy Embedded Wallet Provider ONLY (Strictly No Extension Popups)
+      const solanaProvider = (window as any).privySolanaProvider || (window as any).privy?.solana;
+      let signedTxBase64: string | undefined;
+
+      if (solanaProvider && typeof solanaProvider.signTransaction === 'function') {
+        try {
+          const binaryStr = atob(prepJson.unsignedTxBase64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const tx = Transaction.from(bytes);
+          const signedTx = await solanaProvider.signTransaction(tx);
+          const serializedBytes = signedTx.serialize();
+          let binary = '';
+          for (let i = 0; i < serializedBytes.length; i++) {
+            binary += String.fromCharCode(serializedBytes[i]);
+          }
+          signedTxBase64 = btoa(binary);
+        } catch (signErr: any) {
+          setWithdrawModalAlert({
+            type: 'error',
+            title: 'Penandatanganan Ditolak',
+            message: `Penandatanganan Privy Embedded Wallet gagal atau dibatalkan: ${signErr?.message}`
+          });
+          onTriggerToast(`⚠️ Penandatanganan dibatalkan: ${signErr?.message}`);
+          setWithdrawLoading(false);
+          return;
+        }
+      } else {
+        // Keyless Mode: Transmit unsigned transaction directly for backend Privy Cloud Vault OTP-authorized execution
+        signedTxBase64 = prepJson.unsignedTxBase64;
+      }
+
+      onTriggerToast(`🔒 Mengirim Transaksi Terverifikasi ke Gateway On-Chain...`);
+
+      // 3. Submit Signed Transaction & OTP for Server-Side Signature Verification & Broadcast
       const res = await fetch(`${API_BASE}/v1/zeroclaw/withdraw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -801,6 +890,7 @@ export function ZeroClawTerminalView({
           amount: numericAmt,
           tokenSymbol: withdrawToken,
           otp: withdrawOtpInput.trim(),
+          signedTxBase64,
           qrScanned,
           qrDeviceId: 'cam_web_embedded_01',
           qrPayloadHash: qrPayloadHash || (withdrawDestAddress ? 'hash_' + withdrawDestAddress.slice(0, 8) : null),
@@ -1102,7 +1192,7 @@ export function ZeroClawTerminalView({
           if (foundSig && foundSig.length >= 70 && foundSig.length <= 96 && !foundSig.startsWith('gen_inv_') && !foundSig.startsWith('inv_')) {
             setActiveQrModalInvoice((prev: GeneratedInvoice | null) => prev ? { ...prev, status: 'paid', tx_signature: foundSig } : prev);
           }
-          setGeneratedInvoicesHistory((prev: GeneratedInvoice[]) => 
+          setGeneratedInvoicesHistory((prev: GeneratedInvoice[]) =>
             prev.map(item => item.id === inv.id || item.referenceKey === inv.referenceKey ? { ...item, status: 'paid', tx_signature: foundSig || item.tx_signature } : item)
           );
           onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
@@ -1291,7 +1381,7 @@ export function ZeroClawTerminalView({
 
       if (!isTelegramHandle && !isPhoneNumber) {
         const rejectionMsg = `⚠️ **TAGIHAN AI DITOLAK (OWASP TARGET GATE)**: Pembuatan invoice "${promptToRun}" ditolak. Target penerima Telegram (@username / Chat ID) atau WhatsApp (+62...) WAJIB ditentukan.\n\nContoh prompt AI yang benar:\n• \`generate 0.2 USDC for @username\`\n• \`invoice 0.2 USDC ke +628123456789\``;
-        
+
         setAgentLogs(prev => [{
           id: `log_rej_${Date.now()}`,
           prompt: promptToRun,
@@ -1497,12 +1587,12 @@ export function ZeroClawTerminalView({
       if (json.success && json.signatures?.length > 0) {
         const sigData = json.signatures[0];
         const confirmedSig = sigData.signature || targetHash;
-        
+
         const requiredAmount = parseFloat(invoiceAmount.replace(',', '.')) || 15.00;
         const paidAmount = typeof sigData.amountUsdc === 'number'
           ? sigData.amountUsdc
           : (parseFloat(sigData.amount) || requiredAmount);
-        
+
         // Record to backend Supabase & local state
         await fetch(`${API_BASE}/v1/zeroclaw/settlement/record`, {
           method: 'POST',
@@ -1517,7 +1607,7 @@ export function ZeroClawTerminalView({
             memo: `Verified On-Chain Devnet Settlement (${paidAmount} USDC)`,
             isDemo: false
           })
-        }).catch(() => {});
+        }).catch(() => { });
 
         const newEvt: ReconciledEvent = {
           id: `manual_rec_${Date.now()}`,
@@ -2239,24 +2329,24 @@ export function ZeroClawTerminalView({
                       <img
                         src={getR2CdnUrl(
                           selectedModel === 'auto' ? '/assets/logo/ai-agents.png' :
-                          selectedModel === 'groq' ? '/assets/logo/groq.png' :
-                          selectedModel === 'gemini' ? '/assets/logo/gemini.svg' :
-                          selectedModel === 'openrouter' ? '/assets/logo/openrouter.svg' :
-                          selectedModel === 'jatevo' ? '/assets/logo/jatevo.svg' :
-                          selectedModel === '9router' ? '/assets/logo/9router.png' :
-                          '/assets/logo/huggingface.webp'
+                            selectedModel === 'groq' ? '/assets/logo/groq.png' :
+                              selectedModel === 'gemini' ? '/assets/logo/gemini.svg' :
+                                selectedModel === 'openrouter' ? '/assets/logo/openrouter.svg' :
+                                  selectedModel === 'jatevo' ? '/assets/logo/jatevo.svg' :
+                                    selectedModel === '9router' ? '/assets/logo/9router.png' :
+                                      '/assets/logo/huggingface.webp'
                         )}
                         alt="Selected Model"
                         className="size-4 object-contain shrink-0"
                       />
                       <span className="truncate">
                         {selectedModel === 'auto' ? 'Auto (Llama 3.3 70B / Gemini 3.6)' :
-                         selectedModel === 'groq' ? 'Groq (Llama 3.3 70B)' :
-                         selectedModel === 'gemini' ? 'Gemini 3.6 Flash' :
-                         selectedModel === 'openrouter' ? 'OpenRouter (DeepSeek Chat)' :
-                         selectedModel === 'jatevo' ? 'Jatevo AI' :
-                         selectedModel === '9router' ? '9Router' :
-                         'Hugging Face (DeepSeek V4)'}
+                          selectedModel === 'groq' ? 'Groq (Llama 3.3 70B)' :
+                            selectedModel === 'gemini' ? 'Gemini 3.6 Flash' :
+                              selectedModel === 'openrouter' ? 'OpenRouter (DeepSeek Chat)' :
+                                selectedModel === 'jatevo' ? 'Jatevo AI' :
+                                  selectedModel === '9router' ? '9Router' :
+                                    'Hugging Face (DeepSeek V4)'}
                       </span>
                     </div>
                     <ChevronDown size={14} className={`text-indigo-500 shrink-0 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
@@ -2283,11 +2373,10 @@ export function ZeroClawTerminalView({
                               setSelectedModel(m.id as any);
                               setIsModelDropdownOpen(false);
                             }}
-                            className={`w-full p-2 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${
-                              selectedModel === m.id
-                                ? 'bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900/60'
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
-                            }`}
+                            className={`w-full p-2 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${selectedModel === m.id
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900/60'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
+                              }`}
                           >
                             <div className="size-6 rounded-lg bg-slate-100 dark:bg-slate-800 p-1 flex items-center justify-center shrink-0">
                               <img src={getR2CdnUrl(m.logo)} alt={m.title} className="size-full object-contain" />
@@ -2513,11 +2602,10 @@ export function ZeroClawTerminalView({
                   <button
                     type="button"
                     onClick={() => createInvoiceFromPreset('2500.00', 'Enterprise Contract #ZEGA-8890 - Q2 Infrastructure SLA')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '2500.00' || invoiceAmount === '2,500.00'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-emerald-500/60'
-                    }`}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${invoiceAmount === '2500.00' || invoiceAmount === '2,500.00'
+                      ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-emerald-500/60'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600"><QrCode size={12} /></span>
@@ -2529,11 +2617,10 @@ export function ZeroClawTerminalView({
                   <button
                     type="button"
                     onClick={() => createInvoiceFromPreset('0.50', 'x402 Enterprise RPC - Multi-Agent LLM Token Settlement')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '0.50'
-                        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 ring-1 ring-blue-500/50 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-blue-500/60'
-                    }`}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${invoiceAmount === '0.50'
+                      ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 ring-1 ring-blue-500/50 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-blue-500/60'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600"><Bot size={12} /></span>
@@ -2545,11 +2632,10 @@ export function ZeroClawTerminalView({
                   <button
                     type="button"
                     onClick={() => createInvoiceFromPreset('1000.00', 'Swarm Task Settlement Escrow Vault (#9942)')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '1000.00' || invoiceAmount === '1,000.00'
-                        ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 ring-1 ring-purple-500/50 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-purple-500/60'
-                    }`}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${invoiceAmount === '1000.00' || invoiceAmount === '1,000.00'
+                      ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-950/40 ring-1 ring-purple-500/50 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-purple-500/60'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600"><Layers size={12} /></span>
@@ -2561,11 +2647,10 @@ export function ZeroClawTerminalView({
                   <button
                     type="button"
                     onClick={() => createInvoiceFromPreset('150.00', 'SOP Sentinel Audit Dispute Refund (#8821)')}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
-                      invoiceAmount === '150.00'
-                        ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/40 ring-1 ring-rose-500/50 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-rose-500/60'
-                    }`}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${invoiceAmount === '150.00'
+                      ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/40 ring-1 ring-rose-500/50 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-rose-500/60'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="p-1 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600"><RefreshCw size={12} /></span>
@@ -2706,11 +2791,10 @@ export function ZeroClawTerminalView({
 
                   {/* Verification Status Alert */}
                   {verificationState && (
-                    <div className={`p-2 rounded-lg border text-[10.5px] font-mono flex items-center justify-between gap-2 ${
-                      verificationState.verified
-                        ? 'border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-                        : 'border-rose-500/40 bg-rose-50/60 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
-                    }`}>
+                    <div className={`p-2 rounded-lg border text-[10.5px] font-mono flex items-center justify-between gap-2 ${verificationState.verified
+                      ? 'border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                      : 'border-rose-500/40 bg-rose-50/60 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+                      }`}>
                       <div className="flex items-center gap-1.5 truncate">
                         {verificationState.verified ? <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> : <XCircle size={13} className="text-rose-500 shrink-0" />}
                         <span className="truncate">{verificationState.verified ? `✓ Verified: ${verificationState.accountName}` : verificationState.error}</span>
@@ -2758,11 +2842,10 @@ export function ZeroClawTerminalView({
                   type="button"
                   onClick={handleGenerateInvoice}
                   disabled={!customerChannelTarget?.trim()}
-                  className={`w-full py-2.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-none ${
-                    customerChannelTarget?.trim()
-                      ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
-                      : 'bg-slate-400 dark:bg-slate-800 opacity-60 cursor-not-allowed'
-                  }`}
+                  className={`w-full py-2.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-none ${customerChannelTarget?.trim()
+                    ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                    : 'bg-slate-400 dark:bg-slate-800 opacity-60 cursor-not-allowed'
+                    }`}
                 >
                   <QrCode size={14} />
                   <span>{customerChannelTarget?.trim() ? 'Generate Invoice' : '⚠️ Target Telegram (@username) / WA (+62...) Wajib Diisi'}</span>
@@ -3454,164 +3537,164 @@ export function ZeroClawTerminalView({
                             return timeB - timeA; // Newest at top
                           })
                           .map((item) => {
-                          const isExpanded = expandedHistoryId === item.id;
-                          const explorerUrl = item.tx_signature
-                            ? `https://explorer.solana.com/tx/${item.tx_signature}?cluster=devnet`
-                            : `https://explorer.solana.com/address/${item.destination_address}?cluster=devnet`;
+                            const isExpanded = expandedHistoryId === item.id;
+                            const explorerUrl = item.tx_signature
+                              ? `https://explorer.solana.com/tx/${item.tx_signature}?cluster=devnet`
+                              : `https://explorer.solana.com/address/${item.destination_address}?cluster=devnet`;
 
-                          return (
-                            <div
-                              key={item.id}
-                              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 overflow-hidden transition-all shadow-xs"
-                            >
-                              {/* Row Summary Bar */}
-<div
-                                onClick={() => setExpandedHistoryId(isExpanded ? null : item.id)}
-                                className="p-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors select-none"
+                            return (
+                              <div
+                                key={item.id}
+                                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 overflow-hidden transition-all shadow-xs"
                               >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <Send size={14} />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs font-mono">
-                                        -{item.amount} {item.token_symbol}
-                                      </span>
-                                      <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-mono text-[9px] font-bold border border-emerald-300 dark:border-emerald-800">
-                                        7-Layer Verified
-                                      </span>
+                                {/* Row Summary Bar */}
+                                <div
+                                  onClick={() => setExpandedHistoryId(isExpanded ? null : item.id)}
+                                  className="p-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors select-none"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                      <Send size={14} />
                                     </div>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[220px]">
-                                      Ke: {item.destination_address}
-                                    </p>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs font-mono">
+                                          -{item.amount} {item.token_symbol}
+                                        </span>
+                                        <span className="px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-mono text-[9px] font-bold border border-emerald-300 dark:border-emerald-800">
+                                          7-Layer Verified
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[220px]">
+                                        Ke: {item.destination_address}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
 
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
-                                    {new Date(item.created_at).toLocaleTimeString()}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 transition-colors"
-                                  >
-                                    <ChevronDown size={14} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-500' : ''}`} />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Expandable Dropdown Page / Accordion: On-Chain & ZeroClaw Telemetry */}
-                              {isExpanded && (
-                                <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 space-y-2.5 text-xs font-mono animate-in slide-in-from-top-1 duration-150">
-                                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans font-bold border-b border-slate-200 dark:border-slate-800 pb-1.5">
-                                    <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                                      <ShieldCheck size={13} /> Audit Telemetry On-Chain (7-Layer Protocol)
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
+                                      {new Date(item.created_at).toLocaleTimeString()}
                                     </span>
-                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                                      Zero-Trust Risk: {item.risk_score || '0.00'}
-                                    </span>
-                                  </div>
-
-                                  {/* 7-Layer Verification Status Badges */}
-                                  <div className="space-y-1.5 font-sans">
-                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Status Protokol Keamanan 7-Layer:</span>
-                                    <div className="grid grid-cols-2 gap-1 text-[9.5px]">
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L1 Email OTP
-                                      </div>
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L2 Ownership
-                                      </div>
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L3 Base58 Dest
-                                      </div>
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L4 On-Chain Bal
-                                      </div>
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L5 Anti-Replay
-                                      </div>
-                                      <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                        <CheckCircle2 size={10} /> L6 Rate Limit
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Solana Tx Hash / Reference Key */}
-                                  <div className="space-y-1">
-                                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-sans font-semibold">
-                                      <span>Solana Tx Signature / Ref Key:</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (item.tx_signature || item.reference_key) {
-                                            navigator.clipboard.writeText(item.tx_signature || item.reference_key || '');
-                                            onTriggerToast('📋 Hash Signature/Key berhasil disalin!');
-                                          }
-                                        }}
-                                        className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
-                                      >
-                                        <Copy size={10} /> Salin
-                                      </button>
-                                    </div>
-                                    <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-emerald-600 dark:text-emerald-400">
-                                      {item.tx_signature || item.reference_key || 'wd_tx_onchain_pending'}
-                                    </div>
-                                  </div>
-
-                                  {/* HMAC Audit Signature */}
-                                  {item.audit_signature && (
-                                    <div className="space-y-1">
-                                      <span className="text-[10px] text-slate-500 font-sans font-semibold">HMAC-SHA256 Audit Signature:</span>
-                                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all text-slate-600 dark:text-slate-400">
-                                        {item.audit_signature}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* QR Scanned Status */}
-                                  {item.qr_scanned && (
-                                    <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between text-[10px] font-sans">
-                                      <span className="flex items-center gap-1 text-indigo-700 dark:text-indigo-300 font-bold">
-                                        📷 QR Barcode Scanner Verified
-                                      </span>
-                                      <span className="font-mono text-indigo-500 truncate max-w-[130px]">
-                                        Hash: {item.qr_payload_hash || 'valid'}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* External Explorer & R2 Proof Buttons */}
-                                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800 font-sans">
-                                    <a
-                                      href={explorerUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1"
+                                    <button
+                                      type="button"
+                                      className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 transition-colors"
                                     >
-                                      <ExternalLink size={11} /> Buka Solana Explorer 🌐
-                                    </a>
+                                      <ChevronDown size={14} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-500' : ''}`} />
+                                    </button>
+                                  </div>
+                                </div>
 
-                                    {item.r2_cdn_proof_url && (
+                                {/* Expandable Dropdown Page / Accordion: On-Chain & ZeroClaw Telemetry */}
+                                {isExpanded && (
+                                  <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 space-y-2.5 text-xs font-mono animate-in slide-in-from-top-1 duration-150">
+                                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans font-bold border-b border-slate-200 dark:border-slate-800 pb-1.5">
+                                      <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                                        <ShieldCheck size={13} /> Audit Telemetry On-Chain (7-Layer Protocol)
+                                      </span>
+                                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                                        Zero-Trust Risk: {item.risk_score || '0.00'}
+                                      </span>
+                                    </div>
+
+                                    {/* 7-Layer Verification Status Badges */}
+                                    <div className="space-y-1.5 font-sans">
+                                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Status Protokol Keamanan 7-Layer:</span>
+                                      <div className="grid grid-cols-2 gap-1 text-[9.5px]">
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L1 Email OTP
+                                        </div>
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L2 Ownership
+                                        </div>
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L3 Base58 Dest
+                                        </div>
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L4 On-Chain Bal
+                                        </div>
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L5 Anti-Replay
+                                        </div>
+                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                                          <CheckCircle2 size={10} /> L6 Rate Limit
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Solana Tx Hash / Reference Key */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-sans font-semibold">
+                                        <span>Solana Tx Signature / Ref Key:</span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (item.tx_signature || item.reference_key) {
+                                              navigator.clipboard.writeText(item.tx_signature || item.reference_key || '');
+                                              onTriggerToast('📋 Hash Signature/Key berhasil disalin!');
+                                            }
+                                          }}
+                                          className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Copy size={10} /> Salin
+                                        </button>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-emerald-600 dark:text-emerald-400">
+                                        {item.tx_signature || item.reference_key || 'wd_tx_onchain_pending'}
+                                      </div>
+                                    </div>
+
+                                    {/* HMAC Audit Signature */}
+                                    {item.audit_signature && (
+                                      <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-500 font-sans font-semibold">HMAC-SHA256 Audit Signature:</span>
+                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all text-slate-600 dark:text-slate-400">
+                                          {item.audit_signature}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* QR Scanned Status */}
+                                    {item.qr_scanned && (
+                                      <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between text-[10px] font-sans">
+                                        <span className="flex items-center gap-1 text-indigo-700 dark:text-indigo-300 font-bold">
+                                          📷 QR Barcode Scanner Verified
+                                        </span>
+                                        <span className="font-mono text-indigo-500 truncate max-w-[130px]">
+                                          Hash: {item.qr_payload_hash || 'valid'}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* External Explorer & R2 Proof Buttons */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800 font-sans">
                                       <a
-                                        href={item.r2_cdn_proof_url}
+                                        href={explorerUrl}
                                         target="_blank"
                                         rel="noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1"
+                                        className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1"
                                       >
-                                        <Globe size={11} /> Cloudflare R2 Proof JSON
+                                        <ExternalLink size={11} /> Buka Solana Explorer 🌐
                                       </a>
-                                    )}
+
+                                      {item.r2_cdn_proof_url && (
+                                        <a
+                                          href={item.r2_cdn_proof_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1"
+                                        >
+                                          <Globe size={11} /> Cloudflare R2 Proof JSON
+                                        </a>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                )}
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
                   </div>
@@ -4538,15 +4621,14 @@ checkpoint = "human_approval_on_refund"`}
 
             {/* Live Verification Result Banner */}
             {paymentCheckResult && (
-              <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 animate-in fade-in slide-in-from-bottom-2 ${
-                paymentCheckResult.paid
-                  ? paymentCheckResult.mode === 'EXACT'
-                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
-                    : paymentCheckResult.mode === 'UNDERPAID'
+              <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 animate-in fade-in slide-in-from-bottom-2 ${paymentCheckResult.paid
+                ? paymentCheckResult.mode === 'EXACT'
+                  ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
+                  : paymentCheckResult.mode === 'UNDERPAID'
                     ? 'bg-amber-950/80 border-amber-500/50 text-amber-200'
                     : 'bg-indigo-950/80 border-indigo-500/50 text-indigo-200'
-                  : 'bg-slate-800/80 border-slate-700 text-slate-300'
-              }`}>
+                : 'bg-slate-800/80 border-slate-700 text-slate-300'
+                }`}>
                 <div className="flex items-center justify-between font-bold">
                   <span className="flex items-center gap-1.5">
                     {paymentCheckResult.paid ? (
@@ -4573,10 +4655,10 @@ checkpoint = "human_approval_on_refund"`}
 
                       const realTxSig = paymentCheckResult.matchedEvent?.signature || activeQrModalInvoice.tx_signature;
                       const isRealOnChain = Boolean(
-                        realTxSig && 
+                        realTxSig &&
                         /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(realTxSig.trim())
                       );
-                      const solscanExplorerUrl = isRealOnChain 
+                      const solscanExplorerUrl = isRealOnChain
                         ? `https://solscan.io/tx/${realTxSig}?cluster=devnet`
                         : `https://solscan.io/account/${activeMerchantWallet}?cluster=devnet`;
 
@@ -4871,15 +4953,14 @@ checkpoint = "human_approval_on_refund"`}
 
             {/* Inline Modal Card Alert Banner — Never Covered, Never Floating */}
             {withdrawModalAlert && (
-              <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${
-                withdrawModalAlert.type === 'error'
-                  ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                  : withdrawModalAlert.type === 'success'
+              <div className={`p-3 rounded-xl border flex items-start gap-2.5 font-sans text-xs animate-in fade-in duration-150 ${withdrawModalAlert.type === 'error'
+                ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                : withdrawModalAlert.type === 'success'
                   ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
                   : withdrawModalAlert.type === 'warning'
-                  ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200'
-                  : 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-300 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200'
-              }`}>
+                    ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                    : 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-300 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200'
+                }`}>
                 {withdrawModalAlert.type === 'error' && <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />}
                 {withdrawModalAlert.type === 'success' && <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
                 {withdrawModalAlert.type === 'warning' && <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />}
@@ -4919,7 +5000,7 @@ checkpoint = "human_approval_on_refund"`}
                         className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-between ${withdrawToken === 'USDC'
                           ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-400 border-blue-500 ring-1 ring-blue-500/50'
                           : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <img src={getR2CdnUrl('/assets/logo/usdc.webp')} alt="USDC" className="size-4 object-contain" />
@@ -4935,7 +5016,7 @@ checkpoint = "human_approval_on_refund"`}
                         className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-between ${withdrawToken === 'SOL'
                           ? 'bg-emerald-50 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 border-emerald-500 ring-1 ring-emerald-500/50'
                           : 'bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="SOL" className="size-4 object-contain" />
@@ -5351,5 +5432,7 @@ checkpoint = "human_approval_on_refund"`}
     </div>
   );
 }
+
+
 
 

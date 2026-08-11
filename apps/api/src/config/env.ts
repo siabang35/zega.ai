@@ -79,6 +79,9 @@ const envSchema = z.object({
   SOLANA_RPC_2: z.string().default(''),
   SOLANA_RPC_3: z.string().default(''),
   SOLANA_RPC_4: z.string().default(''),
+  SOLANA_NETWORK: z.enum(['devnet', 'testnet', 'mainnet-beta']).default('devnet'),
+  MAX_WITHDRAWAL_SOL: z.coerce.number().default(10),
+  MAX_WITHDRAWAL_USDC: z.coerce.number().default(10000),
 
   // ZeroClaw Bridge & Telegram Bot
   ZEROCLAW_GATEWAY_URL: z.string().default('http://127.0.0.1:4242'),

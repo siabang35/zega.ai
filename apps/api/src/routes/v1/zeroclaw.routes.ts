@@ -31,7 +31,6 @@ import {
   INJECTION_PATTERNS,
   VALID_USDC_MINTS,
 } from '../../utils/settlementValidation.js';
-import { DevnetTestWallet } from '../../__tests__/fixtures/testWalletFixture.js';
 
 export function generateSolanaPayReferenceKey(): string {
   try {
@@ -246,38 +245,19 @@ export async function upsertPrivyWalletToDb(email: string, walletAddress: string
 }
 
 /**
- * Derive vault signing keypair for keyless execution.
- * Prioritizes specificMerchant address if provided.
+ * ⛔ PURGED: derivePrivyEmbeddedSolanaKeypair has been permanently disabled.
+ * Zero-trust non-custodial invariant: Backend NEVER holds or derives private keys for Privy wallets.
  */
-export function derivePrivyEmbeddedSolanaKeypair(emailOrPubkey?: string, specificMerchant?: string): Keypair {
-  assertDevnetOnly('derivePrivyEmbeddedSolanaKeypair');
-
-  const targetStr = (specificMerchant || emailOrPubkey || 'test_user@zegaai.site').trim();
-  const baseKp = DevnetTestWallet.deriveDevnetTestKeypair(targetStr);
-
-  // If targetStr is a valid Base58 Solana public key address (e.g. 5627mXbz...), dynamically bind publicKey getter
-  if (targetStr.length >= 32 && !targetStr.includes('@')) {
-    try {
-      const targetPubkey = new PublicKey(targetStr);
-      const boundKp = Object.create(baseKp);
-      Object.defineProperty(boundKp, 'publicKey', {
-        get: () => targetPubkey,
-        configurable: true,
-        enumerable: true,
-      });
-      return boundKp as Keypair;
-    } catch { }
-  }
-
-  return baseKp;
+export function derivePrivyEmbeddedSolanaKeypair(_emailOrPubkey?: string, _specificMerchant?: string): Keypair {
+  throw new Error('SECURITY INVARIANT VIOLATION: derivePrivyEmbeddedSolanaKeypair is permanently disabled. Privy transactions MUST be signed client-side via Privy SDK.');
 }
 
 /**
  * Derives default test wallet address if no registered Privy wallet address is found.
  */
-export function derivePrivyEmbeddedSolanaWallet(email?: string): string {
+export function derivePrivyEmbeddedSolanaWallet(_email?: string): string {
   assertDevnetOnly('derivePrivyEmbeddedSolanaWallet');
-  return DevnetTestWallet.deriveDevnetTestWalletAddress(email);
+  return '5627mXbzFUu2d4K1m1YKFPAYTQRKcXwnYz3SsjfG8ca9';
 }
 
 /**
@@ -3190,6 +3170,172 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
+  // ── POST /v1/zeroclaw/withdraw/prepare ── Prepare Unsigned Solana Transaction for Privy Embedded Wallet Signing
+  fastify.post<{
+    Body: {
+      userId?: string;
+      merchantPubkey: string;
+      destinationAddress: string;
+      amount: number;
+      tokenSymbol: 'USDC' | 'SOL';
+    }
+  }>('/withdraw/prepare', async (request, reply) => {
+    const { userId, merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC' } = request.body || {};
+    const userEmail = userId || 'user@zegaai.site';
+    const amountVal = Number(amount) || 0;
+    const USDC_MINT_STR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+
+    // 1. Amount Validation
+    if (amountVal <= 0) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Amount',
+        message: 'Jumlah penarikan harus lebih besar dari 0.'
+      });
+    }
+
+    // 2. Base58 Address Validation
+    const BASE58_ADDR_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    if (!destinationAddress || !BASE58_ADDR_REGEX.test(destinationAddress.trim())) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Solana Destination Address',
+        message: 'Alamat tujuan penarikan harus berupa Public Key Solana (Base58) yang valid (32-44 karakter).'
+      });
+    }
+
+    const cleanDest = destinationAddress.trim();
+    const cleanMerchant = (merchantPubkey || '').trim();
+
+    if (!cleanMerchant || !BASE58_ADDR_REGEX.test(cleanMerchant)) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Privy Merchant Wallet',
+        message: 'Alamat Privy embedded wallet merchant tidak valid.'
+      });
+    }
+
+    if (cleanDest === cleanMerchant) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Self-Transfer Blocked',
+        message: 'Tidak dapat melakukan penarikan ke wallet sendiri.'
+      });
+    }
+
+    // 3. Wallet Ownership Validation
+    const registeredPrivyWallet = await getRegisteredPrivyWalletAddress(userEmail);
+    if (registeredPrivyWallet && registeredPrivyWallet !== cleanMerchant) {
+      const isOwned = await isMerchantWalletOwnedByUser(userEmail, cleanMerchant);
+      if (!isOwned) {
+        return reply.status(403).send({
+          success: false,
+          error: 'Unauthorized Merchant Wallet',
+          message: `Wallet ${cleanMerchant} tidak terdaftar untuk ${userEmail}.`
+        });
+      }
+    }
+
+    // 4. Fetch fresh blockhash (skipCache: true)
+    let latestBlockhashObj: { blockhash: string; lastValidBlockHeight: number };
+    try {
+      const res = await solanaRpcManager.callRpc<any>(
+        'getLatestBlockhash',
+        [{ commitment: 'confirmed' }],
+        { skipCache: true }
+      );
+      const hash = res?.value?.blockhash || res?.blockhash || res?.result?.value?.blockhash;
+      const height = res?.value?.lastValidBlockHeight || res?.lastValidBlockHeight || res?.result?.value?.lastValidBlockHeight || 0;
+      if (!hash || typeof hash !== 'string') {
+        throw new Error('RPC tidak mengembalikan blockhash yang valid');
+      }
+      latestBlockhashObj = { blockhash: hash, lastValidBlockHeight: height };
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: 'Blockhash Fetch Failed',
+        message: `Gagal mengambil blockhash terbaru dari Solana RPC: ${err?.message}`
+      });
+    }
+
+    let merchantPubkeyObj: PublicKey;
+    let destPubkeyObj: PublicKey;
+    try {
+      merchantPubkeyObj = new PublicKey(cleanMerchant);
+      destPubkeyObj = new PublicKey(cleanDest);
+    } catch (keyErr: any) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Solana Public Key Format',
+        message: `Format public key Solana tidak valid: ${keyErr?.message}`
+      });
+    }
+
+    const transaction = new Transaction();
+    transaction.feePayer = merchantPubkeyObj;
+    transaction.recentBlockhash = latestBlockhashObj.blockhash;
+
+    if (tokenSymbol === 'SOL') {
+      const lamports = Math.round(amountVal * LAMPORTS_PER_SOL);
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: merchantPubkeyObj,
+          toPubkey: destPubkeyObj,
+          lamports,
+        })
+      );
+    } else if (tokenSymbol === 'USDC') {
+      const usdcMintObj = new PublicKey(USDC_MINT_STR);
+      const sourceAta = getAssociatedTokenAddressSync(usdcMintObj, merchantPubkeyObj);
+      const destAta = getAssociatedTokenAddressSync(usdcMintObj, destPubkeyObj);
+
+      let destAtaExists = false;
+      try {
+        const acctInfo = await solanaRpcManager.callRpc<any>('getAccountInfo', [destAta.toBase58(), { encoding: 'jsonParsed' }]);
+        if (acctInfo && acctInfo.value) {
+          destAtaExists = true;
+        }
+      } catch { }
+
+      if (!destAtaExists) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            merchantPubkeyObj,
+            destAta,
+            destPubkeyObj,
+            usdcMintObj
+          )
+        );
+      }
+
+      // 6 decimals for USDC
+      const rawAmount = Math.round(amountVal * 1e6);
+      transaction.add(
+        createTransferInstruction(
+          sourceAta,
+          destAta,
+          merchantPubkeyObj,
+          rawAmount
+        )
+      );
+    }
+
+    const unsignedTxBase64 = transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
+    const withdrawalId = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+
+    return reply.send({
+      success: true,
+      withdrawalId,
+      unsignedTxBase64,
+      feePayer: cleanMerchant,
+      destinationAddress: cleanDest,
+      amount: amountVal,
+      tokenSymbol,
+      blockhash: latestBlockhashObj.blockhash,
+      lastValidBlockHeight: latestBlockhashObj.lastValidBlockHeight,
+    });
+  });
+
   // ── POST /v1/zeroclaw/withdraw/request-otp ── Step 1: Dispatch OWASP 6-Digit Email OTP Passcode for Withdrawal
   fastify.post<{
     Body: {
@@ -3550,44 +3696,75 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 7: Real On-Chain Devnet Broadcast & HMAC-SHA256 Audit Signature
+    // LAYER 7: Privy SDK Cryptographic Signature Verification & RPC Broadcast
     // ═══════════════════════════════════════════════════════════════
     const withdrawalId = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
     const referenceKey = generateSolanaPayReferenceKey();
 
     let onChainResult: { success: boolean; txSignature?: string; error?: string };
-    let vaultSigningKeypair: Keypair | undefined;
 
-    // ⚡ Path 1: Client-Provided Signed Transaction (from Privy SDK signTransaction for 5627mXbz...)
-    if (signedTxBase64) {
-      try {
-        const broadcastRes = await solanaRpcManager.callRpc<string>('sendTransaction', [signedTxBase64, { encoding: 'base64' }]);
-        onChainResult = { success: true, txSignature: broadcastRes };
-      } catch (err: any) {
-        onChainResult = { success: false, error: err?.message || 'Gagal broadcast transaksi yang ditandatangani Privy SDK.' };
-      }
-    }
-    // ⚡ Path 2: Client-Provided Pre-Broadcasted Signature (from Privy SDK signAndSendTransaction for 5627mXbz...)
-    else if (clientTxSignature) {
-      onChainResult = { success: true, txSignature: clientTxSignature };
-    }
-    // ⚡ Path 3: Backend Keypair Execution
-    else {
-      vaultSigningKeypair = derivePrivyEmbeddedSolanaKeypair(userEmail, effectiveMerchant);
-      onChainResult = await executeOnChainSolanaWithdrawal({
-        merchantKeypair: vaultSigningKeypair,
-        destinationAddress: cleanDest,
-        amount: amountVal,
-        tokenSymbol,
+    if (!signedTxBase64) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Signed Transaction Required',
+        securityLayer: 7,
+        message: 'Transaksi penarikan WAJIB ditandatangani oleh Privy Embedded Wallet via Privy SDK.'
       });
-      if (onChainResult.success && vaultSigningKeypair) {
-        effectiveMerchant = vaultSigningKeypair.publicKey.toBase58();
-      }
+    }
+
+    // 1. Decode signed transaction
+    let tx: Transaction;
+    try {
+      const txBuffer = Buffer.from(signedTxBase64, 'base64');
+      tx = Transaction.from(txBuffer);
+    } catch (err: any) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Signed Transaction',
+        securityLayer: 7,
+        message: `Format transaksi ter-encode base64 tidak valid: ${err?.message}`
+      });
+    }
+
+    // 2. Signer / Fee Payer Invariant Verification
+    if (!tx.feePayer || tx.feePayer.toBase58() !== effectiveMerchant) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Signer Mismatch',
+        securityLayer: 7,
+        message: `Fee payer transaksi (${tx.feePayer?.toBase58() || 'none'}) tidak sesuai dengan Privy wallet resmi (${effectiveMerchant}).`
+      });
+    }
+
+    // 3. Cryptographic Signature Verification
+    let isSigValid = false;
+    try {
+      isSigValid = tx.verifySignatures();
+    } catch {
+      isSigValid = false;
+    }
+
+    if (!isSigValid) {
+      logger.error({ effectiveMerchant, cleanDest, amountVal }, '❌ Cryptographic Signature Verification Failed on Server');
+      return reply.status(400).send({
+        success: false,
+        error: 'Signature Verification Failed',
+        securityLayer: 7,
+        message: `Penarikan On-Chain Gagal:\nSignature verification failed.\nInvalid signature for public key [${effectiveMerchant}]`
+      });
+    }
+
+    // 4. Server-Side Broadcast to Solana Devnet RPC Pool
+    try {
+      const broadcastRes = await solanaRpcManager.callRpc<string>('sendTransaction', [signedTxBase64, { encoding: 'base64', skipPreflight: true, maxRetries: 5 }]);
+      onChainResult = { success: true, txSignature: broadcastRes };
+    } catch (err: any) {
+      onChainResult = { success: false, error: err?.message || 'Gagal broadcast transaksi yang ditandatangani Privy SDK.' };
     }
 
     if (!onChainResult.success || !onChainResult.txSignature) {
       const failureReason = onChainResult.error || 'On-chain live broadcast failed';
-      const vaultPubkeyStr = vaultSigningKeypair ? vaultSigningKeypair.publicKey.toBase58() : effectiveMerchant;
+      const vaultPubkeyStr = effectiveMerchant;
       logger.error({ onChainError: failureReason, cleanDest, amountVal, vaultPubkey: vaultPubkeyStr }, '❌ On-Chain Solana Withdrawal Failed');
 
       // 🛡️ Fail-Closed DB Record: Record failed withdrawal in Supabase
