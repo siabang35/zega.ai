@@ -164,4 +164,22 @@ To eliminate infinite OTP loops and state desynchronization:
 2. **Environment Variable Security**: All secret keys (`PRIVY_APP_SECRET`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`) reside strictly in server environment files (`apps/api/.env`) and are never exposed to browser bundles.
 3. **Automated CI Security Scanning**: Codebase automated scans (`.github/workflows/ci.yml`) enforce strict secret detection and zero hardcoded credential rules.
 
+---
+
+## 8. Zero-Trust 10-Layer Validation & Operation Idempotency Architecture
+
+### 10-Layer Backend Security Pipeline
+The backend server (`apps/api/src/routes/v1/zeroclaw.routes.ts`) serves as the sole authority for withdrawal transactions:
+- **Layer 1 & 2 (User Identity & Wallet Isolation)**: Re-validates session user ownership and rejects cross-user wallet tampering (`403 Forbidden`).
+- **Layer 3 & 4 (Server Intent & Single-Use Authorization)**: Computes SHA-256 intent fingerprints (`withdrawalId` + `amount` + `token` + `destination`) and blocks authorization ID reuse (`AUTHORIZATION_ALREADY_CONSUMED`).
+- **Layer 5 (Base-Unit Precision)**: Integer-based BigInt lamport / base-unit conversion to prevent floating point precision loss.
+- **Layer 6 & 7 (Ed25519 Signature Verification & Intent Fingerprinting)**: Decodes and verifies client-signed transactions against fee payer pubkeys and server-prepared instructions.
+- **Layer 8, 9 & 10 (Idempotency & Settlement)**: Enforces server-side operation idempotency (`activeLockKey`), atomic ledger settlement, and verified on-chain confirmation without fake hash fallbacks.
+
+### Bug Remediation Highlights
+- **OTP Validation**: Strict string normalization (`/^\d{6}$/`) preserving leading zeros (`000000`, `000123`).
+- **Operation Idempotency**: Replaced 15-second timestamp locks with active operation locks that release immediately on terminal state completion (`COMPLETED`, `FAILED`).
+- **UI Alert Scoping**: Solved double-execution race conditions with `withdrawalExecutionInFlightRef` and scoped `withdrawModalAlert` to non-success steps.
+- **History Persistence**: Restored proper PostgREST parameter building and client-side `localStorage` caching so history persists seamlessly across page refreshes.
+
 
