@@ -11,6 +11,7 @@ These documents contain the complete hostile forensic audit, threat model, autom
 | Document | Category | Summary |
 |----------|----------|---------|
 | [**`ZEROCLAW_FORENSIC_AUDIT.md`**](ZEROCLAW_FORENSIC_AUDIT.md) | 🛡️ Audit Report | **Hostile Forensic Security Audit (Score 91/100 GO Verdict)** — 10-layer deep code, config, & schema evaluation. |
+| [**`ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md`**](ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md) | 🔑 Architecture | **Privy Non-Custodial Solana Withdrawal Architecture** — Dual-auth integration, Base58 address resolution, and enclave signing. |
 | [**`ZEGA_FINAL_HARDENING_REPORT.md`**](ZEGA_FINAL_HARDENING_REPORT.md) | 🔒 Verification | **Final System Hardening Report** — Automated test suite breakdown (89/89 PASS) & deployment matrices. |
 | [**`REMEDIATION_BASELINE.md`**](REMEDIATION_BASELINE.md) | 🧪 Remediation | **Security Remediation Baseline Log** — Fixes for anti-replay, RLS policies, & PostgreSQL triggers. |
 | [**`SECURITY_THREAT_MODEL.md`**](zeroclaw/SECURITY_THREAT_MODEL.md) | 🛡️ OWASP Security | **Threat Model & OWASP Level 3 Prompt Injection Protection** — Injection prevention & T1 custody boundaries. |

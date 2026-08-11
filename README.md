@@ -111,12 +111,13 @@ ZEGA's execution lifecycle spans five stages:
 
 ## Privy SDK Integration
 
-ZEGA integrates `@privy-io/server-auth` to enforce a **100% Keyless, Non-Custodial Architecture**:
+ZEGA integrates `@privy-io/react-auth` (Client Browser Enclave) and `@privy-io/server-auth` (Server Enclave) to enforce a **100% Keyless, Non-Custodial Architecture**:
 
-- **Zero-Key Invariant:** Raw private keys, seed phrases, and mnemonics are **NEVER** stored, logged, or derived in backend code or AI agent prompts.
-- **Server Signing Isolation:** Transaction signing delegates strictly to Privy's secure wallet infrastructure (`privyClient.walletApi.solana.signTransaction()`) via server API credentials (`PRIVY_APP_ID`, `PRIVY_APP_SECRET`).
-- **Identity & Wallet Discovery:** User email addresses map deterministically to Privy user DIDs (`did:privy:...`) and provision single-owner Privy Solana wallets.
-- **Zero-Connect UX:** Users log in via email/OAuth without needing browser extension wallets (Phantom/Solflare).
+- **Zero-Key Invariant:** Raw private keys, seed phrases, and mnemonics are **NEVER** stored, logged, or exposed in backend code, database records, or AI agent prompts.
+- **Dual-Auth Architecture:** Preserves ZEGA native login (Email/Brevo OTP, Google, GitHub OAuth) while leveraging Privy's MPC embedded wallet enclave for Solana transaction signing.
+- **Client & Server Enclave Signing:** Browser-side transaction signing executes via `@privy-io/react-auth/solana` (`useSignTransaction`) using resolved `effectiveSigningAddress` (`J8V6QvAf...`), with backend fallback to `@privy-io/server-auth`.
+- **Zero-Connect UX:** Users execute withdrawals non-custodially without requiring browser wallet extensions.
+- **Architecture Documentation:** See [`docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md`](docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md) for full implementation details.
 
 ---
 

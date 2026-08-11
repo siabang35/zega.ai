@@ -91,6 +91,8 @@ const envSchema = z.object({
   // Privy Keyless Embedded Wallet & Social OAuth
   PRIVY_APP_ID: z.string().default(''),
   PRIVY_APP_SECRET: z.string().default(''),
+  PRIVY_WALLET_AUTHORIZATION_PRIVATE_KEY: z.string().default(''),
+  PRIVY_AUTHORIZATION_KEY: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_ID: z.string().default(''),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().default(''),
   GITHUB_OAUTH_CLIENT_ID: z.string().default(''),

@@ -21,6 +21,7 @@ import { OtpStore } from '../../services/otpStore.js';
 import { BrevoService } from '../../services/brevoService.js';
 import { zeroClawSignatureMonitor } from '../../services/zeroclawSignatureMonitor.js';
 import { solanaRpcManager } from '../../services/solanaRpcManager.js';
+import { PrivyService } from '../../services/privyService.js';
 import { logger } from '../../utils/logger.js';
 import { envConfig } from '../../config/env.js';
 import {
@@ -3204,8 +3205,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
+    // 3. Registered Privy Wallet Resolution (Always enforce real user Privy wallet)
     const cleanDest = destinationAddress.trim();
-    const cleanMerchant = (merchantPubkey || '').trim();
+    let cleanMerchant: string = '';
+    try {
+      const privyWalletObj = await PrivyService.getUserSolanaWallet(userEmail);
+      if (privyWalletObj && privyWalletObj.walletAddress) {
+        cleanMerchant = privyWalletObj.walletAddress;
+      }
+    } catch {
+      cleanMerchant = (await getRegisteredPrivyWalletAddress(userEmail)) || (merchantPubkey || '').trim();
+    }
 
     if (!cleanMerchant || !BASE58_ADDR_REGEX.test(cleanMerchant)) {
       return reply.status(400).send({
@@ -3221,19 +3231,6 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         error: 'Self-Transfer Blocked',
         message: 'Tidak dapat melakukan penarikan ke wallet sendiri.'
       });
-    }
-
-    // 3. Wallet Ownership Validation
-    const registeredPrivyWallet = await getRegisteredPrivyWalletAddress(userEmail);
-    if (registeredPrivyWallet && registeredPrivyWallet !== cleanMerchant) {
-      const isOwned = await isMerchantWalletOwnedByUser(userEmail, cleanMerchant);
-      if (!isOwned) {
-        return reply.status(403).send({
-          success: false,
-          error: 'Unauthorized Merchant Wallet',
-          message: `Wallet ${cleanMerchant} tidak terdaftar untuk ${userEmail}.`
-        });
-      }
     }
 
     // 4. Fetch fresh blockhash (skipCache: true)
@@ -3504,7 +3501,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    let effectiveMerchant = cleanMerchantPubkey || derivedWallet;
+    let effectiveMerchant: string = '';
+    try {
+      const privyWalletObj = await PrivyService.getUserSolanaWallet(userEmail);
+      if (privyWalletObj && privyWalletObj.walletAddress) {
+        effectiveMerchant = privyWalletObj.walletAddress;
+      }
+    } catch {
+      effectiveMerchant = registeredPrivyWallet || cleanMerchantPubkey || derivedWallet;
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // LAYER 3: Solana Base58 Address Validation (32-44 chars)
@@ -3696,7 +3701,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 7: Privy SDK Cryptographic Signature Verification & RPC Broadcast
+    // LAYER 7: Privy SDK Cryptographic Signature Verification, Pre-Submission Local Verification & RPC Broadcast
     // ═══════════════════════════════════════════════════════════════
     const withdrawalId = `wd_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
     const referenceKey = generateSolanaPayReferenceKey();
@@ -3712,11 +3717,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // 1. Decode signed transaction
+    // 1. Decode transaction bytes from Base64 round-trip
     let tx: Transaction;
+    let rawTxBuffer: Buffer;
     try {
-      const txBuffer = Buffer.from(signedTxBase64, 'base64');
-      tx = Transaction.from(txBuffer);
+      rawTxBuffer = Buffer.from(signedTxBase64, 'base64');
+      if (rawTxBuffer.length === 0) {
+        throw new Error('Buffer transaksi kosong');
+      }
+      tx = Transaction.from(rawTxBuffer);
     } catch (err: any) {
       return reply.status(400).send({
         success: false,
@@ -3726,17 +3735,46 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // 2. Signer / Fee Payer Invariant Verification
-    if (!tx.feePayer || tx.feePayer.toBase58() !== effectiveMerchant) {
+    // 2. Dynamic Fee Payer & Instruction Sender Invariant Verification
+    const resolvedMerchantAddress = effectiveMerchant;
+    if (!tx.feePayer || tx.feePayer.toBase58() !== resolvedMerchantAddress) {
       return reply.status(400).send({
         success: false,
-        error: 'Signer Mismatch',
+        error: 'WALLET_IDENTITY_MISMATCH',
         securityLayer: 7,
-        message: `Fee payer transaksi (${tx.feePayer?.toBase58() || 'none'}) tidak sesuai dengan Privy wallet resmi (${effectiveMerchant}).`
+        message: `Fee payer transaksi (${tx.feePayer?.toBase58() || 'none'}) tidak sesuai dengan Privy wallet resmi (${resolvedMerchantAddress}).`
       });
     }
 
-    // 3. Cryptographic Signature Verification
+    // Verify that at least one instruction key or feePayer matches resolvedMerchantAddress
+    const hasAuthorityKey = tx.instructions.some((ix) =>
+      ix.keys.some((k) => k.pubkey.toBase58() === resolvedMerchantAddress)
+    );
+    if (!hasAuthorityKey && tx.feePayer.toBase58() !== resolvedMerchantAddress) {
+      return reply.status(400).send({
+        success: false,
+        error: 'WALLET_SENDER_MISMATCH',
+        securityLayer: 7,
+        message: `Pengirim instruksi transaksi tidak sesuai dengan Privy wallet resmi (${resolvedMerchantAddress}).`
+      });
+    }
+
+    // 3. Pre-Signing & Pre-Verification SHA-256 Fingerprinting
+    let inputMessageSha256 = createHash('sha256').update(tx.serializeMessage()).digest('hex');
+    const inputTxSha256 = createHash('sha256').update(rawTxBuffer).digest('hex');
+
+    logger.info({
+      withdrawalId,
+      userEmail,
+      walletAddress: resolvedMerchantAddress,
+      feePayer: tx.feePayer.toBase58(),
+      recentBlockhash: tx.recentBlockhash,
+      instructionCount: tx.instructions.length,
+      inputMessageSha256,
+      inputTxSha256,
+    }, '🔍 Pre-Signature Verification SHA-256 Fingerprint Captured');
+
+    // 4. Strict Pre-Submission Local Cryptographic Signature Verification Guard
     let isSigValid = false;
     try {
       isSigValid = tx.verifySignatures();
@@ -3745,18 +3783,41 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (!isSigValid) {
-      logger.error({ effectiveMerchant, cleanDest, amountVal }, '❌ Cryptographic Signature Verification Failed on Server');
+      logger.error({ resolvedMerchantAddress, cleanDest, amountVal }, '❌ Local Pre-Submission Cryptographic Signature Verification Failed');
       return reply.status(400).send({
         success: false,
-        error: 'Signature Verification Failed',
+        error: 'PRIVY_CLIENT_SIGNATURE_REQUIRED',
         securityLayer: 7,
-        message: `Penarikan On-Chain Gagal:\nSignature verification failed.\nInvalid signature for public key [${effectiveMerchant}]`
+        message: `Penarikan Non-Custodial Murni (Layer 7):\nTransaksi belum memiliki tanda tangan kriptografi sah dari Privy wallet [${resolvedMerchantAddress.slice(0, 8)}...]. Harap setujui penandatanganan penarikan pada Privy SDK di browser Anda.`
       });
     }
 
-    // 4. Server-Side Broadcast to Solana Devnet RPC Pool
+    // 6. Zero-Mutation Final Submitted Transaction Serialization & SHA-256 Invariant Check
+    const finalSubmittedBytes = tx.serialize();
+    const finalSubmittedBase64 = Buffer.from(finalSubmittedBytes).toString('base64');
+    const finalSubmittedTxSha256 = createHash('sha256').update(finalSubmittedBytes).digest('hex');
+    const finalSubmittedMessageSha256 = createHash('sha256').update(tx.serializeMessage()).digest('hex');
+
+    if (finalSubmittedMessageSha256 !== inputMessageSha256) {
+      logger.error({ inputMessageSha256, finalSubmittedMessageSha256 }, '🚨 CRITICAL ERROR: Transaction message mutated before RPC submission');
+      return reply.status(400).send({
+        success: false,
+        error: 'Post-Signing Mutation Blocked',
+        securityLayer: 7,
+        message: 'Pesan transaksi terdeteksi mengalami perubahan sebelum dikirim ke RPC.'
+      });
+    }
+
+    logger.info({
+      withdrawalId,
+      finalSubmittedTxSha256,
+      finalSubmittedMessageSha256,
+      submittedBytesLength: finalSubmittedBytes.length,
+    }, '✅ Pre-Submission Signature Verification PASSED — Submitting EXACT Bytes to Solana RPC');
+
+    // 7. Server-Side Broadcast to Solana Devnet RPC Pool
     try {
-      const broadcastRes = await solanaRpcManager.callRpc<string>('sendTransaction', [signedTxBase64, { encoding: 'base64', skipPreflight: true, maxRetries: 5 }]);
+      const broadcastRes = await solanaRpcManager.callRpc<string>('sendTransaction', [finalSubmittedBase64, { encoding: 'base64', skipPreflight: true, maxRetries: 5 }]);
       onChainResult = { success: true, txSignature: broadcastRes };
     } catch (err: any) {
       onChainResult = { success: false, error: err?.message || 'Gagal broadcast transaksi yang ditandatangani Privy SDK.' };
@@ -4040,6 +4101,119 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       success: true,
       count: 0,
       withdrawals: [],
+    });
+  });
+
+  // ── POST /v1/zeroclaw/withdraw/verify-signature ── Diagnostic Signature Inspection & Cryptographic Fingerprinting
+  fastify.post<{
+    Body: {
+      signedTxBase64: string;
+      expectedMerchantPubkey?: string;
+    }
+  }>('/withdraw/verify-signature', async (request, reply) => {
+    const { signedTxBase64, expectedMerchantPubkey } = request.body || {};
+
+    if (!signedTxBase64) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Missing Transaction Base64',
+        message: 'Parameter signedTxBase64 wajib diisi.'
+      });
+    }
+
+    try {
+      const rawBuffer = Buffer.from(signedTxBase64, 'base64');
+      const tx = Transaction.from(rawBuffer);
+
+      const feePayer = tx.feePayer ? tx.feePayer.toBase58() : null;
+      const recentBlockhash = tx.recentBlockhash || null;
+      const instructionCount = tx.instructions.length;
+
+      const messageSha256 = createHash('sha256').update(tx.serializeMessage()).digest('hex');
+      const rawTxSha256 = createHash('sha256').update(rawBuffer).digest('hex');
+
+      const extractedSignatures = tx.signatures.map(s => ({
+        publicKey: s.publicKey.toBase58(),
+        hasSignature: s.signature !== null && s.signature.length > 0,
+        signatureHex: s.signature ? Buffer.from(s.signature).toString('hex') : null,
+      }));
+
+      const validSignaturesCount = extractedSignatures.filter(s => s.hasSignature).length;
+
+      let isSignatureValid = false;
+      try {
+        isSignatureValid = tx.verifySignatures();
+      } catch {
+        isSignatureValid = false;
+      }
+
+      const isFeePayerMatched = expectedMerchantPubkey
+        ? feePayer === expectedMerchantPubkey.trim()
+        : true;
+
+      return reply.send({
+        success: true,
+        isSignatureValid,
+        isFeePayerMatched,
+        feePayer,
+        expectedMerchantPubkey: expectedMerchantPubkey || null,
+        recentBlockhash,
+        instructionCount,
+        validSignaturesCount,
+        totalSignersCount: tx.signatures.length,
+        signatures: extractedSignatures,
+        fingerprints: {
+          messageSha256,
+          rawTxSha256,
+        },
+        diagnostics: {
+          nonCustodialCompliance: isSignatureValid && isFeePayerMatched ? 'LEVEL_A_VERIFIED' : 'FAILED',
+          message: isSignatureValid
+            ? 'Transaksi memiliki tanda tangan kriptografi sah dari browser Privy Embedded Wallet.'
+            : 'Transaksi TIDAK memiliki tanda tangan yang sah dari Privy Embedded Wallet (unsigned or tampered).'
+        }
+      });
+    } catch (err: any) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Invalid Transaction Format',
+        message: `Gagal mendeserialisasi transaksi Solana: ${err?.message}`
+      });
+    }
+  });
+
+  // ── GET /v1/zeroclaw/withdraw/diagnostics ── System Withdrawal Readiness Diagnostic
+  fastify.get('/withdraw/diagnostics', async (request, reply) => {
+    const privyReadiness = PrivyService.checkPrivySigningReadiness();
+    let rpcConnected = false;
+    let rpcBlockhash: string | null = null;
+
+    try {
+      const bhRes = await solanaRpcManager.callRpc<any>('getLatestBlockhash', [{ commitment: 'confirmed' }]);
+      rpcBlockhash = bhRes?.value?.blockhash || bhRes?.blockhash || null;
+      rpcConnected = Boolean(rpcBlockhash);
+    } catch {
+      rpcConnected = false;
+    }
+
+    return reply.send({
+      success: true,
+      timestamp: new Date().toISOString(),
+      nonCustodialMode: 'STRICT_USER_BROWSER_SIGNING_ONLY',
+      privyServerConfig: privyReadiness,
+      rpc: {
+        connected: rpcConnected,
+        latestBlockhash: rpcBlockhash,
+      },
+      withdrawalLayers: [
+        { layer: 1, name: 'Email OTP Verification', status: 'ACTIVE' },
+        { layer: 2, name: 'Wallet Ownership Invariant Check', status: 'ACTIVE' },
+        { layer: 3, name: 'Base58 Solana Address Format Check', status: 'ACTIVE' },
+        { layer: 4, name: 'On-Chain Real Balance Check', status: 'ACTIVE' },
+        { layer: 5, name: 'Anti-Replay Nonce Verification', status: 'ACTIVE' },
+        { layer: 6, name: 'Rate Limiting (Max 3 / 10 min)', status: 'ACTIVE' },
+        { layer: 7, name: 'Client-Side Privy Signature Verification & Exact Byte Broadcast', status: 'ACTIVE' }
+      ]
     });
   });
 

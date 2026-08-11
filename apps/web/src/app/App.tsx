@@ -1715,6 +1715,21 @@ function AppContent() {
     }
     return false;
   });
+
+  // Extract ZEGA session state for Privy JWT Auth Synchronization
+  const [zegaSessionEmail, setZegaSessionEmail] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const mockStr = localStorage.getItem("zega_mock_session");
+      if (mockStr) {
+        const parsed = JSON.parse(mockStr);
+        if (parsed && parsed.email && !parsed.isGuest) return parsed.email;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+
   const [activePage, setActivePage] = useState<'home' | 'terms' | 'privacy'>('home');
 
   const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
