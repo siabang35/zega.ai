@@ -43,7 +43,7 @@ Customer or cashier sends a message to the shop's Telegram / Web POS channel:
 - **Metadata Standard**: Standard FND-002 taxonomy (`type: reference`, `status: proposed`).
 - **Gateway Configuration**: Configured default gateway URL port (`http://127.0.0.1:4242`).
 - **Error Boundaries**: Re-throws `RateLimitError` immediately while supporting non-rate-limit fallback to `POST /pair`.
-- **Pinned External Commit**: [`f99104367a6b06815cf478120b247d042fa7b1a5`](https://github.com/siabang35/zega.ai/tree/f99104367a6b06815cf478120b247d042fa7b1a5/packages/zeroclaw-bridge).
+- **Pinned External Commit**: [`36946e56dbdf2f3347874caf9873657bfda4f38e`](https://github.com/siabang35/zega.ai/tree/36946e56dbdf2f3347874caf9873657bfda4f38e/packages/zeroclaw-bridge).
 
 ---
 
