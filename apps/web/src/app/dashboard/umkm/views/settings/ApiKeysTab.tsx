@@ -298,7 +298,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
             <Plus size={16} />
             <span>Buat API Key Baru</span>
@@ -330,49 +330,49 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 3. 4 Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total API Keys */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
-          <div className="size-11 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 flex items-center justify-center shrink-0 font-black">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
+          <div className="size-11 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 flex items-center justify-center shrink-0 font-bold">
             <Key size={20} />
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">Total API Keys</span>
-            <span className="text-xl font-black text-slate-900 dark:text-slate-100">{totalCount}</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalCount}</span>
             <span className="text-[10px] text-slate-400 font-medium ml-1.5">Terdaftar di DB</span>
           </div>
         </div>
 
         {/* Card 2: API Keys Aktif */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
-          <div className="size-11 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center shrink-0 font-black">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
+          <div className="size-11 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center shrink-0 font-bold">
             <ShieldCheck size={20} />
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">API Keys Aktif</span>
-            <span className="text-xl font-black text-slate-900 dark:text-slate-100">{activeCount}</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{activeCount}</span>
             <span className="text-[10px] text-slate-400 font-medium ml-1.5">Siap menerima request</span>
           </div>
         </div>
 
         {/* Card 3: API Keys Kedaluwarsa */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
-          <div className="size-11 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center shrink-0 font-black">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
+          <div className="size-11 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center shrink-0 font-bold">
             <Clock size={20} />
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">API Keys Kedaluwarsa</span>
-            <span className="text-xl font-black text-slate-900 dark:text-slate-100">{expiredCount}</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{expiredCount}</span>
             <span className="text-[10px] text-slate-400 font-medium ml-1.5">Perlu diperbarui</span>
           </div>
         </div>
 
         {/* Card 4: Total API Requests (Bulan Ini) */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3">
-          <div className="size-11 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center shrink-0 font-black">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
+          <div className="size-11 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center shrink-0 font-bold">
             <Activity size={20} />
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">Penggunaan API (Bulan Ini)</span>
-            <span className="text-xl font-black text-slate-900 dark:text-slate-100">{totalMonthlyUsage.toLocaleString('id-ID')}</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalMonthlyUsage.toLocaleString('id-ID')}</span>
             <span className="text-[10px] text-slate-400 font-medium ml-1.5">Requests</span>
           </div>
         </div>
@@ -382,11 +382,11 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Table Area (3 Cols) */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             {/* Table Filters Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Daftar API Keys Registered
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium">Realtime synchronize via Supabase PostgreSQL engine</p>
@@ -421,7 +421,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400">
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
                     <th className="pb-3">NAMA / DESKRIPSI</th>
                     <th className="pb-3">KEY TOKEN</th>
                     <th className="pb-3">AKSES</th>
@@ -435,15 +435,15 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   {filteredKeys.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-slate-400 font-bold text-xs">
-                        Tidak ada API Key yang sesuai dengan pencarian Anda.
+                        Belum ada API Key terdaftar.
                       </td>
                     </tr>
                   ) : (
                     filteredKeys.map((item) => {
                       const isRevealed = revealedKeys[item.id];
                       const prefix = item.key_prefix || 'zga_live_';
-                      const fullKeyStr = item.api_key_hash || item.key_token || `${prefix}9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f`;
-                      const maskedKeyStr = item.masked_key || `${prefix}${fullKeyStr.slice(9, 13)}...${fullKeyStr.slice(-4)}`;
+                      const fullKeyStr = item.api_key_hash || item.key_token || item.masked_key || '-';
+                      const maskedKeyStr = item.masked_key || (fullKeyStr !== '-' ? `${prefix}${fullKeyStr.slice(9, 13)}...${fullKeyStr.slice(-4)}` : '-');
                       const displayToken = isRevealed ? fullKeyStr : maskedKeyStr;
 
                       return (
@@ -582,8 +582,8 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
         {/* Right Sidebar Cards (1 Col) */}
         <div className="space-y-6">
           {/* 1. Tentang API Keys */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Lock size={14} className="text-orange-500" />
               <span>Standard Keamanan API</span>
             </h4>
@@ -611,10 +611,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
           </div>
 
           {/* 2. Batasan Penggunaan (Quota & Rate Limit) */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Batasan Penggunaan</h4>
-              <span className="text-[10px] font-extrabold text-orange-600 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded-full">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Batasan Penggunaan</h4>
+              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded-full">
                 Plan Enterprise
               </span>
             </div>
@@ -623,7 +623,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
               <div>
                 <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1 text-[11px]">
                   <span>API Calls / Bulan</span>
-                  <span className="font-mono text-orange-600 font-black">{totalMonthlyUsage.toLocaleString('id-ID')} / {usageLimit.toLocaleString('id-ID')}</span>
+                  <span className="font-mono text-orange-600 font-bold">{totalMonthlyUsage.toLocaleString('id-ID')} / {usageLimit.toLocaleString('id-ID')}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${usagePercentage}%` }} />
@@ -643,14 +643,14 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
 
             <button
               onClick={() => { setIsUsageModalOpen(true); loadUsageLogs(); }}
-              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-800 dark:text-slate-200 cursor-pointer transition-colors"
+              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer transition-colors"
             >
               Lihat Detail Telemetry Penggunaan
             </button>
           </div>
 
           {/* 3. Sumber Daya Documentation */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
             <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Sumber Daya & SDK</h4>
             <div className="space-y-2 text-xs font-bold text-slate-700 dark:text-slate-300">
               <button
@@ -704,7 +704,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 6. "+ Buat API Key" Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Buat API Key Baru</h3>
               <button onClick={closeCreateModal} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
@@ -804,7 +804,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 7. Edit API Key Modal */}
       {editKeyTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Edit size={16} className="text-orange-500" />
@@ -903,7 +903,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 8. Rotated Token Modal */}
       {rotatedTokenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <RefreshCw size={16} className="text-orange-500 animate-spin" />
@@ -946,7 +946,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 9. Telemetry & Usage Logs Modal */}
       {isUsageModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-2xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Activity size={18} className="text-orange-500" />
@@ -1036,7 +1036,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       {/* 10. SDK & Developer Integration Documentation Modal */}
       {isSdkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-2xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Code size={18} className="text-orange-500" />
@@ -1051,7 +1051,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 onClick={() => setSdkTab('node')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   sdkTab === 'node'
-                    ? 'bg-orange-500 text-white shadow-xs'
+                    ? 'bg-orange-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
@@ -1061,7 +1061,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 onClick={() => setSdkTab('python')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   sdkTab === 'python'
-                    ? 'bg-orange-500 text-white shadow-xs'
+                    ? 'bg-orange-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
@@ -1071,7 +1071,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 onClick={() => setSdkTab('curl')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   sdkTab === 'curl'
-                    ? 'bg-orange-500 text-white shadow-xs'
+                    ? 'bg-orange-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
@@ -1081,7 +1081,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 onClick={() => setSdkTab('zeroclaw')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   sdkTab === 'zeroclaw'
-                    ? 'bg-orange-500 text-white shadow-xs'
+                    ? 'bg-orange-500 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}
               >
@@ -1157,7 +1157,7 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
       {/* 11. Gateway Server Live Status Modal */}
       {isGatewayStatusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Server size={18} className="text-emerald-500" />
@@ -1180,7 +1180,7 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
                 <button
                   onClick={runGatewayHealthCheck}
                   disabled={gatewayPinging}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw size={12} className={gatewayPinging ? 'animate-spin' : ''} />
                   <span>Ping Health</span>

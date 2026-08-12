@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Check, CreditCard, Plus, ArrowRight, Download, ShieldCheck, 
   ExternalLink, Sparkles, CheckCircle2, ArrowDownRight, RefreshCw,
-  BarChart2, BarChart3, AlertTriangle, Headset, ChevronDown, Clock, Layers, Filter, Search, FileText, History, Settings,
+  BarChart2, BarChart3, AlertTriangle, Headset, ChevronDown, ChevronUp, Clock, Layers, Filter, Search, FileText, History, Settings,
   Mail, MessageSquare, BellRing, Building2, Globe, Phone, MapPin, Save, Receipt, FileJson, FileSpreadsheet
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
@@ -66,6 +66,17 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
 
   // Modals state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUpgradeBannerExpanded, setIsUpgradeBannerExpanded] = useState(true);
+  const [isRocketAnimating, setIsRocketAnimating] = useState(false);
+
+  const handleRocketLaunch = () => {
+    if (isRocketAnimating) return;
+    setIsRocketAnimating(true);
+    setTimeout(() => {
+      setIsRocketAnimating(false);
+      setIsUpgradeModalOpen(true);
+    }, 600);
+  };
   const [isTopupQuotaModalOpen, setIsTopupQuotaModalOpen] = useState(false);
   const [isAddPaymentModalOpen, setIsAddPaymentModalOpen] = useState(false);
   const [isUsageModalOpen, setIsUsageModalOpen] = useState(false);
@@ -122,11 +133,13 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
   const [usageChartMetric, setUsageChartMetric] = useState<'credits' | 'automations' | 'storage'>('credits');
   const [usageCategoryFilter, setUsageCategoryFilter] = useState('Semua');
   const [usageSearchQuery, setUsageSearchQuery] = useState('');
+  const [isUsageTrendExpanded, setIsUsageTrendExpanded] = useState(true);
+  const [isUsageBreakdownExpanded, setIsUsageBreakdownExpanded] = useState(true);
 
   // Invoice Sub-menu Telemetry & Bulk Export State
   const [invoicesOverviewData, setInvoicesOverviewData] = useState<any>({
-    total_invoiced_idr: 1495000,
-    paid_count: 5,
+    total_invoiced_idr: 0,
+    paid_count: 0,
     pending_count: 0,
     invoices: []
   });
@@ -203,55 +216,32 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
   // Consolidated Realtime Billing Data State
   const [billingData, setBillingData] = useState<any>({
     plan: {
-      plan_name: 'Growth',
-      status: 'Aktif',
-      expires_at: '2026-08-01 00:00:00+00',
-      monthly_price_idr: 299000,
+      plan_name: 'Free',
+      status: 'Inaktif',
+      expires_at: '',
+      monthly_price_idr: 0,
       tax_pct: 11,
-      credits_remaining: 3240,
-      credits_limit: 5000,
-      credits_pct: 64
+      credits_remaining: 0,
+      credits_limit: 0,
+      credits_pct: 0
     },
-    paymentMethods: [
-      { id: 'b1', method_name: 'Stripe •••• 4242', method_type: 'Kartu Kredit', card_last4: '4242', exp_date: '12/28', is_primary: true, status: 'Utama', icon_key: 'stripe' },
-      { id: 'b2', method_name: 'QRIS (VA)', method_type: 'Virtual Account', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'qris' },
-      { id: 'b3', method_name: 'GoPay', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'gopay' },
-      { id: 'b4', method_name: 'DANA', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'dana' },
-      { id: 'b5', method_name: 'OVO', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'ovo' }
-    ],
-    usage: [
-      { metric_key: 'credits', metric_label: 'AI Credits', current_value_label: '3.240', limit_value_label: '5.000', percentage: 64 },
-      { metric_key: 'employees', metric_label: 'AI Employees', current_value_label: '7', limit_value_label: '10', percentage: 70 },
-      { metric_key: 'automation', metric_label: 'Automation', current_value_label: '24', limit_value_label: '∞', percentage: 40 },
-      { metric_key: 'storage', metric_label: 'Storage', current_value_label: '12.4 GB', limit_value_label: '50 GB', percentage: 25 }
-    ],
-    invoices: [
-      { invoice_number: 'INV-2026-0721', period_label: 'Growth Plan - Juli 2026', total_amount_idr: 299000, status: 'Lunas' },
-      { invoice_number: 'INV-2026-0621', period_label: 'Growth Plan - Juni 2026', total_amount_idr: 299000, status: 'Lunas' },
-      { invoice_number: 'INV-2026-0521', period_label: 'Growth Plan - Mei 2026', total_amount_idr: 299000, status: 'Lunas' },
-      { invoice_number: 'INV-2026-0421', period_label: 'Growth Plan - April 2026', total_amount_idr: 299000, status: 'Lunas' },
-      { invoice_number: 'INV-2026-0321', period_label: 'Growth Plan - Maret 2026', total_amount_idr: 299000, status: 'Lunas' }
-    ],
-    transactions: [
-      { txn_hash: 'TXN-7f3...a8b2', txn_date_label: '28 Jul 2026, 16:21', payment_method: 'stripe •••• 4242', amount_crypto: 'USDC 2.50', status: 'Berhasil' },
-      { txn_hash: 'TXN-8a1...c304', txn_date_label: '28 Jul 2026, 09:15', payment_method: 'QRIS (VA)', amount_crypto: 'USDC -1.20', status: 'Berhasil' },
-      { txn_hash: 'TXN-3c2...f6e7', txn_date_label: '27 Jul 2026, 14:45', payment_method: 'GoPay', amount_crypto: 'USDC -0.80', status: 'Berhasil' },
-      { txn_hash: 'TXN-9d4...e8f1', txn_date_label: '27 Jul 2026, 11:32', payment_method: 'DANA', amount_crypto: 'USDC -3.00', status: 'Berhasil' },
-      { txn_hash: 'TXN-1b7...d5c9', txn_date_label: '26 Jul 2026, 10:08', payment_method: 'OVO', amount_crypto: 'USDC 1.50', status: 'Berhasil' }
-    ]
+    paymentMethods: [],
+    usage: [],
+    invoices: [],
+    transactions: []
   });
 
   // Consolidated Realtime Billing Settings State
   const [settingsData, setSettingsData] = useState<any>({
-    business_name: 'Toko CikCik Berluk (STORE-DEMO-1283)',
-    tax_id: '09.384.920.4-012.000',
-    billing_email: 'cikberluk@gmail.com',
-    billing_phone: '+62 812-3456-7890',
-    billing_address: 'Jl. Raya Sudirman No. 128, Jakarta Selatan, DKI Jakarta 12190',
-    auto_renew: true,
+    business_name: '',
+    tax_id: '',
+    billing_email: '',
+    billing_phone: '',
+    billing_address: '',
+    auto_renew: false,
     preferred_currency: 'IDR',
     notify_email: true,
-    notify_whatsapp: true,
+    notify_whatsapp: false,
     notify_push: false
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -276,24 +266,24 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
         setBillingData((prev: any) => ({
           ...prev,
           plan: summary.active_plan ? {
-            plan_name: summary.active_plan.name || 'Growth',
-            status: summary.active_plan.status || 'Aktif',
-            expires_at: summary.active_plan.expires_at || '2026-08-01 00:00:00+00',
-            monthly_price_idr: summary.monthly_billing_idr || 299000,
+            plan_name: summary.active_plan.name || 'Free',
+            status: summary.active_plan.status || 'Inaktif',
+            expires_at: summary.active_plan.expires_at || '',
+            monthly_price_idr: summary.monthly_billing_idr || 0,
             tax_pct: 11,
-            credits_remaining: summary.ai_credits?.used != null ? (summary.ai_credits.limit - summary.ai_credits.used) : 3240,
-            credits_limit: summary.ai_credits?.limit || 5000,
-            credits_pct: summary.ai_credits?.percentage || 64
+            credits_remaining: summary.ai_credits?.used != null ? (summary.ai_credits.limit - summary.ai_credits.used) : 0,
+            credits_limit: summary.ai_credits?.limit || 0,
+            credits_pct: summary.ai_credits?.percentage || 0
           } : prev.plan,
           usage: summary.usage_summary ? [
-            { metric_key: 'credits', metric_label: 'AI Credits', current_value_label: `${(summary.usage_summary.ai_credits?.used || 3240).toLocaleString('id-ID')}`, limit_value_label: `${(summary.usage_summary.ai_credits?.limit || 5000).toLocaleString('id-ID')}`, percentage: summary.usage_summary.ai_credits?.percentage || 64 },
-            { metric_key: 'employees', metric_label: 'AI Employees', current_value_label: `${summary.usage_summary.ai_employees?.used || 7}`, limit_value_label: `${summary.usage_summary.ai_employees?.limit || 10}`, percentage: summary.usage_summary.ai_employees?.percentage || 70 },
-            { metric_key: 'automation', metric_label: 'Automation', current_value_label: `${summary.usage_summary.automation?.used || 24}`, limit_value_label: `${summary.usage_summary.automation?.limit || 50}`, percentage: summary.usage_summary.automation?.percentage || 48 },
-            { metric_key: 'storage', metric_label: 'Storage', current_value_label: `${summary.usage_summary.storage?.used || 12.4} GB`, limit_value_label: `${summary.usage_summary.storage?.limit || 50} GB`, percentage: summary.usage_summary.storage?.percentage || 25 }
+            { metric_key: 'credits', metric_label: 'AI Credits', current_value_label: `${(summary.usage_summary.ai_credits?.used || 0).toLocaleString('id-ID')}`, limit_value_label: `${(summary.usage_summary.ai_credits?.limit || 0).toLocaleString('id-ID')}`, percentage: summary.usage_summary.ai_credits?.percentage || 0 },
+            { metric_key: 'employees', metric_label: 'AI Employees', current_value_label: `${summary.usage_summary.ai_employees?.used || 0}`, limit_value_label: `${summary.usage_summary.ai_employees?.limit || 0}`, percentage: summary.usage_summary.ai_employees?.percentage || 0 },
+            { metric_key: 'automation', metric_label: 'Automation', current_value_label: `${summary.usage_summary.automation?.used || 0}`, limit_value_label: `${summary.usage_summary.automation?.limit || 0}`, percentage: summary.usage_summary.automation?.percentage || 0 },
+            { metric_key: 'storage', metric_label: 'Storage', current_value_label: `${summary.usage_summary.storage?.used || 0} GB`, limit_value_label: `${summary.usage_summary.storage?.limit || 0} GB`, percentage: summary.usage_summary.storage?.percentage || 0 }
           ] : prev.usage,
-          invoices: summary.recent_invoices?.length > 0 ? summary.recent_invoices : prev.invoices,
-          transactions: summary.recent_transactions?.length > 0 ? summary.recent_transactions : prev.transactions,
-          usageTrend: summary.usage_trend?.length > 0 ? summary.usage_trend : prev.usageTrend
+          invoices: summary.recent_invoices || [],
+          transactions: summary.recent_transactions || [],
+          usageTrend: summary.usage_trend || []
         }));
       }
     } catch (e) {
@@ -547,7 +537,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Invoiced Volume</span>
               <h4 className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                Rp{(invoicesOverviewData.total_invoiced_idr || 1495000).toLocaleString('id-ID')}
+                Rp{(invoicesOverviewData.total_invoiced_idr || 0).toLocaleString('id-ID')}
               </h4>
               <p className="text-[10.5px] text-slate-400 font-bold">Termasuk PPN 11% & e-Faktur</p>
             </div>
@@ -556,22 +546,22 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Faktur Lunas Terverifikasi</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                  {invoicesOverviewData.paid_count || (invoicesOverviewData.invoices.length || 5)} Faktur
+                  {invoicesOverviewData.paid_count || invoicesOverviewData.invoices.length} Faktur
                 </h4>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold">
-                  100% Valid
+                  Terverifikasi
                 </span>
               </div>
-              <p className="text-[10.5px] text-slate-400 font-bold">Tidak ada invoice tertunggak</p>
+              <p className="text-[10.5px] text-slate-400 font-bold">Ringkasan faktur backend</p>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Nomor e-Faktur Pajak</span>
               <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono truncate">
-                010.000-26.00000721
+                {invoicesOverviewData.invoices?.[0]?.e_faktur_no || '-'}
               </h4>
               <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                <CheckCircle2 size={12} /> Terdaftar Dirjen Pajak
+                <CheckCircle2 size={12} /> Integrasi Dirjen Pajak
               </p>
             </div>
 
@@ -654,7 +644,16 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                {invoicesOverviewData.invoices.map((inv: any, i: number) => {
+                {invoicesOverviewData.invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500">
+                      <Receipt size={32} className="mx-auto mb-2 opacity-50 stroke-[1.5]" />
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum Ada Faktur / Invoice Tagihan</p>
+                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">Faktur pembayaran langganan Anda akan muncul di sini secara otomatis.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  invoicesOverviewData.invoices.map((inv: any, i: number) => {
                   const isChecked = selectedInvoiceIds.includes(inv.id);
                   const subtotal = Number(inv.subtotal_amount_idr || 269369);
                   const tax = Number(inv.tax_amount_idr || 29631);
@@ -686,7 +685,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-medium font-mono">No Tax: {inv.e_faktur_no || '010.000-26.00000721'}</p>
+                        <p className="text-[10px] text-slate-400 font-medium font-mono">No Tax: {inv.e_faktur_no || '-'}</p>
                       </td>
 
                       <td className="py-3.5 px-4">
@@ -735,7 +734,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -776,7 +775,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Metode Utama Auto-Renewal</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate max-w-[170px]">
-                  {billingData.paymentMethods.find((p: any) => p.is_primary)?.method_name || 'Stripe •••• 4242'}
+                  {billingData.paymentMethods.find((p: any) => p.is_primary)?.method_name || 'Belum Ada'}
                 </h4>
                 <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-[10px] font-extrabold">
                   Utama
@@ -836,7 +835,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                       }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent flex items-end p-2">
+                    <div className="absolute inset-0 bg-slate-950/70 flex items-end p-2">
                       <span className="text-[9px] font-bold text-white uppercase tracking-wider bg-slate-900/80 px-2 py-0.5 rounded-lg backdrop-blur-xs">
                         Kartu Terverifikasi CDN
                       </span>
@@ -985,7 +984,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             let currentOffset = 0;
 
             return (
-              <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-slate-50/90 via-white to-orange-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20 space-y-5 shadow-sm">
+              <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900 space-y-5 shadow-xs">
                 {/* Unified Enterprise Telemetry Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
                   <div>
@@ -1415,47 +1414,53 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
           </div>
 
           {/* 2. Quota Health KPI Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(usageTelemetryData.metrics.length > 0 ? usageTelemetryData.metrics : billingData.usage).map((m: any, i: number) => {
-              const pct = m.percentage || 0;
-              const isHigh = pct >= 80;
-              const isMedium = pct >= 50 && pct < 80;
-              
-              return (
-                <div key={i} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3 shadow-2xs relative overflow-hidden group">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">{m.metric_label}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      isHigh ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400' :
-                      isMedium ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' :
-                      'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
-                    }`}>
-                      {pct}%
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="flex items-baseline justify-between font-mono">
-                      <span className="text-lg font-black text-slate-900 dark:text-slate-100">{m.current_value_label}</span>
-                      <span className="text-xs text-slate-400 font-bold">/ {m.limit_value_label}</span>
+          {usageTelemetryData.metrics.length === 0 ? (
+            <div className="p-6 text-center rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-400 text-xs font-semibold">
+              Belum ada metrik pemakaian kuota yang tercatat di backend.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {usageTelemetryData.metrics.map((m: any, i: number) => {
+                const pct = m.percentage || 0;
+                const isHigh = pct >= 80;
+                const isMedium = pct >= 50 && pct < 80;
+                
+                return (
+                  <div key={i} className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3 shadow-2xs relative overflow-hidden group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100">{m.metric_label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        isHigh ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400' :
+                        isMedium ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' :
+                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                      }`}>
+                        {pct}%
+                      </span>
                     </div>
 
-                    <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-2">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          isHigh ? 'bg-rose-500' : isMedium ? 'bg-orange-500' : 'bg-emerald-500'
-                        }`} 
-                        style={{ width: `${Math.min(pct, 100)}%` }} 
-                      />
+                    <div>
+                      <div className="flex items-baseline justify-between font-mono">
+                        <span className="text-lg font-black text-slate-900 dark:text-slate-100">{m.current_value_label}</span>
+                        <span className="text-xs text-slate-400 font-bold">/ {m.limit_value_label}</span>
+                      </div>
+
+                      <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mt-2">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isHigh ? 'bg-rose-500' : isMedium ? 'bg-orange-500' : 'bg-emerald-500'
+                          }`} 
+                          style={{ width: `${Math.min(pct, 100)}%` }} 
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* 3. Interactive BarChart Usage Analytics Section */}
-          <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-slate-50/90 via-white to-orange-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/20 space-y-5 shadow-sm">
+          <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900 space-y-5 shadow-xs">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -1465,7 +1470,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 <p className="text-[10.5px] text-slate-400 font-medium">Grafik histori konsumsi harian vs batas kuota langganan UMKM</p>
               </div>
 
-              {/* Timeframe & Metric Switchers */}
+              {/* Timeframe & Metric Switchers & Collapsible Toggle */}
               <div className="flex flex-wrap items-center gap-2">
                 {/* Metric Switcher */}
                 <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold">
@@ -1508,173 +1513,188 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     </button>
                   ))}
                 </div>
+
+                {/* Collapse Toggle */}
+                <button
+                  onClick={() => setIsUsageTrendExpanded(!isUsageTrendExpanded)}
+                  className="p-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1 text-[11px] font-extrabold cursor-pointer"
+                >
+                  <span>{isUsageTrendExpanded ? 'Sembunyikan' : 'Buka Tren'}</span>
+                  {isUsageTrendExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
               </div>
             </div>
 
-            {/* Render Interactive Bar Chart */}
-            {(() => {
-              const rawTrends = usageTelemetryData.trends.length > 0 ? usageTelemetryData.trends : [
-                { date_label: '01 Aug', ai_credits_used: 210, automations_run: 14, storage_used_gb: 8.2 },
-                { date_label: '02 Aug', ai_credits_used: 340, automations_run: 22, storage_used_gb: 9.1 },
-                { date_label: '03 Aug', ai_credits_used: 480, automations_run: 31, storage_used_gb: 9.8 },
-                { date_label: '04 Aug', ai_credits_used: 290, automations_run: 18, storage_used_gb: 10.4 },
-                { date_label: '05 Aug', ai_credits_used: 610, automations_run: 45, storage_used_gb: 11.2 },
-                { date_label: '06 Aug', ai_credits_used: 750, automations_run: 52, storage_used_gb: 11.9 },
-                { date_label: '07 Aug', ai_credits_used: 560, automations_run: 38, storage_used_gb: 12.4 }
-              ];
+            {isUsageTrendExpanded && (
+              /* Render Interactive Bar Chart */
+              (() => {
+                const rawTrends = usageTelemetryData.trends || [];
+                if (rawTrends.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                      Belum ada data histori tren penggunaan kuota yang tercatat.
+                    </div>
+                  );
+                }
 
-              // Strict Chronological Sorting for BarChart X Axis
-              const trendList = [...rawTrends].sort((a: any, b: any) => {
-                const dayA = parseInt((a.date_label || '').split(' ')[0], 10) || 0;
-                const dayB = parseInt((b.date_label || '').split(' ')[0], 10) || 0;
-                return dayA - dayB;
-              });
+                // Strict Chronological Sorting for BarChart X Axis
+                const trendList = [...rawTrends].sort((a: any, b: any) => {
+                  const dayA = parseInt((a.date_label || '').split(' ')[0], 10) || 0;
+                  const dayB = parseInt((b.date_label || '').split(' ')[0], 10) || 0;
+                  return dayA - dayB;
+                });
 
-              const getVal = (item: any) => {
-                if (usageChartMetric === 'automations') return item.automations_run || 0;
-                if (usageChartMetric === 'storage') return item.storage_used_gb || 0;
-                return item.ai_credits_used || 0;
-              };
+                const getVal = (item: any) => {
+                  if (usageChartMetric === 'automations') return item.automations_run || 0;
+                  if (usageChartMetric === 'storage') return item.storage_used_gb || 0;
+                  return item.ai_credits_used || 0;
+                };
 
-              const maxVal = Math.max(...trendList.map(getVal), 1);
+                const maxVal = Math.max(...trendList.map(getVal), 1);
 
-              return (
-                <div className="space-y-4">
-                  <div className="h-48 flex items-end justify-between gap-3 pt-6 px-2">
-                    {trendList.map((item: any, idx: number) => {
-                      const val = getVal(item);
-                      const heightPct = Math.max(12, Math.round((val / maxVal) * 100));
-                      const isPeak = val === maxVal;
+                return (
+                  <div className="space-y-4">
+                    <div className="h-48 flex items-end justify-between gap-3 pt-6 px-2">
+                      {trendList.map((item: any, idx: number) => {
+                        const val = getVal(item);
+                        const heightPct = Math.max(12, Math.round((val / maxVal) * 100));
+                        const isPeak = val === maxVal;
 
-                      return (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
-                          {/* Value Tooltip Hover overlay */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 px-2 py-1 bg-slate-900 text-white text-[10px] font-mono font-bold rounded-lg pointer-events-none shadow-md z-10 whitespace-nowrap">
-                            {val} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Runs' : 'Credits'}
+                        return (
+                          <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer relative">
+                            {/* Value Tooltip Hover overlay */}
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 px-2 py-1 bg-slate-900 text-white text-[10px] font-mono font-bold rounded-lg pointer-events-none shadow-md z-10 whitespace-nowrap">
+                              {val} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Runs' : 'Credits'}
+                            </div>
+
+                            {/* Bar Column */}
+                            <div className="w-full max-w-[40px] rounded-t-xl bg-slate-100 dark:bg-slate-800/80 h-full flex items-end overflow-hidden">
+                              <div
+                                className={`w-full rounded-t-xl transition-all duration-500 group-hover:opacity-90 ${
+                                  isPeak 
+                                    ? 'bg-gradient-to-t from-orange-600 to-amber-400' 
+                                    : 'bg-gradient-to-t from-orange-500/80 to-orange-400/80'
+                                }`}
+                                style={{ height: `${heightPct}%` }}
+                              />
+                            </div>
+
+                            {/* X Axis Date Label */}
+                            <span className="text-[10px] font-mono font-bold text-slate-400 truncate group-hover:text-slate-900 dark:group-hover:text-slate-100">
+                              {item.date_label}
+                            </span>
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          {/* Bar Column */}
-                          <div className="w-full max-w-[40px] rounded-t-xl bg-slate-100 dark:bg-slate-800/80 h-full flex items-end overflow-hidden">
-                            <div
-                              className={`w-full rounded-t-xl transition-all duration-500 group-hover:opacity-90 ${
-                                isPeak 
-                                  ? 'bg-gradient-to-t from-orange-600 to-amber-400' 
-                                  : 'bg-gradient-to-t from-orange-500/80 to-orange-400/80'
-                              }`}
-                              style={{ height: `${heightPct}%` }}
-                            />
-                          </div>
-
-                          {/* X Axis Date Label */}
-                          <span className="text-[10px] font-mono font-bold text-slate-400 truncate group-hover:text-slate-900 dark:group-hover:text-slate-100">
-                            {item.date_label}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-2 rounded-full bg-orange-500" />
+                        <span>Metrik Aktif: <strong>{usageChartMetric.toUpperCase()}</strong></span>
+                      </span>
+                      <span className="font-mono">Puncak Konsumsi: {maxVal} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Executions' : 'Credits'}</span>
+                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-orange-500" />
-                      <span>Metrik Aktif: <strong>{usageChartMetric.toUpperCase()}</strong></span>
-                    </span>
-                    <span className="font-mono">Puncak Konsumsi: {maxVal} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Executions' : 'Credits'}</span>
-                  </div>
-                </div>
-              );
-            })()}
+                );
+              })()
+            )}
           </div>
 
-          {/* 4. Feature Usage Breakdown Table */}
+          {/* 4. Feature Usage Breakdown Section */}
           <div className="space-y-4 pt-2">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Rincian Penggunaan Berdasarkan Fitur</h4>
                 <p className="text-[10.5px] text-slate-400">Daftar konsumsi AI credits per modul dan layanan sistem</p>
               </div>
 
-              {/* Search & Filter Controls */}
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <div className="relative w-full sm:w-48">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari fitur..."
-                    value={usageSearchQuery}
-                    onChange={(e) => setUsageSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
-                  />
+              <button
+                onClick={() => setIsUsageBreakdownExpanded(!isUsageBreakdownExpanded)}
+                className="p-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-1 text-xs font-extrabold cursor-pointer shadow-2xs self-start sm:self-auto"
+              >
+                <span>{isUsageBreakdownExpanded ? 'Sembunyikan' : 'Buka Rincian'}</span>
+                {isUsageBreakdownExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
+
+            {isUsageBreakdownExpanded && (
+              <div className="space-y-4 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+                {/* Search & Filter Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-2">
+                  <div className="relative w-full sm:w-48">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari fitur..."
+                      value={usageSearchQuery}
+                      onChange={(e) => setUsageSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold overflow-x-auto max-w-full">
+                    {['Semua', 'AI Workforce', 'Automations', 'Sales Hub', 'Vision AI', 'Storage'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setUsageCategoryFilter(cat)}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                          usageCategoryFilter === cat
+                            ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold overflow-x-auto max-w-full">
-                  {['Semua', 'AI Workforce', 'Automations', 'Sales Hub', 'Vision AI', 'Storage'].map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setUsageCategoryFilter(cat)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                        usageCategoryFilter === cat
-                          ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
-                          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                {/* Breakdown Table */}
+                <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="py-3 px-4">FITUR / MODUL</th>
+                        <th className="py-3 px-4">KATEGORI</th>
+                        <th className="py-3 px-4">TOTAL AKTIVITAS</th>
+                        <th className="py-3 px-4">BIAYA CREDITS</th>
+                        <th className="py-3 px-4 text-right">TERAKHIR DIGUNAKAN</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
+                      {usageTelemetryData.breakdown.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
+                            Belum ada catatan rincian penggunaan fitur.
+                          </td>
+                        </tr>
+                      ) : (
+                        usageTelemetryData.breakdown
+                          .filter((item: any) => {
+                            const matchCat = usageCategoryFilter === 'Semua' || item.category === usageCategoryFilter;
+                            const matchSearch = !usageSearchQuery || item.feature_name?.toLowerCase().includes(usageSearchQuery.toLowerCase());
+                            return matchCat && matchSearch;
+                          })
+                          .map((row: any, i: number) => (
+                            <tr key={row.id || i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">{row.feature_name}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-extrabold">
+                                  {row.category}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 font-mono">{row.usage_value} {row.unit_label}</td>
+                              <td className="py-3 px-4 font-mono font-extrabold text-slate-900 dark:text-slate-100">{row.cost_credits} Credits</td>
+                              <td className="py-3 px-4 text-right text-slate-400 font-medium text-[11px]">{row.last_used_at}</td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-
-            {/* Breakdown Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
-                    <th className="py-3 px-4">FITUR / MODUL</th>
-                    <th className="py-3 px-4">KATEGORI</th>
-                    <th className="py-3 px-4">TOTAL AKTIVITAS</th>
-                    <th className="py-3 px-4">BIAYA CREDITS</th>
-                    <th className="py-3 px-4 text-right">TERAKHIR DIGUNAKAN</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                  {(usageTelemetryData.breakdown.length > 0 ? usageTelemetryData.breakdown : [
-                    { id: '1', feature_name: 'ZEGA Copilot AI Assistant', category: 'AI Workforce', usage_value: 1420, unit_label: 'Prompts', cost_credits: 1420, last_used_at: '15 menit lalu' },
-                    { id: '2', feature_name: 'AI Agent Staff Multi-tasking', category: 'AI Workforce', usage_value: 640, unit_label: 'Tasks', cost_credits: 640, last_used_at: '45 menit lalu' },
-                    { id: '3', feature_name: 'Automated Customer Follow-up', category: 'Automations', usage_value: 850, unit_label: 'Executions', cost_credits: 850, last_used_at: '1 jam lalu' },
-                    { id: '4', feature_name: 'Auto WhatsApp Broadcast Dispatch', category: 'Automations', usage_value: 410, unit_label: 'Messages', cost_credits: 410, last_used_at: '2 jam lalu' },
-                    { id: '5', feature_name: 'AI Sales Lead Scoring Engine', category: 'Sales Hub', usage_value: 520, unit_label: 'Evaluations', cost_credits: 520, last_used_at: '3 jam lalu' },
-                    { id: '6', feature_name: 'Smart Deal Pipeline Predictor', category: 'Sales Hub', usage_value: 310, unit_label: 'Predictions', cost_credits: 310, last_used_at: '4 jam lalu' },
-                    { id: '7', feature_name: 'OCR & Document Scanner Engine', category: 'Vision AI', usage_value: 280, unit_label: 'Scans', cost_credits: 280, last_used_at: '5 jam lalu' },
-                    { id: '8', feature_name: 'Product Barcode / QRIS Telemetry Scan', category: 'Vision AI', usage_value: 190, unit_label: 'Scans', cost_credits: 190, last_used_at: '6 jam lalu' },
-                    { id: '9', feature_name: 'Cloud Storage & CDN Asset Sync', category: 'Storage', usage_value: 170, unit_label: 'Uploads', cost_credits: 170, last_used_at: '1 hari lalu' },
-                    { id: '10', feature_name: 'Media Gallery R2 CDN Backup', category: 'Storage', usage_value: 120, unit_label: 'Files', cost_credits: 120, last_used_at: '1 hari lalu' }
-                  ])
-                    .filter((item: any) => {
-                      const matchCat = usageCategoryFilter === 'Semua' || item.category === usageCategoryFilter;
-                      const matchSearch = !usageSearchQuery || item.feature_name.toLowerCase().includes(usageSearchQuery.toLowerCase());
-                      return matchCat && matchSearch;
-                    })
-                    .map((row: any, i: number) => (
-                      <tr key={row.id || i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">{row.feature_name}</td>
-                        <td className="py-3 px-4">
-                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-extrabold">
-                            {row.category}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-mono">{row.usage_value} {row.unit_label}</td>
-                        <td className="py-3 px-4 font-mono font-bold text-orange-600 dark:text-orange-400">-{row.cost_credits} Credits</td>
-                        <td className="py-3 px-4 text-right text-slate-400 font-mono text-[11px]">
-                          {typeof row.last_used_at === 'string' && row.last_used_at.includes('T')
-                            ? new Date(row.last_used_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                            : row.last_used_at || 'Baru Saja'}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+            )}
           </div>
         </div>
       ) : activeTab === 'Settings' ? (
@@ -1944,7 +1964,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     {billingData.plan.status}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">Berakhir pada 1 Agustus 2026</p>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {billingData.plan.expires_at ? `Berakhir pada ${new Date(billingData.plan.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Tidak ada paket aktif'}
+                </p>
               </div>
               <button 
                 onClick={() => setIsUpgradeModalOpen(true)}
@@ -1960,14 +1982,14 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 <span className="text-[10px] font-bold text-slate-400">Total Tagihan Bulan Ini</span>
                 <div className="pt-0.5">
                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    Rp{Number(billingData.plan.monthly_price_idr || 299000).toLocaleString('id-ID')}
+                    Rp{Number(billingData.plan.monthly_price_idr || 0).toLocaleString('id-ID')}
                   </h2>
                 </div>
                 <p className="text-[10px] text-slate-400 font-medium">Termasuk PPN {billingData.plan.tax_pct || 11}%</p>
               </div>
-              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
                 <ArrowDownRight size={12} />
-                <span>0% dari bulan lalu</span>
+                <span>{billingData.plan.monthly_price_idr > 0 ? `${billingData.plan.growth_pct || 0}% dari bulan lalu` : 'Belum ada tagihan'}</span>
               </div>
             </div>
 
@@ -1977,11 +1999,11 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 <span className="text-[10px] font-bold text-slate-400">AI Credits Tersisa</span>
                 <div className="pt-0.5">
                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    {billingData.plan.credits_remaining?.toLocaleString('id-ID') || '3.240'} / {billingData.plan.credits_limit?.toLocaleString('id-ID') || '5.000'}
+                    {(billingData.plan.credits_remaining || 0).toLocaleString('id-ID')} / {(billingData.plan.credits_limit || 0).toLocaleString('id-ID')}
                   </h2>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${billingData.plan.credits_pct || 64}%` }} />
+                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${billingData.plan.credits_pct || 0}%` }} />
                 </div>
               </div>
               <button 
@@ -1996,13 +2018,30 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-400">Metode Pembayaran Utama</span>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono">•••• 4242</h2>
-                  <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400 text-[9px] font-extrabold">
-                    stripe
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 font-medium">Kadaluarsa 12/28</p>
+                {(() => {
+                  const primary = billingData.paymentMethods.find((p: any) => p.is_primary) || billingData.paymentMethods[0];
+                  if (primary) {
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono truncate">{primary.method_name}</h2>
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 text-[9px] font-extrabold">
+                            {primary.status || 'Utama'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium">Masa berlaku: {primary.exp_date || 'Permanen'}</p>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <h2 className="text-sm font-black text-slate-400 font-mono">Belum Ada Kanal</h2>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium">Tambahkan metode baru</p>
+                    </>
+                  );
+                })()}
               </div>
               <button 
                 onClick={() => setIsAddPaymentModalOpen(true)}
@@ -2196,40 +2235,50 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             </div>
 
             {/* Yakin mau upgrade? Rocket Banner (col-span-4) */}
-            <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between relative overflow-hidden group">
-              <div className="space-y-3 z-10 max-w-[62%]">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Yakin mau upgrade?</h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 leading-relaxed">
-                    Tingkatkan paket untuk mendapatkan lebih banyak fitur dan kapasitas.
-                  </p>
+            <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-center justify-between z-10 w-full mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-orange-500" />
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Rekomendasi Upgrade Paket</h3>
                 </div>
-
-                <ul className="space-y-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Lebih banyak AI Credits</span></li>
-                  <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>AI Employees tanpa batas</span></li>
-                  <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Automation tanpa batas</span></li>
-                  <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Penyimpanan lebih besar</span></li>
-                  <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Priority Support</span></li>
-                </ul>
-
-                <button
-                  onClick={() => setIsUpgradeModalOpen(true)}
-                  className="mt-2 px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md cursor-pointer transition-all flex items-center gap-1.5"
-                >
-                  <span>Upgrade Sekarang</span>
-                  <ArrowRight size={14} />
-                </button>
               </div>
 
-              {/* 3D Rocket Image Floating on the Right with Local Fallback */}
-              <div className="absolute right-[-10px] bottom-[-10px] top-[-10px] w-[45%] flex items-center justify-center pointer-events-none">
-                <img 
-                  src={rocketSrc} 
-                  onError={() => setRocketSrc('/design/dashboard_umkm/billing/rocket.png')}
-                  alt="Rocket Upgrade" 
-                  className="h-[115%] w-auto object-contain drop-shadow-xl transform group-hover:scale-105 transition-transform duration-300"
-                />
+              <div className="flex items-center justify-between relative z-10 w-full pt-1">
+                <div className="space-y-3 max-w-[62%]">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Tingkatkan Performa UMKM Anda</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 leading-relaxed">
+                      Dapatkan lebih banyak AI Credits, AI Employees tanpa batas, dan Priority Support 24/7.
+                    </p>
+                  </div>
+
+                  <ul className="space-y-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Lebih banyak AI Credits</span></li>
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>AI Employees tanpa batas</span></li>
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Automation tanpa batas</span></li>
+                  </ul>
+
+                  <button
+                    onClick={() => setIsUpgradeModalOpen(true)}
+                    className="mt-2 px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+                  >
+                    <span>Upgrade Sekarang</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+
+                <div className="w-[42%] flex items-center justify-center cursor-pointer select-none overflow-visible" onClick={handleRocketLaunch} title="Klik untuk Meluncurkan Rocket Upgrade!">
+                  <img 
+                    src={rocketSrc} 
+                    onError={() => setRocketSrc('/design/dashboard_umkm/billing/rocket.png')}
+                    alt="Rocket Upgrade" 
+                    className={`h-44 sm:h-52 lg:h-56 w-auto object-contain drop-shadow-2xl transition-all duration-700 ease-in-out cursor-pointer ${
+                      isRocketAnimating 
+                        ? '-translate-y-52 scale-110 opacity-0 filter brightness-125' 
+                        : 'hover:scale-110 hover:-translate-y-2 active:scale-95'
+                    }`}
+                  />
+                </div>
               </div>
             </div>
 
@@ -2262,7 +2311,14 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                    {billingData.invoices.map((inv: any, i: number) => (
+                    {billingData.invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
+                          Belum ada riwayat tagihan invoice.
+                        </td>
+                      </tr>
+                    ) : (
+                      billingData.invoices.map((inv: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-2.5 font-bold text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
                         <td className="py-2.5 text-slate-500">{inv.period_label}</td>
@@ -2283,7 +2339,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>
@@ -2313,24 +2369,32 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                    {billingData.transactions.map((tx: any, i: number) => (
-                      <tr key={i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2.5 font-mono font-bold text-slate-900 dark:text-slate-100">{tx.txn_hash}</td>
-                        <td className="py-2.5 text-slate-500 text-[11px]">{tx.txn_date_label}</td>
-                        <td className="py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <PaymentBrandLogo iconKey={tx.payment_method} className="h-4 w-auto object-contain" />
-                            <span className="text-slate-700 dark:text-slate-300 font-bold">{tx.payment_method}</span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{tx.amount_crypto}</td>
-                        <td className="py-2.5 text-right">
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
-                            {tx.status}
-                          </span>
+                    {billingData.transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
+                          Belum ada catatan transaksi.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      billingData.transactions.map((tx: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2.5 font-mono font-bold text-slate-900 dark:text-slate-100">{tx.txn_hash}</td>
+                          <td className="py-2.5 text-slate-500 text-[11px]">{tx.txn_date_label}</td>
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <PaymentBrandLogo iconKey={tx.payment_method} className="h-4 w-auto object-contain" />
+                              <span className="text-slate-700 dark:text-slate-300 font-bold">{tx.payment_method}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{tx.amount_crypto}</td>
+                          <td className="py-2.5 text-right">
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
+                              {tx.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

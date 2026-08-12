@@ -77,7 +77,7 @@ export function IntegrationsTab({ integrations, setShowAddIntegrationModal, onTr
   // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedInteg, setSelectedInteg] = useState<any>(null);
-  const [configSecretKey, setConfigSecretKey] = useState('sk_live_99847291847129487');
+  const [configSecretKey, setConfigSecretKey] = useState('');
 
   // Default rich fallback list if DB is empty
   const defaultIntegrationsList = [

@@ -22,6 +22,8 @@ export interface ZegaPrincipal {
   role: 'individual' | 'umkm' | 'enterprise' | 'superadmin';
   /** Organization ID the user is acting within (if multi-tenant context) */
   organizationId?: string;
+  /** Workspace ID the user is acting within (if multi-tenant workspace scope) */
+  workspaceId?: string;
   /** Organization role within that org (if org-scoped) */
   orgRole?: 'owner' | 'admin' | 'member' | 'billing_contact';
 }
@@ -46,6 +48,7 @@ declare module '@fastify/jwt' {
       email: string;
       role?: string;
       organizationId?: string;
+      workspaceId?: string;
       orgRole?: string;
       iat?: number;
       exp?: number;
@@ -55,6 +58,7 @@ declare module '@fastify/jwt' {
       email: string;
       role?: string;
       organizationId?: string;
+      workspaceId?: string;
       orgRole?: string;
     };
   }

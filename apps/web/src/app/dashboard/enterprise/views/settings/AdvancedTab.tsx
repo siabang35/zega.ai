@@ -484,8 +484,8 @@ export function AdvancedTab({ advancedConfig = {}, setAdvancedConfig, onTriggerT
                   onClick={() =>
                     handleCopyCode(
                       apiDocTab === 'chat'
-                        ? `curl -X POST https://api.zegaai.site/v1/chat/completions \\\n  -H "Authorization: Bearer sk_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"model": "zega-swarm-l5", "messages": [{"role": "user", "content": "Analyze pipeline"}]}'`
-                        : `curl -X GET https://api.zegaai.site/v1/agents/active -H "Authorization: Bearer sk_live_..."`
+                        ? `curl -X POST https://api.zegaai.site/v1/chat/completions \\\n  -H "Authorization: Bearer zga_live_****************" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model": "zega-swarm-l5", "messages": [{"role": "user", "content": "Analyze pipeline"}]}'`
+                        : `curl -X GET https://api.zegaai.site/v1/agents/active -H "Authorization: Bearer zga_live_****************"`
                     )
                   }
                   className="flex items-center gap-1 hover:text-white cursor-pointer"
@@ -496,11 +496,11 @@ export function AdvancedTab({ advancedConfig = {}, setAdvancedConfig, onTriggerT
               </div>
               <pre className="text-emerald-400">
                 {apiDocTab === 'chat' &&
-                  `curl -X POST https://api.zegaai.site/v1/chat/completions \\\n  -H "Authorization: Bearer sk_live_99847291..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "zega-swarm-l5",\n    "messages": [{"role": "user", "content": "Run enterprise workflow"}]\n  }'`}
+                  `curl -X POST https://api.zegaai.site/v1/chat/completions \\\n  -H "Authorization: Bearer zga_live_****************" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "zega-swarm-l5",\n    "messages": [{"role": "user", "content": "Run enterprise workflow"}]\n  }'`}
                 {apiDocTab === 'agents' &&
-                  `curl -X GET https://api.zegaai.site/v1/agents/active \\\n  -H "Authorization: Bearer sk_live_99847291..."`}
+                  `curl -X GET https://api.zegaai.site/v1/agents/active \\\n  -H "Authorization: Bearer zga_live_****************"`}
                 {apiDocTab === 'models' &&
-                  `curl -X GET https://api.zegaai.site/v1/models/status \\\n  -H "Authorization: Bearer sk_live_99847291..."`}
+                  `curl -X GET https://api.zegaai.site/v1/models/status \\\n  -H "Authorization: Bearer zga_live_****************"`}
                 {apiDocTab === 'webhooks' &&
                   `curl -X POST https://api.zegaai.site/v1/webhooks/verify \\\n  -H "X-Zega-Signature: sha256=..."`}
               </pre>

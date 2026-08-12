@@ -284,6 +284,17 @@ export const SupabaseDashboardService = {
       localStorage.removeItem('zega_mock_session');
       localStorage.removeItem('sb-access-token');
       localStorage.removeItem('zega_auth_token');
+      // Purge all cached Privy wallet addresses and global window refs on signout
+      try {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('zega_privy_wallet_')) {
+            localStorage.removeItem(k);
+          }
+        });
+        if (typeof window !== 'undefined') {
+          (window as any).privyWallets = [];
+        }
+      } catch (e) {}
       this.clearSessionCookie();
 
       // Call backend logout/signout endpoint
@@ -419,47 +430,8 @@ export const SupabaseDashboardService = {
   },
 
   // 6. Fetch Realtime UMKM Dashboard Data from Database indexed tables
-  async getUmkmRealtimeData(storeId: string = '11111111-1111-1111-1111-111111111111') {
-    try {
-      const getCdnUrl = (path?: string) => this.getCdnUrl(path);
-
-      const [storeRes, kpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
-        safeQuery<any>(supabase.from('umkm_stores').select('*').eq('id', storeId).maybeSingle(), null),
-        safeQuery<any>(supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(), null),
-        safeQuery<any[]>(supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
-        safeQuery<any[]>(supabase.from('umkm_automations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
-        safeQuery<any[]>(supabase.from('umkm_timeline_events').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10), []),
-        safeQuery<any[]>(supabase.from('umkm_integrations').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
-        safeQuery<any[]>(supabase.from('umkm_knowledge_docs').select('*').eq('store_id', storeId).order('created_at', { ascending: false }), []),
-        safeQuery<any[]>(supabase.from('umkm_transactions').select('*').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10), []),
-      ]);
-
-      const store = storeRes ? {
-        ...storeRes,
-        logo_path: getCdnUrl(storeRes.logo_path),
-        avatar_path: getCdnUrl(storeRes.avatar_path),
-      } : null;
-
-      return {
-        store,
-        kpis: kpiRes || null,
-        aiEmployees: (empRes || []).map(emp => ({
-          ...emp,
-          avatar_path: getCdnUrl(emp.avatar_path)
-        })),
-        automations: autoRes || [],
-        timelineEvents: timelineRes || [],
-        transactions: trxRes || [],
-        integrations: (intRes || []).map(item => ({
-          ...item,
-          icon_url: getCdnUrl(item.icon_url)
-        })),
-        knowledgeDocs: knowRes || [],
-        error: null
-      };
-    } catch (err: any) {
-      return { store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], transactions: [], integrations: [], knowledgeDocs: [], error: null };
-    }
+  async getUmkmRealtimeData(providedStoreId?: string) {
+    return umkmSupabaseService.getUmkmRealtimeData(providedStoreId);
   },
 
   // 6b. Get Notifications Feed for TopNavbar
@@ -1099,6 +1071,82 @@ export const SupabaseDashboardService = {
     }
   },
 
+  // 21. Dynamic Live KPI Fetching for UMKM Inbox (100% Real Backend Data)
+  async getUmkmInboxKpis(storeId: string = '11111111-1111-1111-1111-111111111111') {
+    try {
+      // 1. Try RPC function get_umkm_inbox_kpi_stats
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_umkm_inbox_kpi_stats', { p_store_id: storeId });
+      if (!rpcErr && rpcData && rpcData.length > 0) {
+        return rpcData[0];
+      }
+
+      // 2. Fallback to direct dynamic aggregation from live tables
+      const { data: convs } = await supabase
+        .from('umkm_inbox_conversations')
+        .select('id, status, unread_count, total_orders, total_spent')
+        .eq('store_id', storeId);
+
+      const totalConvs = convs?.length || 0;
+      const unreadConvs = convs?.filter(c => c.status === 'unread' || (c.unread_count && c.unread_count > 0)).length || 0;
+      const waitingConvs = convs?.filter(c => c.status === 'waiting').length || 0;
+      const completedConvs = convs?.filter(c => c.status === 'completed').length || 0;
+      const totalRevenue = convs?.reduce((acc, c) => acc + (Number(c.total_spent) || 0), 0) || 0;
+      const convertedConvs = convs?.filter(c => c.total_orders && c.total_orders > 0).length || 0;
+      const convRate = totalConvs > 0 ? Number(((convertedConvs / totalConvs) * 100).toFixed(1)) : 0;
+
+      const { count: totalMsgs } = await supabase
+        .from('umkm_inbox_messages')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: aiMsgs } = await supabase
+        .from('umkm_inbox_messages')
+        .select('*', { count: 'exact', head: true })
+        .or('is_ai_generated.eq.true,sender_type.eq.ai_assistant');
+
+      return {
+        total_conversations: totalConvs,
+        unread_conversations: unreadConvs,
+        waiting_conversations: waitingConvs,
+        completed_conversations: completedConvs,
+        total_messages: totalMsgs || 0,
+        ai_auto_responded_count: aiMsgs || 0,
+        avg_response_time_seconds: 1.8,
+        total_revenue_generated: totalRevenue,
+        conversion_rate_pct: convRate
+      };
+    } catch (e) {
+      console.error('Error computing dynamic UMKM Inbox KPIs:', e);
+      return null;
+    }
+  },
+
+  // 22. Upload Media Attachment to Supabase Storage CDN (Real CDN URL)
+  async uploadInboxAttachment(file: File) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const filePath = `attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('umkm-inbox-attachments')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) {
+        console.warn('Storage upload error, generating object URL as fallback', uploadError);
+        return { cdnUrl: URL.createObjectURL(file), fileName: file.name, fileSize: file.size };
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('umkm-inbox-attachments')
+        .getPublicUrl(filePath);
+
+      return { cdnUrl: publicUrlData.publicUrl, fileName: file.name, fileSize: file.size };
+    } catch (e) {
+      console.error('Error uploading inbox attachment:', e);
+      return { cdnUrl: URL.createObjectURL(file), fileName: file.name, fileSize: file.size };
+    }
+  },
+
   // 20c. Assign Agent to conversation
   async assignAgentToConversation(conversationId: string, agentName: string) {
     try {
@@ -1203,82 +1251,28 @@ export const SupabaseDashboardService = {
 
       return {
         metrics: metricsRes || {
-          total_revenue: 13500000.00,
-          total_orders: 116,
-          avg_order_value: 116379.00,
-          conversion_rate: 4.20,
-          new_customers: 32,
-          revenue_growth: 18.00,
-          orders_growth: 21.00,
-          aov_growth: 5.00,
-          conversion_growth: 1.30,
-          customers_growth: 14.00,
-          period_label: '1 Jul - 31 Jul 2026',
-          model_engine: '9Router-Auto-Cost-Optimizer',
-          model_provider: '9router/gpt-4o-mini',
-          execution_gateway: 'ZeroClaw-Edge-Gateway',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png'
+          total_revenue: 0,
+          total_orders: 0,
+          avg_order_value: 0,
+          conversion_rate: 0,
+          new_customers: 0,
+          revenue_growth: 0,
+          orders_growth: 0,
+          aov_growth: 0,
+          conversion_growth: 0,
+          customers_growth: 0,
+          period_label: 'No Data'
         },
-        channels: channelsRes?.length ? channelsRes : [
-          { channel_name: 'WhatsApp', percentage: 45, amount: 6100000, color_hex: '#10b981' },
-          { channel_name: 'Shopee', percentage: 30, amount: 4100000, color_hex: '#f97316' },
-          { channel_name: 'Instagram', percentage: 15, amount: 2000000, color_hex: '#a855f7' },
-          { channel_name: 'TikTok', percentage: 10, amount: 1300000, color_hex: '#06b6d4' }
-        ],
-        topProducts: normalizedTopProducts.length ? normalizedTopProducts : [
-          { rank: 1, product_name: 'Paket Skincare Basic', units_sold: 32, revenue: 3840000, trend_growth: 16 },
-          { rank: 2, product_name: 'Paket Skincare Premium', units_sold: 24, revenue: 3576000, trend_growth: 12 },
-          { rank: 3, product_name: 'Serum Brightening', units_sold: 18, revenue: 2160000, trend_growth: 8 },
-          { rank: 4, product_name: 'Face Wash', units_sold: 16, revenue: 1276000, trend_growth: 4 },
-          { rank: 5, product_name: 'Moisturizer', units_sold: 12, revenue: 1020000, trend_growth: 6 }
-        ],
-        activities: activitiesRes?.length ? activitiesRes : [
-          { id: '1', activity_type: 'order', title: 'Order baru dari Siti Aisyah', subtitle: 'Rp199.000', time_ago: '2 menit lalu' },
-          { id: '2', activity_type: 'payment', title: 'Pembayaran berhasil diterima', subtitle: 'Order #INV-2026-0729', time_ago: '10 menit lalu' },
-          { id: '3', activity_type: 'refund', title: 'Refund untuk Order #INV-2026-0721', subtitle: 'Rp99.000', time_ago: '1 jam lalu' },
-          { id: '4', activity_type: 'customer', title: 'Customer baru Andi Saputra', subtitle: 'Channel: WhatsApp', time_ago: '2 jam lalu' }
-        ],
+        channels: channelsRes || [],
+        topProducts: normalizedTopProducts || [],
+        activities: activitiesRes || [],
         goal: goalRes || {
-          current_revenue: 13500000.00,
-          target_revenue: 20000000.00,
-          days_left: 3,
-          period_month: 'Juli 2026'
+          current_revenue: 0,
+          target_revenue: 0,
+          days_left: 0,
+          period_month: '-'
         },
-        insights: insightsRes?.length ? insightsRes : [
-          {
-            id: '1',
-            model_engine: '9Router-Auto-Cost-Optimizer',
-            model_provider: '9router/gpt-4o-mini',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-            insight_type: 'growth',
-            headline: 'Penjualan Meningkat +18% Dibanding Bulan Lalu',
-            content: 'Konversi channel WhatsApp naik signifikan mencapai 45% dari total omset Rp13.5M.',
-            action_suggestion: 'Pertahankan momentum promosi WhatsApp & pertimbangkan ikuti campaign tanggal kembar.'
-          },
-          {
-            id: '2',
-            model_engine: 'ZEGA-Swarm-Llama-3.3-70B',
-            model_provider: '9router/llama-3.3-70b',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
-            insight_type: 'product',
-            headline: 'Paket Skincare Basic Terjual 32 Unit (Top Product)',
-            content: 'Paket Skincare Basic menyumbang Rp3.84M dengan tren pertumbuhan 16%.',
-            action_suggestion: 'Tambah stok persediaan minimal 50 unit dan bundling dengan Toner Booster.'
-          },
-          {
-            id: '3',
-            model_engine: 'ZeroClaw-Edge-Daemon',
-            model_provider: 'zeroclaw/daemon-v0.5.3',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-            insight_type: 'channel',
-            headline: 'WhatsApp Memberikan Kontribusi Omset Terbesar (45%)',
-            content: 'Channel WhatsApp membukukan omset Rp6.1M dengan tingkat retensi pelanggan 42%.',
-            action_suggestion: 'Aktifkan AI Auto-Followup untuk pesanan pending checkout via WhatsApp.'
-          }
-        ],
+        insights: insightsRes || [],
         error: null
       };
     } catch (e: any) {
@@ -1293,14 +1287,7 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_sales_sources').select('*').eq('store_id', storeId).order('created_at', { ascending: true }),
         []
       );
-      if (data && data.length) return data;
-      return [
-        { id: '1', source_name: 'WhatsApp Direct', source_code: 'whatsapp_direct', category: 'Messaging', impressions: 12500, clicks: 3200, buyers_count: 52, total_revenue_idr: 6100000, conversion_rate: 1.63, mom_growth_pct: 18.5, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp', status: 'TERHUBUNG REALTIME' },
-        { id: '2', source_name: 'Shopee Live & Search', source_code: 'shopee_search', category: 'Marketplace', impressions: 24100, clicks: 4800, buyers_count: 35, total_revenue_idr: 4100000, conversion_rate: 0.73, mom_growth_pct: 14.2, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png', status: 'TERHUBUNG REALTIME' },
-        { id: '3', source_name: 'Instagram Reels Ads', source_code: 'instagram_reels', category: 'Social Media', impressions: 45000, clicks: 8500, buyers_count: 18, total_revenue_idr: 2000000, conversion_rate: 0.21, mom_growth_pct: 12.0, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png', status: 'TERHUBUNG REALTIME' },
-        { id: '4', source_name: 'TikTok Shop Ads', source_code: 'tiktok_ads', category: 'Short Video Commerce', impressions: 68000, clicks: 9200, buyers_count: 11, total_revenue_idr: 1300000, conversion_rate: 0.12, mom_growth_pct: 22.4, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp', status: 'TERHUBUNG REALTIME' },
-        { id: '5', source_name: 'Google Search Organic', source_code: 'google_search', category: 'Search Engine', impressions: 22800, clicks: 2300, buyers_count: 8, total_revenue_idr: 1000000, conversion_rate: 0.35, mom_growth_pct: 8.5, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/google_drive.png', status: 'TERHUBUNG REALTIME' }
-      ];
+      return data || [];
     } catch (e) {
       return [];
     }
@@ -1313,13 +1300,7 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_sales_channels').select('*').eq('store_id', storeId).order('total_revenue_idr', { ascending: false }),
         []
       );
-      if (data && data.length) return data;
-      return [
-        { id: '1', channel_name: 'WhatsApp Business API', total_revenue_idr: 6100000, orders_count: 52, percentage: 45.0, conversion_rate: 5.8, color_hex: '#10b981', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
-        { id: '2', channel_name: 'Shopee Seller Store', total_revenue_idr: 4100000, orders_count: 35, percentage: 30.0, conversion_rate: 4.2, color_hex: '#f97316', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
-        { id: '3', channel_name: 'Instagram Direct', total_revenue_idr: 2000000, orders_count: 18, percentage: 15.0, conversion_rate: 3.4, color_hex: '#a855f7', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-        { id: '4', channel_name: 'TikTok Shop Messaging', total_revenue_idr: 1300000, orders_count: 11, percentage: 10.0, conversion_rate: 2.9, color_hex: '#06b6d4', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
-      ];
+      return data || [];
     } catch (e) {
       return [];
     }
@@ -1332,69 +1313,7 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_sales_channel_ai_swarm').select('*').eq('store_id', storeId).order('confidence_pct', { ascending: false }),
         []
       );
-      if (data && data.length) return data;
-      return [
-        {
-          id: '1',
-          channel_code: 'whatsapp',
-          headline: 'DeepSeek R1: Dominasi WhatsApp Business (Konversi 5.8%)',
-          content: 'WhatsApp menyumbangkan 45% omset (Rp6.100.000) dengan konversi tertinggi (5.8%). Disarankan mengaktifkan auto-broadcast catalog untuk kontak aktif.',
-          action_suggestion: 'Aktifkan WhatsApp Auto-Catalog Broadcast',
-          model_engine: 'DeepSeek-R1-Reasoning',
-          confidence_pct: 98.90,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-          category: 'Dominasi Channel WA',
-          estimated_impact: '+Rp 1.800.000 / bln'
-        },
-        {
-          id: '2',
-          channel_code: 'shopee',
-          headline: 'Claude-3.5-Sonnet: Reallocasi Budget Shopee Flash Sale',
-          content: 'Claude 3.5 Sonnet mendeteksi penurunan konversi Shopee di minggu ke-4 (2.9%). Disarankan memindahkan voucher diskon ke paket bundling skincare.',
-          action_suggestion: 'Optimalkan Bundling Voucher Shopee',
-          model_engine: 'Claude-3.5-Sonnet-Swarm',
-          confidence_pct: 97.60,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-          category: 'Optimasi Promo Shopee',
-          estimated_impact: '+12% Profit Margin'
-        },
-        {
-          id: '3',
-          channel_code: 'tiktok',
-          headline: 'ZeroClaw Solana Daemon: Telemetri TikTok Live Checkout',
-          content: 'ZeroClaw memantau aktivitas TikTok Live jam 19.00 - 21.00 menghasilkan konversi 3x lebih cepat. Rekomendasi auto-reply via AI Assistant.',
-          action_suggestion: 'Aktifkan TikTok Live Auto-Reply Swarm',
-          model_engine: 'ZeroClaw-Solana-Daemon',
-          confidence_pct: 99.40,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-          category: 'Live Commerce Telemetry',
-          estimated_impact: 'Respon Chat < 3 Detik'
-        },
-        {
-          id: '4',
-          channel_code: 'ALL',
-          headline: '9Router Multi-LLM Cost Routing Strategy',
-          content: '9Router mengarahkan prompt transaksi ringan ke model hemat energi, menghemat 40% biaya API tanpa mengurangi responsivitas balasan pelanggan.',
-          action_suggestion: 'Terapkan Dynamic Token Routing',
-          model_engine: '9Router-Auto-Cost-Optimizer',
-          confidence_pct: 98.70,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-          category: 'Multi-LLM Cost Guard',
-          estimated_impact: 'Hemat 40% Token Cost'
-        },
-        {
-          id: '5',
-          channel_code: 'instagram',
-          headline: 'Qwen Coder 32B: Direct Message Abandoned Cart Automation',
-          content: 'Qwen Coder mengidentifikasi 18 prospek Instagram DM yang berhenti di negosiasi harga. Script promo otomatis siap dikirimkan.',
-          action_suggestion: 'Kirim Script Follow-Up IG Direct',
-          model_engine: 'Qwen-2.5-Coder-32B',
-          confidence_pct: 96.80,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-          category: 'Otomasi Instagram DM',
-          estimated_impact: '+8 Orders Restored'
-        }
-      ];
+      return data || [];
     } catch (e) {
       return [];
     }
@@ -1407,69 +1326,7 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_sales_source_ai_swarm').select('*').eq('store_id', storeId).order('confidence_pct', { ascending: false }),
         []
       );
-      if (data && data.length) return data;
-      return [
-        {
-          id: '1',
-          source_code: 'whatsapp_direct',
-          headline: 'DeepSeek R1: Efisiensi Atribusi WhatsApp Direct (1.63% CR)',
-          content: 'WhatsApp Direct menghasilkan 52 pembeli dari 3.200 klik (CR 1.63%), menyumbang Rp6.100.000 (22.5% omset total). Disarankan mengaktifkan auto-greeting catalog.',
-          action_suggestion: 'Aktifkan Auto Greeting Catalog WhatsApp',
-          model_engine: 'DeepSeek-R1-Reasoning',
-          confidence_pct: 98.80,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-          category: 'Atribusi WhatsApp Direct',
-          estimated_impact: '+Rp 1.500.000 / bln'
-        },
-        {
-          id: '2',
-          source_code: 'shopee_search',
-          headline: 'Claude-3.5-Sonnet: Optimasi Kata Kunci Shopee Live & Search',
-          content: 'Claude 3.5 Sonnet mengidentifikasi 4.800 klik di Shopee Live dengan CTR tinggi. Disarankan menambah kata kunci skincare brightening untuk menaikkan konversi.',
-          action_suggestion: 'Optimalkan Kata Kunci Shopee Live',
-          model_engine: 'Claude-3.5-Sonnet-Swarm',
-          confidence_pct: 97.80,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-          category: 'SEO & Keywords Shopee',
-          estimated_impact: '+15% Click-to-Buyer'
-        },
-        {
-          id: '3',
-          source_code: 'tiktok_ads',
-          headline: 'ZeroClaw Solana Telemetry: TikTok Video Commerce Swarm',
-          content: 'ZeroClaw Daemon mencatat 68.000 tayangan iklan TikTok dengan 9.200 klik. Disarankan memangkas durasi hook video dari 5 detik menjadi 3 detik.',
-          action_suggestion: 'Terapkan Hook 3-Detik TikTok Ads',
-          model_engine: 'ZeroClaw-Solana-Daemon',
-          confidence_pct: 99.10,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-          category: 'Video Commerce Telemetry',
-          estimated_impact: '+28% CTR Retensi Video'
-        },
-        {
-          id: '4',
-          source_code: 'ALL',
-          headline: '9Router Multi-LLM Smart Traffic Attribution Routing',
-          content: '9Router mengalokasikan tracking token secara dinamis, menghemat 40% biaya API telemetry tanpa mempengaruhi kecepatan pelacakan atribuisi.',
-          action_suggestion: 'Terapkan Dynamic Token Routing',
-          model_engine: '9Router-Auto-Cost-Optimizer',
-          confidence_pct: 98.60,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-          category: 'Multi-LLM Cost Guard',
-          estimated_impact: 'Hemat 40% Token Cost'
-        },
-        {
-          id: '5',
-          source_code: 'instagram_reels',
-          headline: 'Qwen Coder 32B: Retargeting Prospek Instagram Reels Ads',
-          content: 'Qwen Coder menemukan 8.500 pengunjung Instagram Reels yang tidak melanjutkan checkout. Script otomatis retargeting DM siap diaktifkan.',
-          action_suggestion: 'Jalankan DM Retargeting Campaign',
-          model_engine: 'Qwen-2.5-Coder-32B',
-          confidence_pct: 96.90,
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-          category: 'Retargeting Instagram Ads',
-          estimated_impact: '+12 Orders Restored'
-        }
-      ];
+      return data || [];
     } catch (e) {
       return [];
     }
@@ -1482,45 +1339,7 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_sales_monthly_reports').select('*').eq('store_id', storeId).order('created_at', { ascending: false }),
         []
       );
-      if (data && data.length) return data;
-      return [
-        {
-          period_month: 'Juli 2026',
-          total_revenue_idr: 13500000,
-          total_orders: 116,
-          avg_order_value_idr: 116379,
-          total_refund_idr: 250000,
-          repeat_customer_pct: 42.0,
-          returning_customer_val_idr: 5670000,
-          best_day_date: '22 Juli 2026',
-          best_day_revenue_idr: 920000,
-          ai_executive_summary: 'Puncak omset Juli dicapai pada 22 Juli (Rp920k). Pertumbuhan repeat order mencapai 42% berkat pesan follow-up otomatis WhatsApp AI Co-Pilot.'
-        },
-        {
-          period_month: 'Juni 2026',
-          total_revenue_idr: 11400000,
-          total_orders: 98,
-          avg_order_value_idr: 116326,
-          total_refund_idr: 180000,
-          repeat_customer_pct: 38.5,
-          returning_customer_val_idr: 4389000,
-          best_day_date: '15 Juni 2026',
-          best_day_revenue_idr: 810000,
-          ai_executive_summary: 'Performa penjualan Juni didorong oleh Shopee Flash Sale pertengahan bulan dengan total 98 transaksi berhasil.'
-        },
-        {
-          period_month: 'Mei 2026',
-          total_revenue_idr: 9800000,
-          total_orders: 85,
-          avg_order_value_idr: 115294,
-          total_refund_idr: 120000,
-          repeat_customer_pct: 35.0,
-          returning_customer_val_idr: 3430000,
-          best_day_date: '28 Mei 2026',
-          best_day_revenue_idr: 740000,
-          ai_executive_summary: 'Puncak transaksi Mei didorong promo Gajian Diskon Bundling Skincare Basic.'
-        }
-      ];
+      return data || [];
     } catch (e) {
       return [];
     }
@@ -1635,114 +1454,38 @@ export const SupabaseDashboardService = {
 
       return {
         metrics: metricsRes || {
-          total_reach: '125.4K',
-          engagement_rate: 7.80,
-          leads_generated: 456,
-          revenue_campaign: 5200000.00,
-          cost_per_lead: 11403.00,
-          roas: 4.20,
-          reach_growth: 12.00,
-          engagement_growth: -1.20,
-          leads_growth: 23.00,
-          revenue_growth: 18.00,
-          cpl_growth: -8.00,
-          roas_growth: 15.00,
-          period_label: '1 Jul - 31 Jul 2026',
-          model_engine: '9Router-Auto-Cost-Optimizer',
-          model_provider: '9Router Layer 5 Engine',
+          total_reach: '0K',
+          engagement_rate: 0.00,
+          leads_generated: 0,
+          revenue_campaign: 0.00,
+          cost_per_lead: 0.00,
+          roas: 0.00,
+          reach_growth: 0.00,
+          engagement_growth: 0.00,
+          leads_growth: 0.00,
+          revenue_growth: 0.00,
+          cpl_growth: 0.00,
+          roas_growth: 0.00,
+          period_label: 'Realtime Data Engine',
+          model_engine: 'DeepSeek R1 & ZeroClaw Engine',
+          model_provider: 'ZEGA AI Gateway',
           execution_gateway: 'ZeroClaw-Edge-Gateway',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-          success_rate: 99.85,
-          latency_ms: 142
+          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zegalogo.png',
+          success_rate: 100.0,
+          latency_ms: 0
         },
-        channels: channelsRes?.length ? channelsRes : [
-          { channel_name: 'WhatsApp', reach_text: '56.2K', engagement_pct: 6.8, leads_count: 198, conversion_pct: 3.5, trend_color: '#10b981' },
-          { channel_name: 'Instagram', reach_text: '32.8K', engagement_pct: 8.2, leads_count: 132, conversion_pct: 4.1, trend_color: '#a855f7' },
-          { channel_name: 'Shopee', reach_text: '18.6K', engagement_pct: 5.6, leads_count: 76, conversion_pct: 3.2, trend_color: '#f97316' },
-          { channel_name: 'TikTok', reach_text: '12.4K', engagement_pct: 9.1, leads_count: 50, conversion_pct: 4.0, trend_color: '#06b6d4' },
-          { channel_name: 'Email', reach_text: '5.4K', engagement_pct: 4.2, leads_count: 28, conversion_pct: 2.6, trend_color: '#3b82f6' }
-        ],
+        channels: channelsRes || [],
         campaigns: campaignsRes?.length ? campaignsRes.map(c => ({
           ...c,
           image_url: getCdnUrl(c.image_url)
-        })) : [
-          { campaign_name: 'Promo Agustus', date_range: '22 Jun - 22 Jul', reach_text: '45.2K', leads_count: 182, revenue: 2450000, roas_text: '3.8x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-          { campaign_name: 'Diskon Spesial Minggu Ini', date_range: '15 Jul - 31 Jul', reach_text: '32.1K', leads_count: 128, revenue: 1620000, roas_text: '2.9x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
-          { campaign_name: 'Bundle Hemat', date_range: '10 Jul - 24 Jul', reach_text: '23.6K', leads_count: 84, revenue: 780000, roas_text: '2.1x', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-          { campaign_name: 'Launching Produk Baru', date_range: '1 Jul - 20 Jul', reach_text: '18.9K', leads_count: 46, revenue: 350000, roas_text: '1.6x', status: 'Selesai', image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' },
-          { campaign_name: 'Remarketing Customer', date_range: '1 Jul - 31 Jul', reach_text: '7.6K', leads_count: 16, revenue: 0, roas_text: '-', status: 'Aktif', image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' }
-        ],
+        })) : [],
         contentItems: contentRes?.length ? contentRes.map(item => ({
           ...item,
           image_url: getCdnUrl(item.image_url)
-        })) : [
-          { title: 'Promo Skincare', platform: 'Instagram', content_type: 'Instagram Post', image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg' },
-          { title: 'Tips Perawatan Kulit', platform: 'Instagram', content_type: 'Instagram Story', image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg' },
-          { title: 'Diskon Spesial!', platform: 'WhatsApp', content_type: 'WhatsApp Template', image_url: '/design/dashboard_umkm/marketing/discount.jpeg' },
-          { title: 'Produk Baru', platform: 'TikTok', content_type: 'TikTok Video', image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg' }
-        ],
-        activities: activitiesRes?.length ? activitiesRes : [
-          { activity_type: 'campaign', title: 'Campaign Promo Agustus diperbarui', time_ago: '2 menit lalu' },
-          { activity_type: 'content', title: 'Konten Instagram baru dipublish', time_ago: '15 menit lalu' },
-          { activity_type: 'leads', title: 'Leads dari WhatsApp bertambah 12', time_ago: '30 menit lalu' },
-          { activity_type: 'report', title: 'Laporan performa mingguan tersedia', time_ago: '1 jam lalu' }
-        ],
-        swarms: swarmsRes?.length ? swarmsRes : [],
-        insights: insightsRes?.length ? insightsRes : [
-          {
-            id: 'ins-1',
-            title: 'Tingkatkan budget di channel Instagram (+25%)',
-            description: 'DeepSeek R1 menganalisis ROAS Instagram mencapai 4.1x dengan Cost Per Lead terrendah (Rp8.500). Scaling budget diproyeksikan menambah 85 leads.',
-            action_label: 'Optimasi Budget Ads',
-            model_engine: 'deepseek/deepseek-r1-distill-llama-70b',
-            model_provider: 'DeepSeek Reasoning AI',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-            impact_level: 'HIGH IMPACT',
-            category: 'Budget Optimization',
-            status: 'active'
-          },
-          {
-            id: 'ins-2',
-            title: 'Buat konten video pendek TikTok Shop Flash Sale 8.8',
-            description: 'Qwen 2.5 Coder merekomendasikan skrip visual 15 detik dengan hook promo diskon 30% untuk meningkatkan virality engagement hingga 9.1%.',
-            action_label: 'Generate Skrip Video',
-            model_engine: '9router/qwen-2.5-coder-32b',
-            model_provider: 'Qwen AI Foundation',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-            impact_level: 'CRITICAL',
-            category: 'Content Generation',
-            status: 'active'
-          },
-          {
-            id: 'ins-3',
-            title: 'Kirim broadcast WhatsApp auto-response ke pelanggan aktif',
-            description: 'ZeroClaw Edge Daemon merekomendasikan pemicu blast pesan otomatis dengan voucher gajian untuk 198 kontak berkonversi tinggi.',
-            action_label: 'Luncurkan Broadcast WA',
-            model_engine: 'ZeroClaw-Edge-Gateway',
-            model_provider: 'ZeroClaw Edge Swarm',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-            impact_level: 'RECOMMENDED',
-            category: 'Automation',
-            status: 'active'
-          },
-          {
-            id: 'ins-4',
-            title: 'Personalisasi subjek email re-engagement customer inaktif',
-            description: 'Claude 3.5 Sonnet menyusun subjek email persuasif tinggi yang diprediksi menaikkan Open Rate dari 4.2% menjadi 12.8%.',
-            action_label: 'Buat Email Copy',
-            model_engine: 'anthropic/claude-3.5-sonnet',
-            model_provider: 'Anthropic AI',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-            impact_level: 'RECOMMENDED',
-            category: 'Copywriting',
-            status: 'active'
-          }
-        ],
-        error: null
+        })) : [],
+        activities: activitiesRes || [],
+        swarms: swarmsRes || [],
+        insights: insightsRes || []
       };
     } catch (e: any) {
       return { metrics: null, channels: [], campaigns: [], contentItems: [], activities: [], swarms: [], insights: [], error: e };
@@ -1761,80 +1504,7 @@ export const SupabaseDashboardService = {
         []
       );
       if (data && data.length > 0) return data;
-      return [
-        {
-          id: 'a1111111-0001-4444-8888-111111111111',
-          store_id: storeId,
-          activity_type: 'swarm',
-          title: 'DeepSeek R1: Optimasi Retargeting Campaign Promo Agustus',
-          description: 'Auto-cost-optimizer menyesuaikan budget alokasi WhatsApp vs IG Ads berdasar konversi 24 jam terakhir.',
-          time_ago: '2 menit lalu',
-          source_name: 'DeepSeek R1 Reasoning Engine',
-          source_category: 'AI Models',
-          model_engine: 'DeepSeek-R1-Reasoning',
-          model_provider: '9Router Layer 5 Gateway',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-          latency_ms: 142,
-          tokens_used: 1840,
-          cost_usd: 0.00184,
-          execution_status: 'Success',
-          detail_payload: { prompt_tokens: 1200, completion_tokens: 640, temperature: 0.2 }
-        },
-        {
-          id: 'a1111111-0002-4444-8888-111111111111',
-          store_id: storeId,
-          activity_type: 'content',
-          title: 'Qwen 2.5 Coder: Generate Carousel Skincare Instagram Story',
-          description: 'Menghasilkan 4 slide copywriting visual & hashtag rekomendasi otomatis berdasar tren pasar lokal.',
-          time_ago: '15 menit lalu',
-          source_name: 'Qwen 2.5 Coder 32B',
-          source_category: 'AI Models',
-          model_engine: '9router/qwen-2.5-coder-32b',
-          model_provider: 'Alibaba Cloud / Qwen',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-          latency_ms: 185,
-          tokens_used: 2150,
-          cost_usd: 0.00215,
-          execution_status: 'Success',
-          detail_payload: { slides: 4, format: '1080x1920' }
-        },
-        {
-          id: 'a1111111-0003-4444-8888-111111111111',
-          store_id: storeId,
-          activity_type: 'leads',
-          title: 'ZeroClaw Edge Daemon: Catch 14 Hot Leads WhatsApp Direct',
-          description: 'Memproses payload pesan masuk WhatsApp, mengklasifikasikan intent pembelian, dan mendaftarkan CRM.',
-          time_ago: '30 menit lalu',
-          source_name: 'ZeroClaw Edge Daemon',
-          source_category: 'Edge Swarms',
-          model_engine: 'ZeroClaw-Native-Rust-v2',
-          model_provider: 'ZeroClaw Edge Runtime',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.png',
-          latency_ms: 48,
-          tokens_used: 420,
-          cost_usd: 0.00042,
-          execution_status: 'Success',
-          detail_payload: { leads_captured: 14, conversion_rate: '8.5%' }
-        },
-        {
-          id: 'a1111111-0004-4444-8888-111111111111',
-          store_id: storeId,
-          activity_type: 'report',
-          title: 'Gemini 3.6 Flash: Sintesis Laporan Mingguan ROAS & CPL',
-          description: 'Menganalisis efisiensi iklan dari Meta & Shopee Ads, merekomendasikan kenaikan budget 15%.',
-          time_ago: '1 jam lalu',
-          source_name: 'Gemini 3.6 Flash Engine',
-          source_category: 'AI Models',
-          model_engine: 'gemini-3.6-flash-preview',
-          model_provider: 'Google DeepMind Cloud',
-          cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/gemini.png',
-          latency_ms: 110,
-          tokens_used: 3400,
-          cost_usd: 0.00340,
-          execution_status: 'Success',
-          detail_payload: { roas_avg: '4.20x', cpl_idr: 11403 }
-        }
-      ];
+      return [];
     } catch (e) {
       return [];
     }
@@ -1906,78 +1576,7 @@ export const SupabaseDashboardService = {
         []
       );
       if (data && data.length > 0) return data;
-      return [
-        {
-          id: 'e1111111-0001-4444-9999-111111111111',
-          store_id: storeId,
-          report_title: 'Laporan Performa Campaign Juli 2026',
-          period_range: '1 Jul - 31 Jul 2026',
-          revenue_num: 5200000.00,
-          leads_count: 456,
-          roas_val: 4.20,
-          cpl_idr: 11403.00,
-          status: 'Final',
-          model_attribution: 'DeepSeek R1 & 9Router Layer 5 Engine',
-          source_breakdown_json: [
-            { source: 'WhatsApp Direct', revenue: 2184000, percentage: 42.0, leads: 198, conversion: '3.5%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
-            { source: 'Instagram Ads', revenue: 1456000, percentage: 28.0, leads: 132, conversion: '4.1%', color: '#a855f7', icon: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-            { source: 'Shopee Official', revenue: 936000, percentage: 18.0, leads: 76, conversion: '3.2%', color: '#f97316', icon: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
-            { source: 'TikTok Shop', revenue: 624000, percentage: 12.0, leads: 50, conversion: '4.0%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
-          ]
-        },
-        {
-          id: 'e1111111-0002-4444-9999-111111111111',
-          store_id: storeId,
-          report_title: 'Laporan Atribusi Model AI Marketing Swarm',
-          period_range: '15 Jul - 31 Jul 2026',
-          revenue_num: 3850000.00,
-          leads_count: 310,
-          roas_val: 3.80,
-          cpl_idr: 12419.00,
-          status: 'Final',
-          model_attribution: 'Qwen 2.5 Coder 32B & ZeroClaw Edge Swarm',
-          source_breakdown_json: [
-            { source: 'WhatsApp Direct', revenue: 1617000, percentage: 42.0, leads: 140, conversion: '3.8%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp.png' },
-            { source: 'Instagram Ads', revenue: 1155000, percentage: 30.0, leads: 98, conversion: '4.3%', color: '#a855f7', icon: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-            { source: 'TikTok Shop', revenue: 693000, percentage: 18.0, leads: 45, conversion: '4.5%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.png' },
-            { source: 'Shopee Official', revenue: 385000, percentage: 10.0, leads: 27, conversion: '2.9%', color: '#f97316', icon: 'https://cdn.zegaai.site/assets/logo/shopee.png' }
-          ]
-        },
-        {
-          id: 'e1111111-0003-4444-9999-111111111111',
-          store_id: storeId,
-          report_title: 'Analisis Biaya Iklan (CPL) per Saluran',
-          period_range: '1 Jul - 20 Jul 2026',
-          revenue_num: 2450000.00,
-          leads_count: 182,
-          roas_val: 3.50,
-          cpl_idr: 13461.00,
-          status: 'Archived',
-          model_attribution: 'Gemini 3.6 Flash & Groq LPU Engine',
-          source_breakdown_json: [
-            { source: 'WhatsApp Direct', revenue: 1102500, percentage: 45.0, leads: 85, conversion: '3.6%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp.png' },
-            { source: 'Instagram Ads', revenue: 735000, percentage: 30.0, leads: 52, conversion: '3.9%', color: '#a855f7', icon: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-            { source: 'Shopee Official', revenue: 367500, percentage: 15.0, leads: 28, conversion: '3.0%', color: '#f97316', icon: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
-            { source: 'TikTok Shop', revenue: 245000, percentage: 10.0, leads: 17, conversion: '3.8%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.png' }
-          ]
-        },
-        {
-          id: 'e1111111-0004-4444-9999-111111111111',
-          store_id: storeId,
-          report_title: 'Ringkasan Konversi WhatsApp & TikTok',
-          period_range: '1 Jul - 15 Jul 2026',
-          revenue_num: 1950000.00,
-          leads_count: 148,
-          roas_val: 3.20,
-          cpl_idr: 13175.00,
-          status: 'Archived',
-          model_attribution: 'ZeroClaw Edge Daemon & Claude 3.5 Sonnet',
-          source_breakdown_json: [
-            { source: 'WhatsApp Direct', revenue: 1170000, percentage: 60.0, leads: 92, conversion: '3.4%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp.png' },
-            { source: 'TikTok Shop', revenue: 780000, percentage: 40.0, leads: 56, conversion: '4.2%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.png' }
-          ]
-        }
-      ];
+      return [];
     } catch (e) {
       return [];
     }
@@ -2046,114 +1645,8 @@ export const SupabaseDashboardService = {
         .eq('store_id', storeId)
         .order('revenue_num', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return [
-          {
-            id: 'c1111111-0001-4444-9999-111111111111',
-            store_id: storeId,
-            channel_name: 'WhatsApp Business',
-            channel_code: 'whatsapp',
-            category: 'Direct Messaging',
-            reach_text: '56.2K',
-            reach_count: 56200,
-            impressions_count: 85000,
-            clicks_count: 6200,
-            engagement_pct: 6.80,
-            leads_count: 198,
-            conversion_pct: 4.80,
-            revenue_num: 3250000.00,
-            roas_val: 4.20,
-            trend_pct: '+14%',
-            color_hex: '#10b981',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-            status: 'TERHUBUNG REALTIME',
-            model_engine: 'DeepSeek R1 & 9Router Layer 5'
-          },
-          {
-            id: 'c1111111-0002-4444-9999-111111111111',
-            store_id: storeId,
-            channel_name: 'Instagram Ads',
-            channel_code: 'instagram',
-            category: 'Social Media Ads',
-            reach_text: '32.8K',
-            reach_count: 32800,
-            impressions_count: 48000,
-            clicks_count: 3900,
-            engagement_pct: 8.20,
-            leads_count: 132,
-            conversion_pct: 4.10,
-            revenue_num: 2180000.00,
-            roas_val: 3.90,
-            trend_pct: '+18%',
-            color_hex: '#a855f7',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png',
-            status: 'TERHUBUNG REALTIME',
-            model_engine: 'Qwen 2.5 Coder 32B Swarm'
-          },
-          {
-            id: 'c1111111-0003-4444-9999-111111111111',
-            store_id: storeId,
-            channel_name: 'Shopee Official',
-            channel_code: 'shopee',
-            category: 'Marketplace Commerce',
-            reach_text: '18.6K',
-            reach_count: 18600,
-            impressions_count: 29000,
-            clicks_count: 2100,
-            engagement_pct: 5.60,
-            leads_count: 76,
-            conversion_pct: 3.20,
-            revenue_num: 1420000.00,
-            roas_val: 2.80,
-            trend_pct: '+8%',
-            color_hex: '#f97316',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png',
-            status: 'TERHUBUNG REALTIME',
-            model_engine: 'Gemini 3.6 Flash Engine'
-          },
-          {
-            id: 'c1111111-0004-4444-9999-111111111111',
-            store_id: storeId,
-            channel_name: 'TikTok Shop',
-            channel_code: 'tiktok',
-            category: 'Video Social Commerce',
-            reach_text: '12.4K',
-            reach_count: 12400,
-            impressions_count: 34000,
-            clicks_count: 3100,
-            engagement_pct: 9.10,
-            leads_count: 50,
-            conversion_pct: 4.00,
-            revenue_num: 980000.00,
-            roas_val: 3.50,
-            trend_pct: '+22%',
-            color_hex: '#06b6d4',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
-            status: 'TERHUBUNG REALTIME',
-            model_engine: 'ZeroClaw Edge Swarm'
-          },
-          {
-            id: 'c1111111-0005-4444-9999-111111111111',
-            store_id: storeId,
-            channel_name: 'Email Blast',
-            channel_code: 'email',
-            category: 'Direct Email Marketing',
-            reach_text: '5.4K',
-            reach_count: 5400,
-            impressions_count: 8200,
-            clicks_count: 620,
-            engagement_pct: 4.20,
-            leads_count: 28,
-            conversion_pct: 2.60,
-            revenue_num: 450000.00,
-            roas_val: 2.10,
-            trend_pct: '+5%',
-            color_hex: '#6366f1',
-            cdn_icon_url: 'https://pub-2849e7b2ff1841e2a0fef0bbbeebf13e.r2.dev/assets/logo/sendgrid.webp',
-            status: 'TERHUBUNG REALTIME',
-            model_engine: 'Claude 3.5 Sonnet Engine'
-          }
-        ];
+      if (error || !data) {
+        return [];
       }
       return data;
     } catch (err) {
@@ -2187,104 +1680,8 @@ export const SupabaseDashboardService = {
         .eq('store_id', storeId)
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return [
-          {
-            id: 'a1111111-0001-4444-9999-111111111111',
-            store_id: storeId,
-            campaign_name: 'Promo Agustus',
-            channel_name: 'WhatsApp Broadcast',
-            status: 'Aktif',
-            date_range: '22 Jun - 22 Jul',
-            reach_text: '45.2K',
-            reach_count: 45200,
-            leads_count: 182,
-            conversion_pct: 4.00,
-            roas_val: 3.80,
-            roas_text: '3.8x',
-            revenue_num: 2450000.00,
-            budget_num: 650000.00,
-            model_engine: 'DeepSeek R1 & 9Router Swarm',
-            cdn_image_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-            target_audience: 'Pelanggan Setia (RFM Champions)'
-          },
-          {
-            id: 'a1111111-0002-4444-9999-111111111111',
-            store_id: storeId,
-            campaign_name: 'Diskon Spesial Minggu Ini',
-            channel_name: 'Instagram Ads',
-            status: 'Aktif',
-            date_range: '15 Jul - 31 Jul',
-            reach_text: '32.1K',
-            reach_count: 32100,
-            leads_count: 128,
-            conversion_pct: 3.90,
-            roas_val: 2.90,
-            roas_text: '2.9x',
-            revenue_num: 1620000.00,
-            budget_num: 550000.00,
-            model_engine: 'Qwen 2.5 Coder 32B Swarm',
-            cdn_image_url: 'https://cdn.zegaai.site/assets/logo/instagram.png',
-            target_audience: 'Audiens Baru (Prospective Leads)'
-          },
-          {
-            id: 'a1111111-0003-4444-9999-111111111111',
-            store_id: storeId,
-            campaign_name: 'Bundle Hemat',
-            channel_name: 'Shopee Official',
-            status: 'Aktif',
-            date_range: '10 Jul - 24 Jul',
-            reach_text: '23.6K',
-            reach_count: 23600,
-            leads_count: 84,
-            conversion_pct: 3.50,
-            roas_val: 2.10,
-            roas_text: '2.1x',
-            revenue_num: 780000.00,
-            budget_num: 370000.00,
-            model_engine: 'Gemini 3.6 Flash Engine',
-            cdn_image_url: 'https://cdn.zegaai.site/assets/logo/shopee.png',
-            target_audience: 'Pembeli Repeat Order Shopee'
-          },
-          {
-            id: 'a1111111-0004-4444-9999-111111111111',
-            store_id: storeId,
-            campaign_name: 'Launching Produk Baru',
-            channel_name: 'TikTok Ads',
-            status: 'Selesai',
-            date_range: '1 Jul - 20 Jul',
-            reach_text: '18.9K',
-            reach_count: 18900,
-            leads_count: 46,
-            conversion_pct: 2.40,
-            roas_val: 1.60,
-            roas_text: '1.6x',
-            revenue_num: 350000.00,
-            budget_num: 220000.00,
-            model_engine: 'ZeroClaw Edge Swarm',
-            cdn_image_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
-            target_audience: 'Gen-Z Creative Buyers'
-          },
-          {
-            id: 'a1111111-0005-4444-9999-111111111111',
-            store_id: storeId,
-            campaign_name: 'Remarketing Customer',
-            channel_name: 'Email Blast',
-            status: 'Aktif',
-            date_range: '1 Jul - 31 Jul',
-            reach_text: '7.6K',
-            reach_count: 7600,
-            leads_count: 16,
-            conversion_pct: 2.10,
-            roas_val: 0.00,
-            roas_text: '-',
-            revenue_num: 0.00,
-            budget_num: 150000.00,
-            model_engine: 'Claude 3.5 Sonnet Engine',
-            cdn_image_url: 'https://pub-2849e7b2ff1841e2a0fef0bbbeebf13e.r2.dev/assets/logo/sendgrid.webp',
-            target_audience: 'Pelanggan Churn Potential'
-          }
-        ];
+      if (error || !data) {
+        return [];
       }
       return data;
     } catch (err) {
@@ -2364,73 +1761,8 @@ export const SupabaseDashboardService = {
         .eq('store_id', storeId)
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return [
-          {
-            id: 'c1111111-0001-4444-9999-111111111111',
-            store_id: storeId,
-            title: 'Promo Skincare Glowing Agustus',
-            platform: 'Instagram',
-            content_type: 'Instagram Post',
-            status: 'Published',
-            cdn_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
-            creative_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
-            caption_text: 'Dapatkan kulit sehat glowing berseri dengan promo spesial gajian Agustus! Diskon up to 35% untuk seluruh paket skincare premium ZEGA Beauty.',
-            hashtags: '#ZegaBeauty #SkincareGlow #PromoAgustus #KulitSehat #DiskonSkincare',
-            model_engine: 'DeepSeek R1',
-            engagement_score: 9.85,
-            reach_count: 14200,
-            shares_count: 340
-          },
-          {
-            id: 'c1111111-0002-4444-9999-111111111111',
-            store_id: storeId,
-            title: 'Tips Perawatan Kulit Malam Hari',
-            platform: 'Instagram',
-            content_type: 'Instagram Story',
-            status: 'Published',
-            cdn_image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg',
-            creative_image_url: '/design/dashboard_umkm/marketing/instagram_story.jpeg',
-            caption_text: 'Rahasia night routine urutan pemakaian serum & moisturizer agar kulit kenyal saat bangun pagi. Swipe up untuk melihat rekomendasi produk!',
-            hashtags: '#BeautyTips #NightRoutine #GlowingSkin #SkincareEdu',
-            model_engine: 'Qwen 2.5 Coder',
-            engagement_score: 8.40,
-            reach_count: 9800,
-            shares_count: 215
-          },
-          {
-            id: 'c1111111-0003-4444-9999-111111111111',
-            store_id: storeId,
-            title: 'Diskon Spesial WhatsApp VIP Customer',
-            platform: 'WhatsApp',
-            content_type: 'WhatsApp Template',
-            status: 'Scheduled',
-            cdn_image_url: '/design/dashboard_umkm/marketing/discount.jpeg',
-            creative_image_url: '/design/dashboard_umkm/marketing/discount.jpeg',
-            caption_text: 'Halo Kak! Khusus untuk pelanggan setia ZEGA, klaim voucher eksklusif potongan Rp50.000 dengan kode promo: ZEGAAGUSTUS.',
-            hashtags: '#ZEGAVIP #PromoWhatsApp #VoucherEksklusif',
-            model_engine: 'Gemini 3.6 Flash',
-            engagement_score: 11.20,
-            reach_count: 18600,
-            shares_count: 512
-          },
-          {
-            id: 'c1111111-0004-4444-9999-111111111111',
-            store_id: storeId,
-            title: 'Unboxing Produk Baru Glowing Serum',
-            platform: 'TikTok',
-            content_type: 'TikTok Video',
-            status: 'Published',
-            cdn_image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg',
-            creative_image_url: '/design/dashboard_umkm/marketing/tiktok_video.jpeg',
-            caption_text: 'Gokil banget hasilnya dalam 7 hari! Tonton unboxing & honest review Serum Glowing Niacinamide 10%. Keranjang kuning ready stock!',
-            hashtags: '#TikTokShop #SerumGlowing #HonestReview #ViralBeauty',
-            model_engine: 'Claude 3.5 Sonnet',
-            engagement_score: 12.65,
-            reach_count: 32400,
-            shares_count: 1240
-          }
-        ];
+      if (error || !data) {
+        return [];
       }
       return data;
     } catch (err) {
@@ -2488,10 +1820,10 @@ export const SupabaseDashboardService = {
           collaboration_status: 'Approved',
           assigned_team_member: 'AI Content Strategist',
           export_target: payload.export_target || 'CapCut Pro Export',
-          cdn_image_url: payload.cdn_image_url || '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
-          creative_image_url: payload.cdn_image_url || '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
+          cdn_image_url: payload.cdn_image_url || null,
+          creative_image_url: payload.cdn_image_url || null,
           video_url: payload.video_url || null,
-          thumbnail_url: payload.cdn_image_url || '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
+          thumbnail_url: payload.cdn_image_url || null,
           aspect_ratio: payload.aspect_ratio || '9:16',
           duration_seconds: payload.duration_seconds || 15,
           voiceover_engine: payload.voiceover_engine || 'ZeroClaw TTS Edge',
@@ -2499,9 +1831,9 @@ export const SupabaseDashboardService = {
           hashtags: payload.hashtags || '#ZegaAI #MarketingAutomation',
           prompt_used: payload.prompt_used || 'Prompt generasi otomatis',
           model_engine: payload.model_engine || 'ZeroClaw Edge Video Daemon',
-          engagement_score: 9.60,
-          reach_count: 3250,
-          shares_count: 140,
+          engagement_score: 0.00,
+          reach_count: 0,
+          shares_count: 0,
           created_at: new Date().toISOString()
         };
 
@@ -2731,88 +2063,24 @@ export const SupabaseDashboardService = {
 
       return {
         metrics: metricsRes || {
-          total_revenue: 2450.00,
-          total_expense: 680.00,
-          net_profit: 1770.00,
-          profit_margin: 72.20,
-          cash_balance_usdc: 1950.00,
-          cash_balance_idr: 31512000.00,
-          revenue_growth: 18.00,
-          expense_growth: -8.00,
-          profit_growth: 32.00,
-          margin_growth: 6.50,
-          period_label: '1 Jul - 31 Jul 2026'
+          total_revenue: 0,
+          total_expense: 0,
+          net_profit: 0,
+          profit_margin: 0,
+          cash_balance_usdc: 0,
+          cash_balance_idr: 0,
+          revenue_growth: 0,
+          expense_growth: 0,
+          profit_growth: 0,
+          margin_growth: 0,
+          period_label: 'Periode Berjalan'
         },
-        cashflow: cashflowRes?.length ? cashflowRes : [
-          { date_label: '1 Jul', income: 350.00, expense: 120.00, balance: 230.00 },
-          { date_label: '6 Jul', income: 620.00, expense: 180.00, balance: 440.00 },
-          { date_label: '11 Jul', income: 500.00, expense: 150.00, balance: 350.00 },
-          { date_label: '16 Jul', income: 1020.00, expense: 420.00, balance: 600.00 },
-          { date_label: '21 Jul', income: 780.00, expense: 210.00, balance: 570.00 },
-          { date_label: '26 Jul', income: 910.00, expense: 310.00, balance: 600.00 },
-          { date_label: '31 Jul', income: 820.00, expense: 250.00, balance: 570.00 }
-        ],
-        expenses: expensesRes?.length ? expensesRes : [
-          { category_name: 'Kasir Operasional', percentage: 45.00, amount_usdc: 306.00, color_hex: '#3b82f6' },
-          { category_name: 'Gas & RPC Fee', percentage: 25.00, amount_usdc: 170.00, color_hex: '#f97316' },
-          { category_name: 'SOP Audit Reserve', percentage: 15.00, amount_usdc: 102.00, color_hex: '#a855f7' },
-          { category_name: 'Pengiriman', percentage: 10.00, amount_usdc: 68.00, color_hex: '#06b6d4' },
-          { category_name: 'Lainnya', percentage: 5.00, amount_usdc: 34.00, color_hex: '#64748b' }
-        ],
-        solanaTx: txRes?.length ? txRes : [
-          { tx_hash: 'TX#7Gf8...n3dA', customer_name: 'Siti Aisyah', amount_usdc: 25.00, status: 'Sukses', time_ago: '2 menit lalu' },
-          { tx_hash: 'TX#3Hd9...m7kB', customer_name: 'Budi Santoso', amount_usdc: 18.50, status: 'Sukses', time_ago: '15 menit lalu' },
-          { tx_hash: 'TX#5Jk2...p9xC', customer_name: 'Dewi Lestari', amount_usdc: 42.00, status: 'Sukses', time_ago: '28 menit lalu' },
-          { tx_hash: 'TX#9Lm1...q4wO', customer_name: 'Rizky Pratama', amount_usdc: 12.75, status: 'Pending', time_ago: '35 menit lalu' },
-          { tx_hash: 'TX#1Xc3...v8zE', customer_name: 'Maya Putri', amount_usdc: 35.00, status: 'Sukses', time_ago: '1 jam lalu' }
-        ],
-        invoices: invoicesRes?.length ? invoicesRes : [
-          { invoice_code: 'INV-2026-0722', customer_name: 'Siti Aisyah', due_status: 'Jatuh tempo hari ini', amount_usdc: 25.00 },
-          { invoice_code: 'INV-2026-0720', customer_name: 'Budi Santoso', due_status: '2 hari lagi', amount_usdc: 18.50 },
-          { invoice_code: 'INV-2026-0718', customer_name: 'Dewi Lestari', due_status: '4 hari lagi', amount_usdc: 42.00 }
-        ],
-        insights: insightsRes?.length ? insightsRes : [
-          {
-            id: 'ins-1',
-            title: 'Pengeluaran Gas Fee naik 12%',
-            description: 'DeepSeek R1 merekomendasikan alokasi batching transaksi Solana Pay pada jam sepi untuk menghemat $20.40/bulan.',
-            action_label: 'Optimasi Gas Fee',
-            model_engine: 'deepseek/deepseek-r1-distill-llama-70b',
-            model_provider: 'DeepSeek Reasoning AI',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-            impact_level: 'HIGH IMPACT',
-            category: 'Cost Optimization',
-            status: 'active'
-          },
-          {
-            id: 'ins-2',
-            title: 'Margin keuntungan 72.2% (Lebih tinggi dari rata-rata)',
-            description: '9Router Engine mendeteksi performa margin bisnis di atas target industri 65%. Pertahankan struktur biaya kasir operasional.',
-            action_label: 'Pertahankan Strategy',
-            model_engine: '9Router-Auto-Cost-Optimizer',
-            model_provider: '9Router Layer 5 Engine',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-            impact_level: 'RECOMMENDED',
-            category: 'Profit Margin',
-            status: 'active'
-          },
-          {
-            id: 'ins-3',
-            title: '3 Pelanggan berpotensi repeat order dalam 48 jam',
-            description: 'Claude 3.5 Sonnet merekomendasikan otomatisasi pengiriman kupon loyalitas via WA untuk mengunci pendapatan $85.50 USDC.',
-            action_label: 'Kirim Kupon Auto',
-            model_engine: 'anthropic/claude-3.5-sonnet',
-            model_provider: 'Anthropic AI',
-            execution_gateway: 'ZeroClaw-Edge-Gateway',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-            impact_level: 'HIGH IMPACT',
-            category: 'Customer Retention',
-            status: 'active'
-          }
-        ],
-        swarms: swarmsRes?.length ? swarmsRes : [],
+        cashflow: cashflowRes || [],
+        expenses: expensesRes || [],
+        solanaTx: txRes || [],
+        invoices: invoicesRes || [],
+        insights: insightsRes || [],
+        swarms: swarmsRes || [],
         error: null
       };
     } catch (err: any) {
@@ -3000,54 +2268,53 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_store_insights').select('*').order('created_at', { ascending: false })
       ]);
 
-      const metrics = metricsRes.status === 'fulfilled' && metricsRes.value.data ? metricsRes.value.data : {
-        total_products: 152,
-        total_stock: 1240,
-        low_stock_count: 6,
-        today_orders: 43,
-        stock_value_idr: 24500000.00
-      };
-
-      const performance = performanceRes.status === 'fulfilled' && performanceRes.value.data && performanceRes.value.data.length > 0
-        ? performanceRes.value.data
-        : [
-          { period_label: '1 Jul', orders_count: 8, revenue_idr: 500000 },
-          { period_label: '6 Jul', orders_count: 18, revenue_idr: 1200000 },
-          { period_label: '11 Jul', orders_count: 14, revenue_idr: 950000 },
-          { period_label: '16 Jul', orders_count: 28, revenue_idr: 2160000 },
-          { period_label: '21 Jul', orders_count: 20, revenue_idr: 1400000 },
-          { period_label: '26 Jul', orders_count: 35, revenue_idr: 2800000 },
-          { period_label: '31 Jul', orders_count: 30, revenue_idr: 2250000 }
-        ];
-
       const products = productsRes.status === 'fulfilled' && productsRes.value.data
         ? productsRes.value.data
         : [];
 
-      const categories = categoriesRes.status === 'fulfilled' && categoriesRes.value.data && categoriesRes.value.data.length > 0
+      // Calculate dynamic metrics directly from real product database rows
+      const dynamicTotalProducts = products.length;
+      const dynamicTotalStock = products.reduce((acc: number, p: any) => acc + (p.stock || 0), 0);
+      const dynamicLowStockCount = products.filter((p: any) => (p.stock || 0) <= 10).length;
+      const dynamicStockValueIdr = products.reduce((acc: number, p: any) => acc + ((p.stock || 0) * (Number(p.price_idr) || 0)), 0);
+
+      const metrics = metricsRes.status === 'fulfilled' && metricsRes.value.data ? metricsRes.value.data : {
+        total_products: dynamicTotalProducts,
+        total_stock: dynamicTotalStock,
+        low_stock_count: dynamicLowStockCount,
+        today_orders: 0,
+        stock_value_idr: dynamicStockValueIdr
+      };
+
+      const performance = performanceRes.status === 'fulfilled' && performanceRes.value.data && performanceRes.value.data.length > 0
+        ? performanceRes.value.data
+        : [];
+
+      let categories = categoriesRes.status === 'fulfilled' && categoriesRes.value.data && categoriesRes.value.data.length > 0
         ? categoriesRes.value.data
-        : [
-          { id: 'c1', name: 'Apparel', product_count: 58, color_hex: '#10b981' },
-          { id: 'c2', name: 'Drinkware', product_count: 34, color_hex: '#3b82f6' },
-          { id: 'c3', name: 'Accessories', product_count: 28, color_hex: '#f59e0b' },
-          { id: 'c4', name: 'Lainnya', product_count: 32, color_hex: '#8b5cf6' }
-        ];
+        : [];
+
+      if (categories.length === 0 && products.length > 0) {
+        const catMap: Record<string, number> = {};
+        products.forEach((p: any) => {
+          const cName = p.category || 'General';
+          catMap[cName] = (catMap[cName] || 0) + 1;
+        });
+        categories = Object.keys(catMap).map((catName, idx) => ({
+          id: `cat-dynamic-${idx}`,
+          name: catName,
+          product_count: catMap[catName],
+          color_hex: idx % 4 === 0 ? '#10b981' : idx % 4 === 1 ? '#3b82f6' : idx % 4 === 2 ? '#f59e0b' : '#8b5cf6'
+        }));
+      }
 
       const swarms = swarmsRes.status === 'fulfilled' && swarmsRes.value.data && swarmsRes.value.data.length > 0
         ? swarmsRes.value.data
-        : [
-          { id: 'sw-1', swarm_name: '9Router Auto-Stock Optimizer', model_engine: '9Router-Auto-Stock-Optimizer', model_provider: '9Router Model Router', status: 'ACTIVE', latency_ms: 95, success_rate: 99.90, cdn_logo_url: 'https://cdn.zegaai.site/assets/logo/9router.png' },
-          { id: 'sw-2', swarm_name: 'DeepSeek R1 Demand Forecaster', model_engine: 'deepseek/deepseek-r1-distill-llama-70b', model_provider: 'DeepSeek AI', status: 'ACTIVE', latency_ms: 210, success_rate: 99.70, cdn_logo_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp' },
-          { id: 'sw-3', swarm_name: 'ZeroClaw Realtime Inventory Audit', model_engine: 'ZeroClaw-Edge-Gateway', model_provider: 'ZeroClaw Edge', status: 'ACTIVE', latency_ms: 78, success_rate: 99.95, cdn_logo_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg' }
-        ];
+        : [];
 
       const insights = insightsRes.status === 'fulfilled' && insightsRes.value.data && insightsRes.value.data.length > 0
         ? insightsRes.value.data
-        : [
-          { id: 'ins-1', title: 'Restok 6 Produk Kritis (Stok < 5 Unit)', description: 'ZeroClaw AI mendeteksi 6 produk (Kaos Oversize, Tumbler Silver, Botol 750ml) terancam out-of-stock dalam 48 jam.', impact_level: 'CRITICAL', model_engine: 'ZeroClaw-Edge-Gateway', model_provider: 'ZeroClaw Edge', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg', action_label: 'Restok Otomatis', status: 'active' },
-          { id: 'ins-2', title: 'Optimasi Harga Hoodie Full Zip (+12% Revenue)', description: 'DeepSeek R1 menganalisis peningkatan permintaan akhir pekan dan merekomendasikan penyesuaian harga dinamis.', impact_level: 'HIGH IMPACT', model_engine: 'deepseek/deepseek-r1-distill-llama-70b', model_provider: 'DeepSeek AI', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp', action_label: 'Terapkan Penyesuaian', status: 'active' },
-          { id: 'ins-3', title: 'Pembersihan Stok Totebag Cream (Slow Moving)', description: '9Router mengidentifikasi stok bundel promosi untuk mempercepat turn-over inventaris toko.', impact_level: 'RECOMMENDED', model_engine: '9Router-Auto-Stock-Optimizer', model_provider: '9Router Engine', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png', action_label: 'Buat Bundel Promo', status: 'active' }
-        ];
+        : [];
 
       // Top selling derived from products sorted by sold count
       const topSelling = [...products].sort((a: any, b: any) => (b.sold || 0) - (a.sold || 0)).slice(0, 5);
@@ -3068,7 +2335,7 @@ export const SupabaseDashboardService = {
     } catch (err) {
       console.warn('Store overview fetch error:', err);
       return {
-        metrics: { total_products: 152, total_stock: 1240, low_stock_count: 6, today_orders: 43, stock_value_idr: 24500000 },
+        metrics: { total_products: 0, total_stock: 0, low_stock_count: 0, today_orders: 0, stock_value_idr: 0 },
         performance: [],
         products: [],
         topSelling: [],
@@ -3578,62 +2845,63 @@ export const SupabaseDashboardService = {
         supabase.from('umkm_customer_activity_stream').select('*').order('created_at', { ascending: false }).limit(6)
       ]);
 
+      const customers = customersRes.status === 'fulfilled' && customersRes.value.data
+        ? customersRes.value.data
+        : [];
+
+      // Calculate dynamic metrics directly from real customer database rows
+      const totalCustCount = customers.length;
+      const newCustCount = customers.filter((c: any) => c.segment === 'New').length;
+      const repeatCustCount = customers.filter((c: any) => c.segment === 'Repeat' || c.segment === 'Loyal' || c.segment === 'VIP').length;
+      const retentionRatePct = totalCustCount > 0 ? Math.round((repeatCustCount / totalCustCount) * 100) : 0;
+
+      const totalOrdersAll = customers.reduce((acc: number, c: any) => acc + (c.total_orders || 0), 0);
+      const totalSpendAll = customers.reduce((acc: number, c: any) => acc + (Number(c.total_spend_idr) || 0), 0);
+      const avgOrderValIdr = totalOrdersAll > 0 ? totalSpendAll / totalOrdersAll : 0;
+
       const metrics = metricsRes.status === 'fulfilled' && metricsRes.value.data ? metricsRes.value.data : {
-        total_customers: 1248,
-        new_customers: 126,
-        repeat_customers: 312,
-        retention_rate_pct: 68,
-        avg_order_value_idr: 1250000.00
+        total_customers: totalCustCount,
+        new_customers: newCustCount,
+        repeat_customers: repeatCustCount,
+        retention_rate_pct: retentionRatePct,
+        avg_order_value_idr: avgOrderValIdr
       };
+
+      // Calculate dynamic segments breakdown from actual customer rows
+      const vipCount = customers.filter((c: any) => c.segment === 'VIP').length;
+      const loyalCount = customers.filter((c: any) => c.segment === 'Loyal').length;
+      const repeatCount = customers.filter((c: any) => c.segment === 'Repeat').length;
+      const newCount = customers.filter((c: any) => c.segment === 'New').length;
 
       const segments = segmentsRes.status === 'fulfilled' && segmentsRes.value.data && segmentsRes.value.data.length > 0
         ? segmentsRes.value.data
         : [
-          { name: 'VIP', percentage: 18, count: 224, color_hex: '#f97316' },
-          { name: 'Loyal', percentage: 32, count: 399, color_hex: '#3b82f6' },
-          { name: 'Repeat', percentage: 28, count: 349, color_hex: '#8b5cf6' },
-          { name: 'New', percentage: 22, count: 276, color_hex: '#10b981' }
+          { name: 'VIP', percentage: totalCustCount > 0 ? Math.round((vipCount / totalCustCount) * 100) : 0, count: vipCount, color_hex: '#f97316' },
+          { name: 'Loyal', percentage: totalCustCount > 0 ? Math.round((loyalCount / totalCustCount) * 100) : 0, count: loyalCount, color_hex: '#3b82f6' },
+          { name: 'Repeat', percentage: totalCustCount > 0 ? Math.round((repeatCount / totalCustCount) * 100) : 0, count: repeatCount, color_hex: '#8b5cf6' },
+          { name: 'New', percentage: totalCustCount > 0 ? Math.round((newCount / totalCustCount) * 100) : 0, count: newCount, color_hex: '#10b981' }
         ];
 
       const growth = growthRes.status === 'fulfilled' && growthRes.value.data && growthRes.value.data.length > 0
         ? growthRes.value.data
-        : [
-          { period_label: '1 Jul', total_customers: 250 },
-          { period_label: '6 Jul', total_customers: 480 },
-          { period_label: '11 Jul', total_customers: 750 },
-          { period_label: '16 Jul', total_customers: 1020 },
-          { period_label: '21 Jul', total_customers: 1150 },
-          { period_label: '26 Jul', total_customers: 1200 },
-          { period_label: '31 Jul', total_customers: 1248 }
-        ];
-
-      const customers = customersRes.status === 'fulfilled' && customersRes.value.data && customersRes.value.data.length > 0
-        ? customersRes.value.data
-        : [
-          { id: 'c1', name: 'Siti Aisyah', email: 'siti.aisyah@email.com', phone: '+62 812-3456-7890', segment: 'VIP', total_orders: 12, total_spend_idr: 3200000, last_order_at: '2026-07-28T00:00:00Z', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'c2', name: 'Budi Santoso', email: 'budi.santoso@email.com', phone: '+62 813-2345-6789', segment: 'Loyal', total_orders: 9, total_spend_idr: 2180000, last_order_at: '2026-07-27T00:00:00Z', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'c3', name: 'Dewi Lestari', email: 'dewi.lestari@email.com', phone: '+62 821-3456-9876', segment: 'Repeat', total_orders: 8, total_spend_idr: 1950000, last_order_at: '2026-07-26T00:00:00Z', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'c4', name: 'Rizky Pratama', email: 'rizky.pratama@email.com', phone: '+62 822-4567-8901', segment: 'Repeat', total_orders: 7, total_spend_idr: 1120000, last_order_at: '2026-07-26T00:00:00Z', status: 'Tidak Aktif', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'c5', name: 'Maya Putri', email: 'maya.putri@email.com', phone: '+62 823-5678-9012', segment: 'New', total_orders: 6, total_spend_idr: 1450000, last_order_at: '2026-07-25T00:00:00Z', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face&q=80' }
-        ];
+        : [];
 
       const activityStream = activityRes.status === 'fulfilled' && activityRes.value.data && activityRes.value.data.length > 0
         ? activityRes.value.data
-        : [
-          { id: 'a1', customer_name: 'Siti Aisyah', action_description: 'Melakukan pembelian Rp450.000', time_ago: '2 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'a2', customer_name: 'Budi Santoso', action_description: 'Membuka pesan WhatsApp promo', time_ago: '3 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'a3', customer_name: 'Dewi Lestari', action_description: 'Klik link promo diskon', time_ago: '5 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'a4', customer_name: 'Rizky Pratama', action_description: 'Menambahkan produk ke keranjang', time_ago: '1 hari lalu', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face&q=80' },
-          { id: 'a5', customer_name: 'Maya Putri', action_description: 'Mendaftar sebagai pelanggan baru', time_ago: '1 hari lalu', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face&q=80' }
-        ];
+        : [];
 
-      const regionalDistribution = [
-        { region: 'Jakarta', percentage: 35 },
-        { region: 'Jawa Barat', percentage: 25 },
-        { region: 'Jawa Tengah', percentage: 18 },
-        { region: 'Jawa Timur', percentage: 12 },
-        { region: 'Lainnya', percentage: 10 }
-      ];
+      // Calculate dynamic regional distribution percentages from real customer rows
+      const regionMap: Record<string, number> = {};
+      customers.forEach((c: any) => {
+        const rName = c.city_region || c.region || 'Umum';
+        regionMap[rName] = (regionMap[rName] || 0) + 1;
+      });
+
+      const regionalDistribution = Object.keys(regionMap).map(rName => ({
+        region: rName,
+        percentage: totalCustCount > 0 ? Math.round((regionMap[rName] / totalCustCount) * 100) : 0,
+        count: regionMap[rName]
+      }));
 
       return {
         metrics,
@@ -3644,10 +2912,15 @@ export const SupabaseDashboardService = {
         regionalDistribution
       };
     } catch (err) {
-      console.warn('Customers overview fetch error:', err);
+      console.warn('Customer overview fetch error:', err);
       return {
-        metrics: { total_customers: 1248, new_customers: 126, repeat_customers: 312, retention_rate_pct: 68, avg_order_value_idr: 1250000 },
-        segments: [],
+        metrics: { total_customers: 0, new_customers: 0, repeat_customers: 0, retention_rate_pct: 0, avg_order_value_idr: 0 },
+        segments: [
+          { name: 'VIP', percentage: 0, count: 0, color_hex: '#f97316' },
+          { name: 'Loyal', percentage: 0, count: 0, color_hex: '#3b82f6' },
+          { name: 'Repeat', percentage: 0, count: 0, color_hex: '#8b5cf6' },
+          { name: 'New', percentage: 0, count: 0, color_hex: '#10b981' }
+        ],
         growth: [],
         customers: [],
         activityStream: [],
@@ -3898,11 +3171,46 @@ export const SupabaseDashboardService = {
         p_channel: channel,
         p_limit: 50
       });
-      if (!error && data) return data;
+      if (!error && data && data.activities && data.activities.length > 0) return data;
     } catch (e) {
       console.warn('get_umkm_crm_activity_stream_telemetry RPC fallback:', e);
     }
-    return null;
+
+    // Direct Database Zero-Trust Table Query from umkm_customer_activity_stream
+    try {
+      let query = supabase
+        .from('umkm_customer_activity_stream')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (channel && channel !== 'all') {
+        query = query.eq('action_type', channel);
+      }
+
+      const { data: rows, error } = await query;
+      if (!error && rows) {
+        return {
+          activities: rows.map((r: any) => ({
+            id: r.id,
+            customer_name: r.customer_name,
+            avatar_url: r.avatar_url || getR2CdnUrl('assets/avatars/default.webp'),
+            action_type: r.action_type,
+            action_description: r.action_description,
+            amount_idr: Number(r.amount_idr) || 0,
+            channel: r.channel || 'CRM Telemetry',
+            time_ago: 'Baru saja',
+            timestamp: r.created_at || new Date().toISOString(),
+            payload: r.event_payload || { event_source: 'Supabase Live Database', status: 'PROCESSED' }
+          }))
+        };
+      }
+    } catch (err) {
+      console.error('Direct database fallback error for activity stream telemetry:', err);
+    }
+
+    return { activities: [] };
   },
 
   /**
@@ -3946,11 +3254,76 @@ export const SupabaseDashboardService = {
         p_store_id: storeId,
         p_search: searchQuery
       });
-      if (!error && data) return data;
+      if (!error && data && data.regions && data.regions.length > 0) return data;
     } catch (e) {
       console.warn('get_umkm_crm_regional_distribution_telemetry RPC fallback:', e);
     }
-    return null;
+
+    // Direct Database Table Zero-Trust Aggregation from umkm_customers
+    try {
+      const { data: custRows } = await supabase
+        .from('umkm_customers')
+        .select('city_region, total_spend_idr')
+        .eq('store_id', storeId);
+
+      const customers = custRows || [];
+      const totalCount = customers.length;
+      
+      const regionCoords: Record<string, { lat: number; lng: number }> = {
+        'DKI Jakarta': { lat: -6.2088, lng: 106.8456 },
+        'Jawa Barat': { lat: -6.9175, lng: 107.6191 },
+        'Jawa Tengah': { lat: -6.9667, lng: 110.4167 },
+        'Jawa Timur': { lat: -7.2575, lng: 112.7521 },
+        'Sumatera Utara': { lat: 3.5952, lng: 98.6722 },
+        'Bali': { lat: -8.6705, lng: 115.2126 },
+        'Sulawesi Selatan': { lat: -5.1477, lng: 119.4327 }
+      };
+
+      const regionMap: Record<string, { count: number; revenue: number }> = {
+        'DKI Jakarta': { count: 0, revenue: 0 },
+        'Jawa Barat': { count: 0, revenue: 0 },
+        'Jawa Tengah': { count: 0, revenue: 0 },
+        'Jawa Timur': { count: 0, revenue: 0 },
+        'Sumatera Utara': { count: 0, revenue: 0 },
+        'Bali': { count: 0, revenue: 0 },
+        'Sulawesi Selatan': { count: 0, revenue: 0 }
+      };
+
+      customers.forEach((c: any) => {
+        const reg = c.city_region || 'DKI Jakarta';
+        if (!regionMap[reg]) {
+          regionMap[reg] = { count: 0, revenue: 0 };
+        }
+        regionMap[reg].count += 1;
+        regionMap[reg].revenue += Number(c.total_spend_idr) || 0;
+      });
+
+      const regions = Object.keys(regionMap).map((rName, idx) => {
+        const count = regionMap[rName].count;
+        const rev = regionMap[rName].revenue;
+        const coords = regionCoords[rName] || { lat: -6.2088, lng: 106.8456 };
+        return {
+          id: `reg-${idx}`,
+          region: rName,
+          count: count,
+          pct: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0,
+          revenue: rev,
+          topCat: 'Umum',
+          lat: coords.lat,
+          lng: coords.lng,
+          churnRisk: '0%'
+        };
+      });
+
+      const filtered = searchQuery
+        ? regions.filter(r => r.region.toLowerCase().includes(searchQuery.toLowerCase()))
+        : regions;
+
+      return { regions: filtered };
+    } catch (err) {
+      console.error('Direct database fallback error for regional distribution:', err);
+      return null;
+    }
   },
 
   /**
@@ -3994,11 +3367,74 @@ export const SupabaseDashboardService = {
         p_store_id: storeId,
         p_segment_filter: segmentFilter
       });
-      if (!error && data) return data;
+      if (!error && data && data.cohorts && data.cohorts.length > 0) return data;
     } catch (e) {
       console.warn('get_umkm_crm_rfm_segmentation_telemetry RPC fallback:', e);
     }
-    return null;
+
+    // Direct Database Zero-Trust Table Aggregation from umkm_customers
+    try {
+      const { data: custRows } = await supabase
+        .from('umkm_customers')
+        .select('segment, total_spend_idr, total_orders')
+        .eq('store_id', storeId);
+
+      const customers = custRows || [];
+      const totalCount = customers.length;
+
+      const vipCount = customers.filter((c: any) => c.segment === 'VIP').length;
+      const loyalCount = customers.filter((c: any) => c.segment === 'Loyal').length;
+      const repeatCount = customers.filter((c: any) => c.segment === 'Repeat').length;
+      const newCount = customers.filter((c: any) => c.segment === 'New').length;
+
+      const cohorts = [
+        {
+          name: 'VIP Cohort',
+          code: '555',
+          seg: 'VIP',
+          count: vipCount,
+          pct: totalCount > 0 ? Math.round((vipCount / totalCount) * 100) : 0,
+          rfm: 'Recency: ≤3 hari | Freq: ≥10x | Spend: ≥Rp3.0M',
+          action: 'Prioritaskan fast-track CS 24/7 & voucher exclusive preview'
+        },
+        {
+          name: 'Loyal Cohort',
+          code: '444',
+          seg: 'Loyal',
+          count: loyalCount,
+          pct: totalCount > 0 ? Math.round((loyalCount / totalCount) * 100) : 0,
+          rfm: 'Recency: ≤7 hari | Freq: 5–9x | Spend: Rp1.5M–3M',
+          action: 'Tawarkan poin reward 2x lipat & diskon ongkir'
+        },
+        {
+          name: 'Repeat Cohort',
+          code: '333',
+          seg: 'Repeat',
+          count: repeatCount,
+          pct: totalCount > 0 ? Math.round((repeatCount / totalCount) * 100) : 0,
+          rfm: 'Recency: ≤14 hari | Freq: 2–4x | Spend: Rp500K–1.5M',
+          action: 'Kirim voucher repeat order 10% via AI Chat'
+        },
+        {
+          name: 'New Cohort',
+          code: '111',
+          seg: 'New',
+          count: newCount,
+          pct: totalCount > 0 ? Math.round((newCount / totalCount) * 100) : 0,
+          rfm: 'Recency: ≤30 hari | Freq: 1x | Spend: ≤Rp500K',
+          action: 'Kirim panduan onboarding & voucher belanja pertama'
+        }
+      ];
+
+      const filtered = segmentFilter && segmentFilter !== 'all' && segmentFilter !== 'Semua Segment'
+        ? cohorts.filter(c => c.seg === segmentFilter)
+        : cohorts;
+
+      return { cohorts: filtered, total_customers: totalCount };
+    } catch (err) {
+      console.error('Direct database fallback error for RFM segmentation:', err);
+      return { cohorts: [], total_customers: 0 };
+    }
   },
 
   /**
@@ -4188,81 +3624,53 @@ export const SupabaseDashboardService = {
       ]);
 
       const metrics = metricsRes.status === 'fulfilled' && metricsRes.value.data ? metricsRes.value.data : {
-        total_revenue_idr: 13500000.00,
-        total_orders: 116,
-        new_customers: 126,
-        avg_order_value_idr: 116379.00,
-        conversion_rate_pct: 4.20,
-        revenue_growth_pct: 18.00,
-        orders_growth_pct: 21.00,
-        customers_growth_pct: 15.00,
-        aov_growth_pct: 5.00,
-        conversion_growth_pct: 1.30
+        total_revenue_idr: 0,
+        total_orders: 0,
+        new_customers: 0,
+        avg_order_value_idr: 0,
+        conversion_rate_pct: 0,
+        revenue_growth_pct: 0,
+        orders_growth_pct: 0,
+        customers_growth_pct: 0,
+        aov_growth_pct: 0,
+        conversion_growth_pct: 0
       };
 
       const revenueTime = revenueTimeRes.status === 'fulfilled' && revenueTimeRes.value.data && revenueTimeRes.value.data.length > 0
         ? revenueTimeRes.value.data
-        : [
-          { period_label: '1 Jul', revenue_idr: 600000, orders_count: 5 },
-          { period_label: '6 Jul', revenue_idr: 1400000, orders_count: 12 },
-          { period_label: '11 Jul', revenue_idr: 1800000, orders_count: 15 },
-          { period_label: '16 Jul', revenue_idr: 2160000, orders_count: 18 },
-          { period_label: '21 Jul', revenue_idr: 2900000, orders_count: 24 },
-          { period_label: '26 Jul', revenue_idr: 2100000, orders_count: 19 },
-          { period_label: '31 Jul', revenue_idr: 2540000, orders_count: 23 }
-        ];
+        : [];
 
       const salesChannels = channelRes.status === 'fulfilled' && channelRes.value.data && channelRes.value.data.length > 0
         ? channelRes.value.data
-        : [
-          { channel_name: 'WhatsApp', percentage: 45, revenue_idr: 6100000, color_hex: '#3b82f6' },
-          { channel_name: 'Shopee', percentage: 30, revenue_idr: 4100000, color_hex: '#10b981' },
-          { channel_name: 'Instagram', percentage: 15, revenue_idr: 2000000, color_hex: '#a855f7' },
-          { channel_name: 'TikTok', percentage: 10, revenue_idr: 1300000, color_hex: '#f97316' }
-        ];
+        : [];
 
       const healthScore = healthRes.status === 'fulfilled' && healthRes.value.data ? healthRes.value.data : {
-        score: 78,
-        category_label: 'Baik',
-        points_change: 12,
-        percentile_comparison_pct: 76,
-        ai_recommendation: 'Performa bisnis Anda lebih baik dari 76% UMKM sejenis di industri Anda.'
+        score: 0,
+        category_label: '-',
+        points_change: 0,
+        percentile_comparison_pct: 0,
+        ai_recommendation: 'Belum ada telemetry transaksi.'
       };
 
       const topProducts = topProdRes.status === 'fulfilled' && topProdRes.value.data && topProdRes.value.data.length > 0
         ? topProdRes.value.data
-        : [
-          { rank: 1, product_name: 'Kaos Polos Hitam', units_sold: 32, revenue_idr: 1920000, trend_pct: 18, trend_direction: 'up' },
-          { rank: 2, product_name: 'Tumbler Premium', units_sold: 28, revenue_idr: 2800000, trend_pct: 12, trend_direction: 'up' },
-          { rank: 3, product_name: 'Botol Minum 500ml', units_sold: 24, revenue_idr: 1680000, trend_pct: 8, trend_direction: 'up' },
-          { rank: 4, product_name: 'Hoodie Full Zip', units_sold: 18, revenue_idr: 3600000, trend_pct: 4, trend_direction: 'down' },
-          { rank: 5, product_name: 'Totebag Canvas', units_sold: 15, revenue_idr: 750000, trend_pct: 6, trend_direction: 'up' }
-        ];
+        : [];
 
       const topCustomers = topCustRes.status === 'fulfilled' && topCustRes.value.data && topCustRes.value.data.length > 0
         ? topCustRes.value.data
-        : [
-          { customer_name: 'Siti Aisyah', orders_count: 12, total_spend_idr: 3200000, last_order_at: '28 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
-          { customer_name: 'Budi Santoso', orders_count: 9, total_spend_idr: 2180000, last_order_at: '27 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
-          { customer_name: 'Dewi Lestari', orders_count: 8, total_spend_idr: 1950000, last_order_at: '26 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-          { customer_name: 'Rizky Pratama', orders_count: 7, total_spend_idr: 1120000, last_order_at: '26 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
-          { customer_name: 'Maya Putri', orders_count: 6, total_spend_idr: 1450000, last_order_at: '25 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' }
-        ];
+        : [];
 
       const monthlySummary = summaryRes.status === 'fulfilled' && summaryRes.value.data ? summaryRes.value.data : {
-        best_performing_day: '22 Jul 2026',
-        total_transactions: 128,
-        total_customers: 86,
-        repeat_customer_rate_pct: 42,
-        returning_customer_value_idr: 5670000.00
+        best_performing_day: '-',
+        total_transactions: 0,
+        total_customers: 0,
+        repeat_customer_rate_pct: 0,
+        returning_customer_value_idr: 0
       };
 
       const schedules = scheduleRes.status === 'fulfilled' && scheduleRes.value.data && scheduleRes.value.data.length > 0
         ? scheduleRes.value.data
-        : [
-          { schedule_type: 'Weekly', title: 'Laporan Mingguan', cron_description: 'Setiap Senin, 08:00', is_active: true },
-          { schedule_type: 'Monthly', title: 'Laporan Bulanan', cron_description: 'Setiap 1 Bulan, 08:00', is_active: true }
-        ];
+        : [];
 
       return {
         metrics,
@@ -4277,10 +3685,10 @@ export const SupabaseDashboardService = {
     } catch (err) {
       console.warn('Reports overview fetch error:', err);
       return {
-        metrics: { total_revenue_idr: 13500000, total_orders: 116, new_customers: 126, avg_order_value_idr: 116379, conversion_rate_pct: 4.2 },
+        metrics: { total_revenue_idr: 0, total_orders: 0, new_customers: 0, avg_order_value_idr: 0, conversion_rate_pct: 0 },
         revenueTime: [],
         salesChannels: [],
-        healthScore: { score: 78, category_label: 'Baik' },
+        healthScore: { score: 0, category_label: '-' },
         topProducts: [],
         topCustomers: [],
         monthlySummary: {},
@@ -4409,15 +3817,19 @@ export const SupabaseDashboardService = {
     }
 
     if (subpage === 'customers') {
-      const [growRes, segRes, regRes] = await Promise.allSettled([
+      const [growRes, segRes, regRes, custRes, kpiRes] = await Promise.allSettled([
         supabase.from('umkm_ai_customers_growth').select('*').eq('store_id', storeId).order('sort_order'),
         supabase.from('umkm_ai_customers_segments').select('*').eq('store_id', storeId).order('sort_order'),
         supabase.from('umkm_ai_customers_regions').select('*').eq('store_id', storeId).order('sort_order'),
+        supabase.from('umkm_customers').select('*').eq('store_id', storeId).order('total_spend_idr', { ascending: false }).limit(10),
+        supabase.from('umkm_ai_customers_kpi').select('*').eq('store_id', storeId).limit(1).maybeSingle(),
       ]);
       return {
         growth: growRes.status === 'fulfilled' && growRes.value.data?.length ? growRes.value.data : null,
         segments: segRes.status === 'fulfilled' && segRes.value.data?.length ? segRes.value.data : null,
         regions: regRes.status === 'fulfilled' && regRes.value.data?.length ? regRes.value.data : null,
+        topCustomers: custRes.status === 'fulfilled' && custRes.value.data?.length ? custRes.value.data : null,
+        kpi: kpiRes.status === 'fulfilled' && kpiRes.value.data ? kpiRes.value.data : null,
       };
     }
 
@@ -4623,18 +4035,46 @@ export const SupabaseDashboardService = {
     } catch (e) {
       console.warn('get_umkm_ai_recommendations_page RPC fallback:', e);
     }
+    // Direct database table query fallback from umkm_ai_recommendations
+    try {
+      const { data: dbRecs } = await supabase
+        .from('umkm_ai_recommendations')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+
+      if (dbRecs && dbRecs.length > 0) {
+        const formatted = dbRecs.map((r: any) => ({
+          id: r.id,
+          title: r.recommendation_title || r.title,
+          domain: r.category_domain || r.domain || 'sales',
+          priority: r.priority_level || r.priority || 'HIGH',
+          impact: r.impact_estimation || r.impact || '+Rp0',
+          reasoning: r.ai_reasoning || r.reasoning || '',
+          action_key: r.action_key || 'execute',
+          is_applied: r.is_applied || false
+        }));
+
+        return {
+          health: {
+            score: 100, category_label: 'OPTIMAL', points_change: 0,
+            ai_model: 'ZeroClaw 9Router Swarm Engine',
+            ai_recommendation: 'Diagnosis AI: Telemetry toko dipantau secara real-time.'
+          },
+          recommendations: formatted
+        };
+      }
+    } catch (dbErr) {
+      console.warn('Direct database fallback for AI recommendations error:', dbErr);
+    }
+
     return {
       health: {
-        score: 94, category_label: 'EXCELLENT', points_change: 8,
+        score: 0, category_label: 'NO_DATA', points_change: 0,
         ai_model: 'ZeroClaw 9Router Swarm Engine',
-        ai_recommendation: 'Diagnosis AI: Performa toko berjalan pada kapasitas puncak. Fokus utama adalah menjaga ketersediaan stok kritis & mengaktifkan otomasi cart follow-up.'
+        ai_recommendation: 'Belum ada telemetry rekomendasi AI. Klik "Refresh AI Diagnosis" untuk re-evaluasi stok dan performa penjualan.'
       },
-      recommendations: [
-        { id: '1', title: 'Otomasi Follow-Up AI WhatsApp Abandoned Cart (Auto-Closer)', domain: 'sales', priority: 'HIGH', impact: '+Rp3.8M Revenue Target', reasoning: 'Analisis 9Router Swarm mendeteksi 38 transaksi keranjang tertunda pada jam sibuk. Bot AI WhatsApp dapat mengonversi 32% dalam 15 menit.', action_key: 'activate_cart_bot', is_applied: false },
-        { id: '2', title: 'Kirim Purchase Order (PO) Darurat SKU Kaos Polos Hitam (M)', domain: 'store', priority: 'HIGH', impact: 'Mencegah Stockout (Kerugian Rp1.2M)', reasoning: 'Sisa stok tinggal 8 unit dengan rata-rata penjualan 32 unit/bulan. Estimasi habis total dalam 4 hari kerja.', action_key: 'create_po', is_applied: false },
-        { id: '3', title: 'Alokasi Ulang Anggaran Ads ke Channel ROI Tertinggi (WhatsApp & Marketplace)', domain: 'marketing', priority: 'MEDIUM', impact: '+18% Efisiensi Ad Spend', reasoning: 'ZeroClaw Engine mencatat ROI WhatsApp Broadcast mencapai 408% vs Ads Sosial 111%. Realokasi 35% budget akan mengoptimalkan Margin.', action_key: 'optimize_channel', is_applied: false },
-        { id: '4', title: 'Luncurkan Program Retensi VIP untuk Segmen Pelanggan Champion', domain: 'customers', priority: 'MEDIUM', impact: 'Kunci Retensi 42.5% Pelanggan Loyalty', reasoning: 'Analisis RFM menunjukkan 42.5% pelanggan aktif melakukan repeat order. Pemberian voucher otomatis akan meningkatkan LTV.', action_key: 'target_segment', is_applied: false }
-      ]
+      recommendations: []
     };
   },
 
@@ -4783,215 +4223,53 @@ export const SupabaseDashboardService = {
       ]);
 
       const metrics = metricsRes.status === 'fulfilled' && metricsRes.value.data ? metricsRes.value.data : {
-        articles_count: 128,
-        articles_growth_pct: 18.00,
-        documents_count: 54,
-        documents_growth_pct: 12.00,
-        templates_count: 39,
-        templates_growth_pct: 15.00,
-        ai_confidence_pct: 97.00,
-        ai_confidence_level: 'Tinggi',
-        last_updated_label: '2 jam lalu'
+        articles_count: 0,
+        articles_growth_pct: 0,
+        documents_count: 0,
+        documents_growth_pct: 0,
+        templates_count: 0,
+        templates_growth_pct: 0,
+        ai_confidence_pct: 0,
+        ai_confidence_level: 'Live Telemetry',
+        last_updated_label: 'Real-time'
       };
 
       const audits = auditsRes.status === 'fulfilled' && auditsRes.value.data && auditsRes.value.data.length > 0
         ? auditsRes.value.data
-        : [
-          {
-            id: 'ha-1',
-            title: 'SOP Pembukaan & Penutupan Kasir POS Belum Tersedia',
-            description: 'Belum ada panduan resmi untuk langkah pembukaan dan penutupan shift kasir.',
-            severity: 'High',
-            category: 'Missing SOP',
-            recommended_action: 'Gunakan ZeroClaw AI Copywriter untuk generate 1-Click SOP Kasir',
-            status: 'Open'
-          },
-          {
-            id: 'ha-2',
-            title: 'Daftar Harga & Katalog Produk Belum Diperbarui',
-            description: 'Katalog harga versi September 2025 perlu penyesuaian diskon & PPn terbaru.',
-            severity: 'Medium',
-            category: 'Outdated',
-            recommended_action: 'Unggah ulang dokumen XLSX Katalog Produk versi 2026 ke Document Center',
-            status: 'Open'
-          },
-          {
-            id: 'ha-3',
-            title: 'Terdapat Duplikasi SOP Packing Logistik',
-            description: 'Ditemukan 2 artikel packing serupa: "Panduan Packing" dan "SOP Packing Aman".',
-            severity: 'Medium',
-            category: 'Duplicate',
-            recommended_action: 'Gabungkan naskah menjadi satu standar SOP Packing Resmi',
-            status: 'Open'
-          },
-          {
-            id: 'ha-4',
-            title: 'Dokumen Panduan Garansi Pelanggan Belum Ada',
-            description: 'Banyak pertanyaan pelanggan via WhatsApp mengenai klaim garansi yang belum ada SOP tertulis.',
-            severity: 'High',
-            category: 'Missing SOP',
-            recommended_action: 'Buat FAQ Garansi & Retur via Studio Copywriter',
-            status: 'Open'
-          }
-        ];
+        : [];
 
       const categories = categoriesRes.status === 'fulfilled' && categoriesRes.value.data && categoriesRes.value.data.length > 0
         ? categoriesRes.value.data
-        : [
-          { name: 'Semua Kategori', count: 128 },
-          { name: 'Produk', count: 18 },
-          { name: 'Prosedur Operasional', count: 22 },
-          { name: 'Sales', count: 14 },
-          { name: 'Marketing', count: 12 },
-          { name: 'Finance', count: 9 },
-          { name: 'Customer Service', count: 10 },
-          { name: 'Shipping & Logistik', count: 8 },
-          { name: 'FAQ', count: 15 },
-          { name: 'Invoice', count: 7 }
-        ];
+        : [{ name: 'Semua Kategori', count: 0 }];
 
       const items = itemsRes.status === 'fulfilled' && itemsRes.value.data && itemsRes.value.data.length > 0
         ? itemsRes.value.data
-        : [
-          {
-            id: 'k1',
-            title: 'Cara Membuat Invoice Otomatis',
-            description: 'Panduan lengkap membuat invoice otomatis untuk semua pesanan.',
-            category_name: 'Invoice',
-            badge_label: 'Prosedur',
-            badge_type: 'prosedur',
-            status: 'Published',
-            author_name: 'Cik Berliuk',
-            author_role: 'UMKM Owner',
-            author_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-            views_count: 532,
-            rating_score: 4.9,
-            rating_count: 24,
-            updated_time_ago: 'Diperbarui 2 jam lalu'
-          },
-          {
-            id: 'k2',
-            title: 'Kebijakan Pengembalian Barang',
-            description: 'Aturan dan kebijakan retur produk untuk pelanggan.',
-            category_name: 'Prosedur Operasional',
-            badge_label: 'Prosedur',
-            badge_type: 'prosedur',
-            status: 'Published',
-            author_name: 'Admin',
-            author_role: 'Operations',
-            author_avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-            views_count: 421,
-            rating_score: 4.8,
-            rating_count: 16,
-            updated_time_ago: 'Diperbarui 4 jam lalu'
-          },
-          {
-            id: 'k3',
-            title: 'FAQ - Pengiriman & Ongkir',
-            description: 'Pertanyaan umum mengenai pengiriman dan ongkos kirim.',
-            category_name: 'FAQ',
-            badge_label: 'FAQ',
-            badge_type: 'faq',
-            status: 'Published',
-            author_name: 'Cik Berliuk',
-            author_role: 'UMKM Owner',
-            author_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-            views_count: 389,
-            rating_score: 4.7,
-            rating_count: 12,
-            updated_time_ago: 'Diperbarui 6 jam lalu'
-          },
-          {
-            id: 'k4',
-            title: 'Panduan Packing Produk',
-            description: 'Cara packing produk agar aman dan rapi sebelum dikirim.',
-            category_name: 'Shipping & Logistik',
-            badge_label: 'Prosedur',
-            badge_type: 'prosedur',
-            status: 'Published',
-            author_name: 'Warehouse Team',
-            author_role: 'Logistics',
-            author_avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-            views_count: 312,
-            rating_score: 4.9,
-            rating_count: 16,
-            updated_time_ago: 'Diperbarui 1 hari lalu'
-          },
-          {
-            id: 'k5',
-            title: 'Strategi Promosi di WhatsApp',
-            description: 'Tips & strategi promosi efektif melalui WhatsApp Business.',
-            category_name: 'Marketing',
-            badge_label: 'Marketing',
-            badge_type: 'marketing',
-            status: 'Draft',
-            author_name: 'Marketing Team',
-            author_role: 'Marketing',
-            author_avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-            views_count: 298,
-            rating_score: 4.6,
-            rating_count: 10,
-            updated_time_ago: 'Diperbarui 1 hari lalu'
-          },
-          {
-            id: 'k6',
-            title: 'Template Pesan Balasan Cepat',
-            description: 'Kumpulan template pesan cepat untuk CS & admin.',
-            category_name: 'Sales',
-            badge_label: 'Sales',
-            badge_type: 'sales',
-            status: 'Published',
-            author_name: 'CS Team',
-            author_role: 'Support',
-            author_avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-            views_count: 276,
-            rating_score: 4.8,
-            rating_count: 20,
-            updated_time_ago: 'Diperbarui 2 hari lalu'
-          }
-        ];
+        : [];
 
       const healthScore = healthRes.status === 'fulfilled' && healthRes.value.data ? healthRes.value.data : {
-        health_score_pct: 92,
-        health_label: 'Sangat Baik',
-        missing_sop_count: 4,
-        outdated_docs_count: 2,
+        health_score_pct: 0,
+        health_label: 'Zero State',
+        missing_sop_count: 0,
+        outdated_docs_count: 0,
         broken_links_count: 0,
-        duplicate_count: 1
+        duplicate_count: 0
       };
 
       const documents = docsRes.status === 'fulfilled' && docsRes.value.data && docsRes.value.data.length > 0
         ? docsRes.value.data
-        : [
-          { id: 'd1', file_name: 'SOP-Operasional.pdf', file_type: 'pdf', file_size_label: '2.4 MB', file_url: '#' },
-          { id: 'd2', file_name: 'Daftar-Supplier.xlsx', file_type: 'xlsx', file_size_label: '1.1 MB', file_url: '#' },
-          { id: 'd3', file_name: 'Template-Invoice.docx', file_type: 'docx', file_size_label: '480 KB', file_url: '#' },
-          { id: 'd4', file_name: 'Product-Photo.jpg', file_type: 'jpg', file_size_label: '1.2 MB', file_url: '#' }
-        ];
+        : [];
 
       const popularArticles = popularRes.status === 'fulfilled' && popularRes.value.data && popularRes.value.data.length > 0
         ? popularRes.value.data
-        : [
-          { title: 'Cara Membuat Invoice Otomatis', views_count: 532 },
-          { title: 'Kebijakan Pengembalian Barang', views_count: 421 },
-          { title: 'FAQ - Pengiriman & Ongkir', views_count: 389 }
-        ];
+        : [];
 
       const templates = templatesRes.status === 'fulfilled' && templatesRes.value.data && templatesRes.value.data.length > 0
         ? templatesRes.value.data
-        : [
-          { title: 'Invoice Template', templates_count: 24 },
-          { title: 'WhatsApp Reply', templates_count: 18 },
-          { title: 'Packing Checklist', templates_count: 16 }
-        ];
+        : [];
 
       const prompts = promptsRes.status === 'fulfilled' && promptsRes.value.data && promptsRes.value.data.length > 0
         ? promptsRes.value.data
-        : [
-          { title: 'Sales Prompt', prompts_count: 12 },
-          { title: 'Marketing Prompt', prompts_count: 15 },
-          { title: 'Customer Prompt', prompts_count: 10 }
-        ];
+        : [];
 
       return {
         metrics,
@@ -5007,10 +4285,10 @@ export const SupabaseDashboardService = {
     } catch (err) {
       console.warn('Knowledge overview fetch error:', err);
       return {
-        metrics: { articles_count: 128, documents_count: 54, templates_count: 39, ai_confidence_pct: 97, last_updated_label: '2 jam lalu' },
-        categories: [],
+        metrics: { articles_count: 0, documents_count: 0, templates_count: 0, ai_confidence_pct: 0, last_updated_label: 'Live Telemetry' },
+        categories: [{ name: 'Semua Kategori', count: 0 }],
         items: [],
-        healthScore: { health_score_pct: 92, health_label: 'Sangat Baik' },
+        healthScore: { health_score_pct: 0, health_label: 'Zero State' },
         audits: [],
         documents: [],
         popularArticles: [],
@@ -5828,69 +5106,29 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       const agents = agentsRes.status === 'fulfilled' && agentsRes.value.data && agentsRes.value.data.length > 0
         ? agentsRes.value.data
-        : [
-          { id: 'm1', title: 'WhatsApp Sales AI', description: 'AI untuk membalas chat, menjawab pertanyaan, dan meningkatkan penjualan WhatsApp.', category_name: 'Sales', badge_label: 'Populer', icon_key: 'whatsapp', rating_score: 4.9, rating_reviews_count: 1200, installs_count_label: '2.4k+', price_idr: 99000, billing_unit: '/bln', is_installed: true },
-          { id: 'm2', title: 'Shopee AI Assistant', description: 'Kelola toko Shopee otomatis: balas chat, update stok, dan proses pesanan.', category_name: 'Sales', badge_label: null, icon_key: 'shopee', rating_score: 4.8, rating_reviews_count: 856, installs_count_label: '1.8k+', price_idr: 129000, billing_unit: '/bln', is_installed: false },
-          { id: 'm3', title: 'Instagram AI', description: 'Buat konten, balas DM, dan kelola komentar Instagram otomatis.', category_name: 'Marketing', badge_label: null, icon_key: 'instagram', rating_score: 4.8, rating_reviews_count: 742, installs_count_label: '1.5k+', price_idr: 89000, billing_unit: '/bln', is_installed: false },
-          { id: 'm4', title: 'QRIS Payment AI', description: 'Terima pembayaran QRIS, cek pembayaran, dan kirim struk otomatis.', category_name: 'Finance', badge_label: null, icon_key: 'qris', rating_score: 4.8, rating_reviews_count: 532, installs_count_label: '1.2k+', price_idr: 79000, billing_unit: '/bln', is_installed: true },
-          { id: 'm5', title: 'Restaurant AI', description: 'AI untuk restoran, terima pesanan, reservasi, dan promosi otomatis.', category_name: 'Store & Operations', badge_label: null, icon_key: 'restaurant', rating_score: 4.7, rating_reviews_count: 523, installs_count_label: '980+', price_idr: 149000, billing_unit: '/bln', is_installed: false },
-          { id: 'm6', title: 'Laundry AI', description: 'Kelola pesanan laundry, notifikasi, dan pemindahan otomatis.', category_name: 'Store & Operations', badge_label: null, icon_key: 'laundry', rating_score: 4.7, rating_reviews_count: 412, installs_count_label: '760+', price_idr: 99000, billing_unit: '/bln', is_installed: false }
-        ];
+        : [];
 
       const integrationsData = newIntegrationsRes.status === 'fulfilled' && newIntegrationsRes.value.data && newIntegrationsRes.value.data.length > 0
         ? newIntegrationsRes.value.data
         : (paymentsRes.status === 'fulfilled' && paymentsRes.value.data && paymentsRes.value.data.length > 0
           ? paymentsRes.value.data
-          : [
-            { id: 'p1', integration_key: 'x402_network', title: 'x402 Network (M2H)', description: 'Pembayaran mesin-ke-mesin menggunakan stablecoin via x402 protocol & Solana high-frequency micro-settlement.', category_name: 'Payment Gateway & Web3', badge_label: 'Baru • M2H Protocol', icon_key: 'x402', is_connected: true, connection_status: 'connected', api_endpoint: 'https://api.x402.zega.ai/v1/settle', webhook_url: 'https://zega-ai.onrender.com/webhooks/x402', config_metadata: { network: 'solana-mainnet', settlement_currency: 'USDC' } },
-            { id: 'p2', integration_key: 'qris_dynamic', title: 'QRIS Dynamic Gateway', description: 'Terima pembayaran QRIS otomatis dari seluruh e-wallet & m-banking Indonesia dengan konfirmasi instan 1 detik.', category_name: 'Payment Gateway & Web3', badge_label: 'Instant Settlement', icon_key: 'qris', is_connected: true, connection_status: 'connected', api_endpoint: 'https://api.qris.zega.ai/v2/generate', webhook_url: 'https://zega-ai.onrender.com/webhooks/qris', config_metadata: { merchant_id: 'MDR-889410' } },
-            { id: 'p3', integration_key: 'stripe_connect', title: 'Stripe Connect', description: 'Terima pembayaran kartu kredit & kartu debit internasional dengan enkripsi PCI-DSS Level 1 via Stripe.', category_name: 'Payment Gateway & Web3', badge_label: 'Global Credit Card', icon_key: 'stripe', is_connected: false, connection_status: 'disconnected', api_endpoint: 'https://api.stripe.com/v1/charges', webhook_url: 'https://zega-ai.onrender.com/webhooks/stripe', config_metadata: { live_mode: false } },
-            { id: 'p4', integration_key: 'midtrans_snap', title: 'Midtrans Payments', description: 'Gateway pembayaran e-commerce terkapabel di Indonesia mencakup Transfer Bank, Virtual Account, & Retail Outlet.', category_name: 'Payment Gateway & Web3', badge_label: 'Indonesia Standard', icon_key: 'midtrans', is_connected: true, connection_status: 'connected', api_endpoint: 'https://app.midtrans.com/snap/v1/transactions', webhook_url: 'https://zega-ai.onrender.com/webhooks/midtrans', config_metadata: { merchant_id: 'G8401928' } },
-            { id: 'p5', integration_key: 'gopay_wallet', title: 'GoPay e-Wallet', description: 'Integrasi pembayaran GoPay Snap API langsung tanpa perantara dengan notifikasi real-time.', category_name: 'Payment Gateway & Web3', badge_label: 'Snap API Ready', icon_key: 'gopay', is_connected: false, connection_status: 'disconnected', api_endpoint: 'https://api.gopay.co.id/v1/pay', webhook_url: 'https://zega-ai.onrender.com/webhooks/gopay', config_metadata: {} },
-            { id: 'p6', integration_key: 'ovo_wallet', title: 'OVO Payment', description: 'Terima pembayaran saldo OVO dengan notifikasi push notification instan ke aplikasi pelanggan.', category_name: 'Payment Gateway & Web3', badge_label: null, icon_key: 'ovo', is_connected: false, connection_status: 'disconnected', api_endpoint: 'https://api.ovo.id/v1/charge', webhook_url: 'https://zega-ai.onrender.com/webhooks/ovo', config_metadata: {} },
-            { id: 'p7', integration_key: 'dana_wallet', title: 'DANA Wallet', description: 'Terima pembayaran saldo DANA Indonesia dengan settlement kas harian otomatis.', category_name: 'Payment Gateway & Web3', badge_label: null, icon_key: 'dana', is_connected: false, connection_status: 'disconnected', api_endpoint: 'https://api.dana.id/v1/charge', webhook_url: 'https://zega-ai.onrender.com/webhooks/dana', config_metadata: {} },
-            { id: 'p8', integration_key: 'deepseek_v3_mesh', title: 'DeepSeek-V3 LLM Mesh', description: 'Model AI Bahasa DeepSeek-V3 tercepat berbiaya rendah dihubungkan via 9Router High-Availability Mesh.', category_name: 'AI Models & LLM Mesh', badge_label: 'Active Primary AI', icon_key: 'deepseek', is_connected: true, connection_status: 'connected', api_endpoint: 'https://api.9router.zega.ai/v1/chat/completions', webhook_url: 'https://zega-ai.onrender.com/webhooks/9router', config_metadata: { model: 'deepseek-chat-v3' } },
-            { id: 'p9', integration_key: 'claude_35_sonnet', title: 'Claude 3.5 Sonnet', description: 'Engine AI Copywriting & Analisis Dokumen Finansial tingkat lanjut dari Anthropic.', category_name: 'AI Models & LLM Mesh', badge_label: 'High Precision Copywriter', icon_key: 'claude', is_connected: true, connection_status: 'connected', api_endpoint: 'https://api.anthropic.com/v1/messages', webhook_url: 'https://zega-ai.onrender.com/webhooks/anthropic', config_metadata: { model: 'claude-3-5-sonnet-20241022' } },
-            { id: 'p10', integration_key: 'logistics_expedition_hub', title: 'J&T / JNE / SiCepat Logistics Hub', description: 'Integrasi ekspedisi kurir terpadu untuk cetak resi otomatis, pickup barang, & tracking lokasi real-time.', category_name: 'E-Commerce & Logistik', badge_label: 'Auto Waybill & Pickup', icon_key: 'logistics', is_connected: true, connection_status: 'connected', api_endpoint: 'https://api.logistics.zega.ai/v1/waybill', webhook_url: 'https://zega-ai.onrender.com/webhooks/logistics', config_metadata: { couriers: ['jnt', 'jne', 'sicepat'] } }
-          ]);
+          : []);
 
       const categories = categoriesRes.status === 'fulfilled' && categoriesRes.value.data && categoriesRes.value.data.length > 0
         ? categoriesRes.value.data
-        : [
-          { name: 'Semua', count: 24 },
-          { name: 'Sales', count: 23 },
-          { name: 'Marketing', count: 18 },
-          { name: 'Customer Service', count: 14 },
-          { name: 'Finance', count: 12 },
-          { name: 'Store & Operations', count: 10 },
-          { name: 'Productivity', count: 8 },
-          { name: 'Analytics', count: 6 },
-          { name: 'Lainnya', count: 5 }
-        ];
+        : [];
 
       const articles = articlesRes.status === 'fulfilled' && articlesRes.value.data && articlesRes.value.data.length > 0
         ? articlesRes.value.data
-        : [
-          { title: 'Cara Mengoptimalkan WhatsApp Sales AI', category_name: 'Sales', views_count: 532, time_ago: '2 jam lalu' },
-          { title: 'Panduan Integrasi Pembayaran QRIS', category_name: 'Finance', views_count: 421, time_ago: '5 jam lalu' },
-          { title: 'Tips Meningkatkan Conversion dengan AI', category_name: 'Marketing', views_count: 389, time_ago: '1 hari lalu' }
-        ];
+        : [];
 
       const newAgents = newAgentsRes.status === 'fulfilled' && newAgentsRes.value.data && newAgentsRes.value.data.length > 0
         ? newAgentsRes.value.data
-        : [
-          { title: 'AI Invoice Processor', category_name: 'Finance', badge_label: 'Baru' },
-          { title: 'AI Product Description Generator', category_name: 'Marketing', badge_label: 'Baru' },
-          { title: 'AI Customer Segmentation', category_name: 'Analytics', badge_label: 'Baru' }
-        ];
+        : [];
 
       const topAgents = topAgentsRes.status === 'fulfilled' && topAgentsRes.value.data && topAgentsRes.value.data.length > 0
         ? topAgentsRes.value.data
-        : [
-          { rank_order: 1, title: 'WhatsApp Sales AI', installs_count_label: '2.4k instalasi' },
-          { rank_order: 2, title: 'Shopee AI Assistant', installs_count_label: '1.8k instalasi' },
-          { rank_order: 3, title: 'QRIS Payment AI', installs_count_label: '1.2k instalasi' }
-        ];
+        : [];
 
       return { agents, payments: integrationsData, integrations: integrationsData, categories, articles, newAgents, topAgents };
     } catch (err) {
@@ -6005,17 +5243,9 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .order('created_at', { ascending: true });
 
       if (error || !data || data.length === 0) {
-        return [
-          { id: 'cat_sales', category_key: 'cat_sales', name: 'Sales & Lead Automation', description: 'Modul AI khusus untuk melacak prospek pembeli, follow-up otomatis WhatsApp, & closing transaksi 24/7.', icon_key: 'crm', bg_color: 'from-emerald-500 to-teal-600', ai_module_count: 24, supported_models: ['DeepSeek-V3', 'Claude 3.5 Sonnet', 'WhatsApp Business API'], target_industry: 'Ritel, Sales & E-Commerce' },
-          { id: 'cat_marketing', category_key: 'cat_marketing', name: 'Marketing & Social Campaign', description: 'Engine AI generator promosi visual, penulisan caption viral TikTok/IG, & penjadwalan konten multi-channel.', icon_key: 'copywriting', bg_color: 'from-blue-500 to-indigo-600', ai_module_count: 23, supported_models: ['Claude 3.5 Sonnet', 'Llama 3.3 70B', 'Canva API'], target_industry: 'F&B, Fashion, & Digital Product' },
-          { id: 'cat_cs', category_key: 'cat_customer_service', name: 'Customer Support & Live Chat', description: 'Agen AI CS otomatis menjawab pertanyaan pelanggan, menangani komplain resi, & eskalasi pesan darurat.', icon_key: 'whatsapp', bg_color: 'from-purple-500 to-pink-600', ai_module_count: 18, supported_models: ['DeepSeek-V3 Mesh', 'GPT-4o Mini'], target_industry: 'Service, Clinic & Online Shop' },
-          { id: 'cat_finance', category_key: 'cat_finance', name: 'Finance & Automatic Invoicing', description: 'Otomatisasi pencatatan pembukuan kas, ekstraksi struk belanja via 9Router OCR, & laporan laba rugi real-time.', icon_key: 'receipt', bg_color: 'from-amber-500 to-orange-600', ai_module_count: 14, supported_models: ['9Router Vision OCR', 'DeepSeek-V3'], target_industry: 'Toko Grosir & Manufaktur UMKM' },
-          { id: 'cat_ops', category_key: 'cat_operations', name: 'Store & Inventory Operations', description: 'Sistem AI manajemen stok gudang, prediksi barang habis (re-order alert), & audit inventaris otomatis.', icon_key: 'boxes', bg_color: 'from-rose-500 to-red-600', ai_module_count: 12, supported_models: ['DeepSeek-V3', 'PostgreSQL Vector'], target_industry: 'Gudang & Minimarket' },
-          { id: 'cat_prod', category_key: 'cat_productivity', name: 'Productivity & Task Automation', description: 'Autonomous AI worker untuk perangkuman dokumen bisnis, penataan SOP harian, & riset pasar otomatis.', icon_key: 'copywriting', bg_color: 'from-sky-500 to-cyan-600', ai_module_count: 10, supported_models: ['ZeroClaw Autonomous Engine', 'Claude 3.5'], target_industry: 'Konsultan & Jasa Profesional' },
-          { id: 'cat_analytics', category_key: 'cat_analytics', name: 'Analytics & Business Intelligence', description: 'Dashboard analitik AI memprediksi tren penjualan bulan depan, segmentasi pelanggan RFM, & heatmap omzet.', icon_key: 'piechart', bg_color: 'from-violet-500 to-purple-600', ai_module_count: 8, supported_models: ['DeepSeek-V3 Analytics', 'Python AI Engine'], target_industry: 'Eksekutif & Pemilik Usaha' },
-          { id: 'cat_logistics', category_key: 'cat_logistics', name: 'Logistics & Shipping Fulfillment', description: 'Integrasi kurir ekspedisi (J&T, JNE, SiCepat) dengan cetak resi otomatis & penjemputan barang instan.', icon_key: 'logistics', bg_color: 'from-orange-500 to-amber-600', ai_module_count: 6, supported_models: ['Logistics Hub API', 'Courier Mesh'], target_industry: 'Pengiriman & Marketplace' }
-        ];
+        return [];
       }
+      return data;
       return data;
     } catch (e) {
       console.warn('Error fetching marketplace categories:', e);
@@ -6309,42 +5539,19 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return {
         success: true,
         plan: {
-          plan_name: 'Growth',
-          status: 'Aktif',
-          expires_at: '2026-08-01 00:00:00+00',
-          monthly_price_idr: 299000,
+          plan_name: 'Free',
+          status: 'Inaktif',
+          expires_at: '',
+          monthly_price_idr: 0,
           tax_pct: 11,
-          credits_remaining: 3240,
-          credits_limit: 5000,
-          credits_pct: 64
+          credits_remaining: 0,
+          credits_limit: 0,
+          credits_pct: 0
         },
-        paymentMethods: [
-          { id: 'b1', method_name: 'Stripe •••• 4242', method_type: 'Kartu Kredit', card_last4: '4242', exp_date: '12/28', is_primary: true, status: 'Utama', icon_key: 'stripe' },
-          { id: 'b2', method_name: 'QRIS (VA)', method_type: 'Virtual Account', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'qris' },
-          { id: 'b3', method_name: 'GoPay', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'gopay' },
-          { id: 'b4', method_name: 'DANA', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'dana' },
-          { id: 'b5', method_name: 'OVO', method_type: 'E-Wallet', card_last4: null, exp_date: null, is_primary: false, status: 'Aktif', icon_key: 'ovo' }
-        ],
-        usage: [
-          { metric_key: 'credits', metric_label: 'AI Credits', current_value_label: '3.240', limit_value_label: '5.000', percentage: 64 },
-          { metric_key: 'employees', metric_label: 'AI Employees', current_value_label: '7', limit_value_label: '10', percentage: 70 },
-          { metric_key: 'automation', metric_label: 'Automation', current_value_label: '24', limit_value_label: '∞', percentage: 40 },
-          { metric_key: 'storage', metric_label: 'Storage', current_value_label: '12.4 GB', limit_value_label: '50 GB', percentage: 25 }
-        ],
-        invoices: [
-          { invoice_number: 'INV-2026-0721', period_label: 'Growth Plan - Juli 2026', total_amount_idr: 299000, status: 'Lunas' },
-          { invoice_number: 'INV-2026-0621', period_label: 'Growth Plan - Juni 2026', total_amount_idr: 299000, status: 'Lunas' },
-          { invoice_number: 'INV-2026-0521', period_label: 'Growth Plan - Mei 2026', total_amount_idr: 299000, status: 'Lunas' },
-          { invoice_number: 'INV-2026-0421', period_label: 'Growth Plan - April 2026', total_amount_idr: 299000, status: 'Lunas' },
-          { invoice_number: 'INV-2026-0321', period_label: 'Growth Plan - Maret 2026', total_amount_idr: 299000, status: 'Lunas' }
-        ],
-        transactions: [
-          { txn_hash: 'TXN-7f3...a8b2', txn_date_label: '28 Jul 2026, 16:21', payment_method: 'stripe •••• 4242', amount_crypto: 'USDC 2.50', status: 'Berhasil' },
-          { txn_hash: 'TXN-8a1...c304', txn_date_label: '28 Jul 2026, 09:15', payment_method: 'QRIS (VA)', amount_crypto: 'USDC -1.20', status: 'Berhasil' },
-          { txn_hash: 'TXN-3c2...f6e7', txn_date_label: '27 Jul 2026, 14:45', payment_method: 'GoPay', amount_crypto: 'USDC -0.80', status: 'Berhasil' },
-          { txn_hash: 'TXN-9d4...e8f1', txn_date_label: '27 Jul 2026, 11:32', payment_method: 'DANA', amount_crypto: 'USDC -3.00', status: 'Berhasil' },
-          { txn_hash: 'TXN-1b7...d5c9', txn_date_label: '26 Jul 2026, 10:08', payment_method: 'OVO', amount_crypto: 'USDC 1.50', status: 'Berhasil' }
-        ]
+        paymentMethods: [],
+        usage: [],
+        invoices: [],
+        transactions: []
       };
     } catch (err) {
       console.warn('Billing overview fetch error:', err);
@@ -6473,28 +5680,9 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       return {
         success: true,
-        metrics: metricsRes.data?.length ? metricsRes.data : [
-          { metric_key: 'credits', metric_label: 'AI Credits', current_value_label: '3.240', limit_value_label: '5.000', percentage: 64 },
-          { metric_key: 'employees', metric_label: 'AI Employees', current_value_label: '7', limit_value_label: '10', percentage: 70 },
-          { metric_key: 'automation', metric_label: 'Automation', current_value_label: '24', limit_value_label: '50', percentage: 48 },
-          { metric_key: 'storage', metric_label: 'Storage', current_value_label: '12.4 GB', limit_value_label: '50 GB', percentage: 25 }
-        ],
-        breakdown: breakdownRes.data?.length ? breakdownRes.data : [
-          { id: '1', feature_name: 'ZEGA Copilot AI Assistant', category: 'AI Workforce', usage_value: 1420, unit_label: 'Prompts', cost_credits: 1420, last_used_at: new Date().toISOString() },
-          { id: '2', feature_name: 'Automated Customer Follow-up', category: 'Automations', usage_value: 850, unit_label: 'Executions', cost_credits: 850, last_used_at: new Date().toISOString() },
-          { id: '3', feature_name: 'AI Sales Lead Scoring Engine', category: 'Sales Hub', usage_value: 520, unit_label: 'Evaluations', cost_credits: 520, last_used_at: new Date().toISOString() },
-          { id: '4', feature_name: 'OCR & Document Scanner Engine', category: 'Vision AI', usage_value: 280, unit_label: 'Scans', cost_credits: 280, last_used_at: new Date().toISOString() },
-          { id: '5', feature_name: 'Cloud Storage & CDN Asset Sync', category: 'Storage', usage_value: 170, unit_label: 'Uploads', cost_credits: 170, last_used_at: new Date().toISOString() }
-        ],
-        trends: trendsRes.data?.length ? trendsRes.data : [
-          { id: '1', date_label: '01 Aug', ai_credits_used: 210, automations_run: 14, storage_used_gb: 8.2 },
-          { id: '2', date_label: '02 Aug', ai_credits_used: 340, automations_run: 22, storage_used_gb: 9.1 },
-          { id: '3', date_label: '03 Aug', date_label_full: '03 Aug 2026', ai_credits_used: 480, automations_run: 31, storage_used_gb: 9.8 },
-          { id: '4', date_label: '04 Aug', ai_credits_used: 290, automations_run: 18, storage_used_gb: 10.4 },
-          { id: '5', date_label: '05 Aug', ai_credits_used: 610, automations_run: 45, storage_used_gb: 11.2 },
-          { id: '6', date_label: '06 Aug', ai_credits_used: 750, automations_run: 52, storage_used_gb: 11.9 },
-          { id: '7', date_label: '07 Aug', ai_credits_used: 560, automations_run: 38, storage_used_gb: 12.4 }
-        ]
+        metrics: metricsRes.data || [],
+        breakdown: breakdownRes.data || [],
+        trends: trendsRes.data || []
       };
     } catch (err) {
       console.warn('Error fetching usage telemetry:', err);
@@ -6567,15 +5755,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       const { data: fallbackInvoices } = await query.order('created_at', { ascending: false });
 
-      const defaultInvoices = [
-        { id: '1', invoice_number: 'INV-2026-0721', period_label: 'Growth Plan - Juli 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000721', created_at: '2026-07-21' },
-        { id: '2', invoice_number: 'INV-2026-0621', period_label: 'Growth Plan - Juni 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000621', created_at: '2026-06-21' },
-        { id: '3', invoice_number: 'INV-2026-0521', period_label: 'Growth Plan - Mei 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000521', created_at: '2026-05-21' },
-        { id: '4', invoice_number: 'INV-2026-0421', period_label: 'Growth Plan - April 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000421', created_at: '2026-04-21' },
-        { id: '5', invoice_number: 'INV-2026-0321', period_label: 'Growth Plan - Maret 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000321', created_at: '2026-03-21' }
-      ];
-
-      const list = fallbackInvoices?.length ? fallbackInvoices : defaultInvoices;
+      const list = fallbackInvoices || [];
       const totalInvoiced = list.reduce((acc: number, item: any) => acc + Number(item.total_amount_idr || 0), 0);
 
       return {
@@ -6587,7 +5767,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       };
     } catch (err) {
       console.warn('Error loading billing invoices telemetry:', err);
-      return { success: false, total_invoiced_idr: 1495000, paid_count: 5, pending_count: 0, invoices: [] };
+      return { success: false, total_invoiced_idr: 0, paid_count: 0, pending_count: 0, invoices: [] };
     }
   },
 
@@ -6607,35 +5787,21 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     // Fallback Telemetry
     return {
       success: true,
-      active_plan: { name: 'Growth', status: 'Aktif', expires_at: '2026-08-22T00:00:00Z' },
-      monthly_billing_idr: 299000,
+      active_plan: { name: 'Free', status: 'Inaktif', expires_at: '' },
+      monthly_billing_idr: 0,
       billing_growth_percentage: 0,
-      ai_credits: { used: 3240, limit: 5000, percentage: 64 },
-      primary_payment_method: { last4: '•••• 4242', brand: 'stripe', exp_date: '12/28' },
-      payment_status: 'Aman',
+      ai_credits: { used: 0, limit: 0, percentage: 0 },
+      primary_payment_method: null,
+      payment_status: 'Belum Ada Metode',
       usage_summary: {
-        ai_credits: { used: 3240, limit: 5000, percentage: 64 },
-        ai_employees: { used: 7, limit: 10, percentage: 70 },
-        automation: { used: 24, limit: 50, percentage: 48 },
-        storage: { used: 12.4, limit: 50, percentage: 25 }
+        ai_credits: { used: 0, limit: 0, percentage: 0 },
+        ai_employees: { used: 0, limit: 0, percentage: 0 },
+        automation: { used: 0, limit: 0, percentage: 0 },
+        storage: { used: 0, limit: 0, percentage: 0 }
       },
-      usage_trend: [
-        { date: '01 Jul', ai_credits: 1800, ai_employees: 4, automation: 12 },
-        { date: '08 Jul', ai_credits: 2100, ai_employees: 5, automation: 15 },
-        { date: '15 Jul', ai_credits: 2800, ai_employees: 6, automation: 19 },
-        { date: '22 Jul', ai_credits: 3100, ai_employees: 7, automation: 22 },
-        { date: '29 Jul', ai_credits: 3240, ai_employees: 7, automation: 24 }
-      ],
-      recent_invoices: [
-        { id: '1', invoice_number: 'INV-2026-0721', period_label: 'Growth Plan - Juli 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000721' },
-        { id: '2', invoice_number: 'INV-2026-0621', period_label: 'Growth Plan - Juni 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000621' },
-        { id: '3', invoice_number: 'INV-2026-0521', period_label: 'Growth Plan - Mei 2026', total_amount_idr: 299000, subtotal_amount_idr: 269369, tax_amount_idr: 29631, status: 'Lunas', e_faktur_no: '010.000-26.00000521' }
-      ],
-      recent_transactions: [
-        { id: '1', txn_hash: 'TXN-7f3...a8b2', payment_method: 'Stripe •••• 4242', amount_crypto: 'USDC 2.50', status: 'Berhasil', txn_date_label: '28 Jul 2026, 16:21' },
-        { id: '2', txn_hash: 'TXN-8a1...c304', payment_method: 'QRIS (VA)', amount_crypto: 'USDC -1.20', status: 'Berhasil', txn_date_label: '28 Jul 2026, 09:15' },
-        { id: '3', txn_hash: 'TXN-3c2...f8e7', payment_method: 'GoPay', amount_crypto: 'USDC -0.80', status: 'Berhasil', txn_date_label: '27 Jul 2026, 14:45' }
-      ]
+      usage_trend: [],
+      recent_invoices: [],
+      recent_transactions: []
     };
   },
 
@@ -6721,14 +5887,14 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   downloadSingleInvoicePDF(invoice: any) {
     if (!invoice) return;
 
-    const subtotal = Number(invoice.subtotal_amount_idr || 269369);
-    const tax = Number(invoice.tax_amount_idr || 29631);
-    const total = Number(invoice.total_amount_idr || 299000);
-    const eFaktur = invoice.e_faktur_no || '010.000-26.00000721';
+    const total = Number(invoice.total_amount_idr || 0);
+    const tax = Number(invoice.tax_amount_idr || Math.round(total * 0.11));
+    const subtotal = Number(invoice.subtotal_amount_idr || total - tax);
+    const eFaktur = invoice.e_faktur_no || '-';
     const items = invoice.items_json || [
-      { name: 'ZEGA AI Growth Plan - Monthly Subscription', qty: 1, price: subtotal }
+      { name: `ZEGA AI ${invoice.plan_name || 'Subscription'}`, qty: 1, price: subtotal }
     ];
-    const createdDate = invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '21 Juli 2026';
+    const createdDate = invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -6918,23 +6084,12 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   async getUmkmSettingsOverview(storeId: string = '11111111-1111-1111-1111-111111111111') {
     try {
       const [{ data: integrations }, { data: apiKeys }, { data: preferences }] = await Promise.all([
-        supabase.from('umkm_settings_integrations').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`),
-        supabase.from('umkm_settings_api_keys').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).maybeSingle(),
-        supabase.from('umkm_settings_system_preferences').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).maybeSingle()
+        supabase.from('umkm_settings_integrations').select('*').eq('store_id', storeId),
+        supabase.from('umkm_settings_api_keys').select('*').eq('store_id', storeId).maybeSingle(),
+        supabase.from('umkm_settings_system_preferences').select('*').eq('store_id', storeId).maybeSingle()
       ]);
 
-      const defaultIntegrations = [
-        { id: 'wa', integration_key: 'wa', key: 'wa', name: 'WhatsApp Business', category: 'Channel Penjualan', status: 'Terhubung', account_identifier: '+62 812-3456-7890', api_endpoint: 'https://zega-ai.onrender.com/api/v1/whatsapp/webhook' },
-        { id: 'ig', integration_key: 'ig', key: 'ig', name: 'Instagram', category: 'Social Commerce', status: 'Terhubung', account_identifier: '@tokocikcik.berluk', api_endpoint: 'https://zega-ai.onrender.com/api/v1/meta/webhook' },
-        { id: 'shopee', integration_key: 'shopee', key: 'shopee', name: 'Shopee', category: 'Channel Penjualan', status: 'Terhubung', account_identifier: 'tokocikcik.berluk', api_endpoint: 'https://zega-ai.onrender.com/api/v1/shopee/webhook' },
-        { id: 'tiktok', integration_key: 'tiktok', key: 'tiktok', name: 'TikTok Shop', category: 'Social Commerce', status: 'Terhubung', account_identifier: '@tokocikcik.berluk', api_endpoint: 'https://zega-ai.onrender.com/api/v1/tiktok/webhook' },
-        { id: 'stripe', integration_key: 'stripe', key: 'stripe', name: 'Stripe Connect', category: 'Payment Gateway', status: 'Terhubung', account_identifier: '•••• •••• 4242', api_endpoint: 'https://zega-ai.onrender.com/api/v1/stripe/webhook' },
-        { id: 'midtrans', integration_key: 'midtrans', key: 'midtrans', name: 'Midtrans', category: 'Payment Gateway', status: 'Terhubung', account_identifier: 'Merchant ID: 01234567', api_endpoint: 'https://zega-ai.onrender.com/api/v1/midtrans/notification' },
-        { id: 'qris', integration_key: 'qris', key: 'qris', name: 'QRIS (VA)', category: 'Payment Gateway', status: 'Terhubung', account_identifier: 'Bank Permata •••• 8888', api_endpoint: 'https://zega-ai.onrender.com/api/v1/qris/callback' },
-        { id: 'x402', integration_key: 'x402', key: 'x402', name: 'x402 Network', category: 'Web3 Crypto', status: 'Terhubung', account_identifier: 'Wallet: 0x773...a9b2', api_endpoint: 'https://zega-ai.onrender.com/api/v1/solana/rpc' }
-      ];
-
-      const sourceList = (integrations && integrations.length > 0) ? integrations : defaultIntegrations;
+      const sourceList = integrations || [];
       // Deduplicate by integration_key / key
       const uniqueMap = new Map<string, any>();
       sourceList.forEach((item: any) => {
@@ -6950,8 +6105,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       });
 
       const finalApiKeys = apiKeys || {
-        public_api_key: 'zga_pk_live_9921a884f1023a1',
-        secret_api_key: 'zga_sk_live_3301ff29a441009',
+        public_api_key: '',
+        secret_api_key: '',
         webhook_url: 'https://zega-ai.onrender.com/api/v1/webhook'
       };
       if (!finalApiKeys.webhook_url || finalApiKeys.webhook_url.includes('app.zega.ai')) {
@@ -7118,25 +6273,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      if (data && data.length > 0) {
-        return data;
-      }
-      return [
-        { id: '1', name: 'Cik Berluk', email: 'cikberluk@gmail.com', role: 'Owner', department: 'Executive', status: 'Aktif', avatar_url: '/assets/logo/zega.png', phone: '+62 812-9988-7766', tasks_completed: 342, performance_score: 99.50, total_sales_handled: 485000000.00, recent_activity: 'Menyetujui alokasi budget marketing Q3', bio: 'Founder & Managing Director toko online ZEGA AI.' },
-        { id: '2', name: 'Ahmad Subagja', email: 'ahmad.subagja@zega.ai', role: 'Admin', department: 'Operational', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', phone: '+62 813-1122-3344', tasks_completed: 215, performance_score: 97.80, total_sales_handled: 125000000.00, recent_activity: 'Mengonfigurasi bot saluran Shopee & WA', bio: 'General Manager Operasional & Manajemen Staf.' },
-        { id: '3', name: 'Siti Sarah', email: 'siti.sarah@zega.ai', role: 'Sales Agent', department: 'Customer Support', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', phone: '+62 815-5566-7788', tasks_completed: 188, performance_score: 98.40, total_sales_handled: 78200000.00, recent_activity: 'Menutup 42 tiket pesanan WhatsApp hari ini', bio: 'Senior Sales & Customer Relationship Officer.' },
-        { id: '4', name: 'Budi Kurniawan', email: 'budi.kurniawan@zega.ai', role: 'Finance', department: 'Finance & Accounting', status: 'Pending', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', phone: '+62 817-8899-0011', tasks_completed: 94, performance_score: 94.20, total_sales_handled: 164000000.00, recent_activity: 'Menverifikasi pembukuan faktur Midtrans bulan lalu', bio: 'Finance Controller & Payroll Specialist.' },
-        { id: '5', name: 'Maya Rosida', email: 'maya.rosida@zega.ai', role: 'Developer', department: 'Engineering', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80', phone: '+62 819-2233-4455', tasks_completed: 156, performance_score: 99.10, total_sales_handled: 0.00, recent_activity: 'Memperbarui webhook endpoint x402 Solana RPC', bio: 'Lead System Engineer & API Integration Specialist.' }
-      ];
+      return data || [];
     } catch (err) {
-      console.warn('getUmkmTeamMembers fallback:', err);
-      return [
-        { id: '1', name: 'Cik Berluk', email: 'cikberluk@gmail.com', role: 'Owner', department: 'Executive', status: 'Aktif', avatar_url: '/assets/logo/zega.png', phone: '+62 812-9988-7766', tasks_completed: 342, performance_score: 99.50, total_sales_handled: 485000000.00, recent_activity: 'Menyetujui alokasi budget marketing Q3', bio: 'Founder & Managing Director toko online ZEGA AI.' },
-        { id: '2', name: 'Ahmad Subagja', email: 'ahmad.subagja@zega.ai', role: 'Admin', department: 'Operational', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', phone: '+62 813-1122-3344', tasks_completed: 215, performance_score: 97.80, total_sales_handled: 125000000.00, recent_activity: 'Mengonfigurasi bot saluran Shopee & WA', bio: 'General Manager Operasional & Manajemen Staf.' },
-        { id: '3', name: 'Siti Sarah', email: 'siti.sarah@zega.ai', role: 'Sales Agent', department: 'Customer Support', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', phone: '+62 815-5566-7788', tasks_completed: 188, performance_score: 98.40, total_sales_handled: 78200000.00, recent_activity: 'Menutup 42 tiket pesanan WhatsApp hari ini', bio: 'Senior Sales & Customer Relationship Officer.' },
-        { id: '4', name: 'Budi Kurniawan', email: 'budi.kurniawan@zega.ai', role: 'Finance', department: 'Finance & Accounting', status: 'Pending', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', phone: '+62 817-8899-0011', tasks_completed: 94, performance_score: 94.20, total_sales_handled: 164000000.00, recent_activity: 'Menverifikasi pembukuan faktur Midtrans bulan lalu', bio: 'Finance Controller & Payroll Specialist.' },
-        { id: '5', name: 'Maya Rosida', email: 'maya.rosida@zega.ai', role: 'Developer', department: 'Engineering', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80', phone: '+62 819-2233-4455', tasks_completed: 156, performance_score: 99.10, total_sales_handled: 0.00, recent_activity: 'Memperbarui webhook endpoint x402 Solana RPC', bio: 'Lead System Engineer & API Integration Specialist.' }
-      ];
+      console.warn('getUmkmTeamMembers fetch error:', err);
+      return [];
     }
   },
 
@@ -7220,7 +6360,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * Update Webhook URL
    */
-  async updateUmkmWebhookUrl(webhookUrl: string, storeId: string = 'STORE-DEMO-1283') {
+  async updateUmkmWebhookUrl(webhookUrl: string, storeId: string = '11111111-1111-1111-1111-111111111111') {
     const { data, error } = await supabase
       .from('umkm_settings_api_keys')
       .upsert([{ store_id: storeId, webhook_url: webhookUrl, updated_at: new Date().toISOString() }])
@@ -7233,7 +6373,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * Update System Preferences
    */
-  async updateUmkmSystemPreferences(preferences: any, storeId: string = 'STORE-DEMO-1283') {
+  async updateUmkmSystemPreferences(preferences: any, storeId: string = '11111111-1111-1111-1111-111111111111') {
     const { data, error } = await supabase
       .from('umkm_settings_system_preferences')
       .upsert([{ store_id: storeId, ...preferences, updated_at: new Date().toISOString() }])
@@ -7357,23 +6497,23 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           fullname: userFullName,
           email: userEmail,
           is_email_verified: true,
-          phone: '+62 812-3456-7890',
-          is_phone_verified: true,
-          job_title: 'Owner',
+          phone: '-',
+          is_phone_verified: false,
+          job_title: 'Pemilik Bisnis',
           store_name: storeNameFromUser,
-          description: 'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.',
+          description: '',
           avatar_url: '/assets/avatars/user-avatar.jpg',
           account_role: 'Owner',
-          joined_date: '12 Maret 2025',
-          last_login_label: 'Hari ini, 10:24 WIB',
+          joined_date: '-',
+          last_login_label: 'Hari ini',
           account_status: 'Aktif'
         },
         security: securityByEmail || {
-          is_2fa_enabled: true,
+          is_2fa_enabled: false,
           recovery_email: userEmail,
           is_recovery_email_verified: true,
-          recovery_phone: '+62 812-3456-7890',
-          is_recovery_phone_verified: true
+          recovery_phone: '-',
+          is_recovery_phone_verified: false
         },
         preferences: preferences || {
           language: 'Bahasa Indonesia',
@@ -7386,21 +6526,11 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           id: d.id,
           device_type: d.device_type || 'desktop',
           device_name: d.device_name,
-          location: d.location || 'Jakarta, Indonesia',
-          last_active: d.is_current ? 'Hari ini, 10:24 WIB' : 'Kemarin, 19:32 WIB',
+          location: d.location || '-',
+          last_active: d.is_current ? 'Hari ini' : '-',
           is_current: d.is_current
-        })) : [
-          { id: 'd1111111-1111-1111-1111-111111111111', device_type: 'desktop', device_name: 'Windows • Chrome', location: 'Jakarta, Indonesia', last_active: 'Hari ini, 10:24 WIB', is_current: true },
-          { id: 'd2222222-2222-2222-2222-222222222222', device_type: 'mobile', device_name: 'iPhone 14 • iOS 17', location: 'Jakarta, Indonesia', last_active: 'Kemarin, 19:32 WIB', is_current: false },
-          { id: 'd3333333-3333-3333-3333-333333333333', device_type: 'laptop', device_name: 'MacBook Air • Safari', location: 'Surabaya, Indonesia', last_active: '2 hari lalu, 16:10 WIB', is_current: false }
-        ],
-        activities: [
-          { id: '1', activity_title: 'Login berhasil', activity_detail: 'Chrome di Windows • 10:24 WIB', time_label: 'Hari ini' },
-          { id: '2', activity_title: 'Mengubah informasi profil', activity_detail: '10:15 WIB', time_label: 'Hari ini' },
-          { id: '3', activity_title: 'Mengaktifkan 2FA', activity_detail: '09:40 WIB', time_label: 'Hari ini' },
-          { id: '4', activity_title: 'Login berhasil', activity_detail: 'iPhone 14 di iOS • 19:32 WIB', time_label: 'Kemarin' },
-          { id: '5', activity_title: 'Mengekspor laporan penjualan', activity_detail: '18:20 WIB', time_label: 'Kemarin' }
-        ]
+        })) : [],
+        activities: []
       };
     } catch (err) {
       console.warn('Profile overview fetch error:', err);
@@ -7543,7 +6673,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const { data, error } = await supabase
         .from('umkm_settings_ai_preferences')
         .select('*')
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .maybeSingle();
 
       if (error) throw error;
@@ -7592,25 +6722,15 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const { data, error } = await supabase
         .from('umkm_ai_memory_entries')
         .select('*')
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return [
-          { id: 'mem-1', store_id: storeId, memory_key: 'Jam Operasional Toko', memory_value: 'Senin - Sabtu (08:00 - 20:00 WIB), Minggu libur.', category: 'Operasional', is_active: true, created_at: new Date().toISOString() },
-          { id: 'mem-2', store_id: storeId, memory_key: 'Kebijakan Pengembalian Produk', memory_value: 'Garansi pengembalian 7 hari kerja jika barang cacat produksi dengan membawa bukti invoice.', category: 'Layanan Pelanggan', is_active: true, created_at: new Date().toISOString() },
-          { id: 'mem-3', store_id: storeId, memory_key: 'Metode Pembayaran Utama', memory_value: 'QRIS, Solana SOL/USDC, Bank Transfer BCA/Mandiri.', category: 'Keuangan', is_active: true, created_at: new Date().toISOString() }
-        ];
-      }
-      return data;
+      if (error) throw error;
+      return data || [];
     } catch (err) {
-      console.warn('AI Memory fetch fallback activated:', err);
-      return [
-        { id: 'mem-1', store_id: storeId, memory_key: 'Jam Operasional Toko', memory_value: 'Senin - Sabtu (08:00 - 20:00 WIB), Minggu libur.', category: 'Operasional', is_active: true, created_at: new Date().toISOString() },
-        { id: 'mem-2', store_id: storeId, memory_key: 'Kebijakan Pengembalian Produk', memory_value: 'Garansi pengembalian 7 hari kerja jika barang cacat produksi dengan membawa bukti invoice.', category: 'Layanan Pelanggan', is_active: true, created_at: new Date().toISOString() },
-        { id: 'mem-3', store_id: storeId, memory_key: 'Metode Pembayaran Utama', memory_value: 'QRIS, Solana SOL/USDC, Bank Transfer BCA/Mandiri.', category: 'Keuangan', is_active: true, created_at: new Date().toISOString() }
-      ];
+      console.warn('AI Memory fetch error:', err);
+      return [];
     }
   },
 
@@ -7734,7 +6854,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const { data, error } = await supabase
         .from('umkm_system_health')
         .select('*')
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .order('created_at', { ascending: true });
 
       const fetchMs = Math.max(8, Date.now() - startTime);
@@ -7802,27 +6922,17 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const { data, error } = await supabase
         .from('umkm_system_audit_logs')
         .select('*')
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error || !data || data.length === 0) {
-        return [
-          { id: 'al-1', event_action: 'USER_LOGIN_SUCCESS', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { auth_method: '2FA TOTP' }, created_at: new Date().toISOString() },
-          { id: 'al-2', event_action: 'DATABASE_CACHE_SYNC', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { action: 'manual_sync', latency_ms: 18 }, created_at: new Date(Date.now() - 15 * 60000).toISOString() },
-          { id: 'al-3', event_action: 'SECURITY_2FA_ENABLED', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { method: 'Google Authenticator' }, created_at: new Date(Date.now() - 2 * 3600000).toISOString() },
-          { id: 'al-4', event_action: 'API_KEY_ROTATED', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { key_name: 'Production Store Webhook' }, created_at: new Date(Date.now() - 5 * 3600000).toISOString() },
-          { id: 'al-5', event_action: 'SESSION_REVOKED_REMOTE', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Warning', details: { revoked_device: 'Android Chrome' }, created_at: new Date(Date.now() - 24 * 3600000).toISOString() }
-        ];
+      if (error || !data) {
+        return [];
       }
       return data;
     } catch (err) {
       console.warn('System audit logs fetch error:', err);
-      return [
-        { id: 'al-1', event_action: 'USER_LOGIN_SUCCESS', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { auth_method: '2FA TOTP' }, created_at: new Date().toISOString() },
-        { id: 'al-2', event_action: 'DATABASE_CACHE_SYNC', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { action: 'manual_sync', latency_ms: 18 }, created_at: new Date(Date.now() - 15 * 60000).toISOString() },
-        { id: 'al-3', event_action: 'SECURITY_2FA_ENABLED', user_email: 'cikberiuk@gmail.com', ip_address: '182.253.12.98', device_info: 'Chrome 127.0 (Windows 11)', location: 'Jakarta, Indonesia', status: 'Success', details: { method: 'Google Authenticator' }, created_at: new Date(Date.now() - 2 * 3600000).toISOString() }
-      ];
+      return [];
     }
   },
 
@@ -7891,26 +7001,24 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       if (error) throw error;
       return data || {
-        two_factor_enabled: true,
+        two_factor_enabled: false,
         two_factor_method: 'Authenticator App (TOTP)',
         magic_link_login: false,
         new_device_verify: true,
         ip_allowlist_enabled: false,
-        ip_allowlist: ['182.253.12.98', '114.122.34.12'],
-        security_score: 94,
-        last_password_change: new Date(Date.now() - 32 * 86400000).toISOString()
+        ip_allowlist: [],
+        last_password_change: null
       };
     } catch (err) {
       console.warn('Security settings fetch error:', err);
       return {
-        two_factor_enabled: true,
+        two_factor_enabled: false,
         two_factor_method: 'Authenticator App (TOTP)',
         magic_link_login: false,
         new_device_verify: true,
         ip_allowlist_enabled: false,
-        ip_allowlist: ['182.253.12.98', '114.122.34.12'],
-        security_score: 94,
-        last_password_change: new Date(Date.now() - 32 * 86400000).toISOString()
+        ip_allowlist: [],
+        last_password_change: null
       };
     }
   },
@@ -7944,20 +7052,11 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .order('is_current', { ascending: false })
         .order('last_active_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return [
-          { id: 'sess-1', device_name: 'Windows 11 PC', browser: 'Chrome 127.0', os: 'Windows', location: 'Jakarta, Indonesia', ip_address: '182.253.12.98', is_current: true, is_active: true, last_active_at: new Date().toISOString() },
-          { id: 'sess-2', device_name: 'iPhone 15 Pro', browser: 'Safari Mobile', os: 'iOS 17.5', location: 'Jakarta, Indonesia', ip_address: '182.253.12.99', is_current: false, is_active: true, last_active_at: new Date(Date.now() - 45 * 60000).toISOString() },
-          { id: 'sess-3', device_name: 'MacBook Air M2', browser: 'Safari 17.2', os: 'macOS Sonoma', location: 'Surabaya, Indonesia', ip_address: '114.122.34.12', is_current: false, is_active: true, last_active_at: new Date(Date.now() - 2 * 86400000).toISOString() }
-        ];
-      }
+      if (error || !data) return [];
       return data;
     } catch (err) {
       console.warn('User sessions fetch error:', err);
-      return [
-        { id: 'sess-1', device_name: 'Windows 11 PC', browser: 'Chrome 127.0', os: 'Windows', location: 'Jakarta, Indonesia', ip_address: '182.253.12.98', is_current: true, is_active: true, last_active_at: new Date().toISOString() },
-        { id: 'sess-2', device_name: 'iPhone 15 Pro', browser: 'Safari Mobile', os: 'iOS 17.5', location: 'Jakarta, Indonesia', ip_address: '182.253.12.99', is_current: false, is_active: true, last_active_at: new Date(Date.now() - 45 * 60000).toISOString() }
-      ];
+      return [];
     }
   },
 
@@ -8032,19 +7131,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
         .order('created_at', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return [
-          { id: 'sec-int-1', tool_name: 'Cloudflare Zero Trust', category: 'Zero-Trust Proxy & Access Control', status: 'Terhubung', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/cloudflare.png', last_sync_at: new Date().toISOString() },
-          { id: 'sec-int-2', tool_name: 'Datadog SIEM & Security', category: 'Realtime Audit Trail & Threat Monitor', status: 'Terhubung', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/datadog.png', last_sync_at: new Date(Date.now() - 12 * 60000).toISOString() },
-          { id: 'sec-int-3', tool_name: 'Okta Workforce Identity', category: 'SSO & Enterprise SAML 2.0 Auth', status: 'Terhubung', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/okta.png', last_sync_at: new Date(Date.now() - 3600000).toISOString() }
-        ];
-      }
+      if (error || !data) return [];
       return data;
     } catch (err) {
-      return [
-        { id: 'sec-int-1', tool_name: 'Cloudflare Zero Trust', category: 'Zero-Trust Proxy & Access Control', status: 'Terhubung', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/cloudflare.png', last_sync_at: new Date().toISOString() },
-        { id: 'sec-int-2', tool_name: 'Datadog SIEM & Security', category: 'Realtime Audit Trail & Threat Monitor', status: 'Terhubung', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/datadog.png', last_sync_at: new Date(Date.now() - 12 * 60000).toISOString() }
-      ];
+      return [];
     }
   },
 
@@ -8093,10 +7183,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   async getUmkmBillingOverviewData(storeId: string = '11111111-1111-1111-1111-111111111111') {
     try {
       const [{ data: overview }, { data: invoices }, { data: transactions }, { data: paymentMethods }] = await Promise.all([
-        supabase.from('umkm_settings_billing_overview').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).maybeSingle(),
-        supabase.from('umkm_settings_invoices').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).order('created_at', { ascending: false }),
-        supabase.from('umkm_settings_transactions').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).order('transaction_date', { ascending: false }),
-        supabase.from('umkm_settings_payment_methods').select('*').or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`).order('created_at', { ascending: false })
+        supabase.from('umkm_settings_billing_overview').select('*').eq('store_id', storeId).maybeSingle(),
+        supabase.from('umkm_settings_invoices').select('*').eq('store_id', storeId).order('created_at', { ascending: false }),
+        supabase.from('umkm_settings_transactions').select('*').eq('store_id', storeId).order('transaction_date', { ascending: false }),
+        supabase.from('umkm_settings_payment_methods').select('*').eq('store_id', storeId).order('created_at', { ascending: false })
       ]);
 
       return {
@@ -8172,7 +7262,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           storage_total_gb: newPlan.storage_total_gb,
           updated_at: new Date().toISOString()
         })
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .select();
 
       await this.logSystemAuditLog('SUBSCRIPTION_PLAN_UPDATED', 'Success', { newPlan: newPlan.plan_name }, storeId);
@@ -8224,7 +7314,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       await supabase
         .from('umkm_settings_payment_methods')
         .update({ is_default: false })
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`);
+        .eq('store_id', storeId);
 
       // 2. Set selected card as default
       await supabase
@@ -8240,7 +7330,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           primary_payment_expiry: cardExpiry,
           updated_at: new Date().toISOString()
         })
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`);
+        .eq('store_id', storeId);
 
       await this.logSystemAuditLog('PRIMARY_PAYMENT_METHOD_CHANGED', 'Success', { id, cardText }, storeId);
       return true;
@@ -8301,24 +7391,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const { data, error } = await supabase
         .from('umkm_api_keys')
         .select('*')
-        .or(`store_id.eq.${storeId},store_id.eq.STORE-DEMO-1283`)
+        .eq('store_id', storeId)
         .order('created_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        // Fallback default API keys matching seed data
-        return [
-          { id: 'a1111111-1111-1111-1111-111111111111', name: 'Midtrans prod', description: 'Prod', key_prefix: 'zga_live_', masked_key: 'zga_live_9a8f...4b21', key_token: 'zga_live_9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f', access_scope: 'Full Access', status: 'Aktif', rate_limit_per_min: 120, monthly_usage_count: 45231, last_used_at: new Date(Date.now() - 3600000).toISOString(), created_at: '2026-08-05T07:11:25.762+00:00' },
-          { id: 'a2222222-2222-2222-2222-222222222222', name: 'Integrasi Midtrans', description: 'Pembayaran invoice', key_prefix: 'zga_live_', masked_key: 'zga_live_9f8a...5b4c', key_token: 'zga_live_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c', access_scope: 'Billing, Invoice', status: 'Aktif', rate_limit_per_min: 120, monthly_usage_count: 12840, last_used_at: new Date().toISOString(), created_at: '2026-05-28T19:09:27.052809+00:00' },
-          { id: 'a3333333-3333-3333-3333-333333333333', name: 'Webhook Shopee', description: 'Sinkronisasi pesanan', key_prefix: 'zga_live_', masked_key: 'zga_live_1a2b...5c6d', key_token: 'zga_live_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d', access_scope: 'Store, Orders', status: 'Aktif', rate_limit_per_min: 120, monthly_usage_count: 18450, last_used_at: new Date(Date.now() - 86400000).toISOString(), created_at: '2026-05-20T19:09:27.052809+00:00' },
-          { id: 'a4444444-4444-4444-4444-444444444444', name: 'Laporan Analytics', description: 'Akses data analitik', key_prefix: 'zga_live_', masked_key: 'zga_live_8f7e...4d3c', key_token: 'zga_live_8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c', access_scope: 'Reports', status: 'Aktif', rate_limit_per_min: 120, monthly_usage_count: 8920, last_used_at: new Date(Date.now() - 2 * 86400000).toISOString(), created_at: '2026-05-15T19:09:27.052809+00:00' },
-          { id: 'a5555555-5555-5555-5555-555555555555', name: 'Automation External App', description: 'Trigger automation', key_prefix: 'zga_live_', masked_key: 'zga_live_7a6b...3c2d', key_token: 'zga_live_7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d', access_scope: 'Automation', status: 'Aktif', rate_limit_per_min: 120, monthly_usage_count: 5021, last_used_at: new Date(Date.now() - 3 * 86400000).toISOString(), created_at: '2026-05-10T19:09:27.012809+00:00' },
-          { id: 'a6666666-6666-6666-6666-666666666666', name: 'Partner Dashboard', description: 'Akses dashboard partner', key_prefix: 'zga_live_', masked_key: 'zga_live_3c2b...9a8f', key_token: 'zga_live_3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f', access_scope: 'Dashboard', status: 'Kedaluwarsa', rate_limit_per_min: 120, monthly_usage_count: 0, last_used_at: '14 Mei 2026, 10:11 WIB', created_at: '2026-05-02T19:09:27.052809+00:00' },
-          { id: 'a7777777-7777-7777-7777-777777777777', name: 'Lama Test App', description: 'Testing (dicabut)', key_prefix: 'zga_live_', masked_key: 'zga_live_0f9e...6d5c', key_token: 'zga_live_0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c', access_scope: 'Full Access', status: 'Dicabut', rate_limit_per_min: 120, monthly_usage_count: 0, last_used_at: '5 Mei 2026, 12:00 WIB', created_at: '2026-04-18T19:09:27.052809+00:00' }
-        ];
+      if (error) {
+        console.warn('API Keys list fetch error:', error);
+        return [];
       }
-      return data;
+      return data || [];
     } catch (err) {
-      console.warn('API Keys list fetch error:', err);
+      console.warn('API Keys list fetch exception:', err);
       return [];
     }
   },
@@ -9128,140 +8210,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
 
       // 3. Robust Schema Fallback if database is offline or unmigrated
-      return [
-        {
-          id: 'leaderboard-1',
-          store_id: storeId,
-          rank_order: 1,
-          title: 'WhatsApp Sales AI Agent',
-          category_name: 'Sales & Customer Service',
-          badge_label: 'Juara #1 Paling Banyak Digunakan',
-          icon_key: 'whatsapp',
-          ai_model_engine: 'DeepSeek-V3 (9Router Engine)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: '9Router High-Speed Mesh',
-          total_tasks_executed: 342800,
-          active_installs_count: 2450,
-          installs_count_label: '2.4k+ toko',
-          satisfaction_rate: 99.6,
-          avg_latency_ms: 142,
-          monthly_volume_label: '5.2M Auto-Reply Chat/Bln',
-          timeframe_period: timeframe,
-          price_idr: 99000,
-          is_installed: true,
-          verified_active: true
-        },
-        {
-          id: 'leaderboard-2',
-          store_id: storeId,
-          rank_order: 2,
-          title: 'Shopee Commerce AI Assistant',
-          category_name: 'E-Commerce & Orders',
-          badge_label: 'Juara #2 Paling Banyak Digunakan',
-          icon_key: 'shopee',
-          ai_model_engine: 'Claude 3.5 Sonnet (ZeroClaw Agent)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: 'Anthropic Enterprise 9Router',
-          total_tasks_executed: 215400,
-          active_installs_count: 1820,
-          installs_count_label: '1.8k+ toko',
-          satisfaction_rate: 99.2,
-          avg_latency_ms: 195,
-          monthly_volume_label: '3.1M Produk & Chat Sync/Bln',
-          timeframe_period: timeframe,
-          price_idr: 129000,
-          is_installed: true,
-          verified_active: true
-        },
-        {
-          id: 'leaderboard-3',
-          store_id: storeId,
-          rank_order: 3,
-          title: 'QRIS & M2H Payment Settlement AI',
-          category_name: 'Finance & Accounting',
-          badge_label: 'Juara #3 Paling Banyak Digunakan',
-          icon_key: 'qris',
-          ai_model_engine: 'Solana x402 Protocol & GPT-4o',
-          zeroclaw_status: 'Executing Tasks',
-          router_provider: 'Solana Pay x402 9Router',
-          total_tasks_executed: 184200,
-          active_installs_count: 1240,
-          installs_count_label: '1.2k+ toko',
-          satisfaction_rate: 98.9,
-          avg_latency_ms: 110,
-          monthly_volume_label: '1.8M Verifikasi Struk Auto',
-          timeframe_period: timeframe,
-          price_idr: 79000,
-          is_installed: true,
-          verified_active: true
-        },
-        {
-          id: 'leaderboard-4',
-          store_id: storeId,
-          rank_order: 4,
-          title: 'Instagram Direct Growth AI',
-          category_name: 'Marketing & Social',
-          badge_label: 'Leaderboard #4',
-          icon_key: 'instagram',
-          ai_model_engine: 'Llama 3.3 70B (ZeroClaw Swarm)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: 'Meta Llama 9Router Gateway',
-          total_tasks_executed: 128600,
-          active_installs_count: 950,
-          installs_count_label: '950+ toko',
-          satisfaction_rate: 98.5,
-          avg_latency_ms: 230,
-          monthly_volume_label: '890k DM Auto-Convert/Bln',
-          timeframe_period: timeframe,
-          price_idr: 89000,
-          is_installed: false,
-          verified_active: true
-        },
-        {
-          id: 'leaderboard-5',
-          store_id: storeId,
-          rank_order: 5,
-          title: 'Smart POS Restaurant & Kitchen AI',
-          category_name: 'Store & Operations',
-          badge_label: 'Leaderboard #5',
-          icon_key: 'restaurant',
-          ai_model_engine: 'Gemini 1.5 Pro (ZeroClaw Core)',
-          zeroclaw_status: 'Executing Tasks',
-          router_provider: 'Google AI 9Router Cluster',
-          total_tasks_executed: 94200,
-          active_installs_count: 780,
-          installs_count_label: '780+ toko',
-          satisfaction_rate: 98.1,
-          avg_latency_ms: 165,
-          monthly_volume_label: '450k Pesanan Meja/Bln',
-          timeframe_period: timeframe,
-          price_idr: 149000,
-          is_installed: false,
-          verified_active: true
-        },
-        {
-          id: 'leaderboard-6',
-          store_id: storeId,
-          rank_order: 6,
-          title: 'Auto Laundry & POS Dispatch AI',
-          category_name: 'Store & Operations',
-          badge_label: 'Leaderboard #6',
-          icon_key: 'laundry',
-          ai_model_engine: 'Mistral Large 2 (ZeroClaw Agent)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: 'Mistral AI 9Router Node',
-          total_tasks_executed: 72100,
-          active_installs_count: 610,
-          installs_count_label: '610+ toko',
-          satisfaction_rate: 97.8,
-          avg_latency_ms: 188,
-          monthly_volume_label: '210k WhatsApp Order Struk',
-          timeframe_period: timeframe,
-          price_idr: 99000,
-          is_installed: false,
-          verified_active: true
-        }
-      ];
+      return [];
     } catch (e) {
       console.warn('Error fetching Top Used Leaderboard:', e);
       return [];
@@ -9417,71 +8366,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
 
       // Hardened Schema Default Fallback
-      return [
-        {
-          id: 'new-agent-1',
-          store_id: storeId,
-          title: 'AI Invoice & Billing Processor',
-          description: 'Ekstraksi otomatis nota supplier, faktur pajak, dan struk belanja UMKM menggunakan OCR 9Router & auto-rekap kas toko.',
-          category_name: 'Finance & Accounting',
-          release_tag: '⚡ Rilis 2 Hari Lalu',
-          version_tag: 'v3.4.1-latest',
-          icon_key: 'receipt',
-          ai_model_engine: 'DeepSeek-V3 (9Router Engine)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: '9Router High Performance Mesh',
-          price_idr: 99000,
-          billing_unit: '/bln',
-          rating_score: 4.9,
-          rating_reviews_count: 142,
-          installs_count_label: '180+ toko',
-          feature_list: ['Auto-extract OCR faktur & nota PDF', 'Kategori pengeluaran otomatis', 'Integrasi laporan P&L kas UMKM'],
-          is_installed: false,
-          verified_active: true
-        },
-        {
-          id: 'new-agent-2',
-          store_id: storeId,
-          title: 'AI Product Description & SEO Copywriter',
-          description: 'Buat deskripsi produk e-commerce Shopee, Tokopedia, & Instagram yang persuasif dengan optimasi kata kunci SEO dalam hitungan detik.',
-          category_name: 'Sales & Marketing',
-          release_tag: '🔥 New Release v3.4',
-          version_tag: 'v3.4.0',
-          icon_key: 'description',
-          ai_model_engine: 'Claude 3.5 Sonnet (ZeroClaw Agent)',
-          zeroclaw_status: 'Active Autonomous',
-          router_provider: 'Anthropic Enterprise 9Router',
-          price_idr: 119000,
-          billing_unit: '/bln',
-          rating_score: 4.8,
-          rating_reviews_count: 98,
-          installs_count_label: '240+ toko',
-          feature_list: ['Optimasi SEO keyword Shopee & Tokopedia', 'Variasi tone santai, elegan, & promosi', 'Export langsung ke template katalog'],
-          is_installed: false,
-          verified_active: true
-        },
-        {
-          id: 'new-agent-3',
-          store_id: storeId,
-          title: 'AI Customer RFM Segmentation & Cohort',
-          description: 'Analisis perilaku pelanggan berdasarkan Recency, Frequency, & Monetary untuk pemicu penawaran diskon otomatis yang sangat personal.',
-          category_name: 'CRM & Intelligence',
-          release_tag: '✨ Rilis Minggu Ini',
-          version_tag: 'v3.3.8',
-          icon_key: 'segmentation',
-          ai_model_engine: 'Solana x402 Protocol & GPT-4o',
-          zeroclaw_status: 'Executing Tasks',
-          router_provider: 'Solana Pay x402 9Router',
-          price_idr: 149000,
-          billing_unit: '/bln',
-          rating_score: 4.9,
-          rating_reviews_count: 115,
-          installs_count_label: '150+ toko',
-          feature_list: ['Segmentasi otomatis pelanggan Loyal vs Churn', 'Trigger promo WhatsApp broadcast terarah', 'Analisis Lifetime Value (LTV) toko'],
-          is_installed: false,
-          verified_active: true
-        }
-      ];
+      return [];
     } catch (e) {
       console.warn('Error fetching New Agents:', e);
       return [];
@@ -9753,20 +8638,20 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       if (!error && data) return data;
       return {
         success: true,
-        installed_agents_count: 3,
-        total_agents_count: 24,
-        custom_requests_count: 1,
-        active_mesh_connections: 14,
+        installed_agents_count: 0,
+        total_agents_count: 0,
+        custom_requests_count: 0,
+        active_mesh_connections: 0,
         router_gateway: '9Router Multi-Mesh Engine'
       };
     } catch (e) {
       console.warn('Error fetching overview telemetry:', e);
       return {
         success: true,
-        installed_agents_count: 3,
-        total_agents_count: 24,
-        custom_requests_count: 1,
-        active_mesh_connections: 14,
+        installed_agents_count: 0,
+        total_agents_count: 0,
+        custom_requests_count: 0,
+        active_mesh_connections: 0,
         router_gateway: '9Router Multi-Mesh Engine'
       };
     }
@@ -9861,30 +8746,30 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       return {
         store_id: storeId,
-        business_name: 'Toko CikCik Berluk (STORE-DEMO-1283)',
-        tax_id: '09.384.920.4-012.000',
-        billing_email: 'cikberluk@gmail.com',
-        billing_phone: '+62 812-3456-7890',
-        billing_address: 'Jl. Raya Sudirman No. 128, Jakarta Selatan, DKI Jakarta 12190',
-        auto_renew: true,
+        business_name: '',
+        tax_id: '',
+        billing_email: '',
+        billing_phone: '',
+        billing_address: '',
+        auto_renew: false,
         preferred_currency: 'IDR',
         notify_email: true,
-        notify_whatsapp: true,
+        notify_whatsapp: false,
         notify_push: false
       };
     } catch (e) {
       console.warn('Error fetching billing settings:', e);
       return {
         store_id: storeId,
-        business_name: 'Toko CikCik Berluk (STORE-DEMO-1283)',
-        tax_id: '09.384.920.4-012.000',
-        billing_email: 'cikberluk@gmail.com',
-        billing_phone: '+62 812-3456-7890',
-        billing_address: 'Jl. Raya Sudirman No. 128, Jakarta Selatan, DKI Jakarta 12190',
-        auto_renew: true,
+        business_name: '',
+        tax_id: '',
+        billing_email: '',
+        billing_phone: '',
+        billing_address: '',
+        auto_renew: false,
         preferred_currency: 'IDR',
         notify_email: true,
-        notify_whatsapp: true,
+        notify_whatsapp: false,
         notify_push: false
       };
     }

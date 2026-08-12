@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Download, Check, Sparkles, CreditCard, Plus, HelpCircle, ExternalLink, RefreshCw,
   Shield, AlertCircle, CheckCircle2, Zap, ArrowRight, X, Search, Filter, MessageSquare, Send,
-  Edit2, Trash2, Star
+  Edit2, Trash2, Star, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
@@ -18,20 +18,20 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
   // Database States
   const [billingOverview, setBillingOverview] = useState<any>({
-    plan_name: 'Growth',
-    plan_status: 'Aktif',
-    expires_at: '2026-08-01 00:00:00+00',
-    ai_credits_used: 3340,
-    ai_credits_total: 5000,
-    ai_employees_used: 10,
-    ai_employees_total: 20,
-    automation_used: 24,
-    automation_total: -1,
-    storage_used_gb: 12.4,
-    storage_total_gb: 50.0,
-    primary_payment_brand: 'Stripe',
-    primary_payment_card: 'Visa •••• 4242',
-    primary_payment_expiry: 'Kedaluwarsa 12/28'
+    plan_name: 'Free',
+    plan_status: 'Inaktif',
+    expires_at: null,
+    ai_credits_used: 0,
+    ai_credits_total: 0,
+    ai_employees_used: 0,
+    ai_employees_total: 0,
+    automation_used: 0,
+    automation_total: 0,
+    storage_used_gb: 0,
+    storage_total_gb: 0,
+    primary_payment_brand: 'Belum Ada',
+    primary_payment_card: 'Belum ada kartu terhubung',
+    primary_payment_expiry: '-'
   });
 
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -46,6 +46,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
   const [isAllInvoicesModalOpen, setIsAllInvoicesModalOpen] = useState(false);
   const [isAllTransactionsModalOpen, setIsAllTransactionsModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+
+  // Seamless Inline Expand/Collapse Toggle State for History Tables
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   // Form states
   const [newCardBrand, setNewCardBrand] = useState('Stripe');
@@ -100,13 +103,13 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
   const handleDownloadInvoice = (invNum: string) => {
     setDownloadingId(invNum);
     
-    // Find target invoice details or construct enterprise fallback
+    // Find target invoice details or construct zero-state fallback
     const targetInv = invoices.find((inv) => inv.invoice_number === invNum) || {
       invoice_number: invNum,
-      period: '1 - 31 Jul 2026',
-      total_amount_idr: 299000,
+      period: '-',
+      total_amount_idr: 0,
       status: 'Lunas',
-      e_faktur_no: `010.000-26.${invNum.replace(/\D/g, '') || '0000721'}`
+      e_faktur_no: '-'
     };
 
     const invoiceHtml = `<!DOCTYPE html>
@@ -149,11 +152,11 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     </div>
     <div class="meta-item">
       <label>Nomor Seri e-Faktur PPN (11%)</label>
-      <div>${targetInv.e_faktur_no || '010.000-26.0000721'}</div>
+      <div>${targetInv.e_faktur_no || '-'}</div>
     </div>
     <div class="meta-item">
       <label>Periode Langganan</label>
-      <div>${targetInv.period}</div>
+      <div>${targetInv.period || '-'}</div>
     </div>
     <div class="meta-item">
       <label>ID Merchant Store</label>
@@ -172,20 +175,20 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     </thead>
     <tbody>
       <tr>
-        <td><strong>ZEGA AI Growth Subscription</strong><br><small style="color:#64748b;">5.000 AI Credits, 20 AI Workforce Agents, 50 GB R2 Storage</small></td>
+        <td><strong>${targetInv.description || 'ZEGA AI Subscription'}</strong></td>
         <td>1 Bulan</td>
-        <td>Rp 269.369</td>
-        <td>Rp 269.369</td>
+        <td>Rp ${((Number(targetInv.total_amount_idr) || 0) * 0.89).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+        <td>Rp ${((Number(targetInv.total_amount_idr) || 0) * 0.89).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
       </tr>
       <tr>
         <td><strong>PPN (11%)</strong></td>
         <td>11%</td>
-        <td>Rp 29.631</td>
-        <td>Rp 29.631</td>
+        <td>Rp ${((Number(targetInv.total_amount_idr) || 0) * 0.11).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+        <td>Rp ${((Number(targetInv.total_amount_idr) || 0) * 0.11).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
       </tr>
       <tr class="total-row">
         <td colspan="3" style="text-align:right;">TOTAL PEMBAYARAN:</td>
-        <td style="color:#f97316;">Rp ${(Number(targetInv.total_amount_idr) || 299000).toLocaleString('id-ID')}</td>
+        <td style="color:#f97316;">Rp ${(Number(targetInv.total_amount_idr) || 0).toLocaleString('id-ID')}</td>
       </tr>
     </tbody>
   </table>
@@ -211,7 +214,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     }
 
     // 2. Trigger direct .pdf document download blob
-    const pdfHeader = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj 4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj 5 0 obj<</Length 180>>stream\nBT /F1 16 Tf 50 750 TD (ZEGA AI Platform - Invoice & e-Faktur) Tj /F1 12 Tf 0 -25 TD (Invoice: ${targetInv.invoice_number}) Tj 0 -20 TD (e-Faktur: ${targetInv.e_faktur_no}) Tj 0 -20 TD (Total: Rp ${(Number(targetInv.total_amount_idr) || 299000).toLocaleString('id-ID')}) Tj 0 -20 TD (Status: LUNAS / PAID) Tj ET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000212 00000 n\n0000000274 00000 n\ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n505\n%%EOF`;
+    const pdfHeader = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj 4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj 5 0 obj<</Length 180>>stream\nBT /F1 16 Tf 50 750 TD (ZEGA AI Platform - Invoice & e-Faktur) Tj /F1 12 Tf 0 -25 TD (Invoice: ${targetInv.invoice_number}) Tj 0 -20 TD (e-Faktur: ${targetInv.e_faktur_no || '-'}) Tj 0 -20 TD (Total: Rp ${(Number(targetInv.total_amount_idr) || 0).toLocaleString('id-ID')}) Tj 0 -20 TD (Status: LUNAS / PAID) Tj ET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000212 00000 n\n0000000274 00000 n\ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n505\n%%EOF`;
     
     const pdfBlob = new Blob([pdfHeader], { type: 'application/pdf' });
     const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -357,7 +360,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '1 Agustus 2026';
+    if (!dateStr) return '-';
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -405,12 +408,12 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 3 Top Cards Grid matching Enterprise Spec */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 1. Paket Aktif */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Paket Aktif</h4>
+            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Paket Aktif</h4>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">{billingOverview.plan_name}</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{billingOverview.plan_name}</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
                 {billingOverview.plan_status}
               </span>
             </div>
@@ -438,16 +441,16 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
           <button
             onClick={() => setIsPlanModalOpen(true)}
-            className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+            className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
           >
             Kelola Paket
           </button>
         </div>
 
         {/* 2. Ringkasan Penggunaan */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Ringkasan Penggunaan (Periode Berjalan)</h4>
+            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Ringkasan Penggunaan (Periode Berjalan)</h4>
             
             <div className="space-y-3.5 pt-1 text-xs">
               {/* AI Credits */}
@@ -522,7 +525,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         </div>
 
         {/* 3. Metode Pembayaran Utama */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-4">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Metode Pembayaran Utama</h4>
@@ -566,123 +569,122 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       </div>
 
       {/* Bottom Tables: Riwayat Invoice & Riwayat Transaksi */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 4. Riwayat Invoice */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Riwayat Invoice</h3>
-            <span className="text-[10px] text-slate-400 font-medium">{invoices.length} Invoice</span>
+      <div className="space-y-4">
+        {/* Top Header & Unified Toggle Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Riwayat Tagihan & Transaksi</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Daftar rekapan invoice tagihan dan riwayat transaksi pembayaran bisnis Anda.</p>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400">
-                  <th className="pb-2">Invoice</th>
-                  <th className="pb-2">Periode</th>
-                  <th className="pb-2">Total</th>
-                  <th className="pb-2">Status</th>
-                  <th className="pb-2 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {invoices.slice(0, 5).map((inv, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40">
-                    <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
-                    <td className="py-2.5 text-slate-500">{inv.period}</td>
-                    <td className="py-2.5 text-slate-900 dark:text-slate-100 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
-                    <td className="py-2.5">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <button
-                        onClick={() => handleDownloadInvoice(inv.invoice_number)}
-                        disabled={downloadingId === inv.invoice_number}
-                        className="p-1 rounded-lg text-slate-400 hover:text-orange-500 cursor-pointer"
-                        title="Unduh Invoice PDF & e-Faktur"
-                      >
-                        <Download size={14} className={downloadingId === inv.invoice_number ? 'animate-bounce' : ''} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="pt-2 text-center flex items-center justify-center gap-3">
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.history.pushState({}, '', '/dashboard/billing/invoice');
-                  window.dispatchEvent(new Event('popstate'));
-                }
-                if (onNavigateTab) onNavigateTab('invoice');
-                setIsAllInvoicesModalOpen(true);
-              }}
-              className="text-xs font-extrabold text-orange-500 hover:text-orange-600 hover:underline cursor-pointer flex items-center justify-center gap-1 transition-colors"
-            >
-              <span>Lihat Semua Invoice ke Menu Billing & Plan</span>
-              <ArrowRight size={13} />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+            className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 self-start sm:self-auto"
+          >
+            <span>{isHistoryExpanded ? 'Tutup Riwayat' : `Buka Riwayat (${invoices.length + transactions.length})`}</span>
+            <ChevronDown size={15} className={`transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180 text-orange-500' : 'text-slate-500'}`} />
+          </button>
         </div>
 
-        {/* 5. Riwayat Transaksi */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Riwayat Transaksi</h3>
-            <span className="text-[10px] text-slate-400 font-medium">{transactions.length} Transaksi</span>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 4. Riwayat Invoice */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">Riwayat Invoice</h3>
+              <span className="text-[10px] text-slate-400 font-medium">{invoices.length} Invoice</span>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400">
-                  <th className="pb-2">Tanggal</th>
-                  <th className="pb-2">Deskripsi</th>
-                  <th className="pb-2">Metode</th>
-                  <th className="pb-2">Jumlah</th>
-                  <th className="pb-2 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {transactions.slice(0, 5).map((tx, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40">
-                    <td className="py-2.5 text-slate-500 font-mono text-[11px]">
-                      {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '28 Jul'}
-                    </td>
-                    <td className="py-2.5 text-slate-900 dark:text-slate-100 font-semibold">{tx.description}</td>
-                    <td className="py-2.5 text-slate-500">{tx.method}</td>
-                    <td className="py-2.5 text-slate-900 dark:text-slate-100 font-bold">USD {Number(tx.amount_usd).toFixed(2)}</td>
-                    <td className="py-2.5 text-right">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                        {tx.status}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
+                    <th className="pb-2">Invoice</th>
+                    <th className="pb-2">Periode</th>
+                    <th className="pb-2">Total</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2 text-right">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {invoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                        Belum ada riwayat invoice.
+                      </td>
+                    </tr>
+                  ) : (
+                    (isHistoryExpanded ? invoices : invoices.slice(0, 3)).map((inv, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40 transition-colors">
+                        <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
+                        <td className="py-2.5 text-slate-500">{inv.period}</td>
+                        <td className="py-2.5 text-slate-900 dark:text-slate-100 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
+                        <td className="py-2.5">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <button
+                            onClick={() => handleDownloadInvoice(inv.invoice_number)}
+                            disabled={downloadingId === inv.invoice_number}
+                            className="p-1 rounded-lg text-slate-400 hover:text-orange-500 cursor-pointer"
+                            title="Unduh Invoice PDF & e-Faktur"
+                          >
+                            <Download size={14} className={downloadingId === inv.invoice_number ? 'animate-bounce' : ''} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="pt-2 text-center flex items-center justify-center gap-3">
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.history.pushState({}, '', '/dashboard/billing/history');
-                  window.dispatchEvent(new Event('popstate'));
-                }
-                if (onNavigateTab) onNavigateTab('history');
-                setIsAllTransactionsModalOpen(true);
-              }}
-              className="text-xs font-extrabold text-orange-500 hover:text-orange-600 hover:underline cursor-pointer flex items-center justify-center gap-1 transition-colors"
-            >
-              <span>Lihat Semua Transaksi ke Menu Billing & Plan</span>
-              <ArrowRight size={13} />
-            </button>
+          {/* 5. Riwayat Transaksi */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">Riwayat Transaksi</h3>
+              <span className="text-[10px] text-slate-400 font-medium">{transactions.length} Transaksi</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
+                    <th className="pb-2">Tanggal</th>
+                    <th className="pb-2">Deskripsi</th>
+                    <th className="pb-2">Metode</th>
+                    <th className="pb-2">Jumlah</th>
+                    <th className="pb-2 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                        Belum ada riwayat transaksi.
+                      </td>
+                    </tr>
+                  ) : (
+                    (isHistoryExpanded ? transactions : transactions.slice(0, 3)).map((tx, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40 transition-colors">
+                        <td className="py-2.5 text-slate-500 font-mono text-[11px]">
+                          {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                        </td>
+                        <td className="py-2.5 text-slate-900 dark:text-slate-100 font-semibold">{tx.description}</td>
+                        <td className="py-2.5 text-slate-500">{tx.method}</td>
+                        <td className="py-2.5 text-slate-900 dark:text-slate-100 font-bold">USD {Number(tx.amount_usd).toFixed(2)}</td>
+                        <td className="py-2.5 text-right">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                            {tx.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -706,7 +708,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             if (onNavigateTab) onNavigateTab('help');
             setIsSupportModalOpen(true);
           }}
-          className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-sm shadow-orange-500/20"
+          className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
         >
           <span>Pusat Bantuan & Support</span>
           <ArrowRight size={12} />
@@ -718,7 +720,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 1. Kelola Paket Subskripsi Modal */}
       {isPlanModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Sparkles size={18} className="text-orange-500" />
@@ -728,70 +730,127 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              {/* Starter Plan */}
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-3 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-black text-slate-900 dark:text-slate-100">Starter</h4>
-                  <p className="text-[10px] text-slate-400">Untuk UMKM Pemula</p>
-                  <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 99.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
-                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
-                    <li>✓ 1.500 AI Credits</li>
-                    <li>✓ 3 AI Employees</li>
-                    <li>✓ 10 GB Storage</li>
-                  </ul>
-                </div>
-                <button
-                  onClick={() => handleSelectPlan('Starter', 1500, 3, 10)}
-                  className="w-full py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs cursor-pointer"
-                >
-                  Pilih Starter
-                </button>
-              </div>
+              {/* 1. Starter Plan */}
+              {(() => {
+                const currentPlan = billingOverview.plan_name || 'Growth';
+                const isStarterActive = currentPlan === 'Starter' || currentPlan === 'UMKM Starter';
+                const isGrowthActive = currentPlan === 'Growth' || currentPlan === 'UMKM Pro' || currentPlan === 'Bisnis';
+                const isProActive = currentPlan === 'Pro Enterprise' || currentPlan === 'Enterprise Ultra';
 
-              {/* Growth Plan (Active) */}
-              <div className="p-4 rounded-2xl border-2 border-orange-500 bg-orange-50/20 dark:bg-orange-950/20 space-y-3 flex flex-col justify-between relative">
-                <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black uppercase">
-                  Aktif Saat Ini
-                </span>
-                <div>
-                  <h4 className="font-black text-slate-900 dark:text-slate-100">Growth</h4>
-                  <p className="text-[10px] text-slate-400">Paling Populer</p>
-                  <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 299.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
-                  <ul className="mt-3 space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold">
-                    <li>✓ 5.000 AI Credits</li>
-                    <li>✓ 20 AI Employees</li>
-                    <li>✓ 50 GB Storage</li>
-                    <li>✓ e-Faktur PPN 11%</li>
-                  </ul>
-                </div>
-                <button
-                  disabled
-                  className="w-full py-2 rounded-xl bg-orange-500 text-white font-extrabold text-xs opacity-80 cursor-default"
-                >
-                  Paket Aktif
-                </button>
-              </div>
+                return (
+                  <>
+                    <div className={`p-4 rounded-2xl border-2 space-y-3 flex flex-col justify-between relative transition-all ${
+                      isStarterActive 
+                        ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20' 
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50'
+                    }`}>
+                      {isStarterActive && (
+                        <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black uppercase">
+                          Aktif Saat Ini
+                        </span>
+                      )}
+                      <div>
+                        <h4 className="font-black text-slate-900 dark:text-slate-100">Starter</h4>
+                        <p className="text-[10px] text-slate-400">Untuk UMKM Pemula</p>
+                        <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 99.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
+                        <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                          <li>✓ 1.500 AI Credits</li>
+                          <li>✓ 3 AI Employees</li>
+                          <li>✓ 10 GB Storage</li>
+                        </ul>
+                      </div>
+                      {isStarterActive ? (
+                        <button disabled className="w-full py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs opacity-80 cursor-default">
+                          Paket Aktif
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSelectPlan('Starter', 1500, 3, 10)}
+                          className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-extrabold text-xs cursor-pointer transition-colors"
+                        >
+                          Pilih Starter
+                        </button>
+                      )}
+                    </div>
 
-              {/* Pro Enterprise */}
-              <div className="p-4 rounded-2xl border border-purple-200 dark:border-purple-800 bg-purple-50/20 dark:bg-purple-950/20 space-y-3 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-black text-purple-900 dark:text-purple-100">Pro Enterprise</h4>
-                  <p className="text-[10px] text-slate-400">Skala Besar & Multi-cabang</p>
-                  <div className="mt-2 text-lg font-black text-purple-900 dark:text-purple-100">Rp 899.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
-                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
-                    <li>✓ 25.000 AI Credits</li>
-                    <li>✓ 50 AI Employees</li>
-                    <li>✓ 250 GB Storage</li>
-                    <li>✓ Dedicated Manager</li>
-                  </ul>
-                </div>
-                <button
-                  onClick={() => handleSelectPlan('Pro Enterprise', 25000, 50, 250)}
-                  className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs cursor-pointer"
-                >
-                  Upgrade ke Enterprise
-                </button>
-              </div>
+                    {/* 2. Growth / UMKM Pro Plan */}
+                    <div className={`p-4 rounded-2xl border-2 space-y-3 flex flex-col justify-between relative transition-all ${
+                      isGrowthActive 
+                        ? 'border-orange-500 bg-orange-50/20 dark:bg-orange-950/20' 
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50'
+                    }`}>
+                      {isGrowthActive ? (
+                        <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black uppercase">
+                          Aktif Saat Ini
+                        </span>
+                      ) : (
+                        <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase border border-orange-200 dark:border-orange-800">
+                          Paling Populer
+                        </span>
+                      )}
+                      <div>
+                        <h4 className="font-black text-slate-900 dark:text-slate-100">Growth</h4>
+                        <p className="text-[10px] text-slate-400">Paling Populer untuk UMKM</p>
+                        <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 299.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
+                        <ul className="mt-3 space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold">
+                          <li>✓ 5.000 AI Credits</li>
+                          <li>✓ 20 AI Employees</li>
+                          <li>✓ 50 GB Storage</li>
+                          <li>✓ e-Faktur PPN 11%</li>
+                        </ul>
+                      </div>
+                      {isGrowthActive ? (
+                        <button disabled className="w-full py-2 rounded-xl bg-orange-500 text-white font-extrabold text-xs opacity-80 cursor-default">
+                          Paket Aktif
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSelectPlan('Growth', 5000, 20, 50)}
+                          className="w-full py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer transition-colors"
+                        >
+                          Upgrade ke Growth
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 3. Pro Enterprise Plan */}
+                    <div className={`p-4 rounded-2xl border-2 space-y-3 flex flex-col justify-between relative transition-all ${
+                      isProActive 
+                        ? 'border-purple-500 bg-purple-50/20 dark:bg-purple-950/20' 
+                        : 'border-purple-200 dark:border-purple-800 bg-purple-50/20 dark:bg-purple-950/20'
+                    }`}>
+                      {isProActive && (
+                        <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[9px] font-black uppercase">
+                          Aktif Saat Ini
+                        </span>
+                      )}
+                      <div>
+                        <h4 className="font-black text-purple-900 dark:text-purple-100">Pro Enterprise</h4>
+                        <p className="text-[10px] text-slate-400">Skala Besar & Multi-cabang</p>
+                        <div className="mt-2 text-lg font-black text-purple-900 dark:text-purple-100">Rp 899.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
+                        <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                          <li>✓ 25.000 AI Credits</li>
+                          <li>✓ 50 AI Employees</li>
+                          <li>✓ 250 GB Storage</li>
+                          <li>✓ Dedicated Manager</li>
+                        </ul>
+                      </div>
+                      {isProActive ? (
+                        <button disabled className="w-full py-2 rounded-xl bg-purple-600 text-white font-extrabold text-xs opacity-80 cursor-default">
+                          Paket Aktif
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSelectPlan('Pro Enterprise', 25000, 50, 250)}
+                          className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs cursor-pointer transition-colors"
+                        >
+                          Upgrade ke Enterprise
+                        </button>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -800,9 +859,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 2. Detail Usage Telemetry Modal */}
       {isUsageModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Analisis Detail Penggunaan Kuota</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Analisis Detail Penggunaan Kuota</h3>
               <button onClick={() => setIsUsageModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -810,20 +869,29 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
                 <div className="flex justify-between">
                   <span>AI Agent Executions</span>
-                  <span className="font-bold text-orange-600">3.340 / 5.000 Calls</span>
+                  <span className="font-bold text-orange-600">
+                    {(billingOverview.ai_credits_used || 0).toLocaleString('id-ID')} / {(billingOverview.ai_credits_total || 5000).toLocaleString('id-ID')} Calls
+                  </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-orange-500 w-2/3" />
+                  <div
+                    className="h-full bg-orange-500"
+                    style={{ width: `${Math.min(100, ((billingOverview.ai_credits_used || 0) / (billingOverview.ai_credits_total || 5000)) * 100)}%` }}
+                  />
                 </div>
 
                 <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2">
                   <span>AI Employee Active Workforce</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">10 / 20 Active Agents</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {billingOverview.ai_employees_used || 0} / {billingOverview.ai_employees_total || 20} Active Agents
+                  </span>
                 </div>
 
                 <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2">
                   <span>R2 Storage Infrastructure</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">12.4 GB / 50 GB</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {billingOverview.storage_used_gb || 0} GB / {billingOverview.storage_total_gb || 50} GB
+                  </span>
                 </div>
               </div>
 
@@ -840,7 +908,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 3. Kelola Pembayaran Modal */}
       {isManagePaymentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -966,7 +1034,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 4. Tambah Metode Pembayaran Modal */}
       {isAddPaymentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Metode Pembayaran</h3>
               <button onClick={() => setIsAddPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
@@ -1039,9 +1107,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 5. Lihat Semua Invoice Modal */}
       {isAllInvoicesModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Daftar Lengkap Riwayat Invoice</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Daftar Lengkap Riwayat Invoice</h3>
               <button onClick={() => setIsAllInvoicesModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -1059,7 +1127,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             <div className="max-h-72 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
                     <th className="pb-2">Invoice</th>
                     <th className="pb-2">Periode</th>
                     <th className="pb-2">Total IDR</th>
@@ -1068,19 +1136,27 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredInvoices.map((inv, i) => (
-                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
-                      <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
-                      <td className="py-2.5 text-slate-500">{inv.period}</td>
-                      <td className="py-2.5 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
-                      <td className="py-2.5 font-mono text-[10px] text-slate-400">{inv.e_faktur_no || '010.000-26.0000721'}</td>
-                      <td className="py-2.5 text-right">
-                        <button onClick={() => handleDownloadInvoice(inv.invoice_number)} className="p-1 text-slate-400 hover:text-orange-500">
-                          <Download size={14} />
-                        </button>
+                  {filteredInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                        Belum ada data invoice.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredInvoices.map((inv, i) => (
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
+                        <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
+                        <td className="py-2.5 text-slate-500">{inv.period}</td>
+                        <td className="py-2.5 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
+                        <td className="py-2.5 font-mono text-[10px] text-slate-400">{inv.e_faktur_no || '-'}</td>
+                        <td className="py-2.5 text-right">
+                          <button onClick={() => handleDownloadInvoice(inv.invoice_number)} className="p-1 text-slate-400 hover:text-orange-500">
+                            <Download size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1097,9 +1173,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 6. Lihat Semua Transaksi Modal */}
       {isAllTransactionsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Daftar Lengkap Log Transaksi</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Daftar Lengkap Log Transaksi</h3>
               <button onClick={() => setIsAllTransactionsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -1117,7 +1193,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             <div className="max-h-72 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
                     <th className="pb-2">Tanggal</th>
                     <th className="pb-2">Deskripsi</th>
                     <th className="pb-2">Metode</th>
@@ -1126,17 +1202,25 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredTransactions.map((tx, i) => (
-                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
-                      <td className="py-2.5 text-slate-400 font-mono text-[11px]">
-                        {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString('id-ID') : '28 Jul 2026'}
+                  {filteredTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                        Belum ada log transaksi.
                       </td>
-                      <td className="py-2.5 font-semibold text-slate-900 dark:text-slate-100">{tx.description}</td>
-                      <td className="py-2.5 text-slate-500">{tx.method}</td>
-                      <td className="py-2.5 font-bold">USD {Number(tx.amount_usd).toFixed(2)}</td>
-                      <td className="py-2.5 text-right font-bold text-emerald-600">{tx.status}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredTransactions.map((tx, i) => (
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
+                        <td className="py-2.5 text-slate-400 font-mono text-[11px]">
+                          {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString('id-ID') : '-'}
+                        </td>
+                        <td className="py-2.5 font-semibold text-slate-900 dark:text-slate-100">{tx.description}</td>
+                        <td className="py-2.5 text-slate-500">{tx.method}</td>
+                        <td className="py-2.5 font-bold">USD {Number(tx.amount_usd).toFixed(2)}</td>
+                        <td className="py-2.5 text-right font-bold text-emerald-600">{tx.status}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1153,7 +1237,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* 7. Hubungi Support Modal */}
       {isSupportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <MessageSquare size={18} className="text-orange-500" />
