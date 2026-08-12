@@ -35,144 +35,6 @@ export function SalesBySourceSubPage({
   const [activeChartTab, setActiveChartTab] = useState<'distribution' | 'funnel' | 'growth'>('distribution');
   const [hoveredSourceIndex, setHoveredSourceIndex] = useState<number | null>(null);
 
-  // Default real sources if backend DB table is initializing
-  const defaultSources = [
-    { 
-      source_name: 'WhatsApp Direct', 
-      source_code: 'whatsapp_direct',
-      category: 'Messaging', 
-      impressions: 12500, 
-      clicks: 3200, 
-      buyers_count: 52, 
-      total_revenue_idr: 6100000, 
-      conversion_rate: 1.63,
-      mom_growth_pct: 18.5, 
-      color_hex: '#10b981',
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-      status: 'TERHUBUNG REALTIME'
-    },
-    { 
-      source_name: 'Shopee Live & Search', 
-      source_code: 'shopee_search',
-      category: 'Marketplace', 
-      impressions: 24100, 
-      clicks: 4800, 
-      buyers_count: 35, 
-      total_revenue_idr: 4100000, 
-      conversion_rate: 0.73,
-      mom_growth_pct: 14.2, 
-      color_hex: '#f97316',
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png',
-      status: 'TERHUBUNG REALTIME'
-    },
-    { 
-      source_name: 'Instagram Reels Ads', 
-      source_code: 'instagram_reels',
-      category: 'Social Media', 
-      impressions: 45000, 
-      clicks: 8500, 
-      buyers_count: 18, 
-      total_revenue_idr: 2000000, 
-      conversion_rate: 0.21,
-      mom_growth_pct: 12.0, 
-      color_hex: '#a855f7',
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png',
-      status: 'TERHUBUNG REALTIME'
-    },
-    { 
-      source_name: 'TikTok Shop Ads', 
-      source_code: 'tiktok_ads',
-      category: 'Short Video Commerce', 
-      impressions: 68000, 
-      clicks: 9200, 
-      buyers_count: 11, 
-      total_revenue_idr: 1300000, 
-      conversion_rate: 0.12,
-      mom_growth_pct: 22.4, 
-      color_hex: '#06b6d4',
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
-      status: 'TERHUBUNG REALTIME'
-    },
-    { 
-      source_name: 'Google Search Organic', 
-      source_code: 'google_search',
-      category: 'Search Engine', 
-      impressions: 22800, 
-      clicks: 2300, 
-      buyers_count: 8, 
-      total_revenue_idr: 1000000, 
-      conversion_rate: 0.35,
-      mom_growth_pct: 8.5, 
-      color_hex: '#3b82f6',
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/google_drive.png',
-      status: 'TERHUBUNG REALTIME'
-    }
-  ];
-
-  // Default 5 Real AI Swarm Models for Traffic Sources
-  const defaultAiSwarm = [
-    {
-      id: '1',
-      source_code: 'whatsapp_direct',
-      headline: 'DeepSeek R1: Efisiensi Atribusi WhatsApp Direct (1.63% CR)',
-      content: 'WhatsApp Direct menghasilkan 52 pembeli dari 3.200 klik (CR 1.63%), menyumbang Rp6.100.000 (22.5% omset total). Disarankan mengaktifkan auto-greeting catalog.',
-      action_suggestion: 'Aktifkan Auto Greeting Catalog WhatsApp',
-      model_engine: 'DeepSeek-R1-Reasoning',
-      confidence_pct: 98.80,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-      category: 'Atribusi WhatsApp Direct',
-      estimated_impact: '+Rp 1.500.000 / bln'
-    },
-    {
-      id: '2',
-      source_code: 'shopee_search',
-      headline: 'Claude-3.5-Sonnet: Optimasi Kata Kunci Shopee Live & Search',
-      content: 'Claude 3.5 Sonnet mengidentifikasi 4.800 klik di Shopee Live dengan CTR tinggi. Disarankan menambah kata kunci skincare brightening untuk menaikkan konversi.',
-      action_suggestion: 'Optimalkan Kata Kunci Shopee Live',
-      model_engine: 'Claude-3.5-Sonnet-Swarm',
-      confidence_pct: 97.80,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-      category: 'SEO & Keywords Shopee',
-      estimated_impact: '+15% Click-to-Buyer'
-    },
-    {
-      id: '3',
-      source_code: 'tiktok_ads',
-      headline: 'ZeroClaw Solana Telemetry: TikTok Video Commerce Swarm',
-      content: 'ZeroClaw Daemon mencatat 68.000 tayangan iklan TikTok dengan 9.200 klik. Disarankan memangkas durasi hook video dari 5 detik menjadi 3 detik.',
-      action_suggestion: 'Terapkan Hook 3-Detik TikTok Ads',
-      model_engine: 'ZeroClaw-Solana-Daemon',
-      confidence_pct: 99.10,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-      category: 'Video Commerce Telemetry',
-      estimated_impact: '+28% CTR Retensi Video'
-    },
-    {
-      id: '4',
-      source_code: 'ALL',
-      headline: '9Router Multi-LLM Smart Traffic Attribution Routing',
-      content: '9Router mengalokasikan tracking token secara dinamis, menghemat 40% biaya API telemetry tanpa mempengaruhi kecepatan pelacakan atribuisi.',
-      action_suggestion: 'Terapkan Dynamic Token Routing',
-      model_engine: '9Router-Auto-Cost-Optimizer',
-      confidence_pct: 98.60,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-      category: 'Multi-LLM Cost Guard',
-      estimated_impact: 'Hemat 40% Token Cost'
-    },
-    {
-      id: '5',
-      source_code: 'instagram_reels',
-      headline: 'Qwen Coder 32B: Retargeting Prospek Instagram Reels Ads',
-      content: 'Qwen Coder menemukan 8.500 pengunjung Instagram Reels yang tidak melanjutkan checkout. Script otomatis retargeting DM siap diaktifkan.',
-      action_suggestion: 'Jalankan DM Retargeting Campaign',
-      model_engine: 'Qwen-2.5-Coder-32B',
-      confidence_pct: 96.90,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-      category: 'Retargeting Instagram Ads',
-      estimated_impact: '+12 Orders Restored'
-    }
-  ];
-
   const resolveCdnIconUrl = (rawUrl?: string) => {
     if (!rawUrl) return 'https://cdn.zegaai.site/assets/logo/deepseek.webp';
     let url = rawUrl;
@@ -182,9 +44,9 @@ export function SalesBySourceSubPage({
     return url;
   };
 
-  // Strictly deduplicate sources by source_code or source_name to prevent double rendering
+  // Deduplicate sources by source_code or source_name
   const deduplicatedSources = useMemo(() => {
-    const rawList = sources.length ? sources : defaultSources;
+    const rawList = sources || [];
     const seen = new Set<string>();
     const result: any[] = [];
 
@@ -194,7 +56,7 @@ export function SalesBySourceSubPage({
       seen.add(key);
       result.push(src);
     }
-    return result.length ? result : defaultSources;
+    return result;
   }, [sources]);
 
   // Aggregate telemetry metrics
@@ -219,7 +81,7 @@ export function SalesBySourceSubPage({
     return ((totalBuyers / totalClicks) * 100).toFixed(2);
   }, [totalBuyers, totalClicks]);
 
-  const activeInsights = aiInsights.length ? aiInsights : defaultAiSwarm;
+  const activeInsights = aiInsights || [];
 
   // Toggle Accordion Item
   const toggleInsightAccordion = (id: string) => {
@@ -295,12 +157,8 @@ export function SalesBySourceSubPage({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Sales by Source & Atribusi Trafik Real-time
+                  Sales by Source & Atribusi Trafik
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 text-[10px] font-semibold border border-emerald-200/50 flex items-center gap-1">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  LIVE TELEMETRY
-                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
                 Analisis mendalam atribusi omset dari kampanye iklan, media sosial, search engine, dan chat secara terpusat.

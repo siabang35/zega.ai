@@ -15,12 +15,12 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
   // Channels
   const [inAppEnabled, setInAppEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
-  const [emailTarget, setEmailTarget] = useState('cikberiuk@gmail.com');
+  const [emailTarget, setEmailTarget] = useState('');
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
-  const [whatsappTarget, setWhatsappTarget] = useState('+62 812-3456-7890');
+  const [whatsappTarget, setWhatsappTarget] = useState('');
   const [browserEnabled, setBrowserEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(false);
-  const [smsTarget, setSmsTarget] = useState('+62 812-3456-7890');
+  const [smsTarget, setSmsTarget] = useState('');
 
   // Category Preferences
   const [aiTaskDone, setAiTaskDone] = useState(true);
@@ -90,6 +90,11 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         if (data.quiet_hours_start) setQuietHoursStart(data.quiet_hours_start);
         if (data.quiet_hours_end) setQuietHoursEnd(data.quiet_hours_end);
         if (data.quiet_hours_freq) setQuietHoursFreq(data.quiet_hours_freq);
+      } else {
+        // Zero-trust fallback: fetch logged in user profile email/phone if notification row is empty
+        const userProfile = await SupabaseDashboardService.getUmkmUserProfileOverview();
+        if (userProfile?.profile?.email) setEmailTarget(userProfile.profile.email);
+        if (userProfile?.profile?.phone) setWhatsappTarget(userProfile.profile.phone);
       }
     } catch (e) {
       console.warn('Notifications load error:', e);
@@ -248,7 +253,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
                   onClick={() => openEditTargetModal('Email')}
                   className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
                 >
-                  <span>{emailTarget}</span>
+                  <span>{emailTarget || 'Belum diatur'}</span>
                   <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
                 </button>
                 {renderToggle(emailEnabled, (val) => {
@@ -274,7 +279,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
                   onClick={() => openEditTargetModal('WhatsApp')}
                   className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
                 >
-                  <span>{whatsappTarget}</span>
+                  <span>{whatsappTarget || 'Belum diatur'}</span>
                   <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
                 </button>
                 {renderToggle(whatsappEnabled, (val) => {
@@ -317,7 +322,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
                   onClick={() => openEditTargetModal('SMS')}
                   className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
                 >
-                  <span>{smsTarget}</span>
+                  <span>{smsTarget || 'Belum diatur'}</span>
                   <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
                 </button>
                 {renderToggle(smsEnabled, (val) => {

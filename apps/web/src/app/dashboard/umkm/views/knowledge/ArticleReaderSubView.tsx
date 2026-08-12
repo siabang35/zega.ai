@@ -187,7 +187,7 @@ export function ArticleReaderSubView({
                 />
                 <div>
                   <div className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>{article.author_name || 'Cik Berliuk'}</span>
+                    <span>{article.author_name || 'Tim UMKM'}</span>
                     <ShieldCheck size={14} className="text-blue-500" />
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium">{article.author_role || 'UMKM Owner'} • Store AI Copilot</span>
@@ -201,11 +201,11 @@ export function ArticleReaderSubView({
                 </div>
                 <div className="flex items-center gap-1">
                   <BookOpen size={14} className="text-slate-400" />
-                  <span>{article.views_count || 532} Dibaca</span>
+                  <span>{article.views_count ?? 0} Dibaca</span>
                 </div>
                 <div className="flex items-center gap-1 text-amber-500 font-bold">
                   <Star size={14} fill="currentColor" />
-                  <span>{article.rating_score || 4.9}</span>
+                  <span>{article.rating_score ?? 0.0}</span>
                 </div>
               </div>
             </div>

@@ -193,11 +193,15 @@ export class R2StorageService {
   static async generatePresignedUploadUrl({
     filename,
     contentType,
+    organizationId = '00000000-0000-0000-0000-000000000001',
+    workspaceId = '00000000-0000-0000-0000-000000000002',
     folder = 'user-uploads',
     expiresInSeconds = 900,
   }: {
     filename: string;
     contentType: string;
+    organizationId?: string;
+    workspaceId?: string;
     folder?: string;
     expiresInSeconds?: number;
   }): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
@@ -205,7 +209,7 @@ export class R2StorageService {
     const bucket = this.getBucketName();
 
     const fileExt = filename.split('.').pop() || 'png';
-    const key = `${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
+    const key = `organizations/${organizationId}/workspaces/${workspaceId}/${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExt}`;
     const publicUrl = this.getPublicUrl(key);
 
     if (!client) {

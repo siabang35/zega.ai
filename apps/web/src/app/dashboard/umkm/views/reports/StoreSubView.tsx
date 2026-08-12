@@ -19,27 +19,10 @@ interface StoreSubViewProps {
 }
 
 export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubViewProps) {
-  const [inventoryKpi, setInventoryKpi] = useState<any>({ total_sku: 248, low_stock_count: 12, out_of_stock_count: 3, avg_inventory_days: 18 });
-  const [categories, setCategories] = useState<any[]>([
-    { category_name: 'Fashion & Apparel', product_count: 86, revenue_idr: 5200000, percentage: 38.5, growth_pct: 22, color_hex: '#3b82f6' },
-    { category_name: 'Aksesoris & Gadget', product_count: 62, revenue_idr: 3800000, percentage: 28.1, growth_pct: 15, color_hex: '#a855f7' },
-    { category_name: 'Home & Living', product_count: 48, revenue_idr: 2400000, percentage: 17.8, growth_pct: 8, color_hex: '#10b981' },
-    { category_name: 'Food & Beverage', product_count: 34, revenue_idr: 1500000, percentage: 11.1, growth_pct: 12, color_hex: '#f97316' },
-    { category_name: 'Digital Products', product_count: 18, revenue_idr: 600000, percentage: 4.5, growth_pct: 35, color_hex: '#ec4899' },
-  ]);
-  const [turnover, setTurnover] = useState<any[]>([
-    { segment_label: 'Fast Moving', product_count: 42, percentage: 35, color_hex: '#10b981' },
-    { segment_label: 'Medium', product_count: 86, percentage: 42, color_hex: '#3b82f6' },
-    { segment_label: 'Slow Moving', product_count: 38, percentage: 18, color_hex: '#f59e0b' },
-    { segment_label: 'Dead Stock', product_count: 8, percentage: 5, color_hex: '#ef4444' },
-  ]);
-  const [lowStock, setLowStock] = useState<any[]>([
-    { product_name: 'Kaos Polos Hitam (M)', current_stock: 8, avg_sold_monthly: 37, days_until_empty: 4, urgency: 'CRITICAL', sku: 'SKU-KAOS-01' },
-    { product_name: 'Tumbler Premium 500ml', current_stock: 5, avg_sold_monthly: 28, days_until_empty: 3, urgency: 'CRITICAL', sku: 'SKU-TUMBLER-02' },
-    { product_name: 'Hoodie Full Zip (L)', current_stock: 3, avg_sold_monthly: 18, days_until_empty: 2, urgency: 'CRITICAL', sku: 'SKU-HOODIE-03' },
-    { product_name: 'Botol Minum 350ml', current_stock: 15, avg_sold_monthly: 24, days_until_empty: 10, urgency: 'WARNING', sku: 'SKU-BOTOL-04' },
-    { product_name: 'Totebag Canvas Hitam', current_stock: 12, avg_sold_monthly: 15, days_until_empty: 12, urgency: 'OK', sku: 'SKU-TOTEBAG-05' },
-  ]);
+  const [inventoryKpi, setInventoryKpi] = useState<any>({ total_sku: 0, low_stock_count: 0, out_of_stock_count: 0, avg_inventory_days: 0 });
+  const [categories, setCategories] = useState<any[]>([]);
+  const [turnover, setTurnover] = useState<any[]>([]);
+  const [lowStock, setLowStock] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modals State

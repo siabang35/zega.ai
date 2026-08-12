@@ -16,80 +16,7 @@ interface ActivityStreamDashboardProps {
   onSelectCustomer?: (customerName: string) => void;
 }
 
-const MOCK_EXTENDED_ACTIVITIES = [
-  {
-    id: 'act-101',
-    customer_name: 'Siti Aisyah',
-    action_type: 'checkout',
-    action_description: 'Melakukan pembelian 3x Hijab Silk Premium',
-    amount_idr: 450000,
-    channel: 'Storefront Web',
-    time_ago: '2 jam lalu',
-    timestamp: '2026-08-08 00:15:30',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    payload: { order_id: 'ORD-98214', payment_method: 'QRIS BCA', items_count: 3, client_ip: '180.252.112.44', device: 'iOS Safari' }
-  },
-  {
-    id: 'act-102',
-    customer_name: 'Budi Santoso',
-    action_type: 'whatsapp',
-    action_description: 'Membuka pesan WhatsApp promo & klik voucher REPEAT30',
-    amount_idr: 0,
-    channel: 'WhatsApp AI Agent',
-    time_ago: '3 jam lalu',
-    timestamp: '2026-08-07 23:40:12',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    payload: { campaign_id: 'CAMP-WA-882', read_status: 'READ', click_ctr: '100%', client_ip: '114.124.210.99', device: 'Android WhatsApp' }
-  },
-  {
-    id: 'act-103',
-    customer_name: 'Dewi Lestari',
-    action_type: 'link_click',
-    action_description: 'Mengeklik link penawaran diskon edisi VIP Spasial',
-    amount_idr: 0,
-    channel: 'Marketing AI Swarm',
-    time_ago: '5 jam lalu',
-    timestamp: '2026-08-07 21:20:05',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    payload: { utm_source: 'instagram_story', target_url: '/promo/vip-gold', client_ip: '125.160.88.12', device: 'iOS Webview' }
-  },
-  {
-    id: 'act-104',
-    customer_name: 'Rizky Pratama',
-    action_type: 'cart',
-    action_description: 'Menambahkan 2x Sneaker Casual ke keranjang belanja',
-    amount_idr: 750000,
-    channel: 'Mobile PWA',
-    time_ago: '1 hari lalu',
-    timestamp: '2026-08-07 18:10:44',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    payload: { cart_id: 'CRT-44102', total_cart_value: 750000, abandoned: true, client_ip: '110.138.22.15', device: 'Android Chrome' }
-  },
-  {
-    id: 'act-105',
-    customer_name: 'Maya Putri',
-    action_type: 'signup',
-    action_description: 'Mendaftar sebagai pelanggan baru via Google OAuth',
-    amount_idr: 0,
-    channel: 'Authentication Hub',
-    time_ago: '1 hari lalu',
-    timestamp: '2026-08-07 15:05:00',
-    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-    payload: { auth_provider: 'Google OAuth2', email_verified: true, referral_code: 'ZEGA-VIP', client_ip: '180.244.33.88', device: 'Mac OS Chrome' }
-  },
-  {
-    id: 'act-106',
-    customer_name: 'Hendrik Wijaya',
-    action_type: 'checkout',
-    action_description: 'Melakukan pembayaran invoice pesanan grosir Kopi Robusta',
-    amount_idr: 1250000,
-    channel: 'B2B Sales Portal',
-    time_ago: '1 hari lalu',
-    timestamp: '2026-08-07 12:30:19',
-    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    payload: { order_id: 'ORD-98199', payment_method: 'Bank Transfer Mandiri', client_ip: '36.88.201.12', device: 'Windows Desktop' }
-  }
-];
+const MOCK_EXTENDED_ACTIVITIES: any[] = [];
 
 export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSelectCustomer }: ActivityStreamDashboardProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -97,6 +24,7 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
   const [expandedPayloadId, setExpandedPayloadId] = useState<string | null>(null);
   const [chartTimeframe, setChartTimeframe] = useState<'24h' | '7d' | '30d'>('24h');
   const [isLiveStreaming, setIsLiveStreaming] = useState<boolean>(true);
+  const [isAiSwarmOpen, setIsAiSwarmOpen] = useState<boolean>(false);
 
   const [dbActivities, setDbActivities] = useState<any[]>([]);
 
@@ -104,7 +32,7 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
     async function loadTelemetry() {
       try {
         const res = await SupabaseDashboardService.getUmkmCrmActivityStreamTelemetry(activeFilter);
-        if (res && res.activities && res.activities.length > 0) {
+        if (res && Array.isArray(res.activities)) {
           setDbActivities(res.activities);
         }
       } catch (e) {
@@ -114,8 +42,8 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
     loadTelemetry();
   }, [activeFilter]);
 
-  // Combine DB telemetry, props data, or fallback to rich mock telemetry
-  const baseActivities = dbActivities.length > 0 ? dbActivities : (activityStreamData && activityStreamData.length > 0 ? activityStreamData : MOCK_EXTENDED_ACTIVITIES);
+  // Combine DB telemetry or props data (zero fallback)
+  const baseActivities = dbActivities.length > 0 ? dbActivities : (activityStreamData && activityStreamData.length > 0 ? activityStreamData : []);
 
   const combinedActivities = baseActivities.map((item, idx) => ({
     id: item.id || `act-${idx}`,
@@ -144,30 +72,49 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
     return item.action_type === activeFilter;
   });
 
-  // Chart data setup
-  const velocityChartData = {
-    labels: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
-    datasets: [
-      {
-        label: 'Pembelian / Checkout',
-        data: [12, 8, 24, 65, 120, 142, 98, 45],
-        backgroundColor: '#10b981',
-        borderRadius: 8,
-      },
-      {
-        label: 'WhatsApp & Chat Engagement',
-        data: [20, 14, 40, 110, 185, 210, 160, 95],
-        backgroundColor: '#3b82f6',
-        borderRadius: 8,
-      },
-      {
-        label: 'Keranjang & Klik Link',
-        data: [15, 10, 30, 85, 140, 165, 130, 70],
-        backgroundColor: '#f97316',
-        borderRadius: 8,
+  // Dynamic Velocity Chart Data computed from combinedActivities
+  const velocityChartData = (() => {
+    const hours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'];
+    const checkoutData = new Array(8).fill(0);
+    const waData = new Array(8).fill(0);
+    const otherData = new Array(8).fill(0);
+
+    combinedActivities.forEach((act) => {
+      let hour = 12;
+      if (act.timestamp) {
+        const parsedHour = new Date(act.timestamp).getHours();
+        if (!isNaN(parsedHour)) hour = parsedHour;
       }
-    ]
-  };
+      const index = Math.min(Math.floor(hour / 3), 7);
+      if (act.action_type === 'checkout') checkoutData[index]++;
+      else if (act.action_type === 'whatsapp') waData[index]++;
+      else otherData[index]++;
+    });
+
+    return {
+      labels: hours,
+      datasets: [
+        {
+          label: 'Pembelian / Checkout',
+          data: checkoutData,
+          backgroundColor: '#10b981',
+          borderRadius: 8,
+        },
+        {
+          label: 'WhatsApp & Chat Engagement',
+          data: waData,
+          backgroundColor: '#3b82f6',
+          borderRadius: 8,
+        },
+        {
+          label: 'Keranjang & Klik Link',
+          data: otherData,
+          backgroundColor: '#f97316',
+          borderRadius: 8,
+        }
+      ]
+    };
+  })();
 
   const velocityChartOptions = {
     responsive: true,
@@ -277,61 +224,73 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
       </div>
 
       {/* 2. Top KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
-            <span>TOTAL EVENT (24H)</span>
-            <div className="p-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600">
-              <Zap size={14} />
-            </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-            1,428 <span className="text-[10px] text-emerald-500 font-bold">+18.4%</span>
-          </div>
-          <p className="text-[10px] text-slate-400 truncate">Telemetri seluruh channel</p>
-        </div>
+      {(() => {
+        const totalEventsCount = combinedActivities.length;
+        const checkoutActivities = combinedActivities.filter(a => a.action_type === 'checkout');
+        const checkoutTxCount = checkoutActivities.length;
+        const totalRevenueIdr = checkoutActivities.reduce((sum, a) => sum + (a.amount_idr || 0), 0);
+        const waEngagementCount = combinedActivities.filter(a => a.action_type === 'whatsapp').length;
 
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
-            <span>CHECKOUT & REVENUE</span>
-            <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
-              <ShoppingBag size={14} />
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
+                <span>TOTAL EVENT (24H)</span>
+                <div className="p-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600">
+                  <Zap size={14} />
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                {totalEventsCount.toLocaleString('id-ID')} <span className="text-[10px] text-emerald-500 font-bold">Live</span>
+              </div>
+              <p className="text-[10px] text-slate-400 truncate">Telemetri seluruh channel</p>
             </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-            342 <span className="text-[10px] text-slate-400 font-normal">Tx</span>
-          </div>
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold truncate">
-            Rp142,500,000
-          </p>
-        </div>
 
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
-            <span>WA ENGAGEMENT</span>
-            <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
-              <MessageSquare size={14} />
+            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
+                <span>CHECKOUT & REVENUE</span>
+                <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
+                  <ShoppingBag size={14} />
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                {checkoutTxCount} <span className="text-[10px] text-slate-400 font-normal">Tx</span>
+              </div>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold truncate">
+                Rp{totalRevenueIdr.toLocaleString('id-ID')}
+              </p>
             </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-            580 <span className="text-[10px] text-blue-500 font-bold">Respon</span>
-          </div>
-          <p className="text-[10px] text-slate-400 truncate">CTR WA Agent: 64.2%</p>
-        </div>
 
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
-            <span>JAM PUNCAK</span>
-            <div className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
-              <TrendingUp size={14} />
+            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
+                <span>WA ENGAGEMENT</span>
+                <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
+                  <MessageSquare size={14} />
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                {waEngagementCount} <span className="text-[10px] text-blue-500 font-bold">Respon</span>
+              </div>
+              <p className="text-[10px] text-slate-400 truncate">Telemetri WA Agent Live</p>
+            </div>
+
+            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
+                <span>JAM PUNCAK</span>
+                <div className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
+                  <TrendingUp size={14} />
+                </div>
+              </div>
+              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                {totalEventsCount > 0 ? `${totalEventsCount}` : '0'} <span className="text-[10px] text-slate-400 font-normal">event/jam</span>
+              </div>
+              <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold truncate">
+                {totalEventsCount > 0 ? 'Telemetri Terdeteksi' : 'Belum Ada Data'}
+              </p>
             </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-            184 <span className="text-[10px] text-slate-400 font-normal">event/jam</span>
-          </div>
-          <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold truncate">14:00 - 15:00 WIB</p>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* 3. Restructured 2-Column Main Workspace Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -542,82 +501,91 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
               <span>Distribusi Volume Channel CRM</span>
             </h3>
 
-            <div className="space-y-2.5">
-              {[
-                { name: 'WhatsApp Bot Agent', pct: 45, events: '1,840', color: 'bg-emerald-500' },
-                { name: 'Web Storefront', pct: 28, events: '1,145', color: 'bg-blue-500' },
-                { name: 'Point of Sale (POS)', pct: 17, events: '695', color: 'bg-amber-500' },
-                { name: 'Email Campaign', pct: 10, events: '410', color: 'bg-purple-500' }
-              ].map((ch, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700 dark:text-slate-300">{ch.name}</span>
-                    <span className="font-mono text-slate-500">{ch.pct}% ({ch.events})</span>
+            {(() => {
+              const channelCounts: Record<string, number> = {};
+              combinedActivities.forEach(a => {
+                const ch = a.channel || 'CRM Telemetry';
+                channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+              });
+              const totalChEvents = combinedActivities.length;
+              const channelList = Object.entries(channelCounts).map(([name, count], idx) => ({
+                name,
+                events: count.toLocaleString('id-ID'),
+                pct: totalChEvents > 0 ? Math.round((count / totalChEvents) * 100) : 0,
+                color: ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500'][idx % 4]
+              }));
+
+              if (channelList.length === 0) {
+                return (
+                  <div className="py-6 text-center text-slate-400 text-xs font-semibold">
+                    Belum ada data distribusi channel.
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className={`h-full ${ch.color} rounded-full transition-all`} style={{ width: `${ch.pct}%` }} />
-                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5">
+                  {channelList.map((ch, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-700 dark:text-slate-300">{ch.name}</span>
+                        <span className="font-mono text-slate-500">{ch.pct}% ({ch.events})</span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className={`h-full ${ch.color} rounded-full transition-all`} style={{ width: `${ch.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
 
-          {/* Card 3: AI Swarm Retention Campaign Insights */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 text-white rounded-3xl p-5 border border-slate-800 space-y-3.5 shadow-md">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          {/* Card 3: AI Swarm Retention Campaign Insights (Seamless & Collapsible) */}
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs transition-all">
+            <div 
+              onClick={() => setIsAiSwarmOpen(!isAiSwarmOpen)}
+              className="flex items-center justify-between cursor-pointer select-none"
+            >
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-xl bg-orange-500/20 text-orange-400">
+                <div className="p-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400">
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h4 className="font-black text-xs text-slate-100">AI Swarm Campaign Telemetry</h4>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>AI Swarm Telemetry</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[9px] font-mono font-bold uppercase">
+                      ZeroClaw Engine
+                    </span>
+                  </h4>
                   <p className="text-[10px] text-slate-400">Model AI konversi broadcast</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-mono font-bold uppercase">
-                Active
-              </span>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAiSwarmOpen(!isAiSwarmOpen);
+                }}
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                title={isAiSwarmOpen ? 'Tutup Telemetri AI Swarm' : 'Buka Telemetri AI Swarm'}
+              >
+                {isAiSwarmOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
             </div>
 
-            <div className="space-y-2.5">
-              {[
-                {
-                  title: 'Gajian Sale Retention Broadcast',
-                  model: 'DeepSeek R1 70B',
-                  logo: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-                  rate: '47.4%',
-                  revenue: 'Rp18.5M'
-                },
-                {
-                  title: 'VIP Flash Early Access',
-                  model: 'Claude 3.5 Sonnet',
-                  logo: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-                  rate: '52.7%',
-                  revenue: 'Rp24.6M'
-                },
-                {
-                  title: 'Winback Churn Risk Cohort',
-                  model: '9Router L5 Engine',
-                  logo: 'https://cdn.zegaai.site/assets/logo/9router.webp',
-                  rate: '35.6%',
-                  revenue: 'Rp8.9M'
-                }
-              ].map((c, i) => (
-                <div key={i} className="p-2.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <img src={c.logo} alt={c.model} className="size-6 rounded-lg object-contain bg-white/10 p-0.5 shrink-0" />
-                    <div className="truncate min-w-0">
-                      <div className="font-bold text-xs text-slate-200 truncate">{c.title}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{c.model}</div>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-mono font-black text-emerald-400">{c.rate}</div>
-                    <div className="text-[9px] text-slate-400 font-mono">{c.revenue}</div>
-                  </div>
+            {isAiSwarmOpen && (
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 animate-in fade-in duration-150 space-y-2">
+                <div className="py-4 text-center text-slate-400 text-xs font-semibold space-y-1">
+                  <Sparkles size={18} className="mx-auto text-orange-500 opacity-60" />
+                  <p className="font-bold text-slate-700 dark:text-slate-200">Siap Menjalankan Kampanye Swarm</p>
+                  <p className="text-[10px] text-slate-400 leading-relaxed px-2">
+                    Gunakan tombol "Kirim Voucher AI" untuk memulai broadcast retensi otomatis.
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
         </div>

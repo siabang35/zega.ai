@@ -53,45 +53,20 @@ interface SalesSubViewProps {
 
 export function SalesSubView({ triggerToast, dateRange, reportsData }: SalesSubViewProps) {
   const [salesKpi, setSalesKpi] = useState({
-    total_sales_idr: 18450000.00,
-    total_orders: 142,
-    avg_deal_size_idr: 129929.00,
-    win_rate_pct: 21.10,
-    revenue_growth_pct: 22.50,
-    orders_growth_pct: 24.10,
-    aov_growth_pct: 6.40,
-    win_rate_growth_pct: 3.20,
+    total_sales_idr: 0,
+    total_orders: 0,
+    avg_deal_size_idr: 0,
+    win_rate_pct: 0,
+    revenue_growth_pct: 0,
+    orders_growth_pct: 0,
+    aov_growth_pct: 0,
+    win_rate_growth_pct: 0,
   });
 
-  const [pipeline, setPipeline] = useState([
-    { stage: 'Leads Masuk', deal_count: 342, deal_value_idr: 85000000, conversion_pct: 100, color_hex: '#3b82f6' },
-    { stage: 'Qualified', deal_count: 218, deal_value_idr: 54500000, conversion_pct: 64, color_hex: '#8b5cf6' },
-    { stage: 'Proposal Sent', deal_count: 156, deal_value_idr: 39000000, conversion_pct: 46, color_hex: '#f59e0b' },
-    { stage: 'Negosiasi', deal_count: 98, deal_value_idr: 24500000, conversion_pct: 29, color_hex: '#f97316' },
-    { stage: 'Closed Won', deal_count: 72, deal_value_idr: 18000000, conversion_pct: 21, color_hex: '#10b981' },
-  ]);
-
-  const [orderStatuses, setOrderStatuses] = useState([
-    { status: 'Selesai', order_count: 89, percentage: 76.7, color_hex: '#10b981' },
-    { status: 'Diproses', order_count: 18, percentage: 15.5, color_hex: '#3b82f6' },
-    { status: 'Pending', order_count: 6, percentage: 5.2, color_hex: '#f59e0b' },
-    { status: 'Dibatalkan', order_count: 3, percentage: 2.6, color_hex: '#ef4444' },
-  ]);
-
-  const [dailyTrend, setDailyTrend] = useState([
-    { day_label: 'Sen', revenue_idr: 1800000 }, { day_label: 'Sel', revenue_idr: 2200000 },
-    { day_label: 'Rab', revenue_idr: 1950000 }, { day_label: 'Kam', revenue_idr: 2400000 },
-    { day_label: 'Jum', revenue_idr: 2800000 }, { day_label: 'Sab', revenue_idr: 3100000 },
-    { day_label: 'Min', revenue_idr: 1200000 },
-  ]);
-
-  const [performers, setPerformers] = useState([
-    { performer_name: 'AI Sales Bot – WhatsApp', deals_closed: 34, revenue_idr: 8500000 },
-    { performer_name: 'Closi – Sales Agent', deals_closed: 28, revenue_idr: 7200000 },
-    { performer_name: 'Shopee Auto-Sync', deals_closed: 22, revenue_idr: 5800000 },
-    { performer_name: 'Instagram DM Bot', deals_closed: 14, revenue_idr: 3200000 },
-    { performer_name: 'TikTok Shop Agent', deals_closed: 10, revenue_idr: 1800000 },
-  ]);
+  const [pipeline, setPipeline] = useState<any[]>([]);
+  const [orderStatuses, setOrderStatuses] = useState<any[]>([]);
+  const [dailyTrend, setDailyTrend] = useState<any[]>([]);
+  const [performers, setPerformers] = useState<any[]>([]);
 
   // Interactive Controls State
   const [selectedHorizon, setSelectedHorizon] = useState<'7d' | '30d' | '90d'>('30d');
@@ -117,9 +92,9 @@ export function SalesSubView({ triggerToast, dateRange, reportsData }: SalesSubV
 
       if (data?.salesKpi) {
         const rawKpi = data.salesKpi;
-        const scaledSales = (rawKpi.total_sales_idr || 18450000) * mult;
-        const scaledOrders = Math.round((rawKpi.total_orders || 142) * mult);
-        const scaledAvg = scaledOrders > 0 ? Math.round(scaledSales / scaledOrders) : rawKpi.avg_deal_size_idr;
+        const scaledSales = (rawKpi.total_sales_idr || 0) * mult;
+        const scaledOrders = Math.round((rawKpi.total_orders || 0) * mult);
+        const scaledAvg = scaledOrders > 0 ? Math.round(scaledSales / scaledOrders) : (rawKpi.avg_deal_size_idr || 0);
 
         setSalesKpi({
           ...rawKpi,
@@ -304,10 +279,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-white">Sales Intelligence & Telemetry Hub</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                <ShieldCheck size={11} /> ZeroClaw & 9Router Active
-              </span>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-white">Sales Intelligence &amp; Telemetry Hub</h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Otomasi pelacakan deal pipeline, konversi transaksi, dan performa sales agent terintegrasi Supabase Realtime
@@ -350,10 +322,10 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
       {/* 2. Sales KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Penjualan', val: `Rp${(salesKpi.total_sales_idr || 18450000).toLocaleString('id-ID')}`, growth: `+${salesKpi.revenue_growth_pct}%`, icon: BarChart3 },
-          { label: 'Total Orders', val: `${salesKpi.total_orders || 142}`, growth: `+${salesKpi.orders_growth_pct}%`, icon: ShoppingBag },
-          { label: 'Avg. Deal Size', val: `Rp${(salesKpi.avg_deal_size_idr || 129929).toLocaleString('id-ID')}`, growth: `+${salesKpi.aov_growth_pct}%`, icon: Target },
-          { label: 'Win Rate', val: `${salesKpi.win_rate_pct || 21.1}%`, growth: `+${salesKpi.win_rate_growth_pct}%`, icon: TrendingUp },
+          { label: 'Total Penjualan', val: `Rp${(salesKpi.total_sales_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.revenue_growth_pct}%`, icon: BarChart3 },
+          { label: 'Total Orders', val: `${salesKpi.total_orders || 0}`, growth: `+${salesKpi.orders_growth_pct}%`, icon: ShoppingBag },
+          { label: 'Avg. Deal Size', val: `Rp${(salesKpi.avg_deal_size_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.aov_growth_pct}%`, icon: Target },
+          { label: 'Win Rate', val: `${salesKpi.win_rate_pct || 0}%`, growth: `+${salesKpi.win_rate_growth_pct}%`, icon: TrendingUp },
         ].map((card, i) => {
           const Icon = card.icon;
           return (
@@ -398,7 +370,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-slate-500">Conversion Rate (Lead → Won)</span>
-              <span className="font-black text-emerald-600">{pipeline.length > 0 ? pipeline[pipeline.length - 1]?.conversion_pct : 21.1}%</span>
+              <span className="font-black text-emerald-600">{pipeline.length > 0 ? pipeline[pipeline.length - 1]?.conversion_pct : 0}%</span>
             </div>
           </div>
         </div>
@@ -416,8 +388,8 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
             <Bar data={dailySalesData} options={barOptions} />
           </div>
           <div className="flex items-center justify-between text-xs pt-1">
-            <span className="font-bold text-slate-500">Hari Terbaik: <span className="text-orange-600 font-black">{bestDay?.day_label || 'Sab'}</span></span>
-            <span className="font-mono text-slate-400">Rp{((bestDay?.revenue_idr || 3100000) / 1000000).toFixed(1)}M</span>
+            <span className="font-bold text-slate-500">Hari Terbaik: <span className="text-orange-600 font-black">{bestDay?.day_label || '-'}</span></span>
+            <span className="font-mono text-slate-400">Rp{((bestDay?.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
           </div>
         </div>
 

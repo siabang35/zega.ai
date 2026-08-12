@@ -3,7 +3,8 @@ import {
   Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Zap, Bot, RefreshCw, 
   BarChart3, ShoppingBag, TrendingUp, Users, DollarSign, Activity, Eye, 
   Info, TrendingDown, Target, Layers, Filter, X, Plus, Edit3, Trash2, Settings,
-  ChevronRight, Cpu, ArrowUpRight, LayoutList, LayoutGrid, Table, Search, SlidersHorizontal
+  ChevronRight, Cpu, ArrowUpRight, LayoutList, LayoutGrid, Table, Search, SlidersHorizontal,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
@@ -20,6 +21,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [isFootprintOpen, setIsFootprintOpen] = useState(true);
   
   // Layout & Filter states
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'table'>('list');
@@ -139,11 +141,11 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
     }
   };
 
-  const healthScore = data?.health?.score || 94;
-  const healthLabel = data?.health?.category_label || 'EXCELLENT';
-  const pointsChange = data?.health?.points_change || 8;
+  const healthScore = data?.health?.score ?? 0;
+  const healthLabel = data?.health?.category_label || (healthScore > 0 ? 'OPTIMAL' : 'NO_DATA');
+  const pointsChange = data?.health?.points_change ?? 0;
   const aiModel = data?.health?.ai_model || 'ZeroClaw 9Router Swarm Engine';
-  const aiSummary = data?.health?.ai_recommendation || 'Toko Anda berada pada performa bisnis terbaik. Fokus utama minggu ini adalah menjaga ketersediaan stok kritis & mengaktifkan cart follow-up AI.';
+  const aiSummary = data?.health?.ai_recommendation || 'Belum ada data telemetry diagnosis. Sistem akan otomatis menganalisis setelah transaksi pertama.';
 
   const gaugeData = {
     labels: ['Score', 'Remaining'],
@@ -164,6 +166,44 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
   };
 
   const recommendations = data?.recommendations || [];
+
+  const totalImpactLabel = React.useMemo(() => {
+    if (data?.total_impact_estimation) return data.total_impact_estimation;
+    if (!recommendations || recommendations.length === 0) return 'Rp0 / bulan';
+
+    let totalJuta = 0;
+    let hasParsed = false;
+
+    recommendations.forEach((r: any) => {
+      if (!r.impact) return;
+      const str = String(r.impact).toLowerCase();
+      const matchM = str.match(/([\d\.]+)\s*m/);
+      if (matchM && matchM[1]) {
+        totalJuta += parseFloat(matchM[1]);
+        hasParsed = true;
+      } else {
+        const matchK = str.match(/([\d\.]+)\s*(rb|k)/);
+        if (matchK && matchK[1]) {
+          totalJuta += parseFloat(matchK[1]) / 1000;
+          hasParsed = true;
+        } else {
+          const matchNum = str.match(/([\d\.]+)/);
+          if (matchNum && matchNum[1]) {
+            const val = parseFloat(matchNum[1].replace(/\./g, ''));
+            if (val > 10000) {
+              totalJuta += val / 1000000;
+              hasParsed = true;
+            }
+          }
+        }
+      }
+    });
+
+    if (hasParsed && totalJuta > 0) {
+      return `+Rp${totalJuta.toFixed(1)}M / bulan`;
+    }
+    return recommendations.length > 0 ? `+${recommendations.length} Rekomendasi Terdeteksi` : 'Rp0 / bulan';
+  }, [data, recommendations]);
 
   const domainOptions = [
     { id: 'ALL', label: 'Semua Domain', count: recommendations.length, icon: Layers },
@@ -208,8 +248,9 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 tracking-wide flex items-center gap-1.5 shadow-2xs">
-                <Cpu size={12} className="text-orange-500" /> {aiModel}
+              <span className="px-3 py-1 rounded-xl text-[11px] font-extrabold bg-slate-900 text-slate-100 dark:bg-slate-100 dark:text-slate-900 border border-slate-700 dark:border-slate-300 tracking-wide flex items-center gap-2 shadow-xs">
+                <Cpu size={13} className="text-orange-400 dark:text-orange-600" />
+                <span>{aiModel}</span>
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Telemetry Realtime Synchronized
@@ -254,11 +295,11 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
             </div>
             <div className="space-y-0.5">
               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800">
-                <TrendingUp size={11} className="text-emerald-600 dark:text-emerald-400" /> +{pointsChange} poin vs last month
+                <TrendingUp size={11} className="text-emerald-600 dark:text-emerald-400" /> {pointsChange >= 0 ? `+${pointsChange}` : pointsChange} poin vs last month
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">94/100 Health Score Index</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{healthScore}/100 Health Score Index</p>
               <div className="pt-0.5 text-[9px] text-slate-500 dark:text-slate-400 font-mono">
-                Evaluasi Swarm: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">OPTIMAL</span>
+                Evaluasi Swarm: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{healthLabel}</span>
               </div>
             </div>
           </div>
@@ -274,15 +315,15 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               <BarChart3 size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              +4.2%
+              {data?.health?.sales_velocity_growth ? `+${data.health.sales_velocity_growth}%` : '0%'}
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Sales Velocity</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              92%
+              {data?.health?.sales_velocity !== undefined ? `${data.health.sales_velocity}%` : '0%'}
             </div>
-            <span className="text-[11px] text-emerald-600 font-extrabold block mt-1">Status: Tinggi</span>
+            <span className="text-[11px] text-emerald-600 font-extrabold block mt-1">Status: {data?.health?.sales_velocity_status || 'Telemetry Active'}</span>
           </div>
         </div>
 
@@ -293,15 +334,15 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               <ShoppingBag size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              Optimal
+              {data?.health?.inventory_security_status || 'Normal'}
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Inventory Security</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              96%
+              {data?.health?.inventory_security !== undefined ? `${data.health.inventory_security}%` : '0%'}
             </div>
-            <span className="text-[11px] text-slate-400 font-normal block mt-1">2 Alert Stok</span>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">{data?.health?.low_stock_alerts !== undefined ? `${data.health.low_stock_alerts} Alert Stok` : '0 Alert Stok'}</span>
           </div>
         </div>
 
@@ -312,15 +353,15 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               <TrendingUp size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 font-extrabold text-[10.5px] border border-purple-200/60 dark:border-purple-900/60">
-              +18% ROI
+              {data?.health?.marketing_roi ? `+${data.health.marketing_roi}% ROI` : '0% ROI'}
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Marketing Efficiency</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              340%
+              {data?.health?.marketing_efficiency !== undefined ? `${data.health.marketing_efficiency}%` : '0%'}
             </div>
-            <span className="text-[11px] text-purple-600 font-extrabold block mt-1">Sangat Baik</span>
+            <span className="text-[11px] text-purple-600 font-extrabold block mt-1">{data?.health?.marketing_status || 'Live Telemetry'}</span>
           </div>
         </div>
 
@@ -337,9 +378,9 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Customer Loyalty Rate</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              42.5%
+              {data?.health?.loyalty_rate !== undefined ? `${data.health.loyalty_rate}%` : '0%'}
             </div>
-            <span className="text-[11px] text-slate-400 font-normal block mt-1">Status: Stabil</span>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">Status: {data?.health?.loyalty_status || 'Live Telemetry'}</span>
           </div>
         </div>
       </div>
@@ -709,27 +750,62 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
         </div>
       )}
 
-      {/* 5. Potential Impact Summary Footprint Card */}
-      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
-              AI Cumulative Footprint
-            </span>
-          </div>
-          <h4 className="text-lg font-bold">Estimasi Potensi Tambahan Margin Toko</h4>
-          <p className="text-xs text-slate-300 max-w-xl">
-            Dengan menerapkan seluruh rekomendasi terprioritas di atas, sistem memproyeksikan efisiensi dan pendapatan tambahan hingga <strong className="text-white font-mono font-bold">+Rp5.4M / bulan</strong>.
-          </p>
-        </div>
+      {/* 5. Potential Impact Summary Footprint Card (Light Theme Collapsible) */}
+      {(data?.total_impact_estimation || (recommendations && recommendations.length > 0)) && (
+        <div className="bg-emerald-50/80 dark:bg-emerald-950/40 rounded-2xl p-4 md:p-5 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs space-y-3 transition-all">
+          <div className="flex items-center justify-between gap-4 cursor-pointer select-none" onClick={() => setIsFootprintOpen(!isFootprintOpen)}>
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold shrink-0">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm md:text-base font-extrabold text-slate-900 dark:text-slate-100">
+                  Estimasi Potensi Tambahan Margin Toko
+                </h4>
+              </div>
+            </div>
 
-        <button 
-          onClick={handleRefresh}
-          className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow-sm flex items-center gap-2 cursor-pointer transition-all active:scale-95 shrink-0"
-        >
-          <Sparkles size={15} className="text-indigo-600" /> Re-Evaluasi Telemetry Toko
-        </button>
-      </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefresh();
+                }}
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                <span>Re-Evaluasi Telemetry</span>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFootprintOpen(!isFootprintOpen);
+                }}
+                className="p-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs"
+                title={isFootprintOpen ? 'Tutup Detail' : 'Buka Detail'}
+              >
+                {isFootprintOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {isFootprintOpen && (
+            <div className="pt-3 border-t border-emerald-200/60 dark:border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-200">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium max-w-2xl">
+                Dengan menerapkan seluruh rekomendasi terprioritas di atas, sistem memproyeksikan efisiensi operational &amp; peningkatan omzet toko hingga <strong className="text-emerald-700 dark:text-emerald-400 font-mono font-black">{totalImpactLabel}</strong>.
+              </p>
+
+              <button 
+                onClick={handleRefresh}
+                className="sm:hidden w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              >
+                <Sparkles size={14} /> Re-Evaluasi Telemetry Toko
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Telemetry Inspection Modal */}
       {inspectTelemetryRec && (
@@ -758,7 +834,9 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 </div>
                 <div>
                   <span className="text-slate-400 block">Confidence Score:</span>
-                  <span className="font-bold text-emerald-600">98.4% Optimal</span>
+                  <span className="font-bold text-emerald-600">
+                    {inspectTelemetryRec.confidence_pct !== undefined ? `${inspectTelemetryRec.confidence_pct}%` : 'Live Telemetry'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Telemetry Source:</span>

@@ -105,7 +105,7 @@ export function StoreHeaderShell({
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button 
             onClick={onOpenDeployModal} 
-            className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-extrabold shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-98"
           >
             <Sparkles size={14} /> <span>Deploy AI Swarm</span>
           </button>

@@ -87,7 +87,7 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
 
   const handleCreate = () => {
     const total = price * qty;
-    const formatted = `⚡ **KONFIRMASI ORDER BARU**\n\n• Produk: ${product}\n• Qty: ${qty}x\n• Total Belanja: Rp${total.toLocaleString('id-ID')}\n• Alamat Pengiriman: ${address}\n\nSilakan lakukan pembayaran melalui QRIS / Bank Transfer. Terima kasih! 😊`;
+    const formatted = `📦 **KONFIRMASI ORDER BARU**\n\n• Produk: ${product}\n• Qty: ${qty}x\n• Total Belanja: Rp${total.toLocaleString('id-ID')}\n• Alamat Pengiriman: ${address}\n\nSilakan lakukan pembayaran melalui QRIS / Bank Transfer. Terima kasih! 😊`;
     onInsertText(formatted);
     triggerToast('Order berhasil dibuat & dimasukkan ke chat');
     onClose();

@@ -4,6 +4,7 @@ import {
   CheckCircle2, RefreshCw, ShieldCheck, Zap, ArrowUpRight, ArrowDownRight,
   Bot, ExternalLink
 } from 'lucide-react';
+import { getR2CdnUrl } from '../../../../utils/cdn';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -282,36 +283,38 @@ export function TaxSettingsModal({ isOpen, onClose, triggerToast }: { isOpen: bo
   );
 }
 
-// 5. All Solana Transactions Table Modal
-export function AllTransactionsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const txList = [
-    { tx: 'TX#7Gf8...n3dA', customer: 'Siti Aisyah', amount: '$25.00', status: 'Sukses', time: '2 menit lalu' },
-    { tx: 'TX#3Hd9...m7kB', customer: 'Budi Santoso', amount: '$18.50', status: 'Sukses', time: '15 menit lalu' },
-    { tx: 'TX#5Jk2...p9xC', customer: 'Dewi Lestari', amount: '$42.00', status: 'Sukses', time: '28 menit lalu' },
-    { tx: 'TX#9Lm1...q4wO', customer: 'Rizky Pratama', amount: '$12.75', status: 'Pending', time: '35 menit lalu' },
-    { tx: 'TX#1Xc3...v8zE', customer: 'Maya Putri', amount: '$35.00', status: 'Sukses', time: '1 jam lalu' },
-  ];
+// 5. All Transactions Table Modal
+export function AllTransactionsModal({ isOpen, onClose, transactions = [] }: { isOpen: boolean; onClose: () => void; transactions?: any[] }) {
+  const txList = transactions;
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Semua Transaksi Solana Pay">
+    <ModalBase isOpen={isOpen} onClose={onClose} title="Semua Transaksi Keuangan">
       <div className="space-y-3 text-xs">
-        {txList.map((t, i) => (
-          <div key={i} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{t.tx}</h4>
-              <p className="text-[10px] text-slate-400 font-medium">{t.customer} • {t.time}</p>
-            </div>
-
-            <div className="text-right space-y-1">
-              <div className="font-black text-slate-900 dark:text-slate-100">{t.amount}</div>
-              <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                t.status === 'Sukses' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                {t.status}
-              </span>
-            </div>
+        {txList.length === 0 ? (
+          <div className="p-6 text-center text-slate-400 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            Belum ada transaksi tercatat.
           </div>
-        ))}
+        ) : (
+          txList.map((t, i) => (
+            <div key={i} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{t.description || t.tx || 'Transaksi'}</h4>
+                <p className="text-[10px] text-slate-400 font-medium">{t.customer || t.payment_method || '-'} • {t.time || t.tx_date || '-'}</p>
+              </div>
+
+              <div className="text-right space-y-1">
+                <div className="font-black text-slate-900 dark:text-slate-100">
+                  {t.amount || `Rp${Math.abs(t.amount_idr || 0).toLocaleString('id-ID')}`}
+                </div>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                  (t.status === 'Sukses' || t.tx_type === 'income') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                }`}>
+                  {t.status || (t.tx_type === 'income' ? 'Sukses' : 'Keluar')}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </ModalBase>
   );
@@ -454,7 +457,7 @@ export function DeployFinanceSwarmModal({
       id: '9Router-Auto-Cost-Optimizer',
       name: '9Router-Auto-Cost-Optimizer',
       provider: '9Router Layer 5 Engine',
-      logo: 'https://cdn.zegaai.site/assets/logo/9router.png',
+      logo: getR2CdnUrl('/assets/logo/9router.png'),
       desc: 'Layer 5 Router Engine memprediksi & memangkas pengeluaran Gas Fee Solana Pay hingga 35%.',
       speed: '115ms',
       accuracy: '99.9%'
@@ -463,7 +466,7 @@ export function DeployFinanceSwarmModal({
       id: 'ZeroClaw-Edge-Gateway',
       name: 'ZeroClaw-Edge-Gateway',
       provider: 'ZeroClaw Edge Swarm',
-      logo: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
+      logo: getR2CdnUrl('/assets/logo/zeroclaw.jpeg'),
       desc: 'Daemon Edge Agent untuk rekonsiliasi arus kas & otomatisasi invoice jatuh tempo secara atomic.',
       speed: '85ms',
       accuracy: '99.8%'
@@ -472,7 +475,7 @@ export function DeployFinanceSwarmModal({
       id: 'deepseek/deepseek-r1-distill-llama-70b',
       name: 'DeepSeek R1 Reasoning AI',
       provider: 'DeepSeek Reasoning AI',
-      logo: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
+      logo: getR2CdnUrl('/assets/logo/deepseek.webp'),
       desc: 'Reasoning AI menganalisis margin keuntungan & memprediksi pola arus kas 30 hari ke depan.',
       speed: '240ms',
       accuracy: '99.5%'
@@ -481,7 +484,7 @@ export function DeployFinanceSwarmModal({
       id: 'anthropic/claude-3.5-sonnet',
       name: 'Claude 3.5 Sonnet',
       provider: 'Anthropic AI',
-      logo: 'https://cdn.zegaai.site/assets/logo/claude.webp',
+      logo: getR2CdnUrl('/assets/logo/claude.webp'),
       desc: 'Advanced Financial Analyst AI untuk audit SOP cadangan kas & rekomendasi penghematan operasional.',
       speed: '190ms',
       accuracy: '99.7%'
@@ -566,12 +569,12 @@ export function FinancialReportModal({
   triggerToast: (msg: string) => void;
 }) {
   const m = financeData?.metrics || {
-    total_revenue: 2450.00,
-    total_expense: 680.00,
-    net_profit: 1770.00,
-    profit_margin: 72.20,
-    cash_balance_usdc: 1950.00,
-    cash_balance_idr: 31512000.00
+    total_revenue: 0,
+    total_expense: 0,
+    net_profit: 0,
+    profit_margin: 0,
+    cash_balance_usdc: 0,
+    cash_balance_idr: 0
   };
 
   const handleDownloadPDF = () => {
@@ -641,7 +644,7 @@ Status: Terverifikasi Supabase Database Realtime Audit
     <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Keuangan Executive Lengkap (Real-time P&L)">
       <div className="space-y-4 text-xs font-sans">
         {/* Header Metadata */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-900 to-slate-900 text-white flex items-center justify-between shadow-xs">
+        <div className="p-3.5 rounded-xl bg-slate-900 text-white flex items-center justify-between">
           <div>
             <div className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Periode Laporan</div>
             <div className="text-xs font-extrabold">1 Juli - 31 Juli 2026</div>
@@ -735,11 +738,7 @@ export function ManageFinanceSwarmModal({
   financeData: any;
   triggerToast: (msg: string) => void;
 }) {
-  const [swarms, setSwarms] = useState(financeData?.swarms?.length ? financeData.swarms : [
-    { id: '1', swarm_name: '9Router Gas Fee Optimizer', model_engine: '9Router-Auto-Cost-Optimizer', status: 'ACTIVE', latency_ms: 115, success_rate: 99.9 },
-    { id: '2', swarm_name: 'ZeroClaw Cashflow Reconciler', model_engine: 'ZeroClaw-Edge-Gateway', status: 'ACTIVE', latency_ms: 85, success_rate: 99.8 },
-    { id: '3', swarm_name: 'DeepSeek Margin Predictive AI', model_engine: 'deepseek/deepseek-r1-distill-llama-70b', status: 'ACTIVE', latency_ms: 240, success_rate: 99.5 }
-  ]);
+  const [swarms, setSwarms] = useState(financeData?.swarms?.length ? financeData.swarms : []);
 
   const toggleSwarmStatus = (id: string) => {
     setSwarms((prev: any[]) => prev.map(s => {
@@ -760,33 +759,39 @@ export function ManageFinanceSwarmModal({
         </p>
 
         <div className="space-y-2.5">
-          {swarms.map((s: any) => (
-            <div key={s.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{s.swarm_name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                    s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                  }`}>
-                    {s.status}
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-400 font-mono">Engine: {s.model_engine} • Latency: {s.latency_ms}ms</div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => toggleSwarmStatus(s.id)}
-                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                  s.status === 'ACTIVE'
-                    ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                }`}
-              >
-                {s.status === 'ACTIVE' ? 'Jeda Swarm' : 'Aktifkan'}
-              </button>
+          {swarms.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+              Belum ada AI Finance Swarm yang di-deploy.
             </div>
-          ))}
+          ) : (
+            swarms.map((s: any) => (
+              <div key={s.id} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{s.swarm_name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                      s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                    }`}>
+                      {s.status}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">Engine: {s.model_engine} • Latency: {s.latency_ms}ms</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => toggleSwarmStatus(s.id)}
+                  className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                    s.status === 'ACTIVE'
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  }`}
+                >
+                  {s.status === 'ACTIVE' ? 'Jeda Swarm' : 'Aktifkan'}
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </ModalBase>

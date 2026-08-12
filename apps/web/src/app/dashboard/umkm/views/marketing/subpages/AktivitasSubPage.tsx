@@ -56,10 +56,10 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
   // Calculate summary KPI telemetry metrics
   const totalExecutions = activities.length;
   const avgLatency = activities.length > 0
-    ? Math.round(activities.reduce((acc, curr) => acc + (curr.latency_ms || 120), 0) / activities.length)
-    : 125;
-  const totalTokens = activities.reduce((acc, curr) => acc + (curr.tokens_used || 950), 0);
-  const totalCost = activities.reduce((acc, curr) => acc + (parseFloat(curr.cost_usd) || 0.001), 0);
+    ? Math.round(activities.reduce((acc, curr) => acc + (curr.latency_ms || 0), 0) / activities.length)
+    : 0;
+  const totalTokens = activities.reduce((acc, curr) => acc + (curr.tokens_used || 0), 0);
+  const totalCost = activities.reduce((acc, curr) => acc + (parseFloat(curr.cost_usd) || 0), 0);
   const uniqueModels = new Set(activities.map(a => a.model_engine || a.source_name)).size;
 
   // Trigger live AI event simulation
@@ -175,7 +175,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
       {/* ========================================================================= */}
       {/* 1. TOP HEADER & ACTION BUTTONS */}
       {/* ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2.5 tracking-tight">
             <Activity size={20} className="text-orange-500" />
@@ -223,7 +223,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
         {/* KPI 1: Total Executions */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase">Total Eksekusi</span>
             <div className="size-6 rounded-lg bg-orange-50 dark:bg-orange-950 text-orange-500 flex items-center justify-center font-bold text-xs">
@@ -237,7 +237,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         </div>
 
         {/* KPI 2: Rata-Rata Latency */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase">Avg Latency</span>
             <div className="size-6 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-500 flex items-center justify-center font-bold text-xs">
@@ -251,7 +251,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         </div>
 
         {/* KPI 3: Total Tokens Consumed */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase">Tokens Consumed</span>
             <div className="size-6 rounded-lg bg-purple-50 dark:bg-purple-950 text-purple-500 flex items-center justify-center font-bold text-xs">
@@ -265,7 +265,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         </div>
 
         {/* KPI 4: Total AI Cost USD */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase">Est. AI Cost</span>
             <div className="size-6 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-500 flex items-center justify-center font-bold text-xs">
@@ -279,7 +279,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         </div>
 
         {/* KPI 5: Active AI Swarms */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase">Model Active</span>
             <div className="size-6 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-500 flex items-center justify-center font-bold text-xs">
@@ -296,7 +296,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
       {/* ========================================================================= */}
       {/* 3. SOURCE CATEGORY FILTER TABS & TIMELINE FEED */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -365,9 +365,9 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
                         <span>{act.source_name || 'AI Model'}</span>
                       </span>
                       <span>•</span>
-                      <span>Engine: <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-bold">{act.model_engine || 'DeepSeek-R1'}</code></span>
+                      <span>Engine: <code className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-bold">{act.model_engine || 'AI Engine'}</code></span>
                       <span>•</span>
-                      <span>Provider: {act.model_provider || '9Router'}</span>
+                      <span>Provider: {act.model_provider || 'ZEGA Gateway'}</span>
                     </div>
                   </div>
                 </div>
@@ -378,13 +378,13 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
                     {/* Latency badge */}
                     <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-extrabold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50 flex items-center gap-1">
                       <Gauge size={11} />
-                      <span>{act.latency_ms || 142}ms</span>
+                      <span>{act.latency_ms || 0}ms</span>
                     </span>
 
                     {/* Tokens badge */}
                     <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-extrabold bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50 flex items-center gap-1">
                       <Cpu size={11} />
-                      <span>{(act.tokens_used || 950).toLocaleString()} tk</span>
+                      <span>{(act.tokens_used || 0).toLocaleString()} tk</span>
                     </span>
 
                     {/* Status badge */}
@@ -416,7 +416,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
       {/* ========================================================================= */}
       {selectedAuditItem && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -453,15 +453,15 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Execution Time</span>
-                <span className="font-extrabold text-blue-600 text-sm">{selectedAuditItem.latency_ms || 142} ms</span>
+                <span className="font-extrabold text-blue-600 text-sm">{selectedAuditItem.latency_ms || 0} ms</span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Tokens Count</span>
-                <span className="font-extrabold text-purple-600 text-sm">{selectedAuditItem.tokens_used || 950}</span>
+                <span className="font-extrabold text-purple-600 text-sm">{selectedAuditItem.tokens_used || 0}</span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Inference Cost</span>
-                <span className="font-extrabold text-emerald-600 text-sm">${selectedAuditItem.cost_usd || '0.0012'}</span>
+                <span className="font-extrabold text-emerald-600 text-sm">${selectedAuditItem.cost_usd || '0.00'}</span>
               </div>
             </div>
 

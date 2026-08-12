@@ -76,8 +76,8 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
   const [isAdding, setIsAdding] = useState(false);
 
   // API Keys state
-  const [publicApiKey, setPublicApiKey] = useState('zga_pk_live_9921a884f1023a1');
-  const [secretApiKey, setSecretApiKey] = useState('zga_sk_live_3301ff29a441009');
+  const [publicApiKey, setPublicApiKey] = useState('');
+  const [secretApiKey, setSecretApiKey] = useState('');
   const [isRegeneratingKeys, setIsRegeneratingKeys] = useState(false);
 
   useEffect(() => {
@@ -87,6 +87,21 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
         : initialWebhookUrl;
       setCurrentWebhookUrl(clean);
     }
+
+    // Fetch live API keys from backend
+    const fetchApiKeys = async () => {
+      try {
+        const overview = await SupabaseDashboardService.getUmkmSettingsOverview();
+        if (overview?.apiKeys) {
+          if (overview.apiKeys.public_api_key) setPublicApiKey(overview.apiKeys.public_api_key);
+          if (overview.apiKeys.secret_api_key) setSecretApiKey(overview.apiKeys.secret_api_key);
+          if (overview.apiKeys.webhook_url) setCurrentWebhookUrl(overview.apiKeys.webhook_url);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch API keys in IntegrationsTab:', e);
+      }
+    };
+    fetchApiKeys();
   }, [initialWebhookUrl]);
 
   const categories = ['Semua', 'Channel Penjualan', 'Social Commerce', 'Payment Gateway', 'Web3 Crypto'];

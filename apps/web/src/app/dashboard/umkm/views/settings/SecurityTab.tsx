@@ -14,14 +14,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
   const [saving, setSaving] = useState(false);
 
   // Security preferences state
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorMethod, setTwoFactorMethod] = useState('Authenticator App (TOTP)');
   const [magicLinkLogin, setMagicLinkLogin] = useState(false);
   const [newDeviceVerify, setNewDeviceVerify] = useState(true);
   const [ipAllowlistEnabled, setIpAllowlistEnabled] = useState(false);
-  const [ipAllowlist, setIpAllowlist] = useState<string[]>(['182.253.12.98', '114.122.34.12']);
-  const [securityScore, setSecurityScore] = useState(94);
-  const [lastPasswordChange, setLastPasswordChange] = useState<string>('32 hari lalu');
+  const [ipAllowlist, setIpAllowlist] = useState<string[]>([]);
+  const [lastPasswordChange, setLastPasswordChange] = useState<string>('Belum pernah diubah');
 
   // Active Sessions state
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
@@ -67,7 +66,6 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
         if (sec.new_device_verify !== undefined) setNewDeviceVerify(sec.new_device_verify);
         if (sec.ip_allowlist_enabled !== undefined) setIpAllowlistEnabled(sec.ip_allowlist_enabled);
         if (sec.ip_allowlist && Array.isArray(sec.ip_allowlist)) setIpAllowlist(sec.ip_allowlist);
-        if (sec.security_score !== undefined) setSecurityScore(sec.security_score);
         if (sec.last_password_change) {
           const daysAgo = Math.max(1, Math.floor((Date.now() - new Date(sec.last_password_change).getTime()) / 86400000));
           setLastPasswordChange(`${daysAgo} hari lalu`);
@@ -96,15 +94,6 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     return () => unsub();
   }, []);
 
-  const calculateSecurityScore = (opts: any) => {
-    let score = 50; // Base score
-    if (opts.twoFactorEnabled) score += 25;
-    if (opts.newDeviceVerify) score += 10;
-    if (opts.ipAllowlistEnabled) score += 15;
-    if (opts.magicLinkLogin) score -= 5;
-    return Math.min(100, Math.max(40, score));
-  };
-
   const handleSaveSecurity = async (overrides?: any) => {
     try {
       setSaving(true);
@@ -113,23 +102,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       const nextIpEnable = overrides?.ip_allowlist_enabled ?? ipAllowlistEnabled;
       const nextMagic = overrides?.magic_link_login ?? magicLinkLogin;
 
-      const dynamicScore = calculateSecurityScore({
-        twoFactorEnabled: next2fa,
-        newDeviceVerify: nextVerify,
-        ipAllowlistEnabled: nextIpEnable,
-        magicLinkLogin: nextMagic
-      });
-
-      setSecurityScore(dynamicScore);
-
       const payload = {
         two_factor_enabled: next2fa,
         two_factor_method: overrides?.two_factor_method ?? twoFactorMethod,
         magic_link_login: nextMagic,
         new_device_verify: nextVerify,
         ip_allowlist_enabled: nextIpEnable,
-        ip_allowlist: overrides?.ip_allowlist ?? ipAllowlist,
-        security_score: dynamicScore
+        ip_allowlist: overrides?.ip_allowlist ?? ipAllowlist
       };
 
       await SupabaseDashboardService.updateUmkmSecuritySettings(payload);
@@ -318,27 +297,30 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Security Score Header Card */}
+      {/* Account Security Header Banner */}
       <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative size-12 sm:size-14 rounded-2xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black shrink-0 border border-orange-200/60 dark:border-orange-900/50">
-            <Shield size={26} />
+            <ShieldCheck size={26} />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
-                Skor Keamanan Akun: {securityScore}/100
+                Keamanan & Proteksi Akun
               </h2>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
-                securityScore >= 80 
+                twoFactorEnabled 
                   ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200/60' 
                   : 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200/60'
               }`}>
-                {securityScore >= 80 ? 'Sangat Aman' : 'Cukup Aman'}
+                {twoFactorEnabled ? '2FA Aktif' : '2FA Non-Aktif'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border-indigo-200/60">
+                OWASP Zero-Trust Shield
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Akun Anda telah dilindungi dengan autentikasi dua faktor (2FA) dan enkripsi OWASP Zero-Trust.
+              Kelola kata sandi, autentikasi dua faktor (2FA), dan proteksi akses toko secara terpusat.
             </p>
           </div>
         </div>
@@ -437,40 +419,48 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
             </div>
 
             <div className="space-y-3">
-              {activeSessions.map((session, idx) => (
-                <div key={session.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
-                  <div className="flex items-center gap-3">
-                    {session.os?.toLowerCase().includes('ios') || session.device_name?.toLowerCase().includes('iphone') ? (
-                      <Smartphone size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
-                    ) : (
-                      <Laptop size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{session.device_name || 'Perangkat Browser'} • {session.browser}</h4>
-                        {session.is_current && (
-                          <span className="px-2 py-0.2 rounded-full text-[8.5px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                            Perangkat Ini
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">
-                        {session.location} • <span className="font-mono">{session.ip_address}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {!session.is_current && (
-                    <button
-                      onClick={() => handleRevokeSingleSession(session.id)}
-                      title="Hentikan akses sesi ini"
-                      className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500 transition-colors cursor-pointer shrink-0 self-end sm:self-auto"
-                    >
-                      <LogOut size={15} />
-                    </button>
-                  )}
+              {activeSessions.length === 0 ? (
+                <div className="p-6 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <Laptop className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada sesi perangkat lain terdaftar</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Daftar perangkat yang memiliki akses aktif ke akun Anda akan ditampilkan di sini.</p>
                 </div>
-              ))}
+              ) : (
+                activeSessions.map((session, idx) => (
+                  <div key={session.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
+                    <div className="flex items-center gap-3">
+                      {session.os?.toLowerCase().includes('ios') || session.device_name?.toLowerCase().includes('iphone') ? (
+                        <Smartphone size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
+                      ) : (
+                        <Laptop size={18} className="text-slate-600 dark:text-slate-400 shrink-0" />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{session.device_name || 'Perangkat Browser'} • {session.browser}</h4>
+                          {session.is_current && (
+                            <span className="px-2 py-0.2 rounded-full text-[8.5px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                              Perangkat Ini
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">
+                          {session.location} • <span className="font-mono">{session.ip_address}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {!session.is_current && (
+                      <button
+                        onClick={() => handleRevokeSingleSession(session.id)}
+                        title="Hentikan akses sesi ini"
+                        className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500 transition-colors cursor-pointer shrink-0 self-end sm:self-auto"
+                      >
+                        <LogOut size={15} />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -521,82 +511,56 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
 
           {/* 5. External SIEM & Zero-Trust Integrations */}
           <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Integrasi Tools Keamanan & SIEM</h3>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Hubungkan audit log & sistem autentikasi ke penyedia keamanan pihak ketiga.</p>
-              </div>
-
-              <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 text-[9px] font-black border border-purple-200">
-                Enterprise Gateway
-              </span>
+            <div>
+              <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Integrasi Tools Keamanan & SIEM</h3>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Hubungkan audit log & sistem autentikasi ke penyedia keamanan pihak ketiga.</p>
             </div>
 
             <div className="space-y-3">
-              {securityIntegrations.map((tool) => (
-                <div key={tool.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1.5 shrink-0 shadow-2xs">
-                      {renderBrandIcon(tool.tool_name)}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
-                        <span>{tool.tool_name}</span>
-                        <span className={`px-2 py-0.2 rounded-full text-[8.5px] font-black ${
-                          tool.status === 'Terhubung' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-500'
-                        }`}>
-                          {tool.status}
-                        </span>
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-medium">{tool.category}</p>
-                      {tool.alert_email && (
-                        <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                          <Mail size={10} className="text-slate-400" />
-                          <span>{tool.alert_email}</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <button
-                      onClick={() => openIntegrationModal(tool)}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
-                    >
-                      Atur Webhook
-                    </button>
-                    {renderToggle(tool.status === 'Terhubung', () => handleToggleIntegrationStatus(tool))}
-                  </div>
+              {securityIntegrations.length === 0 ? (
+                <div className="p-6 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <Shield className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada integrasi SIEM terhubung</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Integrasi tools keamanan enterprise (Cloudflare Zero Trust, Datadog SIEM, Okta) akan muncul di sini.</p>
                 </div>
-              ))}
-            </div>
-          </div>
+              ) : (
+                securityIntegrations.map((tool) => (
+                  <div key={tool.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1.5 shrink-0 shadow-2xs">
+                        {renderBrandIcon(tool.tool_name)}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                          <span>{tool.tool_name}</span>
+                          <span className={`px-2 py-0.2 rounded-full text-[8.5px] font-black ${
+                            tool.status === 'Terhubung' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            {tool.status}
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-slate-400 font-medium">{tool.category}</p>
+                        {tool.alert_email && (
+                          <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                            <Mail size={10} className="text-slate-400" />
+                            <span>{tool.alert_email}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-          {/* 6. Enterprise Security Checklist */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black shrink-0 border border-emerald-100 dark:border-emerald-900/40">
-                <Check size={20} />
-              </div>
-              <div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Rekomendasi Keamanan Enterprise</h3>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Panduan OWASP untuk melindungi toko dari cyber threat.</p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 text-xs font-semibold">
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span className="text-slate-800 dark:text-slate-200">Autentikasi 2FA TOTP Aktif</span>
-              </div>
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span className="text-slate-800 dark:text-slate-200">Koneksi SSL TLS 1.3 End-to-End Enkripsi</span>
-              </div>
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span className="text-slate-800 dark:text-slate-200">Deteksi Brute-Force & Rate Limiting Aktif</span>
-              </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <button
+                        onClick={() => openIntegrationModal(tool)}
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                      >
+                        Atur Webhook
+                      </button>
+                      {renderToggle(tool.status === 'Terhubung', () => handleToggleIntegrationStatus(tool))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -753,7 +717,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                 <Radio className={`size-4 mt-0.5 shrink-0 ${selected2faMethod === 'Email OTP' ? 'text-orange-500' : 'text-slate-400'}`} />
                 <div>
                   <h4 className="font-extrabold text-slate-900 dark:text-slate-100">Email OTP</h4>
-                  <p className="text-[10.5px] text-slate-400 mt-0.5">Kirim kode verifikasi langsung ke email terdaftar (cikberiuk@gmail.com).</p>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">Kirim kode verifikasi 6-digit langsung ke alamat email terdaftar.</p>
                 </div>
               </label>
             </div>

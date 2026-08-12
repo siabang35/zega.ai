@@ -237,19 +237,26 @@ export function UmkmDashboardContainer({
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [whatsNewList, setWhatsNewList] = useState<any[]>([]);
+  const [inboxUnreadBadge, setInboxUnreadBadge] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selectedDateRange, setSelectedDateRange] = useState('Hari Ini (5 Ags 2026)');
+  const [selectedDateRange, setSelectedDateRange] = useState(() => {
+    const now = new Date();
+    return `Hari Ini (${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+  });
   const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString('id-ID'));
   const [calendarCurrentMonth, setCalendarCurrentMonth] = useState(new Date());
+  const [realtimeTodayDate, setRealtimeTodayDate] = useState(new Date());
 
-  // Live ticking real-time clock for enterprise calendar header
+  // Live ticking real-time clock & date auto-updater for enterprise calendar header
   useEffect(() => {
     const timer = setInterval(() => {
-      setLiveTime(new Date().toLocaleTimeString('id-ID'));
+      const now = new Date();
+      setLiveTime(now.toLocaleTimeString('id-ID'));
+      setRealtimeTodayDate(now);
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -425,21 +432,30 @@ export function UmkmDashboardContainer({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
+  const [billingOverview, setBillingOverview] = useState<any>(null);
+
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
 
     const loadRealtimeData = async () => {
-      const data = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      const data = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
       setUmkmData(data);
 
-      const notifRes = await SupabaseDashboardService.getUmkmNotifications('11111111-1111-1111-1111-111111111111');
+      const notifRes = await SupabaseDashboardService.getUmkmNotifications(activeStoreId);
       if (notifRes.data && notifRes.data.length > 0) setNotifications(notifRes.data);
 
       const whatsNewRes = await SupabaseDashboardService.getUmkmWhatsNew();
       if (whatsNewRes.data && whatsNewRes.data.length > 0) setWhatsNewList(whatsNewRes.data);
 
-      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime('11111111-1111-1111-1111-111111111111', async () => {
-        const fresh = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+      const kpiData = await SupabaseDashboardService.getUmkmInboxKpis(activeStoreId);
+      if (kpiData) setInboxUnreadBadge(kpiData.unreadMessages || 0);
+
+      const billingRes = await SupabaseDashboardService.getUmkmBillingOverview(activeStoreId);
+      if (billingRes) setBillingOverview(billingRes);
+
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(activeStoreId, async () => {
+        const fresh = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
         setUmkmData(fresh);
       });
     };
@@ -463,7 +479,7 @@ export function UmkmDashboardContainer({
     { id: 'umkm', label: t.sidebarNav?.beranda || 'Beranda', icon: LayoutDashboard },
     { id: 'my_agents', label: t.sidebarNav?.aiEmployee || 'AI Employees', icon: Bot, subItems: ['AI Support', 'Sales Agent', 'Swarms'] },
     { id: 'sandbox', label: t.sidebarNav?.otokomasi || 'Automation', icon: Workflow },
-    { id: 'wa_bot', label: t.sidebarNav?.inbox || 'Inbox', icon: MessageSquare, badge: '8', subItems: ['WhatsApp', 'Instagram DMs', 'Shopee Chat'] },
+    { id: 'wa_bot', label: t.sidebarNav?.inbox || 'Inbox', icon: MessageSquare, badge: inboxUnreadBadge > 0 ? String(inboxUnreadBadge) : undefined, subItems: ['WhatsApp', 'Instagram DMs', 'Shopee Chat'] },
   ];
 
   const menuBusiness = [
@@ -686,8 +702,12 @@ export function UmkmDashboardContainer({
             <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2 transition-all duration-300">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[10px] font-bold text-slate-400">Paket Anda</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 text-[9px] font-black">
-                  Aktif
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                  billingOverview?.plan?.status === 'Aktif'
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                }`}>
+                  {billingOverview?.plan?.status || 'Inaktif'}
                 </span>
               </div>
               
@@ -695,22 +715,26 @@ export function UmkmDashboardContainer({
                 <img 
                   src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
                   onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                  alt="Growth Rocket" 
+                  alt="Rocket Upgrade" 
                   className="h-7 w-auto object-contain shrink-0" 
                 />
                 <div>
-                  <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">Growth</h5>
-                  <p className="text-[9.5px] text-slate-400 font-medium">Berakhir pada <span className="font-semibold text-slate-700 dark:text-slate-300">1 Aug 2026</span></p>
+                  <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">{billingOverview?.plan?.plan_name || 'Free'}</h5>
+                  <p className="text-[9.5px] text-slate-400 font-medium">
+                    {billingOverview?.plan?.expires_at ? `Berakhir pada ${new Date(billingOverview.plan.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Tidak ada paket aktif'}
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-[9.5px] font-bold text-slate-500">
                   <span>AI Credits</span>
-                  <span className="text-slate-900 dark:text-slate-100">3.240 / 5.000</span>
+                  <span className="text-slate-900 dark:text-slate-100">
+                    {(billingOverview?.plan?.credits_remaining || 0).toLocaleString('id-ID')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString('id-ID')}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full w-[65%]" />
+                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${billingOverview?.plan?.credits_pct || 0}%` }} />
                 </div>
               </div>
 
@@ -728,7 +752,7 @@ export function UmkmDashboardContainer({
             <div 
               onClick={() => setActiveTab('billing')}
               className="p-2 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
-              title="Growth Plan: 3.240 / 5.000 AI Credits"
+              title={`${billingOverview?.plan?.plan_name || 'Free'} Plan: ${(billingOverview?.plan?.credits_remaining || 0).toLocaleString('id-ID')} / ${(billingOverview?.plan?.credits_limit || 0).toLocaleString('id-ID')} AI Credits`}
             >
               <img 
                 src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
@@ -736,7 +760,7 @@ export function UmkmDashboardContainer({
                 alt="Rocket" 
                 className="h-6 w-auto object-contain shrink-0" 
               />
-              <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 mt-0.5">65%</span>
+              <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 mt-0.5">{billingOverview?.plan?.credits_pct || 0}%</span>
             </div>
           )}
 
@@ -893,8 +917,9 @@ export function UmkmDashboardContainer({
                     <div className="grid grid-cols-3 gap-1.5 text-[10px] font-extrabold">
                       <button
                         onClick={() => {
-                          setSelectedDateRange('Hari Ini (5 Ags 2026)');
-                          triggerToast('📅 Filter: Hari Ini (5 Ags 2026)');
+                          const todayStr = `Hari Ini (${realtimeTodayDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+                          setSelectedDateRange(todayStr);
+                          triggerToast(`📅 Filter: ${todayStr}`);
                           setCalendarOpen(false);
                         }}
                         className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
@@ -921,8 +946,9 @@ export function UmkmDashboardContainer({
                       </button>
                       <button
                         onClick={() => {
-                          setSelectedDateRange('Bulan Ini (Ags 2026)');
-                          triggerToast('📅 Filter: Bulan Ini (Agustus 2026)');
+                          const monthStr = `Bulan Ini (${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})`;
+                          setSelectedDateRange(monthStr);
+                          triggerToast(`📅 Filter: ${monthStr}`);
                           setCalendarOpen(false);
                         }}
                         className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
@@ -935,7 +961,7 @@ export function UmkmDashboardContainer({
                       </button>
                     </div>
 
-                    {/* Real-Time Mini Calendar Grid (August 2026) */}
+                    {/* Real-Time Mini Calendar Grid */}
                     <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
                         <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
@@ -952,7 +978,7 @@ export function UmkmDashboardContainer({
                             cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
                           }
                           for (let d = 1; d <= daysInMonth; d++) {
-                            const isToday = d === 5 && month === 7 && year === 2026;
+                            const isToday = d === realtimeTodayDate.getDate() && month === realtimeTodayDate.getMonth() && year === realtimeTodayDate.getFullYear();
                             cells.push(
                               <span
                                 key={`day-${d}`}
@@ -1014,9 +1040,11 @@ export function UmkmDashboardContainer({
                 className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 <Bell size={16} />
-                <span className="absolute -top-1 -right-1 size-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
-                  2
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 size-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
 
               {/* NOTIFICATIONS DROPDOWN MENU */}
@@ -1030,36 +1058,48 @@ export function UmkmDashboardContainer({
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
                         <Bell size={16} className="text-orange-500" />
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Notifikasi (2 Baru)</h4>
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                          Notifikasi {unreadCount > 0 ? `(${unreadCount} Baru)` : ''}
+                        </h4>
                       </div>
-                      <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
-                        Tandai semua dibaca
-                      </button>
+                      {notifications.length > 0 && (
+                        <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
+                          Tandai semua dibaca
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                      {notifications.slice(0, 5).map((notif, idx) => (
-                        <div 
-                          key={idx}
-                          onClick={() => {
-                            if (notif.action_url) setActiveTab(notif.action_url);
-                            setNotificationsOpen(false);
-                          }}
-                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                            notif.is_read 
-                              ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75' 
-                              : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
-                          }`}
-                        >
-                          <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-                            <Activity size={14} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
-                          </div>
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center space-y-2">
+                          <Bell className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada notifikasi baru</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">Notifikasi aktivitas & alert sistem akan muncul di sini.</p>
                         </div>
-                      ))}
+                      ) : (
+                        notifications.slice(0, 5).map((notif, idx) => (
+                          <div 
+                            key={idx}
+                            onClick={() => {
+                              if (notif.action_url) setActiveTab(notif.action_url);
+                              setNotificationsOpen(false);
+                            }}
+                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                              notif.is_read 
+                                ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75' 
+                                : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
+                            }`}
+                          >
+                            <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <Activity size={14} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </>
@@ -1386,163 +1426,150 @@ export function UmkmDashboardContainer({
         </div>
       )}
 
-      {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL */}
-      <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
-        {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
-        {copilotOpen && (
-          <div className="w-[94vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
-            {/* Dropdown Header */}
-            <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="size-9 sm:size-10 rounded-2xl bg-slate-950 border-2 border-orange-500/50 p-1 shrink-0 shadow-md">
-                  <img
-                    src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                    alt="ZEGA Copilot"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                    }}
-                  />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
-                    ZEGA Copilot
-                  </h3>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">Real-Time AI Active</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setCopilotOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Tutup Copilot"
-              >
-                <ChevronDown size={18} />
-              </button>
-            </div>
-
-            {/* Quick Suggestion Chips */}
-            <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <button
-                onClick={() => handleSendCopilotMessage('Analisis penjualan toko hari ini')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                📊 Analisis Penjualan
-              </button>
-              <button
-                onClick={() => handleSendCopilotMessage('Buatkan draf broadcast promo WhatsApp')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                💬 Promo WhatsApp
-              </button>
-              <button
-                onClick={() => handleSendCopilotMessage('Cek stok barang yang hampir habis')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                📦 Stok Terkini
-              </button>
-            </div>
-
-            {/* Chat Stream List */}
-            <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
-              {copilotMessages.map((msg, idx) => (
-                <div
-                  key={msg.id || idx}
-                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
-                    {msg.sender === 'copilot' && (
-                      <div className="size-7 sm:size-8 rounded-xl bg-slate-900 border border-orange-500/40 p-1 shrink-0 shadow-sm">
-                        <img
-                          src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                          alt="AI"
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    <div
-                      className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${
-                        msg.sender === 'user'
-                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
-                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
-                      }`}
-                    >
-                      {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
-
-                      {msg.sender === 'copilot' && msg.inference_ms && (
-                        <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
-                          <span className="flex items-center gap-1 text-orange-400 font-bold">
-                            ✨ ZEGA Copilot
-                          </span>
-                          <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
-                        </div>
-                      )}
+      {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Appears ONLY on Home / Overview tab) */}
+      {(activeTab === 'umkm' || activeTab === 'home' || activeTab === 'overview') && (
+        <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
+          {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
+          {copilotOpen && (
+            <div className="w-[94vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
+              {/* Dropdown Header */}
+              <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className="size-9 sm:size-10 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center">
+                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                      <Bot size={20} className="text-orange-400" />
                     </div>
                   </div>
-
-                  <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
-                    {msg.created_at || 'Baru saja'}
-                  </span>
+                  <div>
+                    <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
+                      ZEGA Copilot
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">Real-Time AI Active</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
 
-              {isCopilotTyping && (
-                <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
-                  <div className="size-2 rounded-full bg-orange-500 animate-ping" />
-                  <span>ZEGA Copilot sedang berpikir...</span>
-                </div>
-              )}
+                <button
+                  onClick={() => setCopilotOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Tutup Copilot"
+                >
+                  <ChevronDown size={18} />
+                </button>
+              </div>
+
+              {/* Quick Suggestion Chips */}
+              <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => handleSendCopilotMessage('Analisis penjualan toko hari ini')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  📊 Analisis Penjualan
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage('Buatkan draf broadcast promo WhatsApp')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  💬 Promo WhatsApp
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage('Cek stok barang yang hampir habis')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  📦 Stok Terkini
+                </button>
+              </div>
+
+              {/* Chat Stream List */}
+              <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+                {copilotMessages.map((msg, idx) => (
+                  <div
+                    key={msg.id || idx}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
+                      {msg.sender === 'copilot' && (
+                        <div className="size-7 sm:size-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center">
+                          <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                            <Sparkles size={14} className="text-orange-400" />
+                          </div>
+                        </div>
+                      )}
+
+                      <div
+                        className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${
+                          msg.sender === 'user'
+                            ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
+                            : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
+                        }`}
+                      >
+                        {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
+
+                        {msg.sender === 'copilot' && msg.inference_ms && (
+                          <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
+                            <span className="flex items-center gap-1 text-orange-400 font-bold">
+                              ✨ ZEGA Copilot
+                            </span>
+                            <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
+                      {msg.created_at || 'Baru saja'}
+                    </span>
+                  </div>
+                ))}
+
+                {isCopilotTyping && (
+                  <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
+                    <div className="size-2 rounded-full bg-orange-500 animate-ping" />
+                    <span>ZEGA Copilot sedang berpikir...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Bar */}
+              <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={copilotInput}
+                  onChange={(e) => setCopilotInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
+                  placeholder="Tanyakan bisnis, sales, promo ke ZEGA Copilot..."
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
+                />
+                <button
+                  onClick={() => handleSendCopilotMessage()}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
+                  title="Kirim Pesan"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
             </div>
+          )}
 
-            {/* Input Bar */}
-            <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-              <input
-                type="text"
-                value={copilotInput}
-                onChange={(e) => setCopilotInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
-                placeholder="Tanyakan bisnis, sales, promo ke ZEGA Copilot..."
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
-              />
-              <button
-                onClick={() => handleSendCopilotMessage()}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
-                title="Kirim Pesan"
-              >
-                <Send size={16} />
-              </button>
+          {/* Floating Trigger Pill Button (Mobile Optimized Positioning) */}
+          <button
+            onClick={() => setCopilotOpen(!copilotOpen)}
+            className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          >
+            <div className="size-8 sm:size-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
+              <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
+                <Bot size={18} className="text-orange-400" />
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Floating Trigger Pill Button (Mobile Optimized Positioning) */}
-        <button
-          onClick={() => setCopilotOpen(!copilotOpen)}
-          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
-        >
-          <div className="size-8 sm:size-9 rounded-full bg-slate-900 border border-orange-500/50 p-1 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
-            <img
-              src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-              alt="ZEGA Copilot"
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-              }}
-            />
-          </div>
-          <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
-            ZEGA Copilot
-          </span>
-          <ChevronRight size={16} className={`text-slate-400 transition-transform ${copilotOpen ? 'rotate-90' : ''}`} />
-        </button>
-      </div>
+            <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
+              ZEGA Copilot
+            </span>
+            <ChevronRight size={16} className={`text-slate-400 transition-transform ${copilotOpen ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

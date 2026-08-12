@@ -9,7 +9,7 @@ import {
   AlignRight, AlignJustify, Highlighter, Type, Palette, Users, Tag, BarChart3, Activity, Zap, TrendingUp
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
-import { getR2CdnUrl } from '../../../../utils/cdn';
+import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
 
 interface StudioCopywriterSubViewProps {
   categories?: any[];
@@ -208,7 +208,7 @@ export function StudioCopywriterSubView({
         seoMetaDescription: seoMetaDescription.trim() || description.trim(),
         aiGenerated: !!aiModelUsed,
         aiModelUsed: aiModelUsed || 'ZeroClaw 9Router Swarm (DeepSeek-R1 / Llama-3.3)',
-        authorName: 'Cik Berliuk',
+        authorName: 'Tim UMKM',
         authorRole: 'Executive Copywriter',
         targetAudience: targetAudience,
         tags: parsedTags.length > 0 ? parsedTags : ['SOP', 'Operasional'],
@@ -962,12 +962,12 @@ export function StudioCopywriterSubView({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-3">
                 <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                  src={generateInitialsAvatar('UMKM')}
                   alt="Author Avatar"
                   className="size-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                 />
                 <div>
-                  <div className="text-xs font-black text-slate-900 dark:text-slate-100">Cik Berliuk</div>
+                  <div className="text-xs font-black text-slate-900 dark:text-slate-100">Tim UMKM</div>
                   <p className="text-[10px] text-slate-400 font-semibold">Executive Copywriter • Just now</p>
                 </div>
               </div>

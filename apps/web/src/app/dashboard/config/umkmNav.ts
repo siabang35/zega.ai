@@ -14,7 +14,7 @@ export const UMKM_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Home', icon: Home },
   { id: 'my_agents', label: 'My AI Employees', icon: Bot },
   { id: 'automation', label: 'Automation', icon: Zap },
-  { id: 'inbox', label: 'Inbox', icon: Inbox, badge: '8' },
+  { id: 'inbox', label: 'Inbox', icon: Inbox },
   { id: 'sales', label: 'Sales', icon: ShoppingBag },
   { id: 'marketing', label: 'Marketing', icon: Megaphone },
   { id: 'finance', label: 'Finance', icon: DollarSign },

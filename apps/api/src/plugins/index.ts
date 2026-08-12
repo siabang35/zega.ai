@@ -75,7 +75,19 @@ export async function registerPlugins(app: FastifyInstance) {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-CSRF-Token'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-ID',
+      'X-CSRF-Token',
+      'x-user-email',
+      'x-user-id',
+      'x-merchant-pubkey',
+      'x-correlation-id',
+      'x-privy-authorization',
+      'x-authorization-attempt-id',
+      'x-withdrawal-id'
+    ],
     maxAge: 86400,
   });
 

@@ -51,17 +51,30 @@ export function ProfileTab({
   const sessionFallback = getSessionUserFallback();
 
   // Form input states
-  const [fullname, setFullname] = useState(profileData?.fullname || sessionFallback.fullname || 'Rubycapa Capa');
-  const [email, setEmail] = useState(profileData?.email || sessionFallback.email || 'rubycapacapa@gmail.com');
-  const [phone, setPhone] = useState(profileData?.phone || '+62 812-3456-7890');
-  const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Owner');
+  const [fullname, setFullname] = useState(profileData?.fullname || sessionFallback.fullname || '');
+  const [email, setEmail] = useState(profileData?.email || sessionFallback.email || '');
+  const [phone, setPhone] = useState(profileData?.phone || '');
+  const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Pemilik Bisnis');
   const [storeName, setStoreName] = useState(profileData?.store_name || (fullname ? `Toko ${fullname}` : 'Toko Saya'));
-  const [description, setDescription] = useState(profileData?.description || 'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.');
+  const [description, setDescription] = useState(profileData?.description || '');
   const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || '/assets/avatars/user-avatar.jpg');
   const [isSaving, setIsSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Billing overview dynamic state for Paket Aktif card
+  const [billingOverview, setBillingOverview] = useState<any>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    SupabaseDashboardService.getUmkmBillingOverviewData().then((data) => {
+      if (isMounted && data?.overview) {
+        setBillingOverview(data.overview);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   // Synchronize form states when props update asynchronously
   React.useEffect(() => {
@@ -71,7 +84,7 @@ export function ProfileTab({
       if (profileData.phone) setPhone(profileData.phone);
       if (profileData.job_title) setJobTitle(profileData.job_title);
       if (profileData.store_name) setStoreName(profileData.store_name);
-      if (profileData.description) setDescription(profileData.description);
+      if (profileData.description !== undefined) setDescription(profileData.description);
       if (profileData.avatar_url || profileData.avatar_path) {
         setAvatarUrl(profileData.avatar_url || profileData.avatar_path);
       }
@@ -86,11 +99,11 @@ export function ProfileTab({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [show2FAModal, setShow2FAModal] = useState(false);
-  const [is2FAEnabled, setIs2FAEnabled] = useState(securityData?.is_2fa_enabled ?? true);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(securityData?.is_2fa_enabled ?? false);
 
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || email || 'rubycapacapa@gmail.com');
-  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || phone || '+62 812-3456-7890');
+  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || email || '');
+  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || phone || '');
 
   React.useEffect(() => {
     if (securityData) {
@@ -484,18 +497,28 @@ export function ProfileTab({
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Paket Aktif
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                Aktif
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                billingOverview?.plan_status === 'Aktif' 
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' 
+                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+              }`}>
+                {billingOverview?.plan_status || 'Inaktif'}
               </span>
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">Growth Plan</h3>
-                <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black">UMKM Pro</span>
+                <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+                  {billingOverview?.plan_name || 'Free Plan'}
+                </h3>
+                <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black">
+                  {billingOverview?.plan_name ? 'UMKM Active' : 'Gratis'}
+                </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-                Untuk bisnis skala menengah yang sedang berkembang pesat.
+                {billingOverview?.plan_name 
+                  ? 'Paket langganan aktif platform ZEGA AI.' 
+                  : 'Belum ada paket aktif. Tingkatkan paket untuk akses fitur AI penuh.'}
               </p>
             </div>
 
@@ -503,26 +526,36 @@ export function ProfileTab({
             <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-slate-500 font-medium">AI Employees</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">10 / 20 Agent</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                  {billingOverview ? `${billingOverview.ai_employees_used || 0} / ${billingOverview.ai_employees_total || 0} Agent` : '0 / 0 Agent'}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-slate-500 font-medium">AI Credits</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">3.240 / 5.000 Token</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                  {billingOverview ? `${(billingOverview.ai_credits_used || 0).toLocaleString('id-ID')} / ${(billingOverview.ai_credits_total || 0).toLocaleString('id-ID')} Token` : '0 / 0 Token'}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-slate-500 font-medium">Penyimpanan</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">12.4 GB / 50 GB CDN</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                  {billingOverview ? `${billingOverview.storage_used_gb || 0} GB / ${billingOverview.storage_total_gb || 0} GB CDN` : '0 GB CDN'}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-slate-500 font-medium">Automation</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">24 / ∞ Flow</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                  {billingOverview ? `${billingOverview.automation_used || 0} / ∞ Flow` : '0 Flow'}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="space-y-2 pt-2">
             <span className="text-[10px] text-slate-400 font-medium block">
-              Berakhir pada 1 Agustus 2026
+              {billingOverview?.expires_at 
+                ? `Berakhir pada ${new Date(billingOverview.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` 
+                : 'Tidak ada paket aktif'}
             </span>
             <button 
               onClick={() => onNavigateTab('Billing & Invoice')}
@@ -535,317 +568,106 @@ export function ProfileTab({
 
       </div>
 
-      {/* 3. Middle Section (3 Cards: Keamanan Akun [span 4], Aktivitas Terbaru [span 4], Preferensi Akun [span 4]) */}
-      <div className="grid lg:grid-cols-12 gap-5">
-        
-        {/* Keamanan Akun */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Keamanan Akun
-          </h3>
-
-          <div className="space-y-3 text-xs">
-            {/* Password */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Password</span>
-                <span className="font-mono text-[10px] text-slate-400">••••••••••••</span>
-              </div>
-              <button 
-                onClick={() => setShowPasswordModal(true)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              >
-                Ubah
-              </button>
-            </div>
-
-            {/* 2FA */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Two-Factor Auth (2FA)</span>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${is2FAEnabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'}`}>
-                  {is2FAEnabled ? 'Aktif' : 'Nonaktif'}
-                </span>
-              </div>
-              <button 
-                onClick={() => setShow2FAModal(true)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              >
-                Kelola
-              </button>
-            </div>
-
-            {/* Email Pemulihan */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Email Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">{recoveryEmail}</span>
-              </div>
-              <button 
-                onClick={() => setShowRecoveryModal(true)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              >
-                Ubah
-              </button>
-            </div>
-
-            {/* Phone Pemulihan */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Telepon Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">{recoveryPhone}</span>
-              </div>
-              <button 
-                onClick={() => setShowRecoveryModal(true)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              >
-                Ubah
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Aktivitas Terbaru */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-              Aktivitas Terbaru
-            </h3>
-            <button 
-              onClick={() => onNavigateTab('System')}
-              className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-            >
-              Lihat Semua
-            </button>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {activitiesList.slice(0, 5).map((act, i) => (
-              <div key={i} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-slate-100 block text-xs">{act.activity_title}</span>
-                    <span className="text-[10px] text-slate-400 font-medium block">{act.activity_detail}</span>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {act.time_label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Preferensi Akun (Interactive Selectors) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Preferensi Akun
-          </h3>
-
-          <div className="space-y-2 text-xs">
-            {/* Bahasa */}
-            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-600 dark:text-slate-400">Bahasa</span>
-              <select
-                value={langPref}
-                onChange={(e) => {
-                  setLangPref(e.target.value);
-                  handleSavePreferences({ language: e.target.value });
-                }}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-                <option value="English (US)">English (US)</option>
-                <option value="中文 (Chinese)">中文 (Chinese)</option>
-              </select>
-            </div>
-
-            {/* Zona Waktu */}
-            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-600 dark:text-slate-400">Zona Waktu</span>
-              <select
-                value={timezonePref}
-                onChange={(e) => {
-                  setTimezonePref(e.target.value);
-                  handleSavePreferences({ timezone: e.target.value });
-                }}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                <option value="Asia/Jakarta (WIB)">Asia/Jakarta (WIB)</option>
-                <option value="Asia/Makassar (WITA)">Asia/Makassar (WITA)</option>
-                <option value="Asia/Jayapura (WIT)">Asia/Jayapura (WIT)</option>
-                <option value="UTC (Greenwich)">UTC (Greenwich)</option>
-              </select>
-            </div>
-
-            {/* Format Tanggal */}
-            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-600 dark:text-slate-400">Format Tanggal</span>
-              <select
-                value={dateFormatPref}
-                onChange={(e) => {
-                  setDateFormatPref(e.target.value);
-                  handleSavePreferences({ date_format: e.target.value });
-                }}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                <option value="DD MMM YYYY">DD MMM YYYY</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              </select>
-            </div>
-
-            {/* Format Angka */}
-            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-600 dark:text-slate-400">Format Angka</span>
-              <select
-                value={numberFormatPref}
-                onChange={(e) => {
-                  setNumberFormatPref(e.target.value);
-                  handleSavePreferences({ number_format: e.target.value });
-                }}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                <option value="1.234.567,89">1.234.567,89 (ID)</option>
-                <option value="1,234,567.89">1,234,567.89 (US)</option>
-              </select>
-            </div>
-
-            {/* Mata Uang */}
-            <div className="p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-600 dark:text-slate-400">Mata Uang</span>
-              <select
-                value={currencyPref}
-                onChange={(e) => {
-                  setCurrencyPref(e.target.value);
-                  handleSavePreferences({ currency: e.target.value });
-                }}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                <option value="IDR - Rupiah">IDR - Rupiah</option>
-                <option value="USD - US Dollar">USD - US Dollar</option>
-                <option value="SGD - SG Dollar">SGD - SG Dollar</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Bottom Section (Perangkat Aktif [span 8] & Aksi Cepat [span 4]) */}
-      <div className="grid lg:grid-cols-12 gap-5">
-        
-        {/* Perangkat Aktif */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+      {/* Middle Section: Preferensi Akun (Clean Enterprise Card) */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-              Perangkat Aktif
+              Preferensi Akun & Regional
             </h3>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Perangkat yang saat ini digunakan untuk mengakses akun Anda.
+              Atur bahasa antarmuka, zona waktu operasional toko, dan format tampilan angka & mata uang.
             </p>
           </div>
-
-          <div className="space-y-2.5 text-xs">
-            {devicesList.map((dev, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black">
-                    {dev.device_type === 'desktop' ? <Monitor size={16} /> : dev.device_type === 'mobile' ? <Smartphone size={16} /> : <Laptop size={16} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{dev.device_name}</span>
-                      {dev.is_current && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
-                          Perangkat Ini
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{dev.location}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <span className="text-[11px] font-medium text-slate-500">{dev.last_active}</span>
-                  <button 
-                    onClick={() => triggerToast(`Mengelola sesi ${dev.device_name}...`)}
-                    className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
-                  >
-                    •••
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-1">
-            <button 
-              onClick={() => setShowDevicesModal(true)}
-              className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>Lihat Semua Perangkat</span>
-              <span>→</span>
-            </button>
-          </div>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60">
+            Tersimpan Otomatis
+          </span>
         </div>
 
-        {/* Aksi Cepat */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Aksi Cepat
-          </h3>
-
-          <div className="space-y-2.5">
-            {/* Ubah Password */}
-            <div 
-              onClick={() => setShowPasswordModal(true)}
-              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-semibold">
+          {/* Bahasa */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+            <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">Bahasa Utama</span>
+            <select
+              value={langPref}
+              onChange={(e) => {
+                setLangPref(e.target.value);
+                handleSavePreferences({ language: e.target.value });
+              }}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
             >
-              <div className="size-9 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold">
-                <Lock size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                  Ubah Password
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium">Perbarui password akun Anda</p>
-              </div>
-            </div>
+              <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+              <option value="English (US)">English (US)</option>
+              <option value="中文 (Chinese)">中文 (Chinese)</option>
+            </select>
+          </div>
 
-            {/* Kelola Sesi Aktif */}
-            <div 
-              onClick={() => setShowDevicesModal(true)}
-              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
+          {/* Zona Waktu */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+            <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">Zona Waktu Sistem</span>
+            <select
+              value={timezonePref}
+              onChange={(e) => {
+                setTimezonePref(e.target.value);
+                handleSavePreferences({ timezone: e.target.value });
+              }}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
             >
-              <div className="size-9 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold">
-                <Laptop size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                  Kelola Sesi Aktif
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium">Lihat & logout perangkat lain</p>
-              </div>
-            </div>
+              <option value="Asia/Jakarta (WIB)">Asia/Jakarta (WIB)</option>
+              <option value="Asia/Makassar (WITA)">Asia/Makassar (WITA)</option>
+              <option value="Asia/Jayapura (WIT)">Asia/Jayapura (WIT)</option>
+              <option value="UTC (Greenwich)">UTC (Greenwich)</option>
+            </select>
+          </div>
 
-            {/* Hapus Akun */}
-            <div 
-              onClick={() => setShowDeleteModal(true)}
-              className="p-3.5 rounded-2xl bg-red-50/50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 hover:border-red-500/50 cursor-pointer transition-all flex items-center gap-3 group"
+          {/* Format Tanggal */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+            <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">Format Tampilan Tanggal</span>
+            <select
+              value={dateFormatPref}
+              onChange={(e) => {
+                setDateFormatPref(e.target.value);
+                handleSavePreferences({ date_format: e.target.value });
+              }}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
             >
-              <div className="size-9 rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/60 flex items-center justify-center font-bold">
-                <Trash2 size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-red-600 dark:text-red-400 group-hover:underline">
-                  Hapus Akun
-                </h4>
-                <p className="text-[10px] text-red-400 font-medium">Hapus akun secara permanen</p>
-              </div>
-            </div>
+              <option value="DD MMM YYYY">DD MMM YYYY (12 Agu 2026)</option>
+              <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-12)</option>
+              <option value="MM/DD/YYYY">MM/DD/YYYY (08/12/2026)</option>
+            </select>
+          </div>
 
+          {/* Format Angka */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+            <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">Format Pemisah Ribuan</span>
+            <select
+              value={numberFormatPref}
+              onChange={(e) => {
+                setNumberFormatPref(e.target.value);
+                handleSavePreferences({ number_format: e.target.value });
+              }}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
+            >
+              <option value="1.234.567,89">1.234.567,89 (ID Standard)</option>
+              <option value="1,234,567.89">1,234,567.89 (US Standard)</option>
+            </select>
+          </div>
+
+          {/* Mata Uang */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 md:col-span-2 lg:col-span-2">
+            <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">Mata Uang Pelaporan Utama</span>
+            <select
+              value={currencyPref}
+              onChange={(e) => {
+                setCurrencyPref(e.target.value);
+                handleSavePreferences({ currency: e.target.value });
+              }}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
+            >
+              <option value="IDR - Rupiah">IDR - Indonesian Rupiah (Rp)</option>
+              <option value="USD - US Dollar">USD - US Dollar ($)</option>
+              <option value="SGD - SG Dollar">SGD - Singapore Dollar (S$)</option>
+            </select>
           </div>
         </div>
       </div>

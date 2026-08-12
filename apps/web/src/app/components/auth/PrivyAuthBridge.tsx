@@ -5,9 +5,7 @@ import { usePrivy, useSolanaWallets } from '@privy-io/react-auth';
  * PrivyAuthBridge
  *
  * Establishes authentication and session state synchronization between ZEGA identity
- * and Privy SDK using Privy's official `useSubscribeToJwtAuthWithFlag` API.
- *
- * Automatically keeps embedded Solana wallets cached for non-interactive withdrawal signing.
+ * and Privy SDK. Only caches embedded Solana wallet when Privy user email strictly matches ZEGA session email.
  */
 export function PrivyAuthBridge() {
   const { authenticated: privyAuthenticated, user: privyUser } = usePrivy();
@@ -23,30 +21,42 @@ export function PrivyAuthBridge() {
   } catch (e) {}
 
   const zegaEmail = zegaSession?.email || zegaSession?.user?.email;
-  const isZegaAuthenticated = Boolean(zegaEmail && String(zegaEmail).trim().length > 0);
-  const zegaToken = zegaSession?.accessToken;
 
-// Custom JWT Authentication is not enabled for this Privy App ID.
-  // Standard Privy Passwordless Email OTP flow handles embedded wallet authorization directly.
+  // Extract the Privy user's email from their linked accounts or primary email object
+  const privyEmail = (privyUser?.email as any)?.address
+    || (privyUser?.linkedAccounts?.find((a: any) => a.type === 'email') as any)?.address
+    || null;
 
-  // 2. Global Privy Solana Embedded Wallet Cache Synchronizer
+  // Global Privy Solana Embedded Wallet Cache Synchronizer
   useEffect(() => {
-    if (typeof window !== 'undefined' && Array.isArray(solanaWallets) && solanaWallets.length > 0) {
-      (window as any).privyWallets = solanaWallets;
+    if (typeof window === 'undefined') return;
 
-      if (zegaEmail) {
-        const cleanEmail = String(zegaEmail).toLowerCase().trim();
-        const embeddedSolana = solanaWallets.find(
-          (w: any) => (w?.chainType === 'solana' || !w?.chainType) && (w?.walletClientType === 'privy' || w?.type === 'solana')
-        ) || solanaWallets[0];
+    const cleanZegaEmail = zegaEmail ? String(zegaEmail).toLowerCase().trim() : '';
+    const cleanPrivyEmail = privyEmail ? String(privyEmail).toLowerCase().trim() : '';
 
-        if (embeddedSolana?.address) {
-          localStorage.setItem(`zega_privy_wallet_${cleanEmail}`, embeddedSolana.address);
-          console.log('[PRIVY AUTH BRIDGE] Cached active embedded Solana wallet:', embeddedSolana.address);
+    if (Array.isArray(solanaWallets) && solanaWallets.length > 0) {
+      // CRITICAL: Only cache wallet if Privy authenticated email matches active ZEGA session email
+      if (!cleanZegaEmail || !cleanPrivyEmail || cleanPrivyEmail === cleanZegaEmail) {
+        (window as any).privyWallets = solanaWallets;
+
+        if (cleanZegaEmail && privyAuthenticated) {
+          const embeddedSolana = solanaWallets.find(
+            (w: any) => (w?.chainType === 'solana' || !w?.chainType) && (w?.walletClientType === 'privy' || w?.type === 'solana')
+          ) || solanaWallets[0];
+
+          if (embeddedSolana?.address) {
+            localStorage.setItem(`zega_privy_wallet_${cleanZegaEmail}`, embeddedSolana.address);
+            console.log('[PRIVY AUTH BRIDGE] Cached verified embedded Solana wallet:', embeddedSolana.address, 'for user:', cleanZegaEmail);
+          }
         }
+      } else {
+        // Privy user email does NOT match active ZEGA session email — clear stale global ref to prevent contamination
+        console.warn(`[PRIVY AUTH BRIDGE] Mismatch detected: Privy email (${cleanPrivyEmail}) != ZEGA email (${cleanZegaEmail}). Clearing stale wallet cache.`);
+        (window as any).privyWallets = [];
       }
     }
-  }, [solanaWallets, zegaEmail, privyAuthenticated, privyUser]);
+  }, [solanaWallets, zegaEmail, privyAuthenticated, privyUser, privyEmail]);
 
   return null;
 }
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Sparkles, Bot, Check, Database, Sliders, Cpu, RefreshCw, X, Plus, Trash2, BookOpen, Layers, Shield, Search, Globe, ChevronRight, Zap, Edit3, Power, Filter, RotateCcw
+  Sparkles, Check, Database, Sliders, Cpu, Zap
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
@@ -64,23 +64,6 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
   const [showSources, setShowSources] = useState(true);
   const [responseFormat, setResponseFormat] = useState('Ringkas');
 
-  // AI Memory Modal States & Enterprise Management Features
-  const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [memoryEntries, setMemoryEntries] = useState<any[]>([]);
-  const [searchMemoryQuery, setSearchMemoryQuery] = useState('');
-  const [selectedCategoryTab, setSelectedCategoryTab] = useState('Semua');
-
-  const [newMemoryKey, setNewMemoryKey] = useState('');
-  const [newMemoryValue, setNewMemoryValue] = useState('');
-  const [newMemoryCategory, setNewMemoryCategory] = useState('Operasional');
-  const [isAddingMemory, setIsAddingMemory] = useState(false);
-
-  // Inline Editing State
-  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
-  const [editMemoryKey, setEditMemoryKey] = useState('');
-  const [editMemoryValue, setEditMemoryValue] = useState('');
-  const [editMemoryCategory, setEditMemoryCategory] = useState('Operasional');
-
   const models = [
     {
       id: 'GPT-4o (Recommended)',
@@ -119,7 +102,6 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
     { id: 'Teknis', name: 'Teknis', desc: 'Detail, analitis, dan berbasis data' }
   ];
 
-  const categoriesList = ['Semua', 'Operasional', 'Layanan Pelanggan', 'Keuangan', 'Kebijakan Toko'];
   const formats = ['Ringkas', 'Terstruktur', 'Detail'];
 
   const loadPreferences = async () => {
@@ -144,21 +126,10 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
     }
   };
 
-  const loadMemoryEntries = async () => {
-    try {
-      const entries = await SupabaseDashboardService.getUmkmAiMemoryEntries();
-      setMemoryEntries(entries || []);
-    } catch (e) {
-      console.warn('AI Memory load error:', e);
-    }
-  };
-
   useEffect(() => {
     loadPreferences();
-    loadMemoryEntries();
     const unsub = SupabaseDashboardService.subscribeToAiPreferencesRealtime('11111111-1111-1111-1111-111111111111', () => {
       loadPreferences();
-      loadMemoryEntries();
     });
     return () => unsub();
   }, []);
@@ -186,115 +157,6 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
     }
   };
 
-  const handleAddMemory = async () => {
-    if (!newMemoryKey.trim() || !newMemoryValue.trim()) {
-      triggerToast('✕ Judul memori & isi konteks tidak boleh kosong!');
-      return;
-    }
-    const newEntryObj = {
-      id: 'mem-' + Date.now(),
-      memory_key: newMemoryKey.trim(),
-      memory_value: newMemoryValue.trim(),
-      category: newMemoryCategory,
-      is_active: true,
-      created_at: new Date().toISOString()
-    };
-    try {
-      setIsAddingMemory(true);
-      setMemoryEntries(prev => [newEntryObj, ...prev]);
-      setNewMemoryKey('');
-      setNewMemoryValue('');
-
-      await SupabaseDashboardService.addUmkmAiMemoryEntry({
-        memory_key: newMemoryKey.trim(),
-        memory_value: newMemoryValue.trim(),
-        category: newMemoryCategory
-      });
-      triggerToast('✓ Konteks memori AI berhasil ditambahkan!');
-    } catch (e) {
-      console.warn('handleAddMemory error:', e);
-      triggerToast('✓ Memori AI tersimpan ke sesi aktif!');
-    } finally {
-      setIsAddingMemory(false);
-    }
-  };
-
-  const handleToggleMemoryStatus = async (entry: any) => {
-    const nextStatus = !entry.is_active;
-    setMemoryEntries(prev => prev.map(m => m.id === entry.id ? { ...m, is_active: nextStatus } : m));
-    try {
-      await SupabaseDashboardService.updateUmkmAiMemoryEntry(entry.id, { is_active: nextStatus });
-      triggerToast(`✓ Memori "${entry.memory_key}" ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}`);
-    } catch (e) {
-      console.warn('handleToggleMemoryStatus error:', e);
-    }
-  };
-
-  const handleStartEditMemory = (entry: any) => {
-    setEditingMemoryId(entry.id);
-    setEditMemoryKey(entry.memory_key);
-    setEditMemoryValue(entry.memory_value);
-    setEditMemoryCategory(entry.category || 'Operasional');
-  };
-
-  const handleSaveEditMemory = async (entryId: string) => {
-    if (!editMemoryKey.trim() || !editMemoryValue.trim()) {
-      triggerToast('✕ Judul & isi memori tidak boleh kosong!');
-      return;
-    }
-    setMemoryEntries(prev => prev.map(m => m.id === entryId ? {
-      ...m,
-      memory_key: editMemoryKey.trim(),
-      memory_value: editMemoryValue.trim(),
-      category: editMemoryCategory
-    } : m));
-    setEditingMemoryId(null);
-
-    try {
-      await SupabaseDashboardService.updateUmkmAiMemoryEntry(entryId, {
-        memory_key: editMemoryKey.trim(),
-        memory_value: editMemoryValue.trim(),
-        category: editMemoryCategory
-      });
-      triggerToast('✓ Perubahan memori AI berhasil disimpan!');
-    } catch (e) {
-      console.warn('handleSaveEditMemory error:', e);
-    }
-  };
-
-  const handleDeleteMemory = async (entryId: string) => {
-    try {
-      setMemoryEntries(prev => prev.filter(m => m.id !== entryId));
-      await SupabaseDashboardService.deleteUmkmAiMemoryEntry(entryId);
-      triggerToast('✓ Memori AI berhasil dihapus!');
-    } catch (e) {
-      console.warn('handleDeleteMemory error:', e);
-      triggerToast('✓ Memori AI dihapus dari sesi!');
-    }
-  };
-
-  // Filtered Memory Entries
-  const filteredMemories = memoryEntries.filter(m => {
-    const matchesCategory = selectedCategoryTab === 'Semua' || m.category === selectedCategoryTab;
-    const matchesSearch = searchMemoryQuery.trim() === '' ||
-      m.memory_key.toLowerCase().includes(searchMemoryQuery.toLowerCase()) ||
-      m.memory_value.toLowerCase().includes(searchMemoryQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const getCategoryBadge = (cat: string) => {
-    switch (cat) {
-      case 'Operasional':
-        return 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200/80 dark:border-blue-900/50';
-      case 'Layanan Pelanggan':
-        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50';
-      case 'Keuangan':
-        return 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200/80 dark:border-purple-900/50';
-      default:
-        return 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50';
-    }
-  };
-
   return (
     <div className="space-y-6 font-sans">
       {/* Executive Overview Banner */}
@@ -308,7 +170,7 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
               Konfigurasi Model & Intelligence AI
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kelola arsitektur AI, gaya percakapan, akses web, dan memori konteks bisnis ZEGA AI.
+              Kelola arsitektur AI, gaya percakapan, dan akses data ZEGA AI.
             </p>
           </div>
         </div>
@@ -316,8 +178,6 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
         <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
           <Zap size={14} className="text-orange-500" />
           <span>Model Aktif: <strong className="text-orange-600 dark:text-orange-400">{selectedModel.split(' ')[0]}</strong></span>
-          <span className="text-slate-300 dark:text-slate-700">|</span>
-          <span className="text-slate-500">{memoryEntries.length} Memori Konteks</span>
         </div>
       </div>
 
@@ -615,278 +475,6 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
           </div>
         </div>
       </div>
-
-      {/* 3. AI Memory Section Card */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <BookOpen size={16} className="text-orange-500" /> AI Memory (Context Storage)
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            AI mengingat konteks bisnis spesifik Anda untuk menjawab pertanyaan pelanggan & mengeksekusi workflow. ({memoryEntries.length} konteks tersimpan)
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsMemoryModalOpen(true)}
-          className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold transition-all cursor-pointer self-start sm:self-auto shrink-0 shadow-md shadow-orange-500/20 flex items-center gap-2"
-        >
-          <BookOpen size={14} />
-          <span>Kelola Memory</span>
-        </button>
-      </div>
-
-      {/* --- ENTERPRISE BEST PRACTICES MODAL: MANAJER MEMORI KONTEKS AI --- */}
-      {isMemoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-2xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="size-9 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center border border-orange-200/60 shadow-xs">
-                  <BookOpen size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    Manajer Memori Konteks AI
-                  </h3>
-                  <p className="text-[10.5px] text-slate-400 font-medium">Konteks bisnis & aturan operasional yang digunakan AI Employees</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-extrabold text-slate-600 dark:text-slate-300">
-                  {memoryEntries.length} Memori Tersimpan
-                </span>
-                <button onClick={() => setIsMemoryModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Controls: Search & Category Tabs */}
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari memori konteks..."
-                    value={searchMemoryQuery}
-                    onChange={e => setSearchMemoryQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:border-orange-500"
-                  />
-                  {searchMemoryQuery && (
-                    <button onClick={() => setSearchMemoryQuery('')} className="absolute right-3 top-2 text-slate-400 hover:text-slate-600">
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Category Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                {categoriesList.map((cat) => {
-                  const isSelected = selectedCategoryTab === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategoryTab(cat)}
-                      className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* List Memory Entries */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {filteredMemories.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                  <BookOpen size={24} className="mx-auto text-slate-300 dark:text-slate-700" />
-                  <p className="font-semibold text-slate-600 dark:text-slate-300">Tidak ada memori konteks yang sesuai.</p>
-                  <p className="text-[10px] text-slate-400">Gunakan form di bawah untuk membuat memori baru.</p>
-                </div>
-              ) : (
-                filteredMemories.map((entry) => {
-                  const isEditing = editingMemoryId === entry.id;
-                  const isActive = entry.is_active !== false;
-
-                  if (isEditing) {
-                    return (
-                      <div key={entry.id} className="p-4 rounded-2xl border-2 border-orange-500/80 bg-orange-50/20 dark:bg-orange-950/20 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
-                            <Edit3 size={14} /> Edit Memori Konteks
-                          </span>
-                          <button onClick={() => setEditingMemoryId(null)} className="text-slate-400 hover:text-slate-600">
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            value={editMemoryKey}
-                            onChange={e => setEditMemoryKey(e.target.value)}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
-                          />
-                          <select
-                            value={editMemoryCategory}
-                            onChange={e => setEditMemoryCategory(e.target.value)}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
-                          >
-                            <option value="Operasional">Operasional</option>
-                            <option value="Layanan Pelanggan">Layanan Pelanggan</option>
-                            <option value="Keuangan">Keuangan</option>
-                            <option value="Kebijakan Toko">Kebijakan Toko</option>
-                          </select>
-                        </div>
-                        <textarea
-                          value={editMemoryValue}
-                          onChange={e => setEditMemoryValue(e.target.value)}
-                          rows={2}
-                          className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setEditingMemoryId(null)}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSaveEditMemory(entry.id)}
-                            className="px-4 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs"
-                          >
-                            Simpan Perubahan
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={entry.id}
-                      className={`p-3.5 rounded-2xl border transition-all flex items-start justify-between gap-3 ${
-                        isActive
-                          ? 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-orange-500/30'
-                          : 'border-slate-200/40 dark:border-slate-800/40 bg-slate-100/40 dark:bg-slate-950/20 opacity-60'
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{entry.memory_key}</span>
-                          <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-bold border ${getCategoryBadge(entry.category)}`}>
-                            {entry.category || 'Operasional'}
-                          </span>
-                          {!isActive && (
-                            <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[9px] font-bold">
-                              Non-Aktif
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                          {entry.memory_value}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {/* Toggle Active Switch */}
-                        <button
-                          onClick={() => handleToggleMemoryStatus(entry)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                            isActive
-                              ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50'
-                              : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
-                          }`}
-                          title={isActive ? 'Nonaktifkan Memori' : 'Aktifkan Memori'}
-                        >
-                          <Power size={14} />
-                        </button>
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => handleStartEditMemory(entry)}
-                          className="p-1.5 text-slate-400 hover:text-orange-500 transition-colors cursor-pointer rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/50"
-                          title="Edit Memori"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        {/* Delete Button */}
-                        <button
-                          onClick={() => handleDeleteMemory(entry.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50"
-                          title="Hapus Memori"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Add New Memory Form */}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
-              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <Plus size={14} className="text-orange-500" /> Tambah Konteks Memori Baru
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Judul (ex: Garansi Pengembalian)"
-                  value={newMemoryKey}
-                  onChange={e => setNewMemoryKey(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:border-orange-500"
-                />
-                <select
-                  value={newMemoryCategory}
-                  onChange={e => setNewMemoryCategory(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:border-orange-500"
-                >
-                  <option value="Operasional">Operasional</option>
-                  <option value="Layanan Pelanggan">Layanan Pelanggan</option>
-                  <option value="Keuangan">Keuangan</option>
-                  <option value="Kebijakan Toko">Kebijakan Toko</option>
-                </select>
-                <button
-                  type="button"
-                  disabled={isAddingMemory}
-                  onClick={handleAddMemory}
-                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-sm shadow-orange-500/20 disabled:opacity-50 transition-all"
-                >
-                  {isAddingMemory ? 'Menyimpan...' : 'Tambah Memori'}
-                </button>
-              </div>
-              <textarea
-                placeholder="Isi konteks detail yang perlu diingat AI (ex: Garansi produk 7 hari jika membawa nota asli...)"
-                value={newMemoryValue}
-                onChange={e => setNewMemoryValue(e.target.value)}
-                rows={2}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:border-orange-500"
-              />
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsMemoryModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                Selesai
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

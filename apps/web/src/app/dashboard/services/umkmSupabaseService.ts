@@ -28,12 +28,63 @@ export const umkmSupabaseService = {
     return `${baseCdn}${fullPath}`;
   },
 
+  // Helper: Resolve dynamic authenticated Tenant Context (User -> Organization -> Workspace -> Store)
+  async getAuthenticatedTenantContext(fallbackStoreId: string = '11111111-1111-1111-1111-111111111111') {
+    const defaultOrg = '00000000-0000-0000-0000-000000000001';
+    const defaultWs  = '00000000-0000-0000-0000-000000000002';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const { data: store } = await supabase
+          .from('umkm_stores')
+          .select('id, organization_id, workspace_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        if (store?.id) {
+          return {
+            userId: session.user.id,
+            organizationId: store.organization_id || defaultOrg,
+            workspaceId: store.workspace_id || defaultWs,
+            storeId: store.id
+          };
+        }
+      }
+      return {
+        userId: null,
+        organizationId: defaultOrg,
+        workspaceId: defaultWs,
+        storeId: fallbackStoreId
+      };
+    } catch {
+      return {
+        userId: null,
+        organizationId: defaultOrg,
+        workspaceId: defaultWs,
+        storeId: fallbackStoreId
+      };
+    }
+  },
+
+  // Helper: Resolve dynamic authenticated store ID
+  async getAuthenticatedStoreId(defaultStoreId: string = '11111111-1111-1111-1111-111111111111'): Promise<string> {
+    const ctx = await this.getAuthenticatedTenantContext(defaultStoreId);
+    return ctx.storeId;
+  },
+
   // 1. Fetch Realtime UMKM Dashboard Data
-  async getUmkmRealtimeData(storeId: string = '11111111-1111-1111-1111-111111111111') {
+  async getUmkmRealtimeData(providedStoreId?: string) {
     try {
       const getCdnUrl = (path?: string) => this.getCdnUrl(path);
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
 
-      const [storeRes, kpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
+      // Attempt server-side stored procedure aggregation for KPIs
+      const kpiRpcRes = await safeQuery<any>(
+        supabase.rpc('fn_get_umkm_overview_kpis', { p_store_id: storeId }).single(),
+        null
+      );
+
+      const [storeRes, fallbackKpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
         safeQuery<any>(supabase.from('umkm_stores').select('*').eq('id', storeId).maybeSingle(), null),
         safeQuery<any>(supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(), null),
         safeQuery<any[]>(supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
@@ -50,9 +101,12 @@ export const umkmSupabaseService = {
         avatar_path: getCdnUrl(storeRes.avatar_path),
       } : null;
 
+      const kpis = kpiRpcRes || fallbackKpiRes || null;
+
       return {
+        tenantContext: tenantCtx,
         store,
-        kpis: kpiRes || null,
+        kpis,
         aiEmployees: (empRes || []).map(emp => ({
           ...emp,
           avatar_path: getCdnUrl(emp.avatar_path)
@@ -68,13 +122,14 @@ export const umkmSupabaseService = {
         error: null
       };
     } catch (err: any) {
-      return { store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], transactions: [], integrations: [], knowledgeDocs: [], error: null };
+      return { tenantContext: null, store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], transactions: [], integrations: [], knowledgeDocs: [], error: err?.message || 'Failed to fetch realtime overview data' };
     }
   },
 
-  // 1b. Fetch Dynamic Sales Summary (7d / 30d) via PostgreSQL Stored Procedure
-  async getUmkmSalesSummary(storeId: string = '11111111-1111-1111-1111-111111111111', days: number = 7) {
+  // 1b. Fetch Dynamic Sales Summary (7d / 30d / 90d) via PostgreSQL Stored Procedure
+  async getUmkmSalesSummary(providedStoreId?: string, days: number = 7) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId);
       const { data, error } = await supabase.rpc('fn_get_umkm_sales_summary', {
         p_store_id: storeId,
         p_days: days
@@ -200,13 +255,17 @@ export const umkmSupabaseService = {
   },
 
   // 7. Add / Deploy New AI Employee with Real LLM Engine Specs
-  async addUmkmAiEmployee(storeId: string = '11111111-1111-1111-1111-111111111111', payload: any) {
+  async addUmkmAiEmployee(providedStoreId?: string, payload: any = {}) {
     try {
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
       const newAgentCode = payload.agent_code || `AGENT-${Math.floor(1000 + Math.random() * 9000)}`;
       const cdnAvatar = this.getCdnUrl(payload.avatar_path || 'assets/visualization/ai-avatar.png');
       const { data, error } = await supabase
         .from('umkm_ai_employees')
         .insert({
+          organization_id: tenantCtx.organizationId,
+          workspace_id: tenantCtx.workspaceId,
           store_id: storeId,
           agent_code: newAgentCode,
           name: payload.name,
@@ -250,6 +309,8 @@ export const umkmSupabaseService = {
       // Update KPI active agents count
       const { data: currentKpi } = await supabase.from('umkm_dashboard_kpis').select('tasks_completed_today, usage_percentage').eq('store_id', storeId).maybeSingle();
       await supabase.from('umkm_dashboard_kpis').upsert({
+        organization_id: tenantCtx.organizationId,
+        workspace_id: tenantCtx.workspaceId,
         store_id: storeId,
         tasks_completed_today: (currentKpi?.tasks_completed_today || 126) + 1,
         updated_at: new Date().toISOString()
@@ -262,12 +323,16 @@ export const umkmSupabaseService = {
   },
 
   // 7.1 Quick Action: Create Real Invoice Transaction
-  async createUmkmInvoiceQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string; amount: number }) {
+  async createUmkmInvoiceQuickAction(providedStoreId?: string, payload: { title: string; detail: string; amount: number } = { title: '', detail: '', amount: 0 }) {
     try {
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
       const invNum = `INV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
       const { data, error } = await supabase
         .from('umkm_transactions')
         .insert({
+          organization_id: tenantCtx.organizationId,
+          workspace_id: tenantCtx.workspaceId,
           store_id: storeId,
           transaction_code: invNum,
           customer_name: payload.title || 'General Customer',
@@ -288,11 +353,15 @@ export const umkmSupabaseService = {
   },
 
   // 7.2 Quick Action: Send Broadcast
-  async sendUmkmBroadcastQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string }) {
+  async sendUmkmBroadcastQuickAction(providedStoreId?: string, payload: { title: string; detail: string } = { title: '', detail: '' }) {
     try {
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
       const { data, error } = await supabase
         .from('umkm_timeline_events')
         .insert({
+          organization_id: tenantCtx.organizationId,
+          workspace_id: tenantCtx.workspaceId,
           store_id: storeId,
           event_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           icon_symbol: 'Send',
@@ -313,13 +382,17 @@ export const umkmSupabaseService = {
   },
 
   // 7.3 Quick Action: Add Product to Catalog
-  async addUmkmProductQuickAction(storeId: string = '11111111-1111-1111-1111-111111111111', payload: { title: string; detail: string; amount: number }) {
+  async addUmkmProductQuickAction(providedStoreId?: string, payload: { title: string; detail: string; amount: number } = { title: '', detail: '', amount: 0 }) {
     try {
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
       const { data, error } = await supabase
         .from('umkm_products')
         .insert({
+          organization_id: tenantCtx.organizationId,
+          workspace_id: tenantCtx.workspaceId,
           store_id: storeId,
-          org_id: 'umkm-org-01',
+          org_id: tenantCtx.organizationId,
           sku: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
           name: payload.title || 'New Item',
           category: payload.detail || 'General',
@@ -335,6 +408,8 @@ export const umkmSupabaseService = {
 
       // Log timeline event
       await supabase.from('umkm_timeline_events').insert({
+        organization_id: tenantCtx.organizationId,
+        workspace_id: tenantCtx.workspaceId,
         store_id: storeId,
         event_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         icon_symbol: 'ShoppingBag',
@@ -374,8 +449,9 @@ export const umkmSupabaseService = {
   },
 
   // 9. Automations Management
-  async getUmkmAutomations(storeId: string = '11111111-1111-1111-1111-111111111111') {
+  async getUmkmAutomations(providedStoreId?: string) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId);
       const { data, error } = await supabase
         .from('umkm_automations')
         .select('*')
@@ -406,9 +482,13 @@ export const umkmSupabaseService = {
     }
   },
 
-  async createAutomation(storeId: string = '11111111-1111-1111-1111-111111111111', payload: any) {
+  async createAutomation(providedStoreId?: string, payload: any = {}) {
     try {
+      const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
       const insertData = {
+        organization_id: tenantCtx.organizationId,
+        workspace_id: tenantCtx.workspaceId,
         store_id: storeId,
         title: payload.title || 'New Workflow Automation',
         description: payload.description || 'Custom automated workflow trigger',
@@ -538,6 +618,92 @@ export const umkmSupabaseService = {
       return { data, error: null };
     } catch (err: any) {
       return { data: null, error: err.message };
+    }
+  },
+
+  // 12. Deploy Real AI Model Sales Swarm & Insights Generation
+  async deploySalesAiSwarm(storeId: string = '11111111-1111-1111-1111-111111111111', modelPayload: any) {
+    try {
+      const insertInsight = {
+        store_id: storeId,
+        model_engine: modelPayload.model_engine || '9Router-Auto-Cost-Optimizer',
+        model_provider: modelPayload.model_provider || '9router/gpt-4o-mini',
+        execution_gateway: modelPayload.execution_gateway || 'ZeroClaw-Edge-Gateway',
+        cdn_icon_url: modelPayload.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png',
+        insight_type: modelPayload.insight_type || 'forecast',
+        headline: modelPayload.headline || `Real AI Model Swarm Strategy (${modelPayload.model_engine || '9Router'})`,
+        content: modelPayload.content || 'AI model menganalisis histori penjualan.',
+        action_suggestion: modelPayload.action_suggestion || 'Optimalkan alokasi iklan.',
+        created_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('umkm_sales_insights')
+        .insert(insertInsight)
+        .select()
+        .single();
+
+      if (error) return { data: null, error };
+      return { data, error: null };
+    } catch (e: any) {
+      return { data: null, error: e };
+    }
+  },
+
+  // 13. Update Sales Goal
+  async updateSalesGoal(storeId: string = '11111111-1111-1111-1111-111111111111', targetRevenue: number) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_sales_goals')
+        .upsert({
+          store_id: storeId,
+          target_revenue: targetRevenue,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) return { data: null, error };
+      return { data, error: null };
+    } catch (e: any) {
+      return { data: null, error: e };
+    }
+  },
+
+  // 14. Realtime Subscription for Sales
+  subscribeToSalesRealtime(storeId: string = '11111111-1111-1111-1111-111111111111', callback: () => void) {
+    const channel = supabase
+      .channel(`sales_realtime_${storeId}_${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_metrics' }, () => callback())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_goals' }, () => callback())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_insights' }, () => callback())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // 15. Log System Audit Log
+  async logSystemAuditLog(action: string, status: string = 'Success', details: any = {}, storeId: string = '11111111-1111-1111-1111-111111111111') {
+    try {
+      const payload = {
+        store_id: storeId,
+        event_action: action,
+        status: status,
+        details: details,
+        created_at: new Date().toISOString()
+      };
+      const { data, error } = await supabase
+        .from('umkm_system_audit_logs')
+        .insert(payload)
+        .select()
+        .maybeSingle();
+
+      if (error) return { data: null, error };
+      return { data, error: null };
+    } catch (e: any) {
+      return { data: null, error: e };
     }
   }
 };

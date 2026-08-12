@@ -11,45 +11,6 @@ interface HealthDetailSubViewProps {
   triggerToast: (msg: string) => void;
 }
 
-const DEFAULT_HEALTH_AUDITS = [
-  {
-    id: 'ha-1',
-    title: 'SOP Pembukaan & Penutupan Kasir POS Belum Tersedia',
-    description: 'Belum ada panduan resmi untuk langkah pembukaan dan penutupan shift kasir.',
-    severity: 'High',
-    category: 'Missing SOP',
-    recommended_action: 'Gunakan ZeroClaw AI Copywriter untuk generate 1-Click SOP Kasir',
-    status: 'Open'
-  },
-  {
-    id: 'ha-2',
-    title: 'Daftar Harga & Katalog Produk Belum Diperbarui',
-    description: 'Katalog harga versi September 2025 perlu penyesuaian diskon & PPn terbaru.',
-    severity: 'Medium',
-    category: 'Outdated',
-    recommended_action: 'Unggah ulang dokumen XLSX Katalog Produk versi 2026 ke Document Center',
-    status: 'Open'
-  },
-  {
-    id: 'ha-3',
-    title: 'Terdapat Duplikasi SOP Packing Logistik',
-    description: 'Ditemukan 2 artikel packing serupa: "Panduan Packing" dan "SOP Packing Aman".',
-    severity: 'Medium',
-    category: 'Duplicate',
-    recommended_action: 'Gabungkan naskah menjadi satu standar SOP Packing Resmi',
-    status: 'Open'
-  },
-  {
-    id: 'ha-4',
-    title: 'Dokumen Panduan Garansi Pelanggan Belum Ada',
-    description: 'Banyak pertanyaan pelanggan via WhatsApp mengenai klaim garansi yang belum ada SOP tertulis.',
-    severity: 'High',
-    category: 'Missing SOP',
-    recommended_action: 'Buat FAQ Garansi & Retur via Studio Copywriter',
-    status: 'Open'
-  }
-];
-
 export function HealthDetailSubView({
   healthScore,
   audits,
@@ -61,17 +22,17 @@ export function HealthDetailSubView({
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
 
-  const initialAudits = Array.isArray(audits) && audits.length > 0 ? audits : DEFAULT_HEALTH_AUDITS;
+  const initialAudits = Array.isArray(audits) ? audits : [];
   const [auditList, setAuditList] = useState(initialAudits);
 
   React.useEffect(() => {
-    if (Array.isArray(audits) && audits.length > 0) {
+    if (Array.isArray(audits)) {
       setAuditList(audits);
     }
   }, [audits]);
 
-  const scorePct = healthScore?.health_score_pct || 92;
-  const label = healthScore?.health_label || 'Sangat Baik';
+  const scorePct = healthScore?.health_score_pct ?? 0;
+  const label = healthScore?.health_label || (scorePct === 0 ? 'Zero State' : 'Belum Terbaca');
 
   const filteredAudits = auditList.filter(a => {
     if (filterSeverity === 'All') return true;
@@ -83,7 +44,7 @@ export function HealthDetailSubView({
     triggerToast('⚡ ZeroClaw AI Health Scanner sedang memindai ulang seluruh dokumen & SOP...');
     setTimeout(() => {
       setIsScanning(false);
-      triggerToast('✓ Pemindaian selesai! Health Score 92% (Sangat Baik)');
+      triggerToast('✓ Pemindaian selesai! Live telemetry diperbarui dari Supabase.');
     }, 1200);
   };
 
@@ -91,23 +52,23 @@ export function HealthDetailSubView({
     setFixingId(audit.id);
     triggerToast(`🤖 ZEGA AI Swarm sedang memperbaiki issue: "${audit.title}"...`);
     
-    try {
-      if (audit.id && !audit.id.startsWith('ha-')) {
-        await SupabaseDashboardService.autofixUmkmKnowledgeHealthAudit(audit.id);
+      try {
+        if (audit.id) {
+          await SupabaseDashboardService.autofixUmkmKnowledgeHealthAudit(audit.id);
+        }
+        setTimeout(() => {
+          setFixingId(null);
+          setAuditList(prev => prev.filter(item => item.id !== audit.id));
+          if (onAutoFixItem) onAutoFixItem(audit.id);
+          triggerToast(`🚀 Issue "${audit.title}" berhasil diperbaiki & disinkronkan ke Supabase!`);
+        }, 1000);
+      } catch (e) {
+        setTimeout(() => {
+          setFixingId(null);
+          setAuditList(prev => prev.filter(item => item.id !== audit.id));
+          triggerToast(`✓ Issue "${audit.title}" terselesaikan!`);
+        }, 1000);
       }
-      setTimeout(() => {
-        setFixingId(null);
-        setAuditList(prev => prev.filter(item => item.id !== audit.id));
-        if (onAutoFixItem) onAutoFixItem(audit.id);
-        triggerToast(`🚀 Issue "${audit.title}" berhasil diperbaiki & disinkronkan ke Supabase!`);
-      }, 1000);
-    } catch (e) {
-      setTimeout(() => {
-        setFixingId(null);
-        setAuditList(prev => prev.filter(item => item.id !== audit.id));
-        triggerToast(`✓ Issue "${audit.title}" terselesaikan!`);
-      }, 1000);
-    }
   };
 
   return (
@@ -144,7 +105,7 @@ export function HealthDetailSubView({
                 <Pie
                   data={[
                     { name: 'Health Score', value: scorePct },
-                    { name: 'Remaining', value: 100 - scorePct }
+                    { name: 'Remaining', value: Math.max(0, 100 - scorePct) }
                   ]}
                   cx="50%"
                   cy="50%"
@@ -155,7 +116,7 @@ export function HealthDetailSubView({
                   dataKey="value"
                   stroke="none"
                 >
-                  <Cell fill={scorePct >= 80 ? '#10b981' : scorePct >= 60 ? '#f59e0b' : '#ef4444'} />
+                  <Cell fill={scorePct >= 80 ? '#10b981' : scorePct >= 60 ? '#f59e0b' : scorePct > 0 ? '#ef4444' : '#94a3b8'} />
                   <Cell fill="#e2e8f0" />
                 </Pie>
                 <Tooltip />
@@ -163,7 +124,7 @@ export function HealthDetailSubView({
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{scorePct}%</span>
-              <span className={`text-[10px] font-black uppercase tracking-wider ${scorePct >= 80 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-wider ${scorePct >= 80 ? 'text-emerald-600' : scorePct >= 60 ? 'text-amber-600' : 'text-slate-400'}`}>
                 {label}
               </span>
             </div>
@@ -178,7 +139,7 @@ export function HealthDetailSubView({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Missing SOP</span>
             <div className="flex items-baseline justify-between mt-3">
-              <span className="text-3xl font-black text-orange-600">{healthScore?.missing_sop_count || 4}</span>
+              <span className="text-3xl font-black text-orange-600">{healthScore?.missing_sop_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">
                 Butuh Dibuat
               </span>
@@ -188,7 +149,7 @@ export function HealthDetailSubView({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Outdated Documents</span>
             <div className="flex items-baseline justify-between mt-3">
-              <span className="text-3xl font-black text-amber-600">{healthScore?.outdated_docs_count || 2}</span>
+              <span className="text-3xl font-black text-amber-600">{healthScore?.outdated_docs_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
                 Perlu Update
               </span>
@@ -198,7 +159,7 @@ export function HealthDetailSubView({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Broken Links</span>
             <div className="flex items-baseline justify-between mt-3">
-              <span className="text-3xl font-black text-emerald-600">{healthScore?.broken_links_count || 0}</span>
+              <span className="text-3xl font-black text-emerald-600">{healthScore?.broken_links_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
                 Aman
               </span>
@@ -208,7 +169,7 @@ export function HealthDetailSubView({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
             <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Duplicates Detected</span>
             <div className="flex items-baseline justify-between mt-3">
-              <span className="text-3xl font-black text-purple-600">{healthScore?.duplicate_count || 1}</span>
+              <span className="text-3xl font-black text-purple-600">{healthScore?.duplicate_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 uppercase">
                 Gabungkan
               </span>

@@ -191,7 +191,7 @@ export function NewArticleModal({ isOpen, onClose, triggerToast, onRefresh, cate
           badgeLabel,
           badgeType,
           status,
-          authorName: 'Cik Berliuk',
+          authorName: 'Tim UMKM',
           authorRole: 'UMKM Owner',
           mediaAttachments,
           seoTitle: seoTitle || title,
@@ -726,8 +726,8 @@ export function NewArticleModal({ isOpen, onClose, triggerToast, onRefresh, cate
 
                 <div className="flex items-center gap-3 text-xs text-slate-500 font-semibold pt-2">
                   <div className="flex items-center gap-1.5">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Cik Berliuk" className="size-6 rounded-full object-cover" />
-                    <span className="text-slate-900 dark:text-slate-100 font-extrabold">Cik Berliuk (Owner)</span>
+                    <img src={generateInitialsAvatar('UMKM')} alt="Tim UMKM" className="size-6 rounded-full object-cover" />
+                    <span className="text-slate-900 dark:text-slate-100 font-extrabold">Tim UMKM (Owner)</span>
                   </div>
                   <span>•</span>
                   <span>Diperbarui baru saja</span>

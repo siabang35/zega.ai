@@ -280,9 +280,6 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <span>Analisis Performa Saluran (Channel Performance)</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                <Cpu size={12} /> Live DB Telemetry
-              </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
               Analisis efisiensi reach, engagement, konversi leads & omset per platform secara real-time.
@@ -311,7 +308,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
       {/* 2. Top Executive Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {/* Card 1: Top Performing Channel */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>TOP PERFORMING CHANNEL</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
@@ -319,18 +316,18 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             </div>
           </div>
           <div className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center justify-between">
-            <span>{topPerforming?.channel_name || 'WhatsApp Business'}</span>
+            <span>{topPerforming?.channel_name || '-'}</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 font-extrabold">
-              {topPerforming?.conversion_pct || 4.8}% Conv
+              {topPerforming?.conversion_pct || 0}% Conv
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Omset Rp{(parseFloat(topPerforming?.revenue_num || 3250000)).toLocaleString('id-ID')} ({topPerforming?.leads_count || 198} Leads)
+            Omset Rp{(parseFloat(topPerforming?.revenue_num || 0)).toLocaleString('id-ID')} ({topPerforming?.leads_count || 0} Leads)
           </p>
         </div>
 
         {/* Card 2: Highest Engagement Rate */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>HIGHEST ENGAGEMENT RATE</span>
             <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
@@ -338,18 +335,18 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             </div>
           </div>
           <div className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center justify-between">
-            <span>{highestEng?.channel_name || 'TikTok Shop'}</span>
+            <span>{highestEng?.channel_name || '-'}</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 font-extrabold">
-              {highestEng?.engagement_pct || 9.1}% Eng
+              {highestEng?.engagement_pct || 0}% Eng
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Pertumbuhan tertinggi ({highestEng?.trend_pct || '+22%'})
+            Pertumbuhan tertinggi ({highestEng?.trend_pct || '0%'})
           </p>
         </div>
 
         {/* Card 3: Rata-Rata ROAS Channel */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>RATA-RATA ROAS CHANNEL</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
@@ -364,7 +361,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
         </div>
 
         {/* Card 4: Total Leads Generated */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
             <span>TOTAL LEADS GENERATED</span>
             <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
@@ -381,7 +378,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
       </div>
 
       {/* 3. Professional Chart.js Bar Chart Visualization */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -429,7 +426,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
       </div>
 
       {/* 4. Main Channel Performance Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
@@ -545,7 +542,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
                       </td>
 
                       <td className="py-3 px-3 text-right font-extrabold text-purple-600 dark:text-purple-400">
-                        {ch.roas_val || '3.5'}x
+                        {ch.roas_val || '0.0'}x
                       </td>
 
                       <td className="py-3 px-3 text-right">
@@ -568,7 +565,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
       {/* MODAL: Audit Telemetri Detail Channel */}
       {selectedAuditChannel && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <img
@@ -579,7 +576,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
                 />
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                    Audit Telemetri: {selectedAuditChannel.channel_name}
+                    Audit Detail: {selectedAuditChannel.channel_name}
                   </h3>
                   <p className="text-xs text-slate-400">Record detail terautentikasi Supabase DB</p>
                 </div>
@@ -603,7 +600,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">ROAS Biaya Iklan</span>
                 <p className="text-base font-black text-purple-600 mt-0.5">
-                  {selectedAuditChannel.roas_val || '4.2'}x ROAS
+                  {selectedAuditChannel.roas_val || '0.0'}x ROAS
                 </p>
               </div>
 

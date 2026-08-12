@@ -22,6 +22,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
   const [segments, setSegments] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
+  const [kpiData, setKpiData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modals state
@@ -51,19 +52,10 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
       if (subpageData?.growth?.length) setGrowth(subpageData.growth);
       if (subpageData?.segments?.length) setSegments(subpageData.segments);
       if (subpageData?.regions?.length) setRegions(subpageData.regions);
+      if (subpageData?.kpi) setKpiData(subpageData.kpi);
 
-      // 2. Load top customers with fallbacks
-      if (reportsData?.topCustomers?.length) {
-        setTopCustomers(reportsData.topCustomers);
-      } else {
-        setTopCustomers([
-          { customer_name: 'Siti Aisyah', orders_count: 12, total_spend_idr: 3200000, last_order_at: '28 Jul 2026', avatar_url: '' },
-          { customer_name: 'Budi Santoso', orders_count: 9, total_spend_idr: 2180000, last_order_at: '27 Jul 2026', avatar_url: '' },
-          { customer_name: 'Dewi Lestari', orders_count: 8, total_spend_idr: 1950000, last_order_at: '26 Jul 2026', avatar_url: '' },
-          { customer_name: 'Rizky Pratama', orders_count: 7, total_spend_idr: 1120000, last_order_at: '26 Jul 2026', avatar_url: '' },
-          { customer_name: 'Maya Putri', orders_count: 6, total_spend_idr: 1450000, last_order_at: '25 Jul 2026', avatar_url: '' }
-        ]);
-      }
+      // 2. Load top customers
+      setTopCustomers(reportsData?.topCustomers || subpageData?.topCustomers || []);
     } catch (e) {
       console.warn('Customer intelligence load error:', e);
     } finally {
@@ -80,9 +72,15 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
   }, [dateRange]);
 
   // Derived Telemetry Values
-  const totalCustomers = growth.length > 0 ? growth[growth.length - 1]?.total_customers || 486 : 486;
-  const latestNew = growth.length > 0 ? growth[growth.length - 1]?.new_customers || 78 : 78;
+  const totalCustomers = kpiData?.total_customers ?? (growth.length > 0 ? growth[growth.length - 1]?.total_customers || 0 : 0);
+  const latestNew = kpiData?.new_customers ?? (growth.length > 0 ? growth[growth.length - 1]?.new_customers || 0 : 0);
   const totalSegments = segments.reduce((s: number, sg: any) => s + (sg.customer_count || 0), 0);
+  const repeatOrderPct = kpiData?.repeat_order_pct ?? (topCustomers.length > 0 ? Math.round((topCustomers.filter((c: any) => (c.orders_count || 0) > 1).length / topCustomers.length) * 100) : 0);
+  const avgClvIdr = kpiData?.avg_clv_idr ?? (topCustomers.length > 0 ? Math.round(topCustomers.reduce((acc: number, c: any) => acc + (c.total_spend_idr || 0), 0) / topCustomers.length) : 0);
+  const totalGrowthPct = kpiData?.total_growth_pct ? `+${kpiData.total_growth_pct}%` : '0%';
+  const newGrowthPct = kpiData?.new_growth_pct ? `+${kpiData.new_growth_pct}%` : '0%';
+  const repeatGrowthPct = kpiData?.repeat_growth_pct ? `+${kpiData.repeat_growth_pct}%` : '0%';
+  const clvGrowthPct = kpiData?.clv_growth_pct ? `+${kpiData.clv_growth_pct}%` : '0%';
 
   // Dispatch Voucher Action
   const handleDispatchVoucher = async () => {
@@ -197,11 +195,8 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
             <Users size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Laporan Intelijen Pelanggan</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                ZeroClaw 9Router Live Telemetry
-              </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
+              Laporan Intelijen Pelanggan
             </h2>
             <p className="text-xs text-slate-400 font-medium">
               Analisis segmentasi RFM, nilai CLV pelanggan, dan otomatisasi retensi AI.
@@ -230,10 +225,10 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
       {/* 2. Customer Diagnostic KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Pelanggan Aktif', val: String(totalCustomers), growth: '+19.5%', icon: Users, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
-          { label: 'Pelanggan Baru Periode Ini', val: String(latestNew), growth: '+24%', icon: UserPlus, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
-          { label: 'Tingkat Repeat Order', val: '42.5%', growth: '+3.8%', icon: UserCheck, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
-          { label: 'Rata-rata Customer Lifetime Value', val: 'Rp890.000', growth: '+12%', icon: Heart, bg: 'bg-pink-50 dark:bg-pink-950/60', text: 'text-pink-600' },
+          { label: 'Total Pelanggan Aktif', val: totalCustomers.toLocaleString('id-ID'), growth: totalGrowthPct, icon: Users, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
+          { label: 'Pelanggan Baru Periode Ini', val: latestNew.toLocaleString('id-ID'), growth: newGrowthPct, icon: UserPlus, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
+          { label: 'Tingkat Repeat Order', val: `${repeatOrderPct}%`, growth: repeatGrowthPct, icon: UserCheck, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
+          { label: 'Rata-rata Customer Lifetime Value', val: `Rp${avgClvIdr.toLocaleString('id-ID')}`, growth: clvGrowthPct, icon: Heart, bg: 'bg-pink-50 dark:bg-pink-950/60', text: 'text-pink-600' },
         ].map((kpi, i) => {
           const IconComp = kpi.icon;
           return (

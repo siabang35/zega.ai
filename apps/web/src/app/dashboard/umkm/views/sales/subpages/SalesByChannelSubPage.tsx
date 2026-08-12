@@ -17,136 +17,6 @@ export function SalesByChannelSubPage({
   aiInsights = [], 
   triggerToast = () => {} 
 }: SalesByChannelSubPageProps) {
-  const defaultChannels = [
-    { 
-      id: '1',
-      channel_name: 'WhatsApp Business API', 
-      channel_code: 'whatsapp',
-      total_revenue_idr: 6100000, 
-      orders_count: 52, 
-      percentage: 45.0, 
-      conversion_rate: 5.8, 
-      color_hex: '#10b981', 
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-      status: 'TERHUBUNG REALTIME',
-      top_products_json: [
-        { product_name: 'Paket Skincare Basic', qty: 24, revenue: 2880000 },
-        { product_name: 'Serum Brightening', qty: 18, revenue: 2160000 }
-      ]
-    },
-    { 
-      id: '2',
-      channel_name: 'Shopee Seller Store', 
-      channel_code: 'shopee',
-      total_revenue_idr: 4100000, 
-      orders_count: 35, 
-      percentage: 30.0, 
-      conversion_rate: 4.2, 
-      color_hex: '#f97316', 
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png',
-      status: 'TERHUBUNG REALTIME',
-      top_products_json: [
-        { product_name: 'Paket Skincare Premium', qty: 15, revenue: 2250000 },
-        { product_name: 'Face Wash', qty: 12, revenue: 960000 }
-      ]
-    },
-    { 
-      id: '3',
-      channel_name: 'Instagram Direct', 
-      channel_code: 'instagram',
-      total_revenue_idr: 2000000, 
-      orders_count: 18, 
-      percentage: 15.0, 
-      conversion_rate: 3.4, 
-      color_hex: '#a855f7', 
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/instagram.png',
-      status: 'TERHUBUNG REALTIME',
-      top_products_json: [
-        { product_name: 'Moisturizer Gel', qty: 10, revenue: 850000 },
-        { product_name: 'Sunscreen SPF50', qty: 8, revenue: 680000 }
-      ]
-    },
-    { 
-      id: '4',
-      channel_name: 'TikTok Shop Messaging', 
-      channel_code: 'tiktok',
-      total_revenue_idr: 1300000, 
-      orders_count: 11, 
-      percentage: 10.0, 
-      conversion_rate: 2.9, 
-      color_hex: '#06b6d4', 
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/tiktok.webp',
-      status: 'TERHUBUNG REALTIME',
-      top_products_json: [
-        { product_name: 'Lip Matte Velvet', qty: 8, revenue: 640000 },
-        { product_name: 'Toner Booster', qty: 3, revenue: 390000 }
-      ]
-    }
-  ];
-
-  const defaultAiSwarm = [
-    {
-      id: '1',
-      channel_code: 'whatsapp',
-      headline: 'DeepSeek R1: Dominasi WhatsApp Business (Konversi 5.8%)',
-      content: 'WhatsApp menyumbangkan 45% omset (Rp6.100.000) dengan konversi tertinggi (5.8%). Disarankan mengaktifkan auto-broadcast catalog untuk kontak aktif.',
-      action_suggestion: 'Aktifkan WhatsApp Auto-Catalog Broadcast',
-      model_engine: 'DeepSeek-R1-Reasoning',
-      confidence_pct: 98.90,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/deepseek.webp',
-      category: 'Dominasi Channel WA',
-      estimated_impact: '+Rp 1.800.000 / bln'
-    },
-    {
-      id: '2',
-      channel_code: 'shopee',
-      headline: 'Claude-3.5-Sonnet: Reallocasi Budget Shopee Flash Sale',
-      content: 'Claude 3.5 Sonnet mendeteksi penurunan konversi Shopee di minggu ke-4 (2.9%). Disarankan memindahkan voucher diskon ke paket bundling skincare.',
-      action_suggestion: 'Optimalkan Bundling Voucher Shopee',
-      model_engine: 'Claude-3.5-Sonnet-Swarm',
-      confidence_pct: 97.60,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/claude.webp',
-      category: 'Optimasi Promo Shopee',
-      estimated_impact: '+12% Profit Margin'
-    },
-    {
-      id: '3',
-      channel_code: 'tiktok',
-      headline: 'ZeroClaw Solana Daemon: Telemetri TikTok Live Checkout',
-      content: 'ZeroClaw memantau aktivitas TikTok Live jam 19.00 - 21.00 menghasilkan konversi 3x lebih cepat. Rekomendasi auto-reply via AI Assistant.',
-      action_suggestion: 'Aktifkan TikTok Live Auto-Reply Swarm',
-      model_engine: 'ZeroClaw-Solana-Daemon',
-      confidence_pct: 99.40,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg',
-      category: 'Live Commerce Telemetry',
-      estimated_impact: 'Respon Chat < 3 Detik'
-    },
-    {
-      id: '4',
-      channel_code: 'ALL',
-      headline: '9Router Multi-LLM Cost Routing Strategy',
-      content: '9Router mengarahkan prompt transaksi ringan ke model hemat energi, menghemat 40% biaya API tanpa mengurangi responsivitas balasan pelanggan.',
-      action_suggestion: 'Terapkan Dynamic Token Routing',
-      model_engine: '9Router-Auto-Cost-Optimizer',
-      confidence_pct: 98.70,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/9router.png',
-      category: 'Multi-LLM Cost Guard',
-      estimated_impact: 'Hemat 40% Token Cost'
-    },
-    {
-      id: '5',
-      channel_code: 'instagram',
-      headline: 'Qwen Coder 32B: Direct Message Abandoned Cart Automation',
-      content: 'Qwen Coder mengidentifikasi 18 prospek Instagram DM yang berhenti di negosiasi harga. Script promo otomatis siap dikirimkan.',
-      action_suggestion: 'Kirim Script Follow-Up IG Direct',
-      model_engine: 'Qwen-2.5-Coder-32B',
-      confidence_pct: 96.80,
-      cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/Qwen.png',
-      category: 'Otomasi Instagram DM',
-      estimated_impact: '+8 Orders Restored'
-    }
-  ];
-
   const resolveCdnIconUrl = (rawUrl?: string) => {
     if (!rawUrl) return 'https://cdn.zegaai.site/assets/logo/deepseek.webp';
     let url = rawUrl;
@@ -156,9 +26,9 @@ export function SalesByChannelSubPage({
     return url;
   };
 
-  // Strictly deduplicate channels by channel_code or channel_name to prevent double rendering
+  // Deduplicate channels by channel_code or channel_name
   const deduplicatedChannels = useMemo(() => {
-    const rawList = channels.length ? channels : defaultChannels;
+    const rawList = channels || [];
     const seen = new Set<string>();
     const uniqueList: any[] = [];
 
@@ -172,7 +42,7 @@ export function SalesByChannelSubPage({
           total_revenue_idr: c.total_revenue_idr || c.amount || 0,
           orders_count: c.orders_count || 0,
           percentage: Number(c.percentage || 0),
-          conversion_rate: Number(c.conversion_rate || 4.0),
+          conversion_rate: Number(c.conversion_rate || 0),
           color_hex: c.color_hex || '#10b981',
           cdn_icon_url: c.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
           status: c.status || 'TERHUBUNG REALTIME'
@@ -180,8 +50,10 @@ export function SalesByChannelSubPage({
       }
     });
 
-    return uniqueList.length ? uniqueList : defaultChannels;
+    return uniqueList;
   }, [channels]);
+
+  const activeSwarmInsights = aiInsights || [];
 
   const totalRev = useMemo(() => {
     return deduplicatedChannels.reduce((acc, c) => acc + (c.total_revenue_idr || 0), 0);
@@ -203,7 +75,6 @@ export function SalesByChannelSubPage({
   // Accordion Collapsible State for AI Insights (Default 1st & 2nd open)
   const [expandedInsightIds, setExpandedInsightIds] = useState<Set<string>>(new Set(['1', '2']));
 
-  const activeSwarmInsights = aiInsights.length ? aiInsights : defaultAiSwarm;
 
   const toggleInsightAccordion = (id: string) => {
     setExpandedInsightIds((prev) => {
@@ -278,19 +149,16 @@ export function SalesByChannelSubPage({
       {/* ========================================================================= */}
       {/* 1. ENTERPRISE EXECUTIVE HEADER & TELEMETRY SUMMARY */}
       {/* ========================================================================= */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <ShoppingBag className="text-orange-500" size={20} />
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <ShoppingBag className="text-orange-600 dark:text-orange-500" size={18} />
               <span>Sales by Channel Analytics</span>
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-900/50">
-              Live Telemetry
-            </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Analisis kontribusi omset per saluran penjualan (WhatsApp, Shopee, Instagram, TikTok) real-time dengan integrasi AI Swarm.
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+            Analisis kontribusi omset per saluran penjualan (WhatsApp, Shopee, Instagram, TikTok) berbasis data transaksi Supabase.
           </p>
         </div>
 

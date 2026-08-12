@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Plus, Download, Upload, Filter, Search, UserPlus, RefreshCw, 
   Heart, DollarSign, Calendar, Eye, Edit, Trash2, MoreVertical, ChevronLeft, 
-  ChevronRight, Sparkles, ArrowRight, MessageSquare, ShoppingBag, Link as LinkIcon,
+  ChevronRight, ChevronDown, ChevronUp, Sparkles, ArrowRight, MessageSquare, ShoppingBag, Link as LinkIcon,
   X, Check, AlertCircle, Globe, Minus, Target
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
@@ -45,13 +45,13 @@ ChartJS.register(
 
 {/* Interactive Leaflet Customer Mapping Component */}
 const REGIONAL_LOCATIONS = [
-  { id: 'jkt', region: 'DKI Jakarta', count: 436, pct: 35, revenue: 545000000, topCat: 'Fashion & Hijab', lat: -6.2088, lng: 106.8456, churnRisk: '3%' },
-  { id: 'jbr', region: 'Jawa Barat', count: 312, pct: 25, revenue: 390000000, topCat: 'Kuliner & Snack', lat: -6.9175, lng: 107.6191, churnRisk: '8%' },
-  { id: 'jtg', region: 'Jawa Tengah', count: 224, pct: 18, revenue: 280000000, topCat: 'Kecantikan & Skincare', lat: -6.9667, lng: 110.4167, churnRisk: '12%' },
-  { id: 'jtm', region: 'Jawa Timur', count: 150, pct: 12, revenue: 187500000, topCat: 'Aksesoris & Gadget', lat: -7.2575, lng: 112.7521, churnRisk: '15%' },
-  { id: 'sumut', region: 'Sumatera Utara', count: 86, pct: 7, revenue: 107500000, topCat: 'Makanan Olahan', lat: 3.5952, lng: 98.6722, churnRisk: '18%' },
-  { id: 'bali', region: 'Bali', count: 64, pct: 5, revenue: 80000000, topCat: 'Handicraft & Souvenir', lat: -8.6705, lng: 115.2126, churnRisk: '5%' },
-  { id: 'sulsel', region: 'Sulawesi Selatan', count: 48, pct: 4, revenue: 60000000, topCat: 'Kopi & Rempah', lat: -5.1477, lng: 119.4327, churnRisk: '20%' }
+  { id: 'jkt', region: 'DKI Jakarta', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -6.2088, lng: 106.8456, churnRisk: '0%' },
+  { id: 'jbr', region: 'Jawa Barat', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -6.9175, lng: 107.6191, churnRisk: '0%' },
+  { id: 'jtg', region: 'Jawa Tengah', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -6.9667, lng: 110.4167, churnRisk: '0%' },
+  { id: 'jtm', region: 'Jawa Timur', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -7.2575, lng: 112.7521, churnRisk: '0%' },
+  { id: 'sumut', region: 'Sumatera Utara', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: 3.5952, lng: 98.6722, churnRisk: '0%' },
+  { id: 'bali', region: 'Bali', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -8.6705, lng: 115.2126, churnRisk: '0%' },
+  { id: 'sulsel', region: 'Sulawesi Selatan', count: 0, pct: 0, revenue: 0, topCat: 'Umum', lat: -5.1477, lng: 119.4327, churnRisk: '0%' }
 ];
 
 function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTriggerBroadcast: (targetRegion?: string) => void; triggerToast: (msg: string) => void }) {
@@ -60,6 +60,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
   const [dbRegions, setDbRegions] = React.useState<typeof REGIONAL_LOCATIONS>(REGIONAL_LOCATIONS);
   const [selectedRegion, setSelectedRegion] = React.useState<typeof REGIONAL_LOCATIONS[0]>(REGIONAL_LOCATIONS[0]);
   const [regionSearch, setRegionSearch] = React.useState('');
+  const [isTableOpen, setIsTableOpen] = React.useState(true);
 
   // Fetch Live Telemetry from Supabase RPC Procedure
   React.useEffect(() => {
@@ -153,7 +154,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
   const handleResetZoom = () => mapInstanceRef.current?.setView([-2.5489, 118.0149], 5);
 
-  const filteredRegions = REGIONAL_LOCATIONS.filter(r => 
+  const filteredRegions = activeRegions.filter(r => 
     r.region.toLowerCase().includes(regionSearch.toLowerCase()) ||
     r.topCat.toLowerCase().includes(regionSearch.toLowerCase())
   );
@@ -173,7 +174,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
           <button onClick={() => triggerToast('Laporan Distribusi Wilayah di-export ke CSV')} className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
             <Upload size={14} /> <span>Export Laporan Wilayah</span>
           </button>
-          <button onClick={() => onTriggerBroadcast('Semua Wilayah Provinsi Indonesia')} className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs flex items-center gap-2 shadow-md cursor-pointer">
+          <button onClick={() => onTriggerBroadcast('Semua Wilayah Provinsi Indonesia')} className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer">
             <Sparkles size={16} /> <span>Luncurkan AI Swarm Regional</span>
           </button>
         </div>
@@ -191,8 +192,8 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
               </h3>
               <p className="text-[11px] text-slate-400 font-medium">Klik pada titik marker atau nama wilayah untuk fokus pemetaan.</p>
             </div>
-            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-              ● Live GIS Telemetry
+            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              Pemetaan Real-time
             </span>
           </div>
 
@@ -292,97 +293,110 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
           <div>
             <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Sparkles size={18} className="text-orange-500" />
-              <span>Detail Telemetri & Performa Wilayah Provinsi</span>
+              <span>Detail Performa Wilayah Provinsi</span>
             </h3>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
               Analisis pendapatan, tingkat Churn Risk, serta preferensi kategori produk per daerah.
             </p>
           </div>
 
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              value={regionSearch}
-              onChange={(e) => setRegionSearch(e.target.value)}
-              placeholder="Cari provinsi / kategori..."
-              className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-52"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                value={regionSearch}
+                onChange={(e) => setRegionSearch(e.target.value)}
+                placeholder="Cari provinsi / kategori..."
+                className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-52"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsTableOpen(!isTableOpen)}
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+              title={isTableOpen ? 'Tutup Tabel Wilayah' : 'Buka Tabel Wilayah'}
+            >
+              {isTableOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-medium border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-3">PROVINSI / WILAYAH</th>
-                <th className="py-3 px-3 text-center">JUMLAH PELANGGAN</th>
-                <th className="py-3 px-3 text-center">KONTRIBUSI %</th>
-                <th className="py-3 px-3 text-right">TOTAL OMSET (IDR)</th>
-                <th className="py-3 px-3 text-center">KATEGORI TERLARIS</th>
-                <th className="py-3 px-3 text-center">CHURN RISK</th>
-                <th className="py-3 px-3 text-right">AKSI KAMPANYE</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
-              {filteredRegions.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-3">
-                    <span 
-                      onClick={() => {
-                        setSelectedRegion(row);
-                        if (mapInstanceRef.current) {
-                          mapInstanceRef.current.flyTo([row.lat, row.lng], 7);
-                        }
-                      }}
-                      className="font-black text-slate-900 dark:text-slate-100 hover:text-orange-500 cursor-pointer text-xs flex items-center gap-1.5"
-                    >
-                      <Globe size={14} className="text-orange-500" />
-                      <span>{row.region}</span>
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
-                    {row.count} Pelanggan
-                  </td>
-
-                  <td className="py-3.5 px-3 text-center font-mono font-black text-emerald-600 dark:text-emerald-400">
-                    {row.pct}%
-                  </td>
-
-                  <td className="py-3.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
-                    Rp{(row.revenue).toLocaleString('id-ID')}
-                  </td>
-
-                  <td className="py-3.5 px-3 text-center">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200 dark:bg-orange-950/60">
-                      {row.topCat}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-3 text-center">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      parseInt(row.churnRisk) <= 5 ? 'bg-emerald-100 text-emerald-700' :
-                      parseInt(row.churnRisk) <= 12 ? 'bg-blue-100 text-blue-700' :
-                      'bg-orange-100 text-orange-700'
-                    }`}>
-                      {row.churnRisk}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-3 text-right">
-                    <button
-                      onClick={() => onTriggerBroadcast(`Wilayah ${row.region}`)}
-                      className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
-                    >
-                      Target AI Broadcast
-                    </button>
-                  </td>
+        {isTableOpen && (
+          <div className="overflow-x-auto animate-in fade-in duration-150">
+            <table className="w-full text-left text-xs font-medium border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3">PROVINSI / WILAYAH</th>
+                  <th className="py-3 px-3 text-center">JUMLAH PELANGGAN</th>
+                  <th className="py-3 px-3 text-center">KONTRIBUSI %</th>
+                  <th className="py-3 px-3 text-right">TOTAL OMSET (IDR)</th>
+                  <th className="py-3 px-3 text-center">KATEGORI TERLARIS</th>
+                  <th className="py-3 px-3 text-center">CHURN RISK</th>
+                  <th className="py-3 px-3 text-right">AKSI KAMPANYE</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
+                {filteredRegions.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-3">
+                      <span 
+                        onClick={() => {
+                          setSelectedRegion(row);
+                          if (mapInstanceRef.current) {
+                            mapInstanceRef.current.flyTo([row.lat, row.lng], 7);
+                          }
+                        }}
+                        className="font-black text-slate-900 dark:text-slate-100 hover:text-orange-500 cursor-pointer text-xs flex items-center gap-1.5"
+                      >
+                        <Globe size={14} className="text-orange-500" />
+                        <span>{row.region}</span>
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
+                      {row.count} Pelanggan
+                    </td>
+
+                    <td className="py-3.5 px-3 text-center font-mono font-black text-emerald-600 dark:text-emerald-400">
+                      {row.pct}%
+                    </td>
+
+                    <td className="py-3.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
+                      Rp{(row.revenue).toLocaleString('id-ID')}
+                    </td>
+
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600 border border-orange-200 dark:bg-orange-950/60">
+                        {row.topCat}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-3 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        parseInt(row.churnRisk) <= 5 ? 'bg-emerald-100 text-emerald-700' :
+                        parseInt(row.churnRisk) <= 12 ? 'bg-blue-100 text-blue-700' :
+                        'bg-orange-100 text-orange-700'
+                      }`}>
+                        {row.churnRisk}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-3 text-right">
+                      <button
+                        onClick={() => onTriggerBroadcast(`Wilayah ${row.region}`)}
+                        className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
+                      >
+                        Target AI Broadcast
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -413,48 +427,17 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
 
   const [customerData, setCustomerData] = useState<any>({
     metrics: {
-      total_customers: 1248,
-      new_customers: 126,
-      repeat_customers: 312,
-      retention_rate_pct: 68,
-      avg_order_value_idr: 1250000.00
+      total_customers: 0,
+      new_customers: 0,
+      repeat_customers: 0,
+      retention_rate_pct: 0,
+      avg_order_value_idr: 0
     },
-    segments: [
-      { name: 'VIP', percentage: 18, count: 224, color: '#f97316' },
-      { name: 'Loyal', percentage: 32, count: 399, color: '#3b82f6' },
-      { name: 'Repeat', percentage: 28, count: 349, color: '#8b5cf6' },
-      { name: 'New', percentage: 22, count: 276, color: '#10b981' }
-    ],
-    growth: [
-      { period_label: '1 Jul', total_customers: 250 },
-      { period_label: '6 Jul', total_customers: 480 },
-      { period_label: '11 Jul', total_customers: 750 },
-      { period_label: '16 Jul', total_customers: 1020 },
-      { period_label: '21 Jul', total_customers: 1150 },
-      { period_label: '26 Jul', total_customers: 1200 },
-      { period_label: '31 Jul', total_customers: 1248 }
-    ],
-    customers: [
-      { id: 'c1', name: 'Siti Aisyah', email: 'siti.aisyah@email.com', phone: '+62 812-3456-7890', segment: 'VIP', total_orders: 12, total_spend_idr: 3200000, last_order_at: '28 Jul 2026', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
-      { id: 'c2', name: 'Budi Santoso', email: 'budi.santoso@email.com', phone: '+62 813-2345-6789', segment: 'Loyal', total_orders: 9, total_spend_idr: 2180000, last_order_at: '27 Jul 2026', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
-      { id: 'c3', name: 'Dewi Lestari', email: 'dewi.lestari@email.com', phone: '+62 821-3456-9876', segment: 'Repeat', total_orders: 8, total_spend_idr: 1950000, last_order_at: '26 Jul 2026', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-      { id: 'c4', name: 'Rizky Pratama', email: 'rizky.pratama@email.com', phone: '+62 822-4567-8901', segment: 'Repeat', total_orders: 7, total_spend_idr: 1120000, last_order_at: '26 Jul 2026', status: 'Tidak Aktif', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
-      { id: 'c5', name: 'Maya Putri', email: 'maya.putri@email.com', phone: '+62 823-5678-9012', segment: 'New', total_orders: 6, total_spend_idr: 1450000, last_order_at: '25 Jul 2026', status: 'Aktif', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' }
-    ],
-    activityStream: [
-      { id: 'a1', customer_name: 'Siti Aisyah', action_description: 'Melakukan pembelian Rp450.000', time_ago: '2 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
-      { id: 'a2', customer_name: 'Budi Santoso', action_description: 'Membuka pesan WhatsApp promo', time_ago: '3 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
-      { id: 'a3', customer_name: 'Dewi Lestari', action_description: 'Klik link promo diskon', time_ago: '5 jam lalu', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-      { id: 'a4', customer_name: 'Rizky Pratama', action_description: 'Menambahkan produk ke keranjang', time_ago: '1 hari lalu', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
-      { id: 'a5', customer_name: 'Maya Putri', action_description: 'Mendaftar sebagai pelanggan baru', time_ago: '1 hari lalu', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' }
-    ],
-    regionalDistribution: [
-      { region: 'Jakarta', percentage: 35 },
-      { region: 'Jawa Barat', percentage: 25 },
-      { region: 'Jawa Tengah', percentage: 18 },
-      { region: 'Jawa Timur', percentage: 12 },
-      { region: 'Lainnya', percentage: 10 }
-    ]
+    segments: [],
+    growth: [],
+    customers: [],
+    activityStream: [],
+    regionalDistribution: []
   });
 
   const [growthTab, setGrowthTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
@@ -494,6 +477,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
   };
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isRegionalModalOpen, setIsRegionalModalOpen] = useState(false);
+  const [isAiInsightOpen, setIsAiInsightOpen] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
   // Load real-time data from Supabase
@@ -520,12 +504,16 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
         setCustomerData((prev: any) => ({
           ...prev,
           metrics: data.metrics || prev.metrics,
-          customers: data.customers.length > 0 ? data.customers.map((c: any) => ({
+          segments: data.segments || prev.segments,
+          growth: data.growth || prev.growth,
+          activityStream: data.activityStream || prev.activityStream,
+          regionalDistribution: data.regionalDistribution || prev.regionalDistribution,
+          customers: data.customers.map((c: any) => ({
             ...c,
             avatar_url: (c.avatar_url && c.avatar_url.trim() !== '') 
               ? c.avatar_url 
               : getR2CdnUrl(`assets/avatar/avatar_${(Math.abs(c.name.length) % 6) + 1}.webp`, true)
-          })) : prev.customers
+          }))
         }));
       } else {
         // Fallback payload fetcher
@@ -534,7 +522,11 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           setCustomerData((prev: any) => ({
             ...prev,
             metrics: subData.metrics || prev.metrics,
-            customers: subData.customers?.length > 0 ? subData.customers : prev.customers
+            segments: subData.segments || prev.segments,
+            growth: subData.growth || prev.growth,
+            activityStream: subData.activityStream || prev.activityStream,
+            regionalDistribution: subData.regionalDistribution || prev.regionalDistribution,
+            customers: subData.customers || []
           }));
         }
       }
@@ -619,12 +611,18 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
 
   const paginatedCustomers = getPaginatedCustomers();
 
-  // Customer Segment Donut Setup
+  // Dynamic Customer Segment Donut Setup
+  const vipCount = customerData.customers.filter((c: any) => c.segment === 'VIP').length;
+  const loyalCount = customerData.customers.filter((c: any) => c.segment === 'Loyal').length;
+  const repeatCount = customerData.customers.filter((c: any) => c.segment === 'Repeat').length;
+  const newCount = customerData.customers.filter((c: any) => c.segment === 'New').length;
+  const totalCusts = customerData.customers.length;
+
   const donutData = {
     labels: ['VIP', 'Loyal', 'Repeat', 'New'],
     datasets: [
       {
-        data: [18, 32, 28, 22],
+        data: totalCusts > 0 ? [vipCount, loyalCount, repeatCount, newCount] : [0, 0, 0, 0],
         backgroundColor: ['#f97316', '#3b82f6', '#8b5cf6', '#10b981'],
         borderWidth: 0,
         hoverOffset: 4
@@ -646,23 +644,43 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
     }
   };
 
-  // Customer Growth Area Chart Setup (Dynamic Timeframes)
+  // Dynamic Zero-Trust Customer Growth Area Chart Setup
   const getGrowthConfig = () => {
+    if (totalCusts === 0) {
+      switch (growthTab) {
+        case 'Daily':
+          return { labels: ['1 Aug', '2 Aug', '3 Aug', '4 Aug', '5 Aug', '6 Aug', '7 Aug'], values: [0, 0, 0, 0, 0, 0, 0] };
+        case 'Weekly':
+          return { labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'], values: [0, 0, 0, 0] };
+        case 'Monthly':
+          return { labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'], values: [0, 0, 0, 0, 0, 0] };
+      }
+    }
+
+    const growthMetrics = customerData?.growth?.[growthTab.toLowerCase()] || [];
+    if (growthMetrics.length > 0) {
+      return {
+        labels: growthMetrics.map((g: any) => g.label || g.period),
+        values: growthMetrics.map((g: any) => g.count || g.total)
+      };
+    }
+
+    // Dynamic interpolation for active database records
     switch (growthTab) {
       case 'Daily':
         return {
           labels: ['1 Aug', '2 Aug', '3 Aug', '4 Aug', '5 Aug', '6 Aug', '7 Aug'],
-          values: [1180, 1195, 1210, 1225, 1235, 1242, 1248]
+          values: [Math.max(0, totalCusts - 6), Math.max(0, totalCusts - 5), Math.max(0, totalCusts - 4), Math.max(0, totalCusts - 3), Math.max(0, totalCusts - 2), Math.max(0, totalCusts - 1), totalCusts]
         };
       case 'Weekly':
         return {
           labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-          values: [1050, 1120, 1190, 1248]
+          values: [Math.max(0, totalCusts - 3), Math.max(0, totalCusts - 2), Math.max(0, totalCusts - 1), totalCusts]
         };
       case 'Monthly':
         return {
           labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-          values: [650, 780, 910, 1020, 1150, 1248]
+          values: [Math.max(0, totalCusts - 5), Math.max(0, totalCusts - 4), Math.max(0, totalCusts - 3), Math.max(0, totalCusts - 2), Math.max(0, totalCusts - 1), totalCusts]
         };
     }
   };
@@ -1200,91 +1218,178 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               </h2>
               <p className="text-xs text-slate-500 font-medium">Pengelompokan Recency, Frequency, & Monetary untuk kampanye retensi presisi.</p>
             </div>
-            <button onClick={() => handleOpenAiCampaign('segmentation', 'RFM Cohort Segmentasi Pelanggan')} className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs flex items-center gap-2 shadow-md cursor-pointer transition-all">
+            <button onClick={() => handleOpenAiCampaign('segmentation', 'RFM Cohort Segmentasi Pelanggan')} className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all">
               <Sparkles size={16} /> <span>Luncurkan AI Swarm Broadcast</span>
             </button>
           </div>
 
-          {/* 2. Interactive Cohort Metric Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { 
-                name: 'VIP Cohort', 
-                code: '555',
-                seg: 'VIP',
-                count: customerData.customers.filter((c: any) => c.segment === 'VIP').length || 224, 
-                pct: 18, 
-                borderColor: 'border-orange-500',
-                badgeBg: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60',
-                rfm: 'Recency: ≤3 hari | Freq: ≥10x | Spend: ≥Rp3.0M', 
-                action: 'Kirim sampel baru & akses VIP WA eksklusif' 
-              },
-              { 
-                name: 'Loyal Cohort', 
-                code: '444',
-                seg: 'Loyal',
-                count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length || 399, 
-                pct: 32, 
-                borderColor: 'border-blue-500',
-                badgeBg: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60',
-                rfm: 'Recency: ≤7 hari | Freq: 5–9x | Spend: Rp1.5M–3M', 
-                action: 'Tawarkan poin reward 2x lipat & diskon ongkir' 
-              },
-              { 
-                name: 'Repeat Cohort', 
-                code: '333',
-                seg: 'Repeat',
-                count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length || 349, 
-                pct: 28, 
-                borderColor: 'border-purple-500',
-                badgeBg: 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60',
-                rfm: 'Recency: ≤14 hari | Freq: 2–4x | Spend: Rp500K–1.5M', 
-                action: 'Kirim voucher repeat order 10% via AI Chat' 
-              },
-              { 
-                name: 'New Cohort', 
-                code: '111',
-                seg: 'New',
-                count: customerData.customers.filter((c: any) => c.segment === 'New').length || 276, 
-                pct: 22, 
-                borderColor: 'border-emerald-500',
-                badgeBg: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60',
-                rfm: 'Recency: ≤30 hari | Freq: 1x | Spend: ≤Rp500K', 
-                action: 'Kirim panduan onboarding & voucher belanja pertama' 
-              }
-            ].map((cohort, i) => {
-              const isSelected = segmentFilter === cohort.seg;
-              return (
-                <div 
-                  key={i} 
-                  onClick={() => {
-                    setSegmentFilter(segmentFilter === cohort.seg ? 'Semua Segment' : cohort.seg);
-                    triggerToast(`Filter segmen disesuaikan ke: ${cohort.seg}`);
-                  }}
-                  className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border-2 ${cohort.borderColor} space-y-3 shadow-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    isSelected ? 'ring-4 ring-orange-500/20 scale-[1.01]' : 'opacity-90 hover:opacity-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-black px-2.5 py-1 rounded-xl border ${cohort.badgeBg}`}>
-                      {cohort.name} ({cohort.code})
+          {/* 2. Interactive Donut Chart & Compact Cohort Grid */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Heart size={18} className="text-orange-500" />
+                  <span>Distribusi Segmen RFM & Cohort Matrix</span>
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  Klik pada segmen grafik atau kartu cohort untuk memfilter data anggota secara real-time.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {segmentFilter !== 'Semua Segment' && segmentFilter !== 'all' && (
+                  <button 
+                    onClick={() => {
+                      setSegmentFilter('Semua Segment');
+                      triggerToast('Filter segmen di-reset ke Semua Segment');
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Reset Filter ({segmentFilter})
+                  </button>
+                )}
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                  Analisis Real-time
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Left Column: Interactive Donut Chart (lg:col-span-5) */}
+              <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                <div className="relative size-48 mx-auto flex items-center justify-center">
+                  <Doughnut
+                    data={{
+                      labels: ['VIP Cohort (555)', 'Loyal Cohort (444)', 'Repeat Cohort (333)', 'New Cohort (111)'],
+                      datasets: [{
+                        data: (() => {
+                          const vip = customerData.customers.filter((c: any) => c.segment === 'VIP').length;
+                          const loyal = customerData.customers.filter((c: any) => c.segment === 'Loyal').length;
+                          const repeat = customerData.customers.filter((c: any) => c.segment === 'Repeat').length;
+                          const newC = customerData.customers.filter((c: any) => c.segment === 'New').length;
+                          const total = vip + loyal + repeat + newC;
+                          return total === 0 ? [1, 1, 1, 1] : [vip, loyal, repeat, newC];
+                        })(),
+                        backgroundColor: ['#f97316', '#3b82f6', '#a855f7', '#10b981'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                      }]
+                    }}
+                    options={{
+                      cutout: '76%',
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          enabled: true,
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                          titleFont: { size: 12, weight: 'bold' },
+                          bodyFont: { size: 11 },
+                          cornerRadius: 8,
+                          padding: 10
+                        }
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                    <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                      {customerData.customers.length || 0}
                     </span>
-                    <span className="text-xs font-mono font-black text-slate-400">
-                      {Math.round((cohort.count / (customerData.customers.length || 1)) * 100)}%
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
-                      {cohort.count} Pelanggan
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-400 mt-1">{cohort.rfm}</div>
-                  </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    <span className="text-orange-500">AI Strategy:</span> {cohort.action}
+                    <span className="text-[10px] font-bold text-slate-400">Total Pelanggan</span>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="mt-4 flex items-center justify-center gap-3 text-[11px] font-semibold text-slate-500">
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-orange-500" /> VIP</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-blue-500" /> Loyal</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-purple-500" /> Repeat</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-500" /> New</span>
+                </div>
+              </div>
+
+              {/* Right Column: Sleek Compact Cohort Cards (lg:col-span-7) */}
+              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { 
+                    name: 'VIP Cohort', 
+                    code: '555',
+                    seg: 'VIP',
+                    count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, 
+                    badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
+                    dotColor: 'bg-orange-500',
+                    rfm: 'Recency: ≤3h | Freq: ≥10x | Spend: ≥Rp3M', 
+                    action: 'Kirim sampel baru & akses VIP WA eksklusif' 
+                  },
+                  { 
+                    name: 'Loyal Cohort', 
+                    code: '444',
+                    seg: 'Loyal',
+                    count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, 
+                    badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
+                    dotColor: 'bg-blue-500',
+                    rfm: 'Recency: ≤7h | Freq: 5–9x | Spend: Rp1.5M–3M', 
+                    action: 'Tawarkan poin reward 2x lipat & diskon' 
+                  },
+                  { 
+                    name: 'Repeat Cohort', 
+                    code: '333',
+                    seg: 'Repeat',
+                    count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, 
+                    badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
+                    dotColor: 'bg-purple-500',
+                    rfm: 'Recency: ≤14h | Freq: 2–4x | Spend: Rp500K–1.5M', 
+                    action: 'Kirim voucher repeat order 10% via AI' 
+                  },
+                  { 
+                    name: 'New Cohort', 
+                    code: '111',
+                    seg: 'New',
+                    count: customerData.customers.filter((c: any) => c.segment === 'New').length, 
+                    badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
+                    dotColor: 'bg-emerald-500',
+                    rfm: 'Recency: ≤30h | Freq: 1x | Spend: ≤Rp500K', 
+                    action: 'Kirim onboarding & voucher belanja pertama' 
+                  }
+                ].map((cohort, i) => {
+                  const isSelected = segmentFilter === cohort.seg;
+                  const totalCustCount = customerData.customers.length || 0;
+                  const cohortPct = totalCustCount > 0 ? Math.round((cohort.count / totalCustCount) * 100) : 0;
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setSegmentFilter(segmentFilter === cohort.seg ? 'Semua Segment' : cohort.seg);
+                        triggerToast(`Filter segmen disesuaikan ke: ${cohort.seg}`);
+                      }}
+                      className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5 shadow-xs cursor-pointer transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700 ${
+                        isSelected ? 'ring-2 ring-orange-500/40 bg-orange-50/20 dark:bg-orange-950/10' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`size-2 rounded-full ${cohort.dotColor}`} />
+                          <span className={`text-xs font-black px-2 py-0.5 rounded-lg border ${cohort.badgeBg}`}>
+                            {cohort.name}{cohort.count > 0 ? ` (${cohort.code})` : ''}
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono font-black text-slate-500">
+                          {cohortPct}%
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+                          {cohort.count} <span className="text-xs font-semibold text-slate-500">Pelanggan</span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400">{cohort.rfm}</div>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                        <span className="text-orange-500">AI Strategy:</span> {cohort.action}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* 3. Deep RFM Matrix & Churn Risk Analysis Panel */}
@@ -1293,14 +1398,14 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               <div>
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Sparkles size={18} className="text-orange-500" />
-                  <span>Matriks Segmentasi & AI Churn Risk Telemetry</span>
+                  <span>Matriks Segmentasi & AI Churn Risk</span>
                 </h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
                   Rekomendasi tindakan otomatis AI Swarm untuk mempertahankan retensi & meminimalisir risiko kehilangan pelanggan.
                 </p>
               </div>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800 shrink-0">
-                ● Telemetri Terhubung
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                Analisis Real-time
               </span>
             </div>
 
@@ -1319,46 +1424,50 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
                   {[
-                    { seg: 'VIP', score: '555', count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, risk: 'Rendah (3%)', riskBg: 'bg-emerald-100 text-emerald-700', strategy: 'Prioritaskan fast-track CS 24/7, kirim bingkisan apresiasi tahunan & voucher exclusive preview produk baru.' },
-                    { seg: 'Loyal', score: '444', count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, risk: 'Sedang (12%)', riskBg: 'bg-blue-100 text-blue-700', strategy: 'Berikan double reward points untuk pembelian berikutnya dan rekomendasi bundel hemat berbasis histori.' },
-                    { seg: 'Repeat', score: '333', count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, risk: 'Menengah (28%)', riskBg: 'bg-purple-100 text-purple-700', strategy: 'Kirim pengingat restock barang via WhatsApp otomatis beserta kupon potongan harga Rp25.000.' },
-                    { seg: 'New', score: '111', count: customerData.customers.filter((c: any) => c.segment === 'New').length, risk: 'Tinggi (45%)', riskBg: 'bg-orange-100 text-orange-700', strategy: 'Kirim rangkaian pesan onboarding pengenalan brand, ulasan bintang 5, dan garansi jaminan kualitas 100%.' }
-                  ].map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-3">
-                        <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
-                          row.seg === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                          row.seg === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                          row.seg === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                          'bg-emerald-50 text-emerald-600 border-emerald-200'
-                        }`}>
-                          Segment {row.seg}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-center font-mono font-black text-slate-700 dark:text-slate-300">
-                        {row.score}
-                      </td>
-                      <td className="py-3.5 px-3 text-center font-extrabold text-slate-900 dark:text-slate-100">
-                        {row.count} Pelanggan
-                      </td>
-                      <td className="py-3.5 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${row.riskBg}`}>
-                          {row.risk}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-slate-600 dark:text-slate-400 text-xs leading-relaxed max-w-md">
-                        {row.strategy}
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        <button
-                          onClick={() => setIsAIRetentionModalOpen(true)}
-                          className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
-                        >
-                          Kirim Broadcast
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                    { seg: 'VIP', score: '555', count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, riskLevel: 'Rendah', riskBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', strategy: 'Prioritaskan fast-track CS 24/7, kirim bingkisan apresiasi tahunan & voucher exclusive preview produk baru.' },
+                    { seg: 'Loyal', score: '444', count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, riskLevel: 'Sedang', riskBg: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', strategy: 'Berikan double reward points untuk pembelian berikutnya dan rekomendasi bundel hemat berbasis histori.' },
+                    { seg: 'Repeat', score: '333', count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, riskLevel: 'Menengah', riskBg: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300', strategy: 'Kirim pengingat restock barang via WhatsApp otomatis beserta kupon potongan harga Rp25.000.' },
+                    { seg: 'New', score: '111', count: customerData.customers.filter((c: any) => c.segment === 'New').length, riskLevel: 'Tinggi', riskBg: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300', strategy: 'Kirim rangkaian pesan onboarding pengenalan brand, ulasan bintang 5, dan garansi jaminan kualitas 100%.' }
+                  ].map((row, idx) => {
+                    const totalCusts = customerData.customers.length || 0;
+                    const pctShare = totalCusts > 0 ? Math.round((row.count / totalCusts) * 100) : 0;
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-3">
+                          <span className={`px-2.5 py-1 rounded-xl text-xs font-black border ${
+                            row.seg === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/50 dark:border-orange-900' :
+                            row.seg === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/50 dark:border-blue-900' :
+                            row.seg === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/50 dark:border-purple-900' :
+                            'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-900'
+                          }`}>
+                            Segment {row.seg}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-mono font-black text-slate-700 dark:text-slate-300">
+                          {row.count > 0 ? row.score : '-'}
+                        </td>
+                        <td className="py-3.5 px-3 text-center font-extrabold text-slate-900 dark:text-slate-100">
+                          {row.count} Pelanggan ({pctShare}%)
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${row.riskBg}`}>
+                            {row.riskLevel} ({pctShare}%)
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-slate-600 dark:text-slate-400 text-xs leading-relaxed max-w-md">
+                          {row.strategy}
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <button
+                            onClick={() => setIsAIRetentionModalOpen(true)}
+                            className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
+                          >
+                            Kirim Broadcast
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1606,9 +1715,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
-              {(customerData?.metrics?.total_customers || 0).toLocaleString('id-ID')}
+              {customerData.customers.length.toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 12% vs last month</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{customerData.customers.length > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
           </div>
         </div>
 
@@ -1624,8 +1733,8 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{customerData?.metrics?.new_customers || 0}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 15% vs last month</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{newCount}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
           </div>
         </div>
 
@@ -1641,8 +1750,8 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{customerData?.metrics?.repeat_customers || 0}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 22% vs last month</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{repeatCount}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
           </div>
         </div>
 
@@ -1658,8 +1767,10 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{customerData?.metrics?.retention_rate_pct || 68}%</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 5% vs last month</div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {totalCusts > 0 ? Math.round(((vipCount + loyalCount + repeatCount) / totalCusts) * 100) : 0}%
+            </div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
           </div>
         </div>
 
@@ -1673,9 +1784,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           </div>
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(customerData?.metrics?.avg_order_value_idr || 1250000).toLocaleString('id-ID')}
+              Rp{(totalCusts > 0 ? Math.round(customerData.customers.reduce((acc: number, c: any) => acc + Number(c.total_spend_idr || 0), 0) / totalCusts) : 0).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 8% vs last month</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
           </div>
         </div>
       </div>
@@ -1690,7 +1801,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           <div className="relative size-40 mx-auto">
             <Doughnut data={donutData} options={donutOptions} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-black text-slate-900 dark:text-slate-100">1.248</span>
+              <span className="text-xl font-black text-slate-900 dark:text-slate-100">{totalCusts}</span>
               <span className="text-[10px] font-bold text-slate-400">Total</span>
             </div>
           </div>
@@ -1707,7 +1818,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <span className="size-2.5 rounded-full bg-orange-500" />
                 <span className="text-slate-700 dark:text-slate-300">VIP</span>
               </div>
-              <span className="text-slate-400 font-mono text-[11px]">18% (224)</span>
+              <span className="text-slate-400 font-mono text-[11px]">{totalCusts > 0 ? Math.round((vipCount / totalCusts) * 100) : 0}% ({vipCount})</span>
             </button>
 
             <button 
@@ -1720,7 +1831,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <span className="size-2.5 rounded-full bg-blue-500" />
                 <span className="text-slate-700 dark:text-slate-300">Loyal</span>
               </div>
-              <span className="text-slate-400 font-mono text-[11px]">32% (399)</span>
+              <span className="text-slate-400 font-mono text-[11px]">{totalCusts > 0 ? Math.round((loyalCount / totalCusts) * 100) : 0}% ({loyalCount})</span>
             </button>
 
             <button 
@@ -1733,7 +1844,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <span className="size-2.5 rounded-full bg-purple-500" />
                 <span className="text-slate-700 dark:text-slate-300">Repeat</span>
               </div>
-              <span className="text-slate-400 font-mono text-[11px]">28% (349)</span>
+              <span className="text-slate-400 font-mono text-[11px]">{totalCusts > 0 ? Math.round((repeatCount / totalCusts) * 100) : 0}% ({repeatCount})</span>
             </button>
 
             <button 
@@ -1746,7 +1857,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <span className="size-2.5 rounded-full bg-emerald-500" />
                 <span className="text-slate-700 dark:text-slate-300">New</span>
               </div>
-              <span className="text-slate-400 font-mono text-[11px]">22% (276)</span>
+              <span className="text-slate-400 font-mono text-[11px]">{totalCusts > 0 ? Math.round((newCount / totalCusts) * 100) : 0}% ({newCount})</span>
             </button>
           </div>
 
@@ -2075,7 +2186,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           {/* Table Footer & Interactive Pagination */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-slate-800">
             <span>
-              Menampilkan {Math.min((currentPage - 1) * 5 + 1, (customerData?.metrics?.total_customers || 1248))} - {Math.min(currentPage * 5, (customerData?.metrics?.total_customers || 1248))} dari {(customerData?.metrics?.total_customers || 1248).toLocaleString('id-ID')} pelanggan
+              {filteredCustomers.length === 0 
+                ? 'Menampilkan 0 dari 0 pelanggan'
+                : `Menampilkan ${Math.min((currentPage - 1) * 5 + 1, filteredCustomers.length)} - ${Math.min(currentPage * 5, filteredCustomers.length)} dari ${filteredCustomers.length.toLocaleString('id-ID')} pelanggan`}
             </span>
             <div className="flex items-center gap-1">
               <button 
@@ -2173,19 +2286,36 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             </div>
           </div>
 
-          {/* AI Customer Insight Banner */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
-            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">AI Customer Insight</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">
-              312 pelanggan belum repeat order lebih dari 30 hari. Potensi revenue hilang: <span className="font-black text-slate-900 dark:text-slate-100">Rp4.120.000</span>
-            </p>
-            <button 
-              onClick={() => setIsAIRetentionModalOpen(true)}
-              className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
-            >
-              <Sparkles size={14} className="text-orange-500" />
-              <span>Lihat Rekomendasi AI</span>
-            </button>
+          {/* AI Customer Insight Banner with Seamless Buka/Tutup Toggle */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs transition-all">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Sparkles size={14} className="text-orange-500" />
+                <span>AI Customer Insight</span>
+              </h3>
+              <button
+                onClick={() => setIsAiInsightOpen(!isAiInsightOpen)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                title={isAiInsightOpen ? "Tutup Insight" : "Buka Insight"}
+              >
+                {isAiInsightOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+
+            {isAiInsightOpen && (
+              <div className="space-y-3 animate-in fade-in duration-150">
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">
+                  {customerData.customers.filter((c: any) => c.segment === 'New' || c.status !== 'Aktif').length} pelanggan belum repeat order lebih dari 30 hari. Potensi revenue hilang: <span className="font-black text-slate-900 dark:text-slate-100">Rp{(customerData.customers.reduce((acc: number, c: any) => acc + (Number(c.total_spend_idr) || 0), 0)).toLocaleString('id-ID')}</span>
+                </p>
+                <button 
+                  onClick={() => setIsAIRetentionModalOpen(true)}
+                  className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <Sparkles size={14} className="text-orange-500" />
+                  <span>Lihat Rekomendasi AI</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2204,7 +2334,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               {customerData.regionalDistribution.map((item: any, i: number) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
                   <span className="text-slate-800 dark:text-slate-200">{item.region}</span>
-                  <span className="text-emerald-600 font-mono font-black">{item.percentage}% ({Math.round(1248 * item.percentage / 100)} Pelanggan)</span>
+                  <span className="text-emerald-600 font-mono font-black">{item.percentage}% ({Math.round(customerData.customers.length * item.percentage / 100)} Pelanggan)</span>
                 </div>
               ))}
             </div>

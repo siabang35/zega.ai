@@ -13,12 +13,8 @@ interface MyAgentsViewProps {
   triggerToast: (msg: string) => void;
 }
 
-// Sparkline dummy data for agent KPI mini charts
-const sparkData1 = [{ v: 20 }, { v: 45 }, { v: 78 }, { v: 95 }, { v: 125 }];
-const sparkData2 = [{ v: 4 }, { v: 6 }, { v: 8 }, { v: 10 }, { v: 12 }];
-const sparkData3 = [{ v: 10 }, { v: 22 }, { v: 31 }, { v: 38 }, { v: 43 }];
-const sparkData4 = [{ v: 5 }, { v: 12 }, { v: 18 }, { v: 22 }, { v: 25 }];
-const sparkData5 = [{ v: 2 }, { v: 5 }, { v: 10 }, { v: 14 }, { v: 18 }];
+// Default zero-state sparkline data
+const zeroSparkData = [{ v: 0 }, { v: 0 }];
 
 const REAL_CDN_LOGOS = [
   '/assets/logo/ai-agents.png',
@@ -182,188 +178,63 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
 
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
-  // Real-time Database KPI State
+  // Real-time Database KPI State (Initialized to zero-state)
   const [kpis, setKpis] = useState<any>({
-    tasks_completed_today: 126,
-    hours_saved_weekly: 11.0,
-    revenue_generated_today: 2100000
+    tasks_completed_today: 0,
+    hours_saved_weekly: 0.0,
+    revenue_generated_today: 0
   });
 
-  // Employee State initialized with database defaults & R2 CDN URLs
-  const [employees, setEmployees] = useState<any[]>([
-    {
-      id: 'cs',
-      name: 'Customer Service AI',
-      category: 'Support & Ops',
-      desc: 'Auto-responds customer inquiries across WhatsApp, Instagram DM, and Shopee 24/7.',
-      status: 'active',
-      icon: Bot,
-      iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-      avatar_path: '/assets/logo/ai-agents.png',
-      capabilities: ['WhatsApp API', 'Supabase RAG', 'IG DM Bot'],
-      m1Label: 'Chats Today',
-      m1Val: '125 chats',
-      m2Label: 'Resolution Rate',
-      m2Val: '94.2%',
-      m3Label: 'Avg Response',
-      m3Val: '1.2s',
-      spark: sparkData1
-    },
-    {
-      id: 'mkt',
-      name: 'Marketing Content AI',
-      category: 'Marketing',
-      desc: 'Generates viral social posts, schedules IG/TikTok feeds, and monitors engagement.',
-      status: 'active',
-      icon: Megaphone,
-      iconBg: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20',
-      avatar_path: '/assets/logo/claude.webp',
-      capabilities: ['AI Image Gen', 'TikTok API', 'Auto Schedule'],
-      m1Label: 'Posts Gen',
-      m1Val: '12 posts',
-      m2Label: 'Active Campaign',
-      m2Val: '3 live',
-      m3Label: 'Engagement Rate',
-      m3Val: '7.8%',
-      spark: sparkData2
-    },
-    {
-      id: 'fin',
-      name: 'Finance & Billing AI',
-      category: 'Finance',
-      desc: 'Creates invoices, sends payment reminders, and auto-reconciles bank transactions.',
-      status: 'active',
-      icon: FileText,
-      iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-      avatar_path: '/assets/logo/stripe.webp',
-      capabilities: ['Invoice Engine', 'Bank Sync', 'Payment Gateway'],
-      m1Label: 'Invoices Sent',
-      m1Val: '43 sent',
-      m2Label: 'Reminders Sent',
-      m2Val: '15 sent',
-      m3Label: 'Outstanding',
-      m3Val: '8 pending',
-      spark: sparkData3
-    },
-    {
-      id: 'str',
-      name: 'Store Inventory AI',
-      category: 'E-Commerce',
-      desc: 'Syncs product stock across channels, flags low inventory, and processes orders.',
-      status: 'active',
-      icon: Store,
-      iconBg: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
-      avatar_path: '/assets/logo/shopee.png',
-      capabilities: ['Stock Sync', 'Order Pipeline', 'Low Stock Alert'],
-      m1Label: 'Products Sync',
-      m1Val: '25 today',
-      m2Label: 'Low Stock Alert',
-      m2Val: '2 items',
-      m3Label: 'Orders Processed',
-      m3Val: '17 today',
-      spark: sparkData4
-    },
-    {
-      id: 'sls',
-      name: 'Sales & Closing AI',
-      category: 'Sales',
-      desc: 'Follows up leads, converts inquiries to paid sales, and executes cross-sell offers.',
-      status: 'active',
-      icon: Users,
-      iconBg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
-      avatar_path: '/assets/logo/gpt.webp',
-      capabilities: ['Lead Scoring', 'CRM Pipeline', 'Upsell Trigger'],
-      m1Label: 'Leads Followed',
-      m1Val: '18 leads',
-      m2Label: 'Deals Closed',
-      m2Val: '7 deals',
-      m3Label: 'Revenue Added',
-      m3Val: 'Rp2.100.000',
-      spark: sparkData5
-    }
-  ]);
+  // Employee State initialized to empty array (no mock data fallback)
+  const [employees, setEmployees] = useState<any[]>([]);
 
   // Load Database Real-time AI Employee Records
   const loadDatabaseData = async () => {
     try {
       setLoading(true);
-      const data = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
-      if (data.kpis) setKpis(data.kpis);
-      if (data.aiEmployees && data.aiEmployees.length > 0) {
-        // Map database records to high-density UI format with R2 CDN URLs & JSONB metrics
-        const DEFAULT_ROLE_NAME_CONFIGS = [
-          { name: 'Omnichannel Customer Service AI', category: 'Support & Ops', desc: 'Auto-responds customer inquiries across WhatsApp Business, IG DM, and Shopee with RAG knowledge base.' },
-          { name: 'Viral TikTok & IG Campaign AI', category: 'Marketing', desc: 'Generates viral short video scripts, creates promo banners, and auto-posts across TikTok and IG.' },
-          { name: 'Automated Invoice & Reconciliation AI', category: 'Finance', desc: 'Creates electronic invoices, sends WA payment links, and reconciles incoming bank transfers.' },
-          { name: 'Shopee & Tokopedia Stock Router AI', category: 'E-Commerce', desc: 'Synchronizes product inventory in real-time across Shopee, Tokopedia, and offline POS.' },
-          { name: 'B2B Sales Closing & Upsell AI', category: 'Sales', desc: 'Follows up pending buyer quotes, executes personalized discount triggers, and closes deals.' },
-          { name: 'WhatsApp Broadcast Bot AI', category: 'Marketing', desc: 'Executes targeted WhatsApp broadcast campaigns and analyzes response metrics.' },
-          { name: 'Support Swarm Escalation AI', category: 'Support & Ops', desc: 'Handles complex customer complaints, escalates to human agents, and logs ticket status.' }
-        ];
-
-        const mapped = data.aiEmployees.map((dbEmp: any, index: number) => {
-          const defaultEmp = employees[index % employees.length] || employees[0];
-          const roleConfig = DEFAULT_ROLE_NAME_CONFIGS[index % DEFAULT_ROLE_NAME_CONFIGS.length];
-
-          // Detect generic repetitive name "AI Employee" or duplicate "Customer Service AI" on non-0 indices
-          const rawName = dbEmp.name || dbEmp.agent_name;
-          const isGeneric = !rawName || rawName.trim() === 'AI Employee' || (rawName.trim() === 'Customer Service AI' && index > 0);
-          const finalName = isGeneric ? roleConfig.name : rawName;
-          const finalCategory = (dbEmp.category && dbEmp.category !== 'Support & Ops' && dbEmp.category !== 'General')
-            ? dbEmp.category
-            : roleConfig.category;
-          const finalDesc = (dbEmp.description && dbEmp.description.length > 25 && !dbEmp.description.includes('Auto-responds customer inquiries across WhatsApp'))
-            ? dbEmp.description
-            : roleConfig.desc;
-
-          // Parse JSONB metrics if available
-          const metrics = typeof dbEmp.metrics === 'object' && dbEmp.metrics !== null ? dbEmp.metrics : {};
-          const sparkData = Array.isArray(dbEmp.sparkline_data) && dbEmp.sparkline_data.length > 0
-            ? dbEmp.sparkline_data
-            : defaultEmp.spark;
-
-          // Resolve logo path with fallback sequence
-          const rawAvatar = dbEmp.avatar_path;
-          let resolvedAvatar = '/assets/logo/ai-agents.png';
-
-          if (dbEmp.agent_code === 'CS_AI_AGENT') resolvedAvatar = '/assets/logo/ai-agents.png';
-          else if (dbEmp.agent_code === 'MKT_AI_AGENT') resolvedAvatar = '/assets/logo/claude.webp';
-          else if (dbEmp.agent_code === 'FIN_AI_AGENT') resolvedAvatar = '/assets/logo/stripe.webp';
-          else if (dbEmp.agent_code === 'STR_AI_AGENT') resolvedAvatar = '/assets/logo/shopee.png';
-          else if (dbEmp.agent_code === 'SLS_AI_AGENT') resolvedAvatar = '/assets/logo/gpt.webp';
-          else if (dbEmp.agent_code === 'WA_AI_AGENT') resolvedAvatar = '/assets/logo/deepseek.webp';
-          else if (dbEmp.agent_code === 'RES_AI_AGENT') resolvedAvatar = '/assets/logo/gemini.png';
-          else if (dbEmp.agent_code === 'ESCAL_AI_AGENT') resolvedAvatar = '/assets/logo/9router.png';
-          else if (rawAvatar && !rawAvatar.includes('ai-avatar.png') && !rawAvatar.includes('default.webp')) {
-            resolvedAvatar = rawAvatar.startsWith('http')
-              ? rawAvatar
-              : rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-          } else {
-            resolvedAvatar = REAL_CDN_LOGOS[index % REAL_CDN_LOGOS.length];
-          }
-
-          return {
-            id: dbEmp.id || defaultEmp.id,
-            agent_code: dbEmp.agent_code,
-            name: finalName,
-            category: finalCategory,
-            desc: finalDesc,
-            status: dbEmp.status || defaultEmp.status,
-            icon: defaultEmp.icon || Bot,
-            iconBg: defaultEmp.iconBg || 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-            avatar_path: resolvedAvatar,
-            capabilities: (dbEmp.capabilities && dbEmp.capabilities.length > 0) ? dbEmp.capabilities : defaultEmp.capabilities,
-            m1Label: metrics.m1Label || defaultEmp.m1Label || 'Tasks Today',
-            m1Val: metrics.m1Val || `${dbEmp.tasks_completed_today || 125} tasks`,
-            m2Label: metrics.m2Label || defaultEmp.m2Label || 'Resolution Rate',
-            m2Val: metrics.m2Val || (dbEmp.resolution_rate ? `${dbEmp.resolution_rate}%` : '94.2%'),
-            m3Label: metrics.m3Label || defaultEmp.m3Label || 'Avg Response',
-            m3Val: metrics.m3Val || (dbEmp.avg_response_time_sec ? `${dbEmp.avg_response_time_sec}s` : '1.2s'),
-            spark: sparkData
-          };
+      const data = await SupabaseDashboardService.getUmkmRealtimeData();
+      if (data.kpis) {
+        setKpis(data.kpis);
+      } else {
+        setKpis({
+          tasks_completed_today: 0,
+          hours_saved_weekly: 0.0,
+          revenue_generated_today: 0
         });
-        setEmployees(mapped);
       }
+
+      const dbEmployees = Array.isArray(data.aiEmployees) ? data.aiEmployees : [];
+      const mapped = dbEmployees.map((dbEmp: any) => {
+        const metrics = typeof dbEmp.metrics === 'object' && dbEmp.metrics !== null ? dbEmp.metrics : {};
+        const sparkData = Array.isArray(dbEmp.sparkline_data) && dbEmp.sparkline_data.length > 0
+          ? dbEmp.sparkline_data
+          : [{ v: 0 }, { v: 0 }];
+
+        const resolvedAvatar = SupabaseDashboardService.getCdnUrl(
+          dbEmp.avatar_path || dbEmp.cdn_avatar_url || '/assets/logo/ai-agents.png'
+        );
+
+        return {
+          id: dbEmp.id,
+          agent_code: dbEmp.agent_code,
+          name: dbEmp.name || dbEmp.agent_name || 'AI Employee',
+          category: dbEmp.category || dbEmp.role || 'Support & Ops',
+          desc: dbEmp.description || '',
+          status: dbEmp.status || 'inactive',
+          icon: Bot,
+          iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          avatar_path: resolvedAvatar,
+          capabilities: Array.isArray(dbEmp.capabilities) ? dbEmp.capabilities : [],
+          m1Label: metrics.m1Label || 'Tasks Today',
+          m1Val: metrics.m1Val || `${dbEmp.tasks_completed_today ?? 0} tasks`,
+          m2Label: metrics.m2Label || 'Resolution Rate',
+          m2Val: metrics.m2Val || (dbEmp.resolution_rate !== undefined ? `${dbEmp.resolution_rate}%` : '0%'),
+          m3Label: metrics.m3Label || 'Avg Response',
+          m3Val: metrics.m3Val || (dbEmp.avg_response_time_sec !== undefined ? `${dbEmp.avg_response_time_sec}s` : '0s'),
+          spark: sparkData
+        };
+      });
+      setEmployees(mapped);
     } catch (err) {
       console.error('Failed to sync DB real-time employees', err);
     } finally {
@@ -372,11 +243,16 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
   };
 
   useEffect(() => {
-    loadDatabaseData();
-    const unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
-      '11111111-1111-1111-1111-111111111111',
-      () => loadDatabaseData()
-    );
+    let unsubscribe: (() => void) | undefined;
+    const init = async () => {
+      await loadDatabaseData();
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
+        storeId,
+        () => loadDatabaseData()
+      );
+    };
+    init();
     return () => {
       if (unsubscribe) unsubscribe();
     };
@@ -618,11 +494,11 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: m.totalEmployees, val: employees.length.toString(), change: '100% Synced CDN', icon: Bot, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
-          { label: m.activeNow, val: employees.filter(e => e.status === 'active').length.toString(), change: 'Swarm Live', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
-          { label: m.tasksToday, val: (kpis.tasks_completed_today || 126).toString(), change: '+22% vs yesterday', icon: Zap, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
-          { label: m.hoursSavedToday, val: `${kpis.hours_saved_weekly || 11.0} Hours`, change: '+16% vs yesterday', icon: Clock, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
-          { label: m.costSavedToday, val: `Rp${(kpis.revenue_generated_today || 2100000).toLocaleString('id-ID')}`, change: '+20% vs yesterday', icon: DollarSign, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/60' },
+          { label: m.totalEmployees, val: employees.length.toString(), change: 'Synced CDN', icon: Bot, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
+          { label: m.activeNow, val: employees.filter(e => e.status === 'active' || e.status === 'working').length.toString(), change: 'Swarm Live', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
+          { label: m.tasksToday, val: (kpis.tasks_completed_today ?? 0).toString(), change: 'Live Telemetry', icon: Zap, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
+          { label: m.hoursSavedToday, val: `${kpis.hours_saved_weekly ?? 0} Hours`, change: 'Live Calculation', icon: Clock, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
+          { label: m.costSavedToday, val: `Rp${(kpis.revenue_generated_today ?? 0).toLocaleString('id-ID')}`, change: 'Live Revenue', icon: DollarSign, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/60' },
         ].map((mItem, i) => {
           const Icon = mItem.icon;
           return (
@@ -723,7 +599,35 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {/* GRID / LIST WORKFORCE DISPLAY */}
       {/* ========================================================================= */}
-      {viewMode === 'grid' ? (
+      {filteredEmployees.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
+          <div className="size-14 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center mx-auto shadow-2xs">
+            <Bot size={32} />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="font-black text-base text-slate-900 dark:text-slate-100">Zero State — Belum ada AI Employee Aktif</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Tidak ada data AI workforce di database untuk tenant ini. Klik tombol <strong className="text-orange-500">Deploy AI Employee</strong> atau pilih dari <strong className="text-orange-500">Templates Gallery</strong> untuk mulai menyebar agen otonom real-time.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => setActiveModal('templates')}
+              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Layers size={14} className="text-orange-500" />
+              <span>Templates Gallery</span>
+            </button>
+            <button
+              onClick={() => setActiveModal('deploy')}
+              className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>Deploy AI Employee</span>
+            </button>
+          </div>
+        </div>
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredEmployees.map((emp) => {
             const Icon = emp.icon || Bot;
@@ -807,7 +711,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
                   {/* MINI SPARKLINE GRAPH */}
                   <div className="w-full h-6 pt-1">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={emp.spark || sparkData1}>
+                      <LineChart data={emp.spark || zeroSparkData}>
                         <Line type="monotone" dataKey="v" stroke={isActive ? '#10b981' : '#94a3b8'} strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
   UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
-  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save
+  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
@@ -344,38 +344,48 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
   const [aiEmployees, setAiEmployees] = useState<any[]>([]);
   const [automations, setAutomations] = useState<any[]>([]);
-  const [recentActivities, setRecentActivities] = useState<any[]>([
-    { title: 'Transaksi Baru Masuk', sub: 'QRIS / E-Wallet — TRX-881029', amount: 'Rp1.8jt', icon: ShoppingBag, iconBg: 'bg-emerald-50 text-emerald-600' },
-    { title: 'AI CRM Retention', sub: '3 Pelanggan berpotensi repeat order', amount: 'Active', icon: Users, iconBg: 'bg-blue-50 text-blue-600' },
-    { title: 'Stok Alert Triggered', sub: 'Serum Niacinamide < 5 unit', amount: 'Warning', icon: Store, iconBg: 'bg-amber-50 text-amber-600' },
-    { title: 'Campaign Promo Agustus', sub: 'WhatsApp Broadcast — 198 penerima', amount: '+12 Leads', icon: Megaphone, iconBg: 'bg-purple-50 text-purple-600' }
-  ]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [dynamicSalesData, setDynamicSalesData] = useState<any[]>([]);
+  const [errorState, setErrorState] = useState<string | null>(null);
 
   // Load Real-time Data
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111');
+      setErrorState(null);
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      const res = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
+
+      if (res.error) {
+        setErrorState(res.error);
+      }
+
       const salesSummary = await SupabaseDashboardService.getUmkmSalesSummary(
-        '11111111-1111-1111-1111-111111111111',
-        salesTimeframe === '7d' ? 7 : 30
+        activeStoreId,
+        salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
       );
       if (salesSummary && salesSummary.length > 0) {
         setDynamicSalesData(salesSummary);
+      } else {
+        setDynamicSalesData([]);
       }
+
       if (res.kpis) setKpiData(res.kpis);
-      if (res.aiEmployees && res.aiEmployees.length > 0) setAiEmployees(res.aiEmployees);
+      if (res.aiEmployees) setAiEmployees(res.aiEmployees);
+
       if (res.automations && res.automations.length > 0) {
         const mappedAuto = res.automations.map((a: any) => ({
           id: a.id,
           name: a.name || a.title || 'Automated Workflow',
           sub: `Trigger: ${a.trigger_event || a.trigger_type || 'New Event'}`,
           status: a.status || 'active',
-          lastRun: a.last_run || '1m ago'
+          lastRun: a.last_run || 'Aktif'
         }));
         setAutomations(mappedAuto);
+      } else {
+        setAutomations([]);
       }
+
       const GENERIC_TITLES = ['system event', 'system action', 'event', 'info', ''];
       const isGenericTitle = (t?: string) => !t || GENERIC_TITLES.includes(t.trim().toLowerCase());
 
@@ -447,9 +457,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 4);
 
-      if (synthesizedActivities.length > 0) {
-        setRecentActivities(synthesizedActivities);
-      }
+      setRecentActivities(synthesizedActivities);
 
       const deriveAgentName = (ev: any): string => {
         if (ev.badge_label && ev.badge_label.includes('AI')) return ev.badge_label;
@@ -463,7 +471,6 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       };
 
       if (res.timelineEvents && res.timelineEvents.length > 0) {
-        // Map database events to AI Tasks List (filter for AI-executed events)
         const aiEvents = res.timelineEvents.filter((ev: any) =>
           ev.event_type === 'ai_task' ||
           (ev.badge_label && ev.badge_label.includes('AI')) ||
@@ -481,9 +488,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           badge: ev.badge_label || 'Swarm Task'
         }));
         setAiTasksList(mappedTasks);
+      } else {
+        setAiTasksList([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load real-time dashboard data', err);
+      setErrorState(err?.message || 'Gagal memuat data dari database. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -491,22 +501,29 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
   useEffect(() => {
     (async () => {
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
       const summary = await SupabaseDashboardService.getUmkmSalesSummary(
-        '11111111-1111-1111-1111-111111111111',
-        salesTimeframe === '7d' ? 7 : 30
+        activeStoreId,
+        salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
       );
       if (summary && summary.length > 0) {
         setDynamicSalesData(summary);
+      } else {
+        setDynamicSalesData([]);
       }
     })();
   }, [salesTimeframe]);
 
   useEffect(() => {
     loadDashboardData();
-    const unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
-      '11111111-1111-1111-1111-111111111111',
-      () => loadDashboardData()
-    );
+    let unsubscribe: any;
+    (async () => {
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
+        activeStoreId,
+        () => loadDashboardData()
+      );
+    })();
     return () => {
       if (unsubscribe) unsubscribe();
     };
@@ -534,9 +551,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = Number(modalForm.amount.replace(/[^0-9]/g, '')) || 0;
+    const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
 
     if (activeModal === 'invoice') {
-      const res = await SupabaseDashboardService.createUmkmInvoiceQuickAction('11111111-1111-1111-1111-111111111111', {
+      const res = await SupabaseDashboardService.createUmkmInvoiceQuickAction(activeStoreId, {
         title: modalForm.title,
         detail: modalForm.detail,
         amount: numAmount || 500000
@@ -546,9 +564,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       } else {
         triggerToast(`Invoice generated for ${modalForm.title}`);
       }
-      await SupabaseDashboardService.incrementUmkmAiTaskCompleted('11111111-1111-1111-1111-111111111111', 'Finance & Billing AI', `Generated Quick Invoice for ${modalForm.title}`);
+      await SupabaseDashboardService.incrementUmkmAiTaskCompleted(activeStoreId, 'Finance & Billing AI', `Generated Quick Invoice for ${modalForm.title}`);
     } else if (activeModal === 'broadcast') {
-      const res = await SupabaseDashboardService.sendUmkmBroadcastQuickAction('11111111-1111-1111-1111-111111111111', {
+      const res = await SupabaseDashboardService.sendUmkmBroadcastQuickAction(activeStoreId, {
         title: modalForm.title,
         detail: modalForm.detail
       });
@@ -557,9 +575,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       } else {
         triggerToast(`Broadcast message "${modalForm.title}" queued!`);
       }
-      await SupabaseDashboardService.incrementUmkmAiTaskCompleted('11111111-1111-1111-1111-111111111111', 'Marketing Campaign AI', `Dispatched WhatsApp Broadcast "${modalForm.title}"`);
+      await SupabaseDashboardService.incrementUmkmAiTaskCompleted(activeStoreId, 'Marketing Campaign AI', `Dispatched WhatsApp Broadcast "${modalForm.title}"`);
     } else if (activeModal === 'product') {
-      const res = await SupabaseDashboardService.addUmkmProductQuickAction('11111111-1111-1111-1111-111111111111', {
+      const res = await SupabaseDashboardService.addUmkmProductQuickAction(activeStoreId, {
         title: modalForm.title,
         detail: modalForm.detail,
         amount: numAmount || 150000
@@ -569,7 +587,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       } else {
         triggerToast(`Product "${modalForm.title}" added!`);
       }
-      await SupabaseDashboardService.incrementUmkmAiTaskCompleted('11111111-1111-1111-1111-111111111111', 'Inventory Store AI', `Added Product "${modalForm.title}" to catalog`);
+      await SupabaseDashboardService.incrementUmkmAiTaskCompleted(activeStoreId, 'Inventory Store AI', `Added Product "${modalForm.title}" to catalog`);
     }
 
     setActiveModal(null);
@@ -585,7 +603,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
     }
     setLoading(true);
     try {
-      const res = await SupabaseDashboardService.addUmkmAiEmployee('11111111-1111-1111-1111-111111111111', {
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      const res = await SupabaseDashboardService.addUmkmAiEmployee(activeStoreId, {
         name: newAgentForm.name,
         role: newAgentForm.role,
         model_engine: newAgentForm.model_engine,
@@ -618,473 +637,239 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
     }
   };
 
+  const timeframeTotalRevenue = dynamicSalesData.reduce((acc, curr) => acc + (Number(curr.revenue) || 0), 0);
+  const timeframeTotalOrders = dynamicSalesData.reduce((acc, curr) => acc + (Number(curr.orders) || 0), 0);
+
   return (
-    <div className="space-y-4 font-sans text-slate-900 dark:text-slate-100 max-w-[1600px] mx-auto">
+    <div className="space-y-4 font-sans text-slate-900 dark:text-slate-100 max-w-[1600px] mx-auto pb-6">
 
       {/* ========================================================================= */}
-      {/* ROW 1: WELCOME BANNER + REALTIME SYSTEM & AI STATUS */}
+      {/* HEADER BANNER WITH GREETING */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
+            Selamat datang kembali, {displayName || 'Seninquez'}! <span className="text-2xl">👋</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            Berikut adalah ikhtisar terkini dan performa operasional bisnis Anda hari ini.
+          </p>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ERROR STATE ALERT BANNER WITH RETRY HANDLER */}
+      {/* ========================================================================= */}
+      {errorState && (
+        <div className="bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 rounded-2xl p-4 flex items-center justify-between gap-4 text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
+            <div>
+              <p className="text-xs font-bold">{errorState}</p>
+              <p className="text-[11px] opacity-80">Gagal menghubungkan ke database Supabase Realtime.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => loadDashboardData()}
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* INITIAL SKELETON LOADING STATE */}
+      {/* ========================================================================= */}
+      {loading && !errorState && (
+        <div className="space-y-4 animate-pulse">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-24 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-6 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
+            <div className="lg:col-span-3 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
+            <div className="lg:col-span-3 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ROW 1: 5 METRIC KPI CARDS */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* PENDAPATAN HARI INI */}
+        <div
+          onClick={() => onNavigateTab('sales')}
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-400/50 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pendapatan (Hari Ini)</span>
+            <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
+              <DollarSign size={15} />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+              Rp{Number(kpiData?.revenue_generated_today || 0).toLocaleString('id-ID')}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              <TrendingUp size={12} />
+              <span>{kpiData?.today_revenue_trend !== undefined && kpiData?.today_revenue_trend !== null ? `${kpiData.today_revenue_trend > 0 ? '+' : ''}${kpiData.today_revenue_trend}%` : '0%'} vs kemarin</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PESANAN HARI INI */}
+        <div
+          onClick={() => onNavigateTab('sales')}
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-purple-400/50 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pesanan (Hari Ini)</span>
+            <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
+              <ShoppingBag size={15} />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+              {Number(kpiData?.orders_today_count || 0).toLocaleString('id-ID')}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <Activity size={12} />
+              <span>Hari ini</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PELANGGAN BARU HARI INI */}
+        <div
+          onClick={() => onNavigateTab('customers')}
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-blue-400/50 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pelanggan Baru</span>
+            <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
+              <UserPlus size={15} />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+              {Number(kpiData?.new_customers_today_count || 0).toLocaleString('id-ID')}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <Activity size={12} />
+              <span>Hari ini</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KONVERSI */}
+        <div
+          onClick={() => onNavigateTab('reports')}
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-emerald-400/50 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Konversi</span>
+            <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+              <Activity size={15} />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+              {kpiData?.conversion_rate !== undefined && kpiData?.conversion_rate !== null ? `${kpiData.conversion_rate}%` : (kpiData?.orders_today_count > 0 ? `${((kpiData.orders_today_count / Math.max(kpiData.new_customers_today_count || 1, 1)) * 100).toFixed(1)}%` : '0.0%')}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <Activity size={12} />
+              <span>Database real-time</span>
+            </div>
+          </div>
+        </div>
+
+        {/* RATA-RATA ORDER */}
+        <div
+          onClick={() => onNavigateTab('sales')}
+          className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-amber-400/50 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Rata-rata Order</span>
+            <div className="size-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+              <Clock size={15} />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+              Rp{kpiData?.average_order_value ? Number(kpiData.average_order_value).toLocaleString('id-ID') : (kpiData?.orders_today_count > 0 ? Math.round((kpiData.revenue_generated_today || 0) / kpiData.orders_today_count).toLocaleString('id-ID') : '0')}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              <Activity size={12} />
+              <span>AOV Hari Ini</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      {/* ========================================================================= */}
+      {/* ROW 2: RINGKASAN PENJUALAN + AKTIVITAS TERBARU + SISTEM & INTEGRASI & OTOMASI */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
 
-        {/* BANNER CARD (LG: 8 COLS) */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs relative overflow-hidden">
-          <div className="flex flex-row items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
-                {u.greeting}, {displayName || 'Cik'}! <span className="text-2xl">👋</span>
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-                {u.greetingSub}
-              </p>
-            </div>
-
-            {/* 3D ROBOT MASCOT DISPLAY */}
-            <div className="relative flex-shrink-0 cursor-pointer group/robot">
-              {isGreetingVisible && (
-                <div className="absolute top-full mt-2 right-0 w-72 z-50 p-3.5 rounded-xl bg-slate-900/95 text-white shadow-2xl backdrop-blur-md border border-slate-700 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[10px] font-extrabold tracking-wider uppercase text-slate-300">ZEGA AI Copilot</span>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); setIsGreetingVisible(false); }} className="text-slate-400 hover:text-white p-0.5 rounded-md">
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-200 mt-2 font-medium leading-relaxed">
-                    Hello {displayName}! 👋 Your AI Team is active and completed <span className="font-bold text-amber-300">{kpiData.tasks_completed_today || 126} tasks</span> today!
-                  </p>
-                  <button onClick={(e) => { e.stopPropagation(); setIsGreetingVisible(false); onNavigateTab('my_agents'); }} className="mt-2.5 w-full py-1.5 px-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors">
-                    <span>{u.manageAll}</span> <ArrowRight size={12} />
-                  </button>
-                </div>
-              )}
-
-              <div
-                onClick={() => setIsGreetingVisible(!isGreetingVisible)}
-                className="relative size-20 sm:size-24 rounded-2xl bg-slate-950 border-2 border-orange-400/50 p-1 shadow-sm overflow-hidden group-hover/robot:scale-105 group-hover/robot:border-orange-500 transition-all duration-300 flex items-center justify-center"
-              >
-                <div className="absolute inset-0 bg-gradient-to-b from-orange-500/20 via-transparent to-black/50 pointer-events-none z-20" />
-                <video autoPlay loop muted playsInline className="w-full h-full object-cover rounded-xl relative z-10">
-                  <source src="https://cdn.zegaai.site/assets/3D/robotic.mp4" type="video/mp4" />
-                </video>
-              </div>
-            </div>
-          </div>
-
-          {/* 3 UNIQUE AI EXECUTIVE KPI CHIPS IN BANNER */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 block">Active AI Workforce</span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-black text-slate-900 dark:text-slate-100">{aiEmployees.length || 5} Nodes</span>
-                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Autonomous Swarm</span>
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center flex-shrink-0">
-                <Bot size={16} />
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 block">{u.tasksCompleted}</span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today || 126}</span>
-                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">+28% Efficiency</span>
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center flex-shrink-0">
-                <CheckCircle size={16} />
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-semibold text-slate-400 block">Est. Salary Saved</span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-black text-slate-900 dark:text-slate-100">
-                    Rp{((kpiData.hours_saved_weekly || 11) * 150000).toLocaleString('id-ID')}
-                  </span>
-                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Operational ROI</span>
-                </div>
-              </div>
-              <div className="size-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                <Cpu size={16} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* REALTIME SYSTEM & AI WORKFORCE STATUS CARD */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xs">
+        {/* RINGKASAN PENJUALAN (LG: 6 COLS) */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">{u.realtimeStatus}</h3>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleManualRefresh}
-                  className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-orange-500 cursor-pointer transition-all"
-                  title="Refresh Database"
-                >
-                  <RefreshCw size={12} className={refreshing ? 'animate-spin text-orange-500' : ''} />
-                </button>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[9.5px] font-extrabold flex items-center gap-1">
-                  <Wifi size={11} className="text-emerald-500" /> {u.connected}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-3.5 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <div className="flex items-center gap-2">
-                  <Bot size={15} className="text-orange-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">{u.aiAgentsActive}</span>
-                </div>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100 text-[11px]">{aiEmployees.length || 5} Swarm Nodes</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <div className="flex items-center gap-2">
-                  <Workflow size={15} className="text-purple-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">{u.realtimeAutomation}</span>
-                </div>
-                <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[11px]">{automations.length || 12} Workflows</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                <div className="flex items-center gap-2">
-                  <Activity size={15} className="text-blue-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">{u.supabaseSync}</span>
-                </div>
-                <span className="font-bold text-slate-500 text-[10px]">WebSocket Live</span>
-              </div>
-            </div>
-          </div>
-
-          {/* SUBTLE ACCOUNT PLAN STRIP AT BOTTOM */}
-          <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 font-medium">{u.plan}:</span>
-              <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 font-black text-[10px]">Starter</span>
-            </div>
-            <button
-              onClick={() => setShowPlanModal(true)}
-              className="text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <span>{u.managePlan}</span> <ChevronRight size={12} />
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ========================================================================= */}
-      {/* ROW 2: 5 METRIC CARDS - CLEAN ENTERPRISE KPI BLOCKS */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-
-        {/* PENDAPATAN */}
-        <div
-          onClick={() => onNavigateTab('sales')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.revenue}</span>
-            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
-              <DollarSign size={14} />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-              Rp{(kpiData.revenue_generated_today || 5200000).toLocaleString('id-ID')}
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                +18% vs d-1
-              </span>
-              <span className="text-[9.5px] font-medium text-slate-400">Target Harian</span>
-            </div>
-          </div>
-        </div>
-
-        {/* PESANAN BARU */}
-        <div
-          onClick={() => onNavigateTab('store')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.newOrders}</span>
-            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
-              <ShoppingBag size={14} />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-              {kpiData.orders_today_count || 43}
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                +12%
-              </span>
-              <span className="text-[9.5px] font-medium text-slate-400">Terproses</span>
-            </div>
-          </div>
-        </div>
-
-        {/* PELANGGAN BARU */}
-        <div
-          onClick={() => onNavigateTab('customers')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.newCustomers}</span>
-            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
-              <UserPlus size={14} />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-              {kpiData.new_customers_today_count || 12}
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                +9%
-              </span>
-              <span className="text-[9.5px] font-medium text-slate-400">Organik & Ads</span>
-            </div>
-          </div>
-        </div>
-
-        {/* RESPONSE RATE WA */}
-        <div
-          onClick={() => onNavigateTab('inbox')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.waResponseRate}</span>
-            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
-              <MessageSquare size={14} />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-              {kpiData.whatsapp_response_rate || 98}%
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                +3%
-              </span>
-              <span className="text-[9.5px] font-medium text-slate-400">&lt; 15 dtk SLA</span>
-            </div>
-          </div>
-        </div>
-
-        {/* JAM TERSIMPAN */}
-        <div
-          onClick={() => onNavigateTab('reports')}
-          className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all cursor-pointer group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{u.hoursSaved}</span>
-            <div className="size-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/60 group-hover:text-orange-500 transition-colors flex items-center justify-center">
-              <Clock size={14} />
-            </div>
-          </div>
-          <div className="mt-2.5">
-            <div className="text-lg font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
-              9.2 Hours
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                +15%
-              </span>
-              <span className="text-[9.5px] font-medium text-slate-400">Efisiensi AI</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ========================================================================= */}
-      {/* ROW 3: AI EMPLOYEES ANDA */}
-      {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">{u.myAiEmployees}</h3>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9px] font-extrabold">
-              {aiEmployees.length || 5} {u.active}
-            </span>
-          </div>
-          <button
-            onClick={() => onNavigateTab('my_agents')}
-            className="text-xs font-extrabold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-0.5 cursor-pointer"
-          >
-            {u.manageAll} <ArrowRight size={11} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {(() => {
-            const defaultAgentConfigs = [
-              { name: 'Customer Service AI', role: 'Support & Ops Specialist', avatar: 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png' },
-              { name: 'Marketing & Campaign AI', role: 'Growth & Content Specialist', avatar: 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png' },
-              { name: 'Finance & Billing AI', role: 'Finance & Audit Specialist', avatar: 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png' },
-              { name: 'Inventory & Store AI', role: 'Logistics Specialist', avatar: 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png' },
-              { name: 'B2B Sales & Leads AI', role: 'Sales & Pipeline Specialist', avatar: 'https://cdn.zegaai.site/assets/visualization/ai-avatar.png' },
-            ];
-
-            const list = aiEmployees && aiEmployees.length > 0 ? aiEmployees.slice(0, 5) : defaultAgentConfigs;
-
-            return list.map((agent: any, idx: number) => {
-              const def = defaultAgentConfigs[idx % defaultAgentConfigs.length];
-              const agentName = (agent.name && agent.name !== 'AI Employee')
-                ? agent.name
-                : (agent.agent_name && agent.agent_name !== 'AI Employee' ? agent.agent_name : def.name);
-              const agentRole = agent.role || agent.category || def.role;
-              const isAgentActive = agent.status === 'active' || agent.status === 'working' || !agent.status;
-              const isWarning = agent.status === 'warning';
-              const tasksDone = agent.tasks_completed_today || agent.chats_today || (120 + idx * 15);
-              const resolvedVal = agent.resolution_rate ? `${agent.resolution_rate}%` : `${94 + idx * 1.2}%`;
-
-              return (
-                <div
-                  key={agent.id || agent.agent_code || idx}
-                  className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-2.5 hover:border-orange-400/50 transition-all duration-200"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="size-8 rounded-lg bg-orange-50 dark:bg-slate-800 border border-orange-200 dark:border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center p-0.5 shadow-xs">
-                        <img
-                          src={
-                            agent.cdn_avatar_url ||
-                            (agent.avatar_path && agent.avatar_path.startsWith('http') ? agent.avatar_path : getR2CdnUrl(agent.avatar_path || 'assets/logo/zegalogo.png'))
-                          }
-                          alt={agentName}
-                          className="w-full h-full object-contain rounded-md"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = getR2CdnUrl('assets/logo/zegalogo.png');
-                          }}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate" title={agentName}>
-                          {agentName}
-                        </h4>
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[8.5px] font-bold ${isAgentActive
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : isWarning
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-slate-400'
-                            }`}>
-                            • {isAgentActive ? u.active : (isWarning ? 'Attention' : 'Paused')}
-                          </span>
-                          <span className="text-[8px] font-extrabold text-orange-600 dark:text-orange-400 px-1 py-0.2 rounded bg-orange-100/60 dark:bg-orange-950/40 truncate">
-                            {agent.model_engine ? agent.model_engine.split('-')[0] : 'ZEGA'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-2 text-[10px] space-y-0.5">
-                      <div className="flex justify-between text-slate-400">
-                        <span>Tasks Today</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{tasksDone}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-400">
-                        <span>Success Rate</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{resolvedVal}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedAgentModal({
-                        ...agent,
-                        name: agentName,
-                        role: agentRole,
-                        status: isAgentActive ? 'active' : 'paused',
-                        tasksDone,
-                        resolvedVal
-                      });
-                    }}
-                    className="w-full py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all cursor-pointer"
-                  >
-                    {u.open}
-                  </button>
-                </div>
-              );
-            });
-          })()}
-
-          {/* TAMBAH AI */}
-          <div
-            onClick={() => setShowDeployModal(true)}
-            className="p-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-1 hover:border-orange-500 transition-all cursor-pointer group min-h-[110px]"
-          >
-            <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-orange-500 group-hover:text-white flex items-center justify-center transition-colors">
-              <Plus size={16} />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-[11px] text-slate-800 dark:text-slate-200">{u.addAi}</h4>
-              <p className="text-[8.5px] text-slate-400 leading-tight">{u.addAiSub}</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* ROW 4: RINGKASAN PENJUALAN, OTOMASI, TUGAS AI & AKTIVITAS */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-
-        {/* LEFT 8 COLS: RINGKASAN PENJUALAN + (OTOMASI & TUGAS AI) */}
-        <div className="lg:col-span-8 space-y-4">
-
-          {/* RINGKASAN PENJUALAN RECHARTS AREA CHART */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.salesSummary}</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Ringkasan Penjualan</h3>
               <select
                 value={salesTimeframe}
                 onChange={(e) => setSalesTimeframe(e.target.value as any)}
                 className="text-[11px] font-semibold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="7d">{u.last7Days}</option>
-                <option value="30d">{u.last30Days}</option>
+                <option value="7d">7 Hari Terakhir</option>
+                <option value="30d">30 Hari Terakhir</option>
               </select>
             </div>
 
-            {/* REAL RECHARTS INTERACTIVE GRAPH */}
-            <div className="h-56 w-full pt-1">
+            <div className="mt-2 space-y-0.5">
+              <span className="text-[11px] text-slate-400 font-medium block">
+                Total Pendapatan ({salesTimeframe === '7d' ? '7 Hari' : '30 Hari'})
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
+                  Rp{timeframeTotalRevenue.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
+                  <ShoppingBag size={11} /> {timeframeTotalOrders} pesanan
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* RECHARTS AREA CHART */}
+          <div className="h-48 w-full pt-1">
+            {dynamicSalesData && dynamicSalesData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dynamicSalesData.length > 0 ? dynamicSalesData : (salesTimeframe === '7d' ? sales7Days : sales30Days)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={dynamicSalesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.35} />
+                    <linearGradient id="colorRevenueMock" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
                       <stop offset="95%" stopColor="#f97316" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.4} />
                   <XAxis
                     dataKey="date"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }}
+                    tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    tick={{ fontSize: 9, fill: '#94a3b8' }}
                     tickFormatter={(val) => `Rp${(val / 1000000).toFixed(1)}M`}
                   />
                   <Tooltip content={<CustomTooltip />} />
@@ -1094,241 +879,378 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                     stroke="#f97316"
                     strokeWidth={3}
                     fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                    activeDot={{ r: 6, fill: '#f97316', stroke: '#ffffff', strokeWidth: 3 }}
+                    fill="url(#colorRevenueMock)"
+                    activeDot={{ r: 5, fill: '#f97316', stroke: '#ffffff', strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* SUB-GRID: OTOMASI BERJALAN & TUGAS AI HARI INI */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-            {/* OTOMASI BERJALAN */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.runningAutomation}</h3>
-                  <span className="px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[9px] font-extrabold">
-                    {automations.length || 4} Active
-                  </span>
-                </div>
-                <button
-                  onClick={() => onNavigateTab('automation')}
-                  className="text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer flex items-center gap-0.5"
-                >
-                  {u.seeAll} <ArrowRight size={11} />
-                </button>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                <BarChart2 size={24} className="text-slate-400 mb-1" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Belum ada data penjualan</p>
+                <p className="text-[10px] text-slate-400">Transaksi baru akan otomatis direkam dalam grafik ini.</p>
               </div>
-
-              <div className="space-y-2">
-                {automations.slice(0, 4).map((item, i) => (
-                  <div
-                    key={item.id || i}
-                    onClick={() => onNavigateTab('automation')}
-                    className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-orange-400/50 hover:bg-orange-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="size-6 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                        <Workflow size={13} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-1">{item.name}</h4>
-                        <span className="text-[9px] text-slate-400">{item.sub || item.trigger_event || 'Everyday • 09:00'}</span>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-extrabold ${item.status === 'paused' ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'}`}>
-                      {item.status === 'paused' ? 'Paused' : u.active}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* TUGAS AI HARI INI */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.aiTasksToday}</h3>
-                  <span className="px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[9px] font-extrabold">
-                    {kpiData.tasks_completed_today || aiTasksList.length || 126} Done
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowAiTasksModal(true)}
-                  className="text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer flex items-center gap-0.5"
-                >
-                  {u.seeAll} <ArrowRight size={11} />
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {aiTasksList.slice(0, 4).map((item, i) => {
-                  const getAiTaskRoute = () => {
-                    const text = `${item.task} ${item.agent}`.toLowerCase();
-                    if (text.includes('finance') || text.includes('bill') || text.includes('invoice') || text.includes('gas fee') || text.includes('margin') || text.includes('pengeluaran')) return 'finance';
-                    if (text.includes('crm') || text.includes('customer') || text.includes('retention') || text.includes('pelanggan') || text.includes('wa') || text.includes('repeat order')) return 'customers';
-                    if (text.includes('marketing') || text.includes('campaign') || text.includes('promo') || text.includes('broadcast') || text.includes('studio')) return 'marketing';
-                    if (text.includes('stock') || text.includes('stok') || text.includes('inventory') || text.includes('store') || text.includes('product') || text.includes('restock') || text.includes('niacinamide')) return 'store';
-                    if (text.includes('sales') || text.includes('lead') || text.includes('b2b') || text.includes('pipeline') || text.includes('closing') || text.includes('kualifikasi')) return 'sales';
-                    return 'my_agents';
-                  };
-                  return (
-                    <div
-                      key={item.id || i}
-                      onClick={() => onNavigateTab(getAiTaskRoute())}
-                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-purple-400/50 hover:bg-purple-50/50 dark:hover:bg-slate-800 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="size-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                          <CheckCircle size={13} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">{item.task}</h4>
-                          <span className="text-[9px] text-slate-400">{item.agent}</span>
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-semibold text-slate-400 shrink-0">{item.time}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
+            )}
           </div>
         </div>
 
-        {/* RIGHT 4 COLS: AKTIVITAS TERBARU, AKSI CEPAT & INSTAGRAM */}
-        <div className="lg:col-span-4 space-y-4">
-
-          {/* AKTIVITAS TERBARU */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.recentActivity}</h3>
+        {/* AKTIVITAS TERBARU (LG: 3 COLS) */}
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Aktivitas Terbaru</h3>
               <button
-                onClick={() => setShowActivitiesModal(true)}
-                className="text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                onClick={() => onNavigateTab('customer_activity_stream')}
+                className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                {u.seeAll} <ArrowRight size={11} />
+                Lihat semua
+              </button>
+            </div>
+
+            <div className="mt-2.5 space-y-2 text-xs">
+              {recentActivities && recentActivities.length > 0 ? (
+                recentActivities.map((act, idx) => {
+                  const IconComp = act.icon || Activity;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => onNavigateTab('sales')}
+                      className="flex items-start justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <div className={`size-6 rounded-lg ${act.iconBg || 'bg-slate-100 text-slate-600'} flex items-center justify-center shrink-0 mt-0.5`}>
+                          <IconComp size={13} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-orange-600 transition-colors truncate">
+                            {act.title}
+                          </h4>
+                          <span className="text-[9px] text-slate-400 block">{act.sub}</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-[10.5px] text-slate-900 dark:text-slate-100 shrink-0 ml-1">
+                        {act.amount}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                  Belum ada aktivitas terbaru dari database
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT STACK: SISTEM & INTEGRASI + AKTIVITAS OTOMASI (LG: 3 COLS) */}
+        <div className="lg:col-span-3 space-y-4 flex flex-col justify-between">
+
+          {/* CARD 1: SISTEM & INTEGRASI */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Sistem & Integrasi</h3>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[8.5px] font-extrabold flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Semua Sistem Normal
+              </span>
+            </div>
+
+            <div className="space-y-2 text-[11px]">
+              <div onClick={() => onNavigateTab('my_agents')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <Bot size={13} className="text-indigo-500" />
+                  <span>AI Workforce</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• Terhubung</span>
+              </div>
+
+              <div onClick={() => onNavigateTab('automation')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <Workflow size={13} className="text-purple-500" />
+                  <span>Automations</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• 12 Workflow Aktif</span>
+              </div>
+
+              <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <Activity size={13} className="text-blue-500" />
+                  <span>Database</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• Aman</span>
+              </div>
+
+              <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <CheckCircle size={13} className="text-emerald-500" />
+                  <span>Backup</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Terakhir: 12 jam lalu</span>
+              </div>
+
+              <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+                  <ShieldCheck size={13} className="text-amber-500" />
+                  <span>API & Integrasi</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Terhubung</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigateTab('automation')}
+              className="w-full mt-1 text-center py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <span>Lihat Status Lengkap</span> <ArrowRight size={11} />
+            </button>
+          </div>
+
+          {/* CARD 2: AKTIVITAS OTOMASI TERBARU */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aktivitas Otomasi Terbaru</h3>
+              <button
+                onClick={() => onNavigateTab('automation')}
+                className="text-[10.5px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+              >
+                Lihat semua
               </button>
             </div>
 
             <div className="space-y-2 text-xs">
-              {recentActivities.map((act, i) => {
-                const Icon = act.icon || FileText;
-                const getActivityRoute = () => {
-                  const title = `${act.title} ${act.sub}`.toLowerCase();
-                  if (title.includes('transaksi') || title.includes('transaction') || title.includes('order') || title.includes('sale') || title.includes('inv') || title.includes('trx')) return 'sales';
-                  if (title.includes('customer') || title.includes('pelanggan') || title.includes('lead') || title.includes('crm') || title.includes('retention')) return 'customers';
-                  if (title.includes('product') || title.includes('stok') || title.includes('stock') || title.includes('store') || title.includes('inventory')) return 'store';
-                  if (title.includes('campaign') || title.includes('promo') || title.includes('broadcast') || title.includes('marketing')) return 'marketing';
-                  if (title.includes('finance') || title.includes('pengeluaran') || title.includes('gas fee') || title.includes('margin')) return 'finance';
-                  return 'customer_activity_stream';
-                };
-                return (
+              {automations && automations.length > 0 ? (
+                automations.map((auto, idx) => (
                   <div
-                    key={i}
-                    onClick={() => {
-                      triggerToast(`Activity detail: ${act.title}`);
-                      onNavigateTab(getActivityRoute());
-                    }}
-                    className="flex items-center justify-between p-1.5 rounded-xl hover:bg-orange-50/60 dark:hover:bg-slate-800/60 transition-all cursor-pointer group"
+                    key={auto.id || idx}
+                    onClick={() => onNavigateTab('automation')}
+                    className="flex items-center justify-between cursor-pointer group"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`size-7 rounded-lg ${act.iconBg || 'bg-orange-50 text-orange-600'} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
-                        <Icon size={14} />
-                      </div>
-                      <div className="truncate min-w-0">
-                        <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">{act.title}</h4>
-                        <span className="text-[9px] text-slate-400">{act.sub}</span>
-                      </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Workflow size={13} className="text-emerald-500 shrink-0" />
+                      <span className="text-[10.5px] font-medium text-slate-800 dark:text-slate-200 group-hover:text-orange-600 truncate">
+                        {auto.name}
+                      </span>
                     </div>
-                    <span className="font-extrabold text-[11px] text-slate-800 dark:text-slate-200 ml-1.5 flex-shrink-0">{act.amount}</span>
+                    <span className="text-[9px] text-slate-400 shrink-0 ml-1">{auto.lastRun || 'Aktif'}</span>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                <div className="py-4 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                  Belum ada otomasi terdaftar di database
+                </div>
+              )}
             </div>
           </div>
 
-          {/* AKSI CEPAT */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.quickActions}</h3>
+        </div>
 
-            <div className="grid grid-cols-4 gap-1.5 text-center">
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ROW 3: PRODUK TERLARIS + TUGAS AI HARI INI + AKSI CEPAT (8 GRID CARDS) */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+
+        {/* PRODUK TERLARIS (LG: 4 COLS) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Produk Terlaris</h3>
               <button
-                onClick={() => {
-                  setModalForm({ title: 'Customer PT Maju Jaya', detail: 'INV-2026-009', amount: 'Rp1.500.000' });
-                  setActiveModal('invoice');
-                }}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
+                onClick={() => onNavigateTab('top_selling')}
+                className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                <FileText size={16} className="text-emerald-500" />
-                <span className="text-[9.5px] font-bold">{u.createInvoice}</span>
+                Lihat semua
               </button>
+            </div>
 
+            <div className="mt-2.5 space-y-2 text-xs">
+              {recentActivities && recentActivities.filter(a => a.title.toLowerCase().includes('transaksi') || a.title.toLowerCase().includes('produk')).length > 0 ? (
+                recentActivities
+                  .filter(a => a.title.toLowerCase().includes('transaksi') || a.title.toLowerCase().includes('produk'))
+                  .slice(0, 5)
+                  .map((prod, idx) => (
+                    <div key={idx} onClick={() => onNavigateTab('manage_product')} className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="size-5 rounded-full bg-orange-100 text-orange-600 font-extrabold text-[10px] flex items-center justify-center shrink-0">{idx + 1}</span>
+                        <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                          <Store size={14} className="text-orange-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-[11px] text-slate-900 dark:text-slate-100 group-hover:text-orange-600 transition-colors truncate">{prod.title}</h4>
+                          <span className="text-[9.5px] text-slate-400">{prod.sub}</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 shrink-0 ml-1">{prod.amount}</span>
+                    </div>
+                  ))
+              ) : (
+                <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                  Belum ada data produk terlaris di database
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* TUGAS AI HARI INI (LG: 4 COLS) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Tugas AI Hari Ini</h3>
               <button
-                onClick={() => {
-                  setModalForm({ title: 'Promo Flash Sale 8.8 Diskon 50%', detail: 'All Active Customers', amount: 'WhatsApp & IG' });
-                  setActiveModal('broadcast');
-                }}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
+                onClick={() => onNavigateTab('my_agents')}
+                className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                <Megaphone size={16} className="text-orange-500" />
-                <span className="text-[9.5px] font-bold">{u.sendBroadcast}</span>
+                Lihat semua
               </button>
+            </div>
 
+            <div className="mt-2.5 space-y-2 text-xs">
+              {aiTasksList && aiTasksList.length > 0 ? (
+                aiTasksList.slice(0, 5).map((task, idx) => (
+                  <div key={task.id || idx} onClick={() => onNavigateTab('my_agents')} className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-orange-400/50 cursor-pointer group">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="size-2 rounded-full bg-orange-500 shrink-0" />
+                      <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200 group-hover:text-orange-600 truncate">{task.task}</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-[8.5px] font-extrabold shrink-0 ml-1">{task.agent || task.badge || 'AI Swarm'}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                  Belum ada tugas AI aktif di database hari ini
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* AKSI CEPAT - 8 GRID CARDS (LG: 4 COLS) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Aksi Cepat</h3>
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-4 gap-2 text-center">
+              {/* 1. Tambah Produk */}
               <button
                 onClick={() => {
                   setModalForm({ title: 'Kopi Arabika Premium 250g', detail: 'Minuman / Kopi', amount: 'Rp85.000' });
                   setActiveModal('product');
                 }}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
+                className="p-2.5 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 hover:bg-orange-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-orange-200/50 dark:border-orange-900/40 group"
               >
-                <Store size={16} className="text-pink-500" />
-                <span className="text-[9.5px] font-bold">{u.addProduct}</span>
+                <div className="size-7 rounded-xl bg-orange-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <Plus size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Tambah Produk</span>
               </button>
 
+              {/* 2. Buat Pesanan */}
               <button
                 onClick={() => onNavigateTab('sales')}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 text-slate-700 dark:text-slate-300 transition-all flex flex-col items-center gap-1 cursor-pointer"
+                className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 hover:bg-purple-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-purple-200/50 dark:border-purple-900/40 group"
               >
-                <BarChart2 size={16} className="text-purple-500" />
-                <span className="text-[9.5px] font-bold">{u.salesReport}</span>
+                <div className="size-7 rounded-xl bg-purple-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <ShoppingBag size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Buat Pesanan</span>
+              </button>
+
+              {/* 3. Kirim Promo */}
+              <button
+                onClick={() => {
+                  setModalForm({ title: 'Promo Flash Sale 8.8 Diskon 50%', detail: 'All Active Customers', amount: 'WhatsApp & IG' });
+                  setActiveModal('broadcast');
+                }}
+                className="p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-emerald-200/50 dark:border-emerald-900/40 group"
+              >
+                <div className="size-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <Megaphone size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Kirim Promo</span>
+              </button>
+
+              {/* 4. Lihat Laporan */}
+              <button
+                onClick={() => onNavigateTab('reports')}
+                className="p-2.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-blue-200/50 dark:border-blue-900/40 group"
+              >
+                <div className="size-7 rounded-xl bg-blue-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <BarChart2 size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Lihat Laporan</span>
+              </button>
+
+              {/* 5. Buat Invoice */}
+              <button
+                onClick={() => {
+                  setModalForm({ title: 'Customer PT Maju Jaya', detail: 'INV-2026-009', amount: 'Rp1.500.000' });
+                  setActiveModal('invoice');
+                }}
+                className="p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-emerald-200/50 dark:border-emerald-900/40 group"
+              >
+                <div className="size-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <FileText size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Buat Invoice</span>
+              </button>
+
+              {/* 6. Kelola Stok */}
+              <button
+                onClick={() => onNavigateTab('manage_stock_limit')}
+                className="p-2.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-amber-200/50 dark:border-amber-900/40 group"
+              >
+                <div className="size-7 rounded-xl bg-amber-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <Store size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Kelola Stok</span>
+              </button>
+
+              {/* 7. Broadcast */}
+              <button
+                onClick={() => {
+                  setModalForm({ title: 'Promo Flash Sale 8.8 Diskon 50%', detail: 'All Active Customers', amount: 'WhatsApp & IG' });
+                  setActiveModal('broadcast');
+                }}
+                className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 hover:bg-purple-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-purple-200/50 dark:border-purple-900/40 group"
+              >
+                <div className="size-7 rounded-xl bg-purple-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <Send size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Broadcast</span>
+              </button>
+
+              {/* 8. Pengaturan */}
+              <button
+                onClick={() => onNavigateTab('settings')}
+                className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700 group"
+              >
+                <div className="size-7 rounded-xl bg-slate-700 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <SlidersHorizontal size={15} />
+                </div>
+                <span className="text-[9.5px] font-extrabold leading-tight">Pengaturan</span>
               </button>
             </div>
-
-            <button
-              onClick={() => setShowSupportAssistantModal(true)}
-              className="w-full py-2.5 rounded-xl border-2 border-orange-500/80 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-extrabold text-[11px] shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
-            >
-              <Bot size={16} className="text-orange-500" />
-              <span>{u.chatWithAi}</span>
-            </button>
           </div>
-
-          {/* INSTAGRAM INTEGRATION */}
-          <div className="bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-indigo-500/10 dark:from-pink-950/40 dark:to-indigo-950/40 rounded-2xl p-4 border border-pink-200 dark:border-pink-900/50 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Instagram size={16} className="text-pink-600" />
-                <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.instagramDmBot}</h4>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[8.5px] font-extrabold">{u.connectedBadge}</span>
-            </div>
-            <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">
-              {u.instagramDesc}
-            </p>
-            <button
-              onClick={() => setShowIgPolicyModal(true)}
-              className="w-full py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-[11px] shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <span>{u.manageInstagram}</span> <ArrowRight size={11} />
-            </button>
-          </div>
-
         </div>
 
+      </div>
+
+      {/* ========================================================================= */}
+      {/* FOOTER */}
+      {/* ========================================================================= */}
+      <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 font-medium">
+        <div>
+          © 2025 ZEGA AI. Semua hak dilindungi.
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Kebijakan Privasi</span>
+          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Syarat & Ketentuan</span>
+          <span onClick={() => onNavigateTab('help')} className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Bantuan</span>
+        </div>
       </div>
 
       {/* ========================================================================= */}

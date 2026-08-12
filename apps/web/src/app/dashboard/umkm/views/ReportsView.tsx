@@ -147,66 +147,39 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
   const [quickAccessModalTitle, setQuickAccessModalTitle] = useState<string | null>(null);
 
   // Consolidated Reports Data State
+  // Consolidated Reports Data State (Zero-Trust Data Integrity)
   const [reportsData, setReportsData] = useState<any>({
     metrics: {
-      total_revenue_idr: 13500000.00,
-      total_orders: 116,
-      new_customers: 126,
-      avg_order_value_idr: 116379.00,
-      conversion_rate_pct: 4.20,
-      revenue_growth_pct: 18.00,
-      orders_growth_pct: 21.00,
-      customers_growth_pct: 15.00,
-      aov_growth_pct: 5.00,
-      conversion_growth_pct: 1.30
+      total_revenue_idr: 0,
+      total_orders: 0,
+      new_customers: 0,
+      avg_order_value_idr: 0,
+      conversion_rate_pct: 0,
+      revenue_growth_pct: 0,
+      orders_growth_pct: 0,
+      customers_growth_pct: 0,
+      aov_growth_pct: 0,
+      conversion_growth_pct: 0
     },
-    revenueTime: [
-      { period_label: '1 Jul', revenue_idr: 600000, orders_count: 5 },
-      { period_label: '6 Jul', revenue_idr: 1400000, orders_count: 12 },
-      { period_label: '11 Jul', revenue_idr: 1800000, orders_count: 15 },
-      { period_label: '16 Jul', revenue_idr: 2160000, orders_count: 18 },
-      { period_label: '21 Jul', revenue_idr: 2900000, orders_count: 24 },
-      { period_label: '26 Jul', revenue_idr: 2100000, orders_count: 19 },
-      { period_label: '31 Jul', revenue_idr: 2540000, orders_count: 23 }
-    ],
-    salesChannels: [
-      { channel_name: 'WhatsApp', percentage: 45, revenue_idr: 6100000, color_hex: '#3b82f6' },
-      { channel_name: 'Shopee', percentage: 30, revenue_idr: 4100000, color_hex: '#10b981' },
-      { channel_name: 'Instagram', percentage: 15, revenue_idr: 2000000, color_hex: '#a855f7' },
-      { channel_name: 'TikTok', percentage: 10, revenue_idr: 1300000, color_hex: '#f97316' }
-    ],
+    revenueTime: [],
+    salesChannels: [],
     healthScore: {
-      score: 78,
-      category_label: 'Baik',
-      points_change: 12,
-      percentile_comparison_pct: 76,
-      ai_recommendation: 'Performa bisnis Anda lebih baik dari 76% UMKM sejenis di industri Anda.'
+      score: 0,
+      category_label: '-',
+      points_change: 0,
+      percentile_comparison_pct: 0,
+      ai_recommendation: 'Belum ada telemetry transaksi.'
     },
-    topProducts: [
-      { rank: 1, product_name: 'Kaos Polos Hitam', units_sold: 32, revenue_idr: 1920000, trend_pct: 18, trend_direction: 'up' },
-      { rank: 2, product_name: 'Tumbler Premium', units_sold: 28, revenue_idr: 2800000, trend_pct: 12, trend_direction: 'up' },
-      { rank: 3, product_name: 'Botol Minum 500ml', units_sold: 24, revenue_idr: 1680000, trend_pct: 8, trend_direction: 'up' },
-      { rank: 4, product_name: 'Hoodie Full Zip', units_sold: 18, revenue_idr: 3600000, trend_pct: 4, trend_direction: 'down' },
-      { rank: 5, product_name: 'Totebag Canvas', units_sold: 15, revenue_idr: 750000, trend_pct: 6, trend_direction: 'up' }
-    ],
-    topCustomers: [
-      { customer_name: 'Siti Aisyah', orders_count: 12, total_spend_idr: 3200000, last_order_at: '28 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
-      { customer_name: 'Budi Santoso', orders_count: 9, total_spend_idr: 2180000, last_order_at: '27 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
-      { customer_name: 'Dewi Lestari', orders_count: 8, total_spend_idr: 1950000, last_order_at: '26 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-      { customer_name: 'Rizky Pratama', orders_count: 7, total_spend_idr: 1120000, last_order_at: '26 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
-      { customer_name: 'Maya Putri', orders_count: 6, total_spend_idr: 1450000, last_order_at: '25 Jul 2026', avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' }
-    ],
+    topProducts: [],
+    topCustomers: [],
     monthlySummary: {
-      best_performing_day: '22 Jul 2026',
-      total_transactions: 128,
-      total_customers: 86,
-      repeat_customer_rate_pct: 42,
-      returning_customer_value_idr: 5670000.00
+      best_performing_day: '-',
+      total_transactions: 0,
+      total_customers: 0,
+      repeat_customer_rate_pct: 0,
+      returning_customer_value_idr: 0
     },
-    schedules: [
-      { schedule_type: 'Weekly', title: 'Laporan Mingguan', cron_description: 'Setiap Senin, 08:00', is_active: true },
-      { schedule_type: 'Monthly', title: 'Laporan Bulanan', cron_description: 'Setiap 1 Bulan, 08:00', is_active: true }
-    ]
+    schedules: []
   });
 
   // Load Realtime Data from Supabase with Subtab & Time Horizon filters
@@ -214,17 +187,20 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
     try {
       const data = await SupabaseDashboardService.getUmkmAiIntelligenceOverview(subTab, timeHorizon, dateRange);
       if (data) {
-        setReportsData((prev: any) => ({
-          ...prev,
-          metrics: data.metrics && Object.keys(data.metrics).length > 0 ? data.metrics : prev.metrics,
-          revenueTime: data.revenueTime?.length > 0 ? data.revenueTime : prev.revenueTime,
-          salesChannels: data.salesChannels?.length > 0 ? data.salesChannels : prev.salesChannels,
-          healthScore: data.healthScore && Object.keys(data.healthScore).length > 0 ? data.healthScore : prev.healthScore,
-          topProducts: data.topProducts?.length > 0 ? data.topProducts : prev.topProducts,
-          topCustomers: data.topCustomers?.length > 0 ? data.topCustomers : prev.topCustomers,
-          monthlySummary: data.monthlySummary && Object.keys(data.monthlySummary).length > 0 ? data.monthlySummary : prev.monthlySummary,
-          schedules: data.schedules?.length > 0 ? data.schedules : prev.schedules
-        }));
+        setReportsData({
+          metrics: data.metrics || {
+            total_revenue_idr: 0, total_orders: 0, new_customers: 0, avg_order_value_idr: 0,
+            conversion_rate_pct: 0, revenue_growth_pct: 0, orders_growth_pct: 0,
+            customers_growth_pct: 0, aov_growth_pct: 0, conversion_growth_pct: 0
+          },
+          revenueTime: data.revenueTime || [],
+          salesChannels: data.salesChannels || [],
+          healthScore: data.healthScore || { score: 0, category_label: '-', points_change: 0, percentile_comparison_pct: 0, ai_recommendation: 'Belum ada telemetry transaksi.' },
+          topProducts: data.topProducts || [],
+          topCustomers: data.topCustomers || [],
+          monthlySummary: data.monthlySummary || { best_performing_day: '-', total_transactions: 0, total_customers: 0, repeat_customer_rate_pct: 0, returning_customer_value_idr: 0 },
+          schedules: data.schedules || []
+        });
       }
     } catch (e) {
       console.warn('AI Intelligence overview load error:', e);
@@ -240,9 +216,9 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
   }, [subTab, timeHorizon, dateRange]);
 
   // 1. Multi-series Chart Data (Revenue & Orders Over Time)
-  const revenueLabels = reportsData.revenueTime.map((r: any) => r.period_label);
-  const revenueValues = reportsData.revenueTime.map((r: any) => r.revenue_idr);
-  const orderValues = reportsData.revenueTime.map((r: any) => r.orders_count);
+  const revenueLabels = (reportsData.revenueTime || []).map((r: any) => r?.period_label || '');
+  const revenueValues = (reportsData.revenueTime || []).map((r: any) => r?.revenue_idr || 0);
+  const orderValues = (reportsData.revenueTime || []).map((r: any) => r?.orders_count || 0);
 
   const lineData = {
     labels: revenueLabels,
@@ -326,10 +302,10 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
   // 2. Sales Channel Donut Setup
   const channelData = {
-    labels: reportsData.salesChannels.map((c: any) => c.channel_name),
+    labels: (reportsData.salesChannels || []).map((c: any) => c?.channel_name || ''),
     datasets: [
       {
-        data: reportsData.salesChannels.map((c: any) => c.percentage),
+        data: (reportsData.salesChannels || []).map((c: any) => c?.percentage || 0),
         backgroundColor: ['#3b82f6', '#10b981', '#a855f7', '#f97316'],
         borderWidth: 0,
         hoverOffset: 4
@@ -352,7 +328,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
   };
 
   // 3. Business Health Gauge (Semi Doughnut) Setup
-  const healthScoreVal = reportsData.healthScore.score;
+  const healthScoreVal = reportsData.healthScore?.score ?? 0;
   const gaugeData = {
     labels: ['Score', 'Remaining'],
     datasets: [
@@ -456,13 +432,13 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               <DollarSign size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              ↑ {reportsData.metrics.revenue_growth_pct}%
+              ↑ {reportsData.metrics?.revenue_growth_pct ?? 0}%
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Total Revenue</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              Rp{(reportsData.metrics.total_revenue_idr).toLocaleString('id-ID')}
+              Rp{(reportsData.metrics?.total_revenue_idr ?? 0).toLocaleString('id-ID')}
             </div>
             <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
@@ -475,13 +451,13 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               <ShoppingBag size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              ↑ {reportsData.metrics.orders_growth_pct}%
+              ↑ {reportsData.metrics?.orders_growth_pct ?? 0}%
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Orders</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              {reportsData.metrics.total_orders}
+              {reportsData.metrics?.total_orders ?? 0}
             </div>
             <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
@@ -494,13 +470,13 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               <Users size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              ↑ {reportsData.metrics.customers_growth_pct}%
+              ↑ {reportsData.metrics?.customers_growth_pct ?? 0}%
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">New Customers</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              {reportsData.metrics.new_customers}
+              {reportsData.metrics?.new_customers ?? 0}
             </div>
             <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
@@ -513,13 +489,13 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               <BarChart3 size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              ↑ {reportsData.metrics.aov_growth_pct}%
+              ↑ {reportsData.metrics?.aov_growth_pct ?? 0}%
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Avg Order Value</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              Rp{(reportsData.metrics.avg_order_value_idr).toLocaleString('id-ID')}
+              Rp{(reportsData.metrics?.avg_order_value_idr ?? 0).toLocaleString('id-ID')}
             </div>
             <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
@@ -532,13 +508,13 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
               <Percent size={18} />
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10.5px] border border-emerald-200/60 dark:border-emerald-900/60">
-              ↑ {reportsData.metrics.conversion_growth_pct}%
+              ↑ {reportsData.metrics?.conversion_growth_pct ?? 0}%
             </span>
           </div>
           <div>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Conversion Rate</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
-              {reportsData.metrics.conversion_rate_pct}%
+              {reportsData.metrics?.conversion_rate_pct ?? 0}%
             </div>
             <span className="text-[11px] text-slate-400 font-normal block mt-1">vs last month</span>
           </div>
@@ -590,22 +566,24 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             <Doughnut data={channelData} options={channelOptions} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-[10px] font-bold text-slate-400">Total</span>
-              <span className="text-base font-black text-slate-900 dark:text-slate-100">Rp13.5M</span>
+              <span className="text-base font-black text-slate-900 dark:text-slate-100">
+                Rp{((reportsData.metrics?.total_revenue_idr || 0) / 1000000).toFixed(1)}M
+              </span>
             </div>
           </div>
 
           {/* Channel Legend Breakdown with R2 CDN Logos */}
           <div className="space-y-2 text-xs font-bold">
-            {reportsData.salesChannels.map((c: any, i: number) => {
-              const logoUrl = getPerformerLogoUrl(c.channel_name);
+            {(reportsData.salesChannels || []).map((c: any, i: number) => {
+              const logoUrl = getPerformerLogoUrl(c?.channel_name || '');
               return (
                 <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
                   <div className="flex items-center gap-2">
-                    <img src={logoUrl} alt={c.channel_name} className="size-5 rounded-md object-contain shrink-0" />
-                    <span className="text-slate-700 dark:text-slate-300">{c.channel_name}</span>
+                    <img src={logoUrl} alt={c?.channel_name || ''} className="size-5 rounded-md object-contain shrink-0" />
+                    <span className="text-slate-700 dark:text-slate-300">{c?.channel_name || ''}</span>
                   </div>
                   <span className="font-mono text-slate-900 dark:text-slate-100">
-                    {c.percentage}% <span className="text-slate-400 font-normal">(Rp{(c.revenue_idr / 1000000).toFixed(1)}M)</span>
+                    {c?.percentage ?? 0}% <span className="text-slate-400 font-normal">(Rp{((c?.revenue_idr || 0) / 1000000).toFixed(1)}M)</span>
                   </span>
                 </div>
               );
@@ -631,17 +609,17 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             <div className="relative h-28 w-44 mx-auto pt-2">
               <Doughnut data={gaugeData} options={gaugeOptions} />
               <div className="absolute bottom-1 inset-x-0 flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{reportsData.healthScore.score}</span>
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{reportsData.healthScore.category_label}</span>
+                <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{reportsData.healthScore?.score ?? 0}</span>
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{reportsData.healthScore?.category_label || '-'}</span>
               </div>
             </div>
 
             <div className="text-center space-y-1">
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
-                <span>↑ {reportsData.healthScore.points_change} poin vs last month</span>
+                <span>↑ {reportsData.healthScore?.points_change ?? 0} poin vs last month</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium leading-relaxed px-1">
-                {reportsData.healthScore.ai_recommendation}
+                {reportsData.healthScore?.ai_recommendation || 'Belum ada data telemetry diagnosis.'}
               </p>
             </div>
           </div>
@@ -674,15 +652,15 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {reportsData.topProducts.map((p: any, i: number) => (
+                {(reportsData.topProducts || []).map((p: any, i: number) => (
                   <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                    <td className="py-2.5 px-1 font-bold text-slate-400">{p.rank}</td>
-                    <td className="py-2.5 px-2 font-extrabold text-slate-900 dark:text-slate-100 truncate">{p.product_name}</td>
-                    <td className="py-2.5 px-2 text-center font-bold">{p.units_sold}</td>
-                    <td className="py-2.5 px-2 text-right font-black">Rp{(p.revenue_idr).toLocaleString('id-ID')}</td>
+                    <td className="py-2.5 px-1 font-bold text-slate-400">{p?.rank ?? (i + 1)}</td>
+                    <td className="py-2.5 px-2 font-extrabold text-slate-900 dark:text-slate-100 truncate">{p?.product_name || '-'}</td>
+                    <td className="py-2.5 px-2 text-center font-bold">{p?.units_sold ?? 0}</td>
+                    <td className="py-2.5 px-2 text-right font-black">Rp{(p?.revenue_idr ?? 0).toLocaleString('id-ID')}</td>
                     <td className="py-2.5 px-2 text-right font-bold">
-                      <span className={`inline-flex items-center gap-0.5 ${p.trend_direction === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {p.trend_direction === 'up' ? '↑' : '↓'} {p.trend_pct}%
+                      <span className={`inline-flex items-center gap-0.5 ${p?.trend_direction === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {p?.trend_direction === 'up' ? '↑' : '↓'} {p?.trend_pct ?? 0}%
                       </span>
                     </td>
                   </tr>
@@ -715,10 +693,10 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {reportsData.topCustomers.map((c: any, i: number) => {
-                  const avatarSrc = (c.avatar_url && c.avatar_url.startsWith('http'))
+                {(reportsData.topCustomers || []).map((c: any, i: number) => {
+                  const avatarSrc = (c?.avatar_url && c.avatar_url.startsWith('http'))
                     ? c.avatar_url
-                    : getR2CdnUrl(c.avatar_url || '', true);
+                    : getR2CdnUrl(c?.avatar_url || '', true);
 
                   return (
                     <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
@@ -726,19 +704,19 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
                         <div className="flex items-center gap-2 min-w-0">
                           <img 
                             src={avatarSrc} 
-                            alt={c.customer_name}
+                            alt={c?.customer_name || 'Customer'}
                             className="size-6 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0 shadow-xs"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = generateInitialsAvatar(c.customer_name);
+                              target.src = generateInitialsAvatar(c?.customer_name || 'C');
                             }}
                           />
-                          <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{c.customer_name}</span>
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{c?.customer_name || '-'}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-2 text-center font-extrabold text-slate-900 dark:text-slate-100">{c.orders_count}</td>
-                      <td className="py-2.5 px-2 text-right font-black text-slate-900 dark:text-slate-100">Rp{(c.total_spend_idr).toLocaleString('id-ID')}</td>
-                      <td className="py-2.5 px-2 text-center font-mono text-[10px] text-slate-400">{c.last_order_at}</td>
+                      <td className="py-2.5 px-2 text-center font-extrabold text-slate-900 dark:text-slate-100">{c?.orders_count ?? 0}</td>
+                      <td className="py-2.5 px-2 text-right font-black text-slate-900 dark:text-slate-100">Rp{(c?.total_spend_idr ?? 0).toLocaleString('id-ID')}</td>
+                      <td className="py-2.5 px-2 text-center font-mono text-[10px] text-slate-400">{c?.last_order_at || '-'}</td>
                     </tr>
                   );
                 })}
@@ -763,28 +741,28 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             <div className="space-y-2.5 text-xs font-bold">
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Best Performing Day</span>
-                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary.best_performing_day}</span>
+                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.best_performing_day || '-'}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Total Transactions</span>
-                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary.total_transactions}</span>
+                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.total_transactions ?? 0}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Total Customers</span>
-                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary.total_customers}</span>
+                <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.total_customers ?? 0}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Repeat Customer Rate</span>
-                <span className="text-emerald-600 font-mono font-black">{reportsData.monthlySummary.repeat_customer_rate_pct}%</span>
+                <span className="text-emerald-600 font-mono font-black">{reportsData.monthlySummary?.repeat_customer_rate_pct ?? 0}%</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Returning Customer Value</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono font-black">
-                  Rp{(reportsData.monthlySummary.returning_customer_value_idr).toLocaleString('id-ID')}
+                  Rp{(reportsData.monthlySummary?.returning_customer_value_idr ?? 0).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>

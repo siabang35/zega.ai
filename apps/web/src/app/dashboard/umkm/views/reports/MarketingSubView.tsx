@@ -47,49 +47,22 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // State Telemetri Live Supabase
+  // State Telemetri Live Supabase (Zero-Trust Data Integrity)
   const [marketingKpi, setMarketingKpi] = useState<any>({
-    total_campaigns: 4,
-    active_campaigns: 2,
-    total_reach: 80500,
-    reach_growth_pct: 38.5,
-    click_through_rate: 7.7,
-    ctr_growth_pct: 2.1,
-    marketing_roi_pct: 262.5
+    total_campaigns: 0,
+    active_campaigns: 0,
+    total_reach: 0,
+    reach_growth_pct: 0,
+    click_through_rate: 0,
+    ctr_growth_pct: 0,
+    marketing_roi_pct: 0
   });
 
-  const [campaigns, setCampaigns] = useState<any[]>([
-    { id: '1', campaign_name: 'Flash Sale Juli', channel: 'WhatsApp Broadcast', status: 'Aktif', sent_count: 1240, opened_count: 892, clicked_count: 312, revenue_idr: 4200000, roi_pct: 320, target_audience: 'Pelanggan Setia (RFM Champions)' },
-    { id: '2', campaign_name: 'Promo Ramadhan', channel: 'Instagram Ads', status: 'Selesai', sent_count: 8500, opened_count: 3400, clicked_count: 890, revenue_idr: 6800000, roi_pct: 245, target_audience: 'Audiens Baru' },
-    { id: '3', campaign_name: 'Re-engagement Q3', channel: 'Email Blast', status: 'Aktif', sent_count: 620, opened_count: 384, clicked_count: 142, revenue_idr: 1900000, roi_pct: 180, target_audience: 'Pelanggan Churn Potential' },
-    { id: '4', campaign_name: 'TikTok Viral Push', channel: 'TikTok Ads', status: 'Scheduled', sent_count: 0, opened_count: 0, clicked_count: 0, revenue_idr: 0, roi_pct: 0, target_audience: 'Gen-Z Buyers' },
-  ]);
-
-  const [channelROI, setChannelROI] = useState<any[]>([
-    { channel: 'WhatsApp', spend_idr: 1200000, revenue_idr: 6100000, roi_pct: 408, color_hex: '#3b82f6' },
-    { channel: 'Shopee Ads', spend_idr: 800000, revenue_idr: 4100000, roi_pct: 413, color_hex: '#10b981' },
-    { channel: 'Instagram', spend_idr: 950000, revenue_idr: 2000000, roi_pct: 111, color_hex: '#a855f7' },
-    { channel: 'TikTok', spend_idr: 600000, revenue_idr: 1300000, roi_pct: 117, color_hex: '#f97316' },
-  ]);
-
-  const [engagement, setEngagement] = useState<any[]>([
-    { period_label: 'Minggu 1', impressions: 12000, clicks: 890, conversions: 120 },
-    { period_label: 'Minggu 2', impressions: 18500, clicks: 1420, conversions: 210 },
-    { period_label: 'Minggu 3', impressions: 22000, clicks: 1780, conversions: 340 },
-    { period_label: 'Minggu 4', impressions: 28000, clicks: 2100, conversions: 450 },
-  ]);
-
-  const [topContent, setTopContent] = useState<any[]>([
-    { content_type: 'IG Reel', title: 'Unboxing Tumbler Premium', views: 12400, engagement_pct: 8.2, leads_generated: 34 },
-    { content_type: 'WA Story', title: 'Flash Sale Countdown', views: 4200, engagement_pct: 14.5, leads_generated: 28 },
-    { content_type: 'TikTok', title: '#KaosBerkualitas Challenge', views: 34000, engagement_pct: 6.1, leads_generated: 18 },
-    { content_type: 'Blog', title: 'Tips Memilih Botol Minum', views: 1800, engagement_pct: 3.4, leads_generated: 12 },
-  ]);
-
-  const [reportsAutomation, setReportsAutomation] = useState<any[]>([
-    { id: 'rep-1', report_type: 'Campaign_ROI_Summary', file_format: 'PDF', period: 'Juli 2026', status: 'COMPLETED', generated_at: new Date().toISOString() },
-    { id: 'rep-2', report_type: 'Channel_Performance', file_format: 'CSV', period: 'Q2 2026', status: 'COMPLETED', generated_at: new Date(Date.now() - 86400000).toISOString() },
-  ]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [channelROI, setChannelROI] = useState<any[]>([]);
+  const [engagement, setEngagement] = useState<any[]>([]);
+  const [topContent, setTopContent] = useState<any[]>([]);
+  const [reportsAutomation, setReportsAutomation] = useState<any[]>([]);
 
   // Modal States
   const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
@@ -316,8 +289,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
           { label: 'Total Campaign', val: `${campaigns.length}`, sub: `${campaigns.filter((c: any) => c.status === 'Aktif').length} aktif`, icon: Megaphone, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
-          { label: 'Total Reach', val: `${(totalReach / 1000).toFixed(1)}K`, sub: `+${marketingKpi.reach_growth_pct || 38.5}% vs bulan lalu`, icon: Eye, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
-          { label: 'Click-Through Rate', val: `${avgCTR}%`, sub: `+${marketingKpi.ctr_growth_pct || 2.1}% vs bulan lalu`, icon: MousePointerClick, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
+          { label: 'Total Reach', val: `${(totalReach / 1000).toFixed(1)}K`, sub: `+${marketingKpi.reach_growth_pct || 0}% vs bulan lalu`, icon: Eye, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
+          { label: 'Click-Through Rate', val: `${avgCTR}%`, sub: `+${marketingKpi.ctr_growth_pct || 0}% vs bulan lalu`, icon: MousePointerClick, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
           { label: 'Marketing ROI', val: `${avgROI}%`, sub: 'Avg. semua channel', icon: TrendingUp, bg: 'bg-orange-50 dark:bg-orange-950/60', text: 'text-orange-600' },
         ].map((card, i) => {
           const Icon = card.icon;

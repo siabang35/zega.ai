@@ -604,21 +604,28 @@ export function ExportDataModal({ isOpen, onClose, triggerToast }: ModalBaseProp
 
   if (!isOpen) return null;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    let overviewData: any = null;
+    try {
+      overviewData = await SupabaseDashboardService.getUmkmStoreOverview();
+    } catch (e) {
+      // ignore
+    }
+
+    const totalProds = overviewData?.metrics?.total_products || 0;
+    const totalStock = overviewData?.metrics?.total_stock || 0;
+    const lowStock = overviewData?.metrics?.low_stock_count || 0;
+    const stockVal = (overviewData?.metrics?.stock_value_idr || 0).toLocaleString('id-ID');
 
     if (exportFormat === 'csv') {
-      const csvContent = `SKU,Nama Produk,Kategori,Stok,Terjual,Harga (IDR),Status
-TSH-BLK-001,Kaos Polos Hitam,Apparel,120,32,60000,Aktif
-TMB-PRM-002,Tumbler Premium,Drinkware,80,28,100000,Aktif
-BTL-500-003,Botol Minum 500ml,Drinkware,60,24,70000,Aktif
-HDZ-FZ-004,Hoodie Full Zip,Apparel,45,18,200000,Aktif
-TTB-CNV-005,Totebag Canvas,Accessories,90,15,50000,Aktif
-TSH-WHT-006,Kaos Oversize Putih,Apparel,2,45,75000,Aktif
-TMB-SLV-007,Tumbler Silver,Drinkware,4,19,110000,Aktif
-BTL-750-008,Botol Minum 750ml,Drinkware,3,22,85000,Aktif
-HDZ-NVY-009,Hoodie Classic Navy,Apparel,5,14,210000,Aktif
-TTB-CRM-010,Totebag Canvas Cream,Accessories,4,11,55000,Aktif`;
+      const prodsList = overviewData?.products || [];
+      let csvContent = `SKU,Nama Produk,Kategori,Stok,Terjual,Harga (IDR),Status\n`;
+      if (prodsList.length > 0) {
+        csvContent += prodsList.map((p: any) => `${p.sku || ''},"${p.name || ''}",${p.category || ''},${p.stock || 0},${p.sold || 0},${p.price_idr || 0},${p.status || 'Aktif'}`).join('\n');
+      } else {
+        csvContent += `N/A,Belum ada produk,General,0,0,0,Nonaktif`;
+      }
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -637,24 +644,10 @@ Waktu Unduh: ${new Date().toLocaleString('id-ID')}
 =====================================================
 
 RINGKASAN METRIK TOKO:
-- Total Jenis Produk: 152
-- Total Unit Stok: 1,240 Unit
-- Stok Rendah (< 5 unit): 6 Produk (Perlu Restok)
-- Nilai Inventaris Stok: Rp 24,500,000
-
-KATALOG PRODUK UTAMA:
-1. Kaos Polos Hitam (SKU: TSH-BLK-001) | Stok: 120 | Terjual: 32 | Harga: Rp 60,000
-2. Tumbler Premium (SKU: TMB-PRM-002) | Stok: 80 | Terjual: 28 | Harga: Rp 100,000
-3. Botol Minum 500ml (SKU: BTL-500-003) | Stok: 60 | Terjual: 24 | Harga: Rp 70,000
-4. Hoodie Full Zip (SKU: HDZ-FZ-004) | Stok: 45 | Terjual: 18 | Harga: Rp 200,000
-5. Totebag Canvas (SKU: TTB-CNV-005) | Stok: 90 | Terjual: 15 | Harga: Rp 50,000
-
-PERINGATAN STOK RENDAH:
-- Kaos Oversize Putih (Stok Sisa: 2)
-- Tumbler Silver (Stok Sisa: 4)
-- Botol Minum 750ml (Stok Sisa: 3)
-- Hoodie Classic Navy (Stok Sisa: 5)
-- Totebag Canvas Cream (Stok Sisa: 4)
+- Total Jenis Produk: ${totalProds}
+- Total Unit Stok: ${totalStock} Unit
+- Stok Rendah (<= 10 unit): ${lowStock} Produk
+- Nilai Inventaris Stok: Rp ${stockVal}
 
 =====================================================
 Laporan ini dihasilkan secara otomatis oleh ZeroClaw AI Store Engine.
@@ -1392,11 +1385,13 @@ export function StockSyncModal({ isOpen, onClose, triggerToast, onRefresh }: Mod
   const handleSync = async () => {
     setSyncing(true);
     try {
+      const overviewData = await SupabaseDashboardService.getUmkmStoreOverview();
+      const count = overviewData?.metrics?.total_products || 0;
       await Promise.all([
-        SupabaseDashboardService.logUmkmStockSync('Tokopedia Official Store', 152),
-        SupabaseDashboardService.logUmkmStockSync('Shopee Mall', 148),
-        SupabaseDashboardService.logUmkmStockSync('TikTok Shop Indonesia', 152),
-        SupabaseDashboardService.logUmkmStockSync('Solana Pay Decentralized POS', 152)
+        SupabaseDashboardService.logUmkmStockSync('Tokopedia Official Store', count),
+        SupabaseDashboardService.logUmkmStockSync('Shopee Mall', count),
+        SupabaseDashboardService.logUmkmStockSync('TikTok Shop Indonesia', count),
+        SupabaseDashboardService.logUmkmStockSync('Solana Pay Decentralized POS', count)
       ]);
       triggerToast('✓ Stok berhasil disinkronkan 100% ke Tokopedia, Shopee, TikTok Shop, & Solana Pay dan dicatat ke audit log database!');
       if (onRefresh) onRefresh();

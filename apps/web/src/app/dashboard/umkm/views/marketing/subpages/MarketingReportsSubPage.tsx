@@ -29,7 +29,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
   const [newTitle, setNewTitle] = useState<string>('Laporan Performa Marketing Agustus 2026');
   const [newPeriod, setNewPeriod] = useState<string>('1 Ags - 31 Ags 2026');
   const [newModel, setNewModel] = useState<string>('DeepSeek R1 & 9Router Layer 5 Engine');
-  const [newRevenue, setNewRevenue] = useState<string>('5800000');
+  const [newRevenue, setNewRevenue] = useState<string>('0');
 
   // Load executive reports from Supabase backend
   const loadReports = async () => {
@@ -62,14 +62,9 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
 
   // Selected Active Report for Donut Visualization
   const activeReport = reports.find(r => r.id === activeReportId) || reports[0] || null;
-  const sourceBreakdown: any[] = activeReport?.source_breakdown_json || [
-    { source: 'WhatsApp Direct', revenue: 2184000, percentage: 42.0, leads: 198, conversion: '3.5%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
-    { source: 'Instagram Ads', revenue: 1456000, percentage: 28.0, leads: 132, conversion: '4.1%', color: '#a855f7', icon: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-    { source: 'Shopee Official', revenue: 936000, percentage: 18.0, leads: 76, conversion: '3.2%', color: '#f97316', icon: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
-    { source: 'TikTok Shop', revenue: 624000, percentage: 12.0, leads: 50, conversion: '4.0%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
-  ];
+  const sourceBreakdown: any[] = activeReport?.source_breakdown_json || [];
 
-  const totalReportRevenue = activeReport ? parseFloat(activeReport.revenue_num) || 5200000 : 5200000;
+  const totalReportRevenue = activeReport ? parseFloat(activeReport.revenue_num) || 0 : 0;
 
   // Active or Hovered Segment Info for Center Label of Donut Chart
   const hoveredItem = hoveredSource ? sourceBreakdown.find(s => s.source === hoveredSource) : null;
@@ -80,22 +75,17 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
     if (!newTitle.trim()) return;
     setGenerating(true);
 
-    const revNum = parseFloat(newRevenue) || 5800000;
+    const revNum = parseFloat(newRevenue) || 0;
     const reportObj = {
       report_title: newTitle,
       period_range: newPeriod,
       revenue_num: revNum,
-      leads_count: Math.round(revNum / 11403),
-      roas_val: 4.35,
-      cpl_idr: 11403.00,
+      leads_count: revNum > 0 ? Math.round(revNum / 10000) : 0,
+      roas_val: 0.0,
+      cpl_idr: 0.00,
       status: 'Final',
       model_attribution: newModel,
-      source_breakdown_json: [
-        { source: 'WhatsApp Direct', revenue: Math.round(revNum * 0.42), percentage: 42.0, leads: Math.round(revNum * 0.42 / 11403), conversion: '3.6%', color: '#10b981', icon: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
-        { source: 'Instagram Ads', revenue: Math.round(revNum * 0.28), percentage: 28.0, leads: Math.round(revNum * 0.28 / 11403), conversion: '4.2%', color: '#a855f7', icon: 'https://cdn.zegaai.site/assets/logo/instagram.png' },
-        { source: 'Shopee Official', revenue: Math.round(revNum * 0.18), percentage: 18.0, leads: Math.round(revNum * 0.18 / 11403), conversion: '3.4%', color: '#f97316', icon: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
-        { source: 'TikTok Shop', revenue: Math.round(revNum * 0.12), percentage: 12.0, leads: Math.round(revNum * 0.12 / 11403), conversion: '4.1%', color: '#06b6d4', icon: 'https://cdn.zegaai.site/assets/logo/tiktok.webp' }
-      ]
+      source_breakdown_json: []
     };
 
     const res = await SupabaseDashboardService.generateUmkmMarketingReport(reportObj);
@@ -119,8 +109,8 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
     const period = rep.period_range || '2026';
     const revenue = parseFloat(rep.revenue_num || 0).toLocaleString('id-ID');
     const leads = rep.leads_count || 0;
-    const roas = rep.roas_val || '4.2';
-    const cpl = parseFloat(rep.cpl_idr || 11403).toLocaleString('id-ID');
+    const roas = rep.roas_val || '0.0';
+    const cpl = parseFloat(rep.cpl_idr || 0).toLocaleString('id-ID');
     const model = rep.model_attribution || 'DeepSeek R1';
     const breakdown = (rep.source_breakdown_json || []).map((b: any) => `
       <tr>
@@ -277,7 +267,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* KPI 1: ROAS */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
+        <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Total Marketing Return (ROAS)</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950 text-orange-500 flex items-center justify-center">
@@ -285,16 +275,16 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             </div>
           </div>
           <div className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            {metrics?.roas || activeReport?.roas_val || '4.2'}x ROAS
+            {metrics?.roas || activeReport?.roas_val || '0.0'}x ROAS
           </div>
           <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
             <ArrowUpRight size={14} />
-            <span>Efisiensi Iklan Meningkat +15% MoM</span>
+            <span>Efisiensi Iklan Real-Time Database</span>
           </p>
         </div>
 
         {/* KPI 2: Cost Per Acquisition */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
+        <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Cost per Acquisition (CPA / CPL)</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-500 flex items-center justify-center">
@@ -302,13 +292,13 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             </div>
           </div>
           <div className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-            Rp{(parseFloat(metrics?.cost_per_lead || activeReport?.cpl_idr || 11403)).toLocaleString('id-ID')}
+            Rp{(parseFloat(metrics?.cost_per_lead || activeReport?.cpl_idr || 0)).toLocaleString('id-ID')}
           </div>
-          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Terhemat 8% dari Anggaran Target</p>
+          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Efisiensi Biaya Iklan</p>
         </div>
 
         {/* KPI 3: AI Swarm Model Engine */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
+        <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">AI Swarm Model Engine</span>
             <div className="size-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-500 flex items-center justify-center">
@@ -316,10 +306,10 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             </div>
           </div>
           <div className="text-xl font-black text-indigo-600 dark:text-indigo-400 truncate tracking-tight">
-            {metrics?.model_engine || activeReport?.model_attribution || '9Router-Auto-Cost-Optimizer'}
+            {metrics?.model_engine || activeReport?.model_attribution || 'AI Model Engine'}
           </div>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Latency {metrics?.latency_ms || 142}ms • Success {metrics?.success_rate || 99.85}%
+            Latency {metrics?.latency_ms || 0}ms • Success {metrics?.success_rate || 0}%
           </p>
         </div>
       </div>
@@ -327,7 +317,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       {/* ========================================================================= */}
       {/* 2. REVENUE ATTRIBUTION BY SOURCE: SVG DONUT CHART CARD (INTERACTIVE) */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -350,7 +340,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left Column: Interactive SVG Donut Chart */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 relative p-6 bg-slate-50/60 dark:bg-slate-800/20 rounded-3xl border border-slate-200/60 dark:border-slate-800">
+          <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 relative p-6 bg-slate-50/60 dark:bg-slate-800/20 rounded-xl border border-slate-200/60 dark:border-slate-800">
             <div className="relative size-60 flex items-center justify-center">
               {/* SVG Donut */}
               <svg viewBox="0 0 100 100" className="size-full transform -rotate-90">
@@ -412,7 +402,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
                       Rp{(totalReportRevenue / 1000000).toFixed(1)} JT
                     </div>
                     <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/50 inline-block">
-                      {activeReport?.leads_count || 456} Total Leads
+                      {activeReport?.leads_count || 0} Total Leads
                     </span>
                   </div>
                 )}
@@ -472,7 +462,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
                           {item.source}
                         </h4>
                         <p className="text-[11px] text-slate-400 font-medium">
-                          {item.leads || 0} Leads • Conv. Rate {item.conversion || '3.5%'}
+                          {item.leads || 0} Leads • Conv. Rate {item.conversion || '0.0%'}
                         </p>
                       </div>
                     </div>
@@ -499,7 +489,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       {/* ========================================================================= */}
       {/* 3. EXECUTIVE REPORTS DATA LIST & ACTIONS */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -576,7 +566,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
                       <span>•</span>
                       <span>{rep.leads_count || 0} Leads</span>
                       <span>•</span>
-                      <span>ROAS {rep.roas_val || '4.2'}x</span>
+                      <span>ROAS {rep.roas_val || '0.0'}x</span>
                     </div>
 
                     <p className="text-[10.5px] font-semibold text-slate-400">
@@ -624,7 +614,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       {/* ========================================================================= */}
       {selectedAuditReport && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
@@ -656,12 +646,12 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">ROAS Return</span>
-                <span className="font-extrabold text-purple-600 text-sm">{selectedAuditReport.roas_val || '4.2'}x</span>
+                <span className="font-extrabold text-purple-600 text-sm">{selectedAuditReport.roas_val || '0.0'}x</span>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Cost Per Lead</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200 text-sm">
-                  Rp{(parseFloat(selectedAuditReport.cpl_idr) || 11403).toLocaleString('id-ID')}
+                  Rp{(parseFloat(selectedAuditReport.cpl_idr) || 0).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
@@ -726,7 +716,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <form
             onSubmit={handleGenerateReportSubmit}
-            className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl"
+            className="bg-white dark:bg-slate-900 rounded-xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl"
           >
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>

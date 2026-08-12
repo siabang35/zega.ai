@@ -88,7 +88,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Pengaturan Diskon & Promo Massal</span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 font-extrabold">
+                <span className="px-2.5 py-0.5 rounded-lg text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border border-slate-200 dark:border-slate-700">
                   BULK DISCOUNT ENGINE
                 </span>
               </h2>

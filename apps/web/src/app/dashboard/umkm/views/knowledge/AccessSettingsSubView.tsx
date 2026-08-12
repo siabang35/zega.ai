@@ -8,77 +8,22 @@ interface AccessSettingsSubViewProps {
   triggerToast: (msg: string) => void;
 }
 
-const DEFAULT_ENTERPRISE_POLICIES = [
-  {
-    id: 'pol-1',
-    role_name: 'Owner / General Manager',
-    access_level: 'Full Access (Admin)',
-    can_create_items: true,
-    can_upload_docs: true,
-    can_delete_items: true,
-    can_manage_access: true,
-    is_ai_agent: false
-  },
-  {
-    id: 'pol-2',
-    role_name: 'Store Supervisor / Manager',
-    access_level: 'Operasional Toko',
-    can_create_items: true,
-    can_upload_docs: true,
-    can_delete_items: false,
-    can_manage_access: false,
-    is_ai_agent: false
-  },
-  {
-    id: 'pol-3',
-    role_name: 'Logistics & Warehouse Lead',
-    access_level: 'Gudang & Pengiriman',
-    can_create_items: true,
-    can_upload_docs: true,
-    can_delete_items: false,
-    can_manage_access: false,
-    is_ai_agent: false
-  },
-  {
-    id: 'pol-4',
-    role_name: 'Kasir & Front Staff',
-    access_level: 'Read Only POS',
-    can_create_items: false,
-    can_upload_docs: false,
-    can_delete_items: false,
-    can_manage_access: false,
-    is_ai_agent: false
-  },
-  {
-    id: 'pol-5',
-    role_name: 'ZeroClaw AI Employee Swarm',
-    access_level: 'Autonomous RAG Agent',
-    can_create_items: true,
-    can_upload_docs: true,
-    can_delete_items: false,
-    can_manage_access: false,
-    is_ai_agent: true
-  }
-];
-
 export function AccessSettingsSubView({
   accessPolicies,
   onNavigateBack,
   triggerToast
 }: AccessSettingsSubViewProps) {
-  const initialList = Array.isArray(accessPolicies) && accessPolicies.length > 0
-    ? accessPolicies
-    : DEFAULT_ENTERPRISE_POLICIES;
+  const initialList = Array.isArray(accessPolicies) ? accessPolicies : [];
 
   const [policies, setPolicies] = useState(initialList);
   const [isPublicAccess, setIsPublicAccess] = useState(false);
   const [isAiSwarmTokenEnabled, setIsAiSwarmTokenEnabled] = useState(true);
-  const [apiKeyToken, setApiKeyToken] = useState('zc_swarm_live_8392019482019384710');
+  const [apiKeyToken, setApiKeyToken] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
 
   React.useEffect(() => {
-    if (Array.isArray(accessPolicies) && accessPolicies.length > 0) {
+    if (Array.isArray(accessPolicies)) {
       setPolicies(accessPolicies);
     }
   }, [accessPolicies]);

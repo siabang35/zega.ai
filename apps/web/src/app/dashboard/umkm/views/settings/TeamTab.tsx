@@ -199,8 +199,8 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
   const totalTasks = members.reduce((acc, m) => acc + (m.tasks_completed || 0), 0);
   const totalSales = members.reduce((acc, m) => acc + (m.total_sales_handled || 0), 0);
   const avgScore = members.length > 0 
-    ? (members.reduce((acc, m) => acc + (m.performance_score || 95), 0) / members.length).toFixed(1)
-    : '98.5';
+    ? (members.reduce((acc, m) => acc + (m.performance_score || 0), 0) / members.length).toFixed(1)
+    : '-';
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {

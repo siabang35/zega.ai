@@ -119,21 +119,23 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} activeSubPage={externalTab} />}
       {currentTab === 'help' && <HelpView />}
 
-      {/* FLOATING ZEGA COPILOT WIDGET */}
-      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
-        <button 
-          onClick={() => {
-            triggerToast('🚀 ZEGA Copilot AI Assistant Aktif!');
-            handleTabChange('my_agents');
-          }} 
-          className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-md shadow-slate-900/10 dark:shadow-black/40 flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
-        >
-          <Sparkles size={15} className="text-orange-400" />
-          <span className="text-[11px] sm:text-xs">ZEGA Copilot</span>
-          <ChevronRight size={13} />
-          <span className="size-4.5 sm:size-5 rounded-full bg-red-500 text-white text-[9.5px] sm:text-[10px] font-extrabold flex items-center justify-center ml-0.5">2</span>
-        </button>
-      </div>
+      {/* FLOATING ZEGA COPILOT WIDGET (Appears ONLY on Home / Overview tab) */}
+      {currentTab === 'overview' && (
+        <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
+          <button 
+            onClick={() => {
+              triggerToast('🚀 ZEGA Copilot AI Assistant Aktif!');
+              handleTabChange('my_agents');
+            }} 
+            className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-md shadow-slate-900/10 dark:shadow-black/40 flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
+          >
+            <Sparkles size={15} className="text-orange-400" />
+            <span className="text-[11px] sm:text-xs">ZEGA Copilot</span>
+            <ChevronRight size={13} />
+            <span className="size-4.5 sm:size-5 rounded-full bg-red-500 text-white text-[9.5px] sm:text-[10px] font-extrabold flex items-center justify-center ml-0.5">2</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

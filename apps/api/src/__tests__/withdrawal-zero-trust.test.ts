@@ -269,3 +269,190 @@ describe('Layer 8, 9 & 10: Anti-Replay, Idempotency & Fail-Closed Invariants', (
     assert.equal(antiReplayHashSet.has(duplicateHash), true, 'Duplicate request must be caught by anti-replay hash set');
   });
 });
+
+describe('Total Backend Zero-Trust Enforcement & Anti-Exploit Validation', () => {
+  interface ServerWithdrawalIntent {
+    withdrawalId: string;
+    authorizationAttemptId: string;
+    userEmail: string;
+    merchantPubkey: string;
+    destinationAddress: string;
+    amount: number;
+    tokenSymbol: 'USDC' | 'SOL';
+    createdAt: number;
+    expiresAt: number;
+    status: 'AWAITING_SIGNATURE' | 'CONSUMED' | 'COMPLETED' | 'FAILED' | 'EXPIRED';
+    otpVerified: boolean;
+  }
+
+  const serverIntents = new Map<string, ServerWithdrawalIntent>();
+
+  function validateBackendWithdrawalRequest(req: {
+    withdrawalId?: string;
+    userEmail: string;
+    merchantPubkey: string;
+    destinationAddress: string;
+    amount: number;
+    tokenSymbol: 'USDC' | 'SOL';
+    authorizationAttemptId?: string;
+    otpCode?: string;
+  }): { allowed: boolean; errorCode?: string; errorMessage?: string } {
+    // 1. Mandatory server intent check
+    if (!req.withdrawalId) {
+      return { allowed: false, errorCode: 'WITHDRAWAL_INTENT_REQUIRED', errorMessage: 'Penarikan harus diawali dari sesi prepare di server.' };
+    }
+
+    const intent = serverIntents.get(req.withdrawalId);
+    if (!intent) {
+      return { allowed: false, errorCode: 'WITHDRAWAL_INTENT_NOT_FOUND', errorMessage: 'Sesi transaksi tidak ditemukan.' };
+    }
+
+    // 2. User ownership match check
+    if (intent.userEmail.toLowerCase().trim() !== req.userEmail.toLowerCase().trim()) {
+      return { allowed: false, errorCode: 'WITHDRAWAL_INTENT_USER_MISMATCH', errorMessage: 'Sesi penarikan milik pengguna lain.' };
+    }
+
+    // 3. Authorization attempt ID match check
+    if (req.authorizationAttemptId && intent.authorizationAttemptId !== req.authorizationAttemptId) {
+      return { allowed: false, errorCode: 'AUTHORIZATION_ATTEMPT_MISMATCH', errorMessage: 'Identifier otorisasi tidak sesuai.' };
+    }
+
+    // 4. Single-use guard check
+    if (intent.status === 'CONSUMED' || intent.status === 'COMPLETED') {
+      return { allowed: false, errorCode: 'AUTHORIZATION_ALREADY_CONSUMED', errorMessage: 'Otorisasi penarikan sudah pernah digunakan.' };
+    }
+
+    // 5. Expired intent check
+    if (Date.now() > intent.expiresAt) {
+      return { allowed: false, errorCode: 'WITHDRAWAL_INTENT_EXPIRED', errorMessage: 'Sesi transaksi telah kadaluarsa.' };
+    }
+
+    // 6. Zero-Trust Mandatory OTP Verification check
+    if (!intent.otpVerified) {
+      return { allowed: false, errorCode: 'OTP_VERIFICATION_REQUIRED', errorMessage: 'Penarikan WAJIB diverifikasi dengan OTP 6-digit di server.' };
+    }
+
+    // 7. Strict Parameter Matching (Anti-Tampering)
+    if (
+      req.amount !== intent.amount ||
+      req.destinationAddress !== intent.destinationAddress ||
+      req.merchantPubkey !== intent.merchantPubkey
+    ) {
+      return { allowed: false, errorCode: 'WITHDRAWAL_INTENT_TAMPERED', errorMessage: 'Parameter transaksi terdeteksi diubah.' };
+    }
+
+    // Mark intent as CONSUMED immediately upon validation success
+    intent.status = 'CONSUMED';
+    return { allowed: true };
+  }
+
+  it('rejects withdrawal request when withdrawalId is missing (Direct Request Block)', () => {
+    const res = validateBackendWithdrawalRequest({
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+    });
+    assert.equal(res.allowed, false);
+    assert.equal(res.errorCode, 'WITHDRAWAL_INTENT_REQUIRED');
+  });
+
+  it('rejects withdrawal request when OTP was NOT verified on server backend', () => {
+    serverIntents.set('wd_unverified', {
+      withdrawalId: 'wd_unverified',
+      authorizationAttemptId: 'auth_001',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 300000,
+      status: 'AWAITING_SIGNATURE',
+      otpVerified: false, // NOT VERIFIED
+    });
+
+    const res = validateBackendWithdrawalRequest({
+      withdrawalId: 'wd_unverified',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+    });
+
+    assert.equal(res.allowed, false);
+    assert.equal(res.errorCode, 'OTP_VERIFICATION_REQUIRED');
+  });
+
+  it('rejects withdrawal request when client tampers parameters after intent preparation', () => {
+    serverIntents.set('wd_tamper', {
+      withdrawalId: 'wd_tamper',
+      authorizationAttemptId: 'auth_002',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 300000,
+      status: 'AWAITING_SIGNATURE',
+      otpVerified: true,
+    });
+
+    // Client attempts to withdraw 100 USDC instead of prepared 10 USDC
+    const res = validateBackendWithdrawalRequest({
+      withdrawalId: 'wd_tamper',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 100, // TAMPERED!
+      tokenSymbol: 'USDC',
+    });
+
+    assert.equal(res.allowed, false);
+    assert.equal(res.errorCode, 'WITHDRAWAL_INTENT_TAMPERED');
+  });
+
+  it('allows withdrawal request when all zero-trust checks pass and consumes intent single-use lock', () => {
+    serverIntents.set('wd_valid', {
+      withdrawalId: 'wd_valid',
+      authorizationAttemptId: 'auth_003',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 300000,
+      status: 'AWAITING_SIGNATURE',
+      otpVerified: true,
+    });
+
+    const res = validateBackendWithdrawalRequest({
+      withdrawalId: 'wd_valid',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+    });
+
+    assert.equal(res.allowed, true);
+    assert.equal(serverIntents.get('wd_valid')?.status, 'CONSUMED', 'Intent status must be CONSUMED immediately');
+
+    // Immediate replay attempt must be rejected
+    const replayRes = validateBackendWithdrawalRequest({
+      withdrawalId: 'wd_valid',
+      userEmail: 'user@zegaai.site',
+      merchantPubkey: 'SsnWoSJgXNx2zRtnYv3TgibvWT6bT2D1HguhEV2umCj',
+      destinationAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      amount: 10,
+      tokenSymbol: 'USDC',
+    });
+
+    assert.equal(replayRes.allowed, false);
+    assert.equal(replayRes.errorCode, 'AUTHORIZATION_ALREADY_CONSUMED');
+  });
+});

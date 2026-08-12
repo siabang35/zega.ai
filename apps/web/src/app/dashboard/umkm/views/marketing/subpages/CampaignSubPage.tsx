@@ -103,7 +103,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
   const totalLeads = campaignList.reduce((acc, c) => acc + (c.leads_count || 0), 0);
   const avgRoas = campaignList.length > 0
     ? (campaignList.reduce((acc, c) => acc + (parseFloat(c.roas_val) || 0), 0) / campaignList.length).toFixed(1)
-    : '3.4';
+    : '0.0';
 
   // Chart.js Line Chart Configuration
   const chartLabels = campaignList.map(c => c.campaign_name);
@@ -209,17 +209,17 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           channel_name: newChannelName,
           status: 'Aktif',
           date_range: newDateRange,
-          reach_text: '15.0K',
-          reach_count: 15000,
-          leads_count: 50,
-          conversion_pct: 3.50,
-          roas_val: 3.20,
-          roas_text: '3.2x',
-          revenue_num: 1200000.00,
-          budget_num: 400000.00,
+          reach_text: '0',
+          reach_count: 0,
+          leads_count: 0,
+          conversion_pct: 0.00,
+          roas_val: 0.00,
+          roas_text: '0.0x',
+          revenue_num: 0.00,
+          budget_num: 0.00,
           model_engine: 'DeepSeek R1 & 9Router Swarm Engine',
           cdn_image_url: CHANNEL_CDN_LOGOS[newChannelName] || 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp',
-          creative_image_url: '/design/dashboard_umkm/marketing/promo_skincare.jpeg',
+          creative_image_url: null,
           target_audience: newTargetAudience
         }]).select();
 
@@ -239,13 +239,13 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
     setIsOptimizingActive(true);
     setOptimizationLogs([
       `[${new Date().toLocaleTimeString('id-ID')}] ⚙️ Initializing AI Swarm Gateway connection...`,
-      `[${new Date().toLocaleTimeString('id-ID')}] 🧠 Engine selected: ${campaign.model_engine || 'DeepSeek R1 & 9Router Swarm'}`
+      `[${new Date().toLocaleTimeString('id-ID')}] 🧠 Engine selected: ${campaign.model_engine || 'AI Swarm Engine'}`
     ]);
 
     setTimeout(() => {
       setOptimizationLogs(prev => [
         ...prev,
-        `[${new Date().toLocaleTimeString('id-ID')}] 📊 Fetching real-time telemetry for "${campaign.campaign_name}" (Audience: ${campaign.target_audience || 'RFM Champions'})`
+        `[${new Date().toLocaleTimeString('id-ID')}] 📊 Fetching real-time analytics for "${campaign.campaign_name}" (Audience: ${campaign.target_audience || 'RFM Champions'})`
       ]);
     }, 600);
 
@@ -297,9 +297,6 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <span>AI Marketing Campaigns</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1">
-                <Cpu size={12} className="text-orange-500" /> Real DB Telemetry
-              </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
               Kelola, otomatisasi, dan analisis campaign pemasaran berkinerja tinggi berbasis model AI Swarm.
@@ -331,7 +328,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       {/* 2. Top Executive KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {/* Card 1: Total Campaign */}
-        <div className="p-4.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
             <span>TOTAL CAMPAIGN</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
@@ -347,7 +344,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
         </div>
 
         {/* Card 2: Total Revenue Campaign */}
-        <div className="p-4.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
             <span>TOTAL REVENUE CAMPAIGN</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
@@ -363,7 +360,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
         </div>
 
         {/* Card 3: Total Leads Campaign */}
-        <div className="p-4.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
             <span>TOTAL LEADS CAMPAIGN</span>
             <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
@@ -379,7 +376,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
         </div>
 
         {/* Card 4: Average ROAS */}
-        <div className="p-4.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
+        <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
             <span>AVERAGE ROAS</span>
             <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
@@ -396,7 +393,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       </div>
 
       {/* 3. Professional Line/Area Chart with Metric Selector */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -453,7 +450,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       </div>
 
       {/* 4. Action Controls & Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-2.5 flex-1 max-w-lg">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -496,7 +493,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           return (
             <div 
               key={c.id || i}
-              className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs hover:border-orange-300 dark:hover:border-orange-800 transition-all flex flex-col justify-between"
+              className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs hover:border-orange-300 dark:hover:border-orange-800 transition-all flex flex-col justify-between"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -575,7 +572,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       {/* MODAL 1: Detail Telemetri Campaign */}
       {selectedDetailCampaign && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <img
@@ -674,12 +671,12 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       {/* MODAL 2: BEHIND-THE-SCENES AI EXECUTION TERMINAL MODAL */}
       {optimizingCampaign && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 font-mono animate-in fade-in zoom-in-95">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 font-mono animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Terminal size={18} className="text-orange-400" />
                 <h3 className="text-sm font-bold text-slate-100">
-                  AI Swarm Telemetry Terminal: {optimizingCampaign.campaign_name}
+                  AI Swarm Optimization Terminal: {optimizingCampaign.campaign_name}
                 </h3>
               </div>
               <button
@@ -712,7 +709,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400 font-sans">
               <div className="flex items-center gap-2">
                 <Cpu size={14} className="text-orange-400" />
-                <span>Engine: {optimizingCampaign.model_engine || 'DeepSeek R1 Swarm'}</span>
+                <span>Engine: {optimizingCampaign.model_engine || 'AI Swarm Engine'}</span>
               </div>
               {!isOptimizingActive ? (
                 <button
@@ -736,7 +733,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateNewCampaignSubmit}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">

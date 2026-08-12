@@ -159,7 +159,7 @@ export function CategoriesSubView({
                         </span>
                         <div className="flex items-center gap-1 text-amber-500 font-extrabold text-xs">
                           <Star size={12} fill="currentColor" />
-                          <span>{art.rating_score || 4.9}</span>
+                          <span>{art.rating_score ?? 0}</span>
                         </div>
                       </div>
                       <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 transition-colors line-clamp-2 leading-snug">
@@ -173,7 +173,7 @@ export function CategoriesSubView({
                       <div className="flex items-center gap-2">
                         <img src={avatarSrc} alt={art.author_name} className="size-5 rounded-full object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(art.author_name || 'UMKM'); }} />
-                        <span className="truncate max-w-[100px]">{art.author_name || 'Cik Berliuk'}</span>
+                        <span className="truncate max-w-[100px]">{art.author_name || 'Tim UMKM'}</span>
                       </div>
                       <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-extrabold">
                         <span>Baca</span>

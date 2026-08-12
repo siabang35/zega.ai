@@ -217,15 +217,10 @@ export function EnterpriseCopilot({
           {/* Header */}
           <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl bg-indigo-950 border-2 border-indigo-500/50 p-1 shrink-0 shadow-md">
-                <img
-                  src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                  alt="ZEGA Enterprise Copilot"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                  }}
-                />
+              <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                  <Bot size={20} className="text-indigo-400" />
+                </div>
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-white tracking-tight flex items-center gap-2">
@@ -286,15 +281,10 @@ export function EnterpriseCopilot({
               >
                 <div className="flex items-end gap-2 max-w-[90%]">
                   {msg.sender === 'copilot' && (
-                    <div className="size-7 rounded-xl bg-slate-900 border border-indigo-500/40 p-1 shrink-0 shadow-sm">
-                      <img
-                        src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                        alt="AI"
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                        }}
-                      />
+                    <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center">
+                      <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <Sparkles size={13} className="text-indigo-400" />
+                      </div>
                     </div>
                   )}
 
@@ -350,14 +340,7 @@ export function EnterpriseCopilot({
         className="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
       >
         <div className="size-6 rounded-full bg-white/20 p-0.5 flex items-center justify-center">
-          <img
-            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-            alt="Copilot Icon"
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-            }}
-          />
+          <Bot size={15} className="text-white" />
         </div>
         <span>Enterprise Copilot</span>
         <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />

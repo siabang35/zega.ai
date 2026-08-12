@@ -456,7 +456,7 @@ export function CustomerDetailModal({ isOpen, onClose, triggerToast, customer }:
             </div>
             <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-orange-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                className="bg-orange-500 h-full rounded-full transition-all duration-300"
                 style={{ width: `${sentimentScore}%` }}
               />
             </div>
@@ -627,7 +627,7 @@ export function AIRetentionCampaignModal({ isOpen, onClose, triggerToast, campai
           <span className="font-extrabold text-orange-700 dark:text-orange-300 block">
             {isRegional
               ? `📍 Target Geo-Wilayah: ${targetName || 'Semua Wilayah Provinsi Indonesia'}`
-              : `🎯 Target Segmentasi: ${targetName || '312 Pelanggan Belum Repeat Order >30 Hari'}`}
+              : `🎯 Target Segmentasi: ${targetName || 'Pelanggan Belum Repeat Order >30 Hari'}`}
           </span>
           <p className="text-orange-600 dark:text-orange-400">
             {isRegional
@@ -689,7 +689,7 @@ export function AIRetentionCampaignModal({ isOpen, onClose, triggerToast, campai
         <button
           onClick={handleLaunch}
           disabled={submitting}
-          className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 cursor-pointer"
         >
           <Send size={16} />
           <span>{submitting ? 'Mengirim Siaran Broadcast...' : `Luncurkan Kampanye via ${selectedModel.name}`}</span>

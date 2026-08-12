@@ -1350,6 +1350,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
   // Modals state
   const [selectedAgentForDetail, setSelectedAgentForDetail] = useState<any | null>(null);
+  const [isAiRecommendationExpanded, setIsAiRecommendationExpanded] = useState(true);
   const [selectedPaymentForConnect, setSelectedPaymentForConnect] = useState<any | null>(null);
   const [selectedAgentForTaskExecution, setSelectedAgentForTaskExecution] = useState<any | null>(null);
   const [selectedArticleForDetail, setSelectedArticleForDetail] = useState<any | null>(null);
@@ -1358,22 +1359,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
   // Consolidated Marketplace Data State
   const [marketplaceData, setMarketplaceData] = useState<any>({
-    agents: [
-      {
-        id: 'wa-sales',
-        title: 'WhatsApp Sales AI',
-        description: 'AI untuk membalas chat, menjawab pertanyaan, dan meningkatkan penjualan WhatsApp.',
-        category_name: 'Sales',
-        badge_label: 'Populer',
-        icon_key: 'whatsapp',
-        rating_score: 4.9,
-        rating_reviews_count: 1200,
-        installs_count_label: '2.4k+',
-        price_idr: 99000,
-        billing_unit: '/bln',
-        is_installed: true
-      }
-    ],
+    agents: [],
     payments: [],
     categories: [],
     articles: [],
@@ -3696,28 +3682,44 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
         {/* Right Sidebar Column (lg:col-span-3) */}
         <div className="lg:col-span-3 space-y-4">
           
-          {/* Card 1: AI Recommendation */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 text-white space-y-4 shadow-lg relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 size-28 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -left-8 -top-8 size-20 bg-purple-400/10 rounded-full blur-xl pointer-events-none" />
-            <div className="space-y-2 relative z-10">
-              <div className="flex items-center gap-1.5 text-xs font-black">
-                <Sparkles size={15} className="text-amber-300" /> <span>AI Recommendation</span>
+          {/* Card 1: AI Recommendation (Collapsible & Professional Solid Styling) */}
+          <div className="p-4 rounded-2xl bg-slate-900 dark:bg-slate-900 text-white border border-slate-800 space-y-3 shadow-xs transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-black text-white">
+                <Sparkles size={15} className="text-orange-400" />
+                <span>AI Recommendation</span>
               </div>
-              <span className="text-[10px] text-purple-200 block font-medium">Berdasarkan aktivitas bisnis Anda</span>
-              <p className="text-[11px] font-medium leading-relaxed pt-1 text-purple-100">
-                Pelanggan sering menanyakan tentang retur, ongkir, dan pembayaran. AI menyarankan membuat FAQ otomatis untuk meningkatkan layanan.
-              </p>
+              <button
+                type="button"
+                onClick={() => setIsAiRecommendationExpanded(!isAiRecommendationExpanded)}
+                className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <ChevronDown size={13} className={`transition-transform duration-200 ${isAiRecommendationExpanded ? 'rotate-180' : ''}`} />
+                <span>{isAiRecommendationExpanded ? 'Sembunyikan' : 'Buka'}</span>
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                onNavigateTab?.('knowledge');
-                triggerToast('⚡ Mengarahkan ke Knowledge Base untuk Generate FAQ Otomatis...');
-              }}
-              className="relative z-10 w-full py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
-            >
-              <Zap size={14} /> <span>Generate FAQ Sekarang</span>
-            </button>
+
+            {isAiRecommendationExpanded ? (
+              <div className="space-y-3 pt-1 border-t border-slate-800/80">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Berdasarkan aktivitas bisnis Anda</span>
+                  <p className="text-[11px] font-medium leading-relaxed pt-1 text-slate-200">
+                    Pelanggan sering menanyakan tentang retur, ongkir, dan pembayaran. AI menyarankan membuat FAQ otomatis untuk meningkatkan layanan.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => {
+                    onNavigateTab?.('knowledge');
+                    triggerToast('⚡ Mengarahkan ke Knowledge Base untuk Generate FAQ Otomatis...');
+                  }}
+                  className="w-full py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Zap size={14} /> <span>Generate FAQ Sekarang</span>
+                </button>
+              </div>
+            ) : (
+              <p className="text-[10.5px] text-slate-400 font-medium">Saran FAQ otomatis tersedia. Klik "Buka" untuk detail.</p>
+            )}
           </div>
 
           {/* Card 2: Kategori Populer */}

@@ -149,16 +149,22 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
   const loadAutomations = async () => {
     try {
       setLoading(true);
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
       const [data, realtimeRes] = await Promise.all([
-        SupabaseDashboardService.getUmkmAutomations('11111111-1111-1111-1111-111111111111'),
-        SupabaseDashboardService.getUmkmRealtimeData('11111111-1111-1111-1111-111111111111')
+        SupabaseDashboardService.getUmkmAutomations(storeId),
+        SupabaseDashboardService.getUmkmRealtimeData(storeId)
       ]);
 
-      if (data && data.length > 0) {
-        setAutomations(data);
-      }
+      setAutomations(data || []);
       if (realtimeRes && realtimeRes.kpis) {
         setKpiData(realtimeRes.kpis);
+      } else {
+        setKpiData({
+          tasks_completed_today: 0,
+          hours_saved_weekly: 0,
+          revenue_generated_today: 0,
+          estimated_ai_salary_saved: 0
+        });
       }
     } catch (e) {
       console.error('Failed to fetch automations & KPIs', e);
@@ -168,11 +174,16 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
   };
 
   useEffect(() => {
-    loadAutomations();
-    const unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime('11111111-1111-1111-1111-111111111111', () => {
-      loadAutomations();
-    });
-    return () => { unsubscribe(); };
+    let unsubscribe: (() => void) | undefined;
+    const init = async () => {
+      await loadAutomations();
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(storeId, () => {
+        loadAutomations();
+      });
+    };
+    init();
+    return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
   // Filter automations based on tabs, search query, and dropdown
@@ -211,16 +222,16 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
   );
 
   // Calculate summary counts dynamically for 100% Realtime Donut Chart
-  const totalCount = automations.length || 12;
+  const totalCount = automations.length;
   const runningCount = automations.filter(a => a.status === 'active' || a.status === 'running').length;
   const pausedCount = automations.filter(a => a.status === 'paused').length;
   const failedCount = automations.filter(a => a.status === 'failed').length;
   const completedCount = automations.filter(a => a.status === 'completed').length;
 
-  const runningPct = Math.round((runningCount / (totalCount || 1)) * 100);
-  const pausedPct = Math.round((pausedCount / (totalCount || 1)) * 100);
-  const failedPct = Math.round((failedCount / (totalCount || 1)) * 100);
-  const completedPct = 100 - (runningPct + pausedPct + failedPct);
+  const runningPct = totalCount > 0 ? Math.round((runningCount / totalCount) * 100) : 0;
+  const pausedPct = totalCount > 0 ? Math.round((pausedCount / totalCount) * 100) : 0;
+  const failedPct = totalCount > 0 ? Math.round((failedCount / totalCount) * 100) : 0;
+  const completedPct = totalCount > 0 ? 100 - (runningPct + pausedPct + failedPct) : 0;
 
   // Chart.js Doughnut Data Config (Interactive 100% Realtime)
   const doughnutData = {
@@ -395,9 +406,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{runningCount || 12}</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{runningCount}</div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ 20% vs last month</span>
+              <span>▲ Live DB State</span>
             </div>
           </div>
         </div>
@@ -411,9 +422,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today || 126}</div>
+            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today ?? 0}</div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ 18% vs yesterday</span>
+              <span>▲ Live Telemetry</span>
             </div>
           </div>
         </div>
@@ -429,11 +440,11 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
               {automations.length > 0
-                ? `${Math.round(automations.reduce((acc, a) => acc + (a.success_rate || 98), 0) / automations.length)}%`
-                : '98%'}
+                ? `${Math.round(automations.reduce((acc, a) => acc + (a.success_rate || 100), 0) / automations.length)}%`
+                : '0%'}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ 2% vs yesterday</span>
+              <span>▲ Live Telemetry</span>
             </div>
           </div>
         </div>
@@ -448,10 +459,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           </div>
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {kpiData.hours_saved_weekly ? `${kpiData.hours_saved_weekly} Jam` : '11.0 Jam'}
+              {`${kpiData.hours_saved_weekly ?? 0} Jam`}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ 22% vs last week</span>
+              <span>▲ Live Calculation</span>
             </div>
           </div>
         </div>
@@ -466,10 +477,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           </div>
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              Rp{(kpiData.estimated_ai_salary_saved || ((kpiData.hours_saved_weekly || 11) * 150000)).toLocaleString('id-ID')}
+              Rp{(kpiData.estimated_ai_salary_saved || ((kpiData.hours_saved_weekly || 0) * 150000)).toLocaleString('id-ID')}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ 20% vs last month</span>
+              <span>▲ Live Revenue</span>
             </div>
           </div>
         </div>
@@ -561,7 +572,35 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             </span>
           </div>
 
-          {viewMode === 'table' ? (
+          {filteredAutomations.length === 0 ? (
+            <div className="p-12 text-center border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 space-y-3">
+              <div className="size-12 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center mx-auto">
+                <Workflow size={24} />
+              </div>
+              <div className="max-w-xs mx-auto space-y-1">
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Zero State — Belum ada Workflow Automation</h4>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Database tenant belum memiliki workflow otomatisasi. Buat automation baru atau impor file blueprint JSON.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <Upload size={13} className="text-orange-500" />
+                  <span>Impor Workflow</span>
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  <span>Buat Automation</span>
+                </button>
+              </div>
+            </div>
+          ) : viewMode === 'table' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>

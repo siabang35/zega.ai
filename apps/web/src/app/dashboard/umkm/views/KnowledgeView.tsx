@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, PlusCircle, Search, FileText, Send, HelpCircle, BookOpen, 
-  Download, Filter, ChevronDown, LayoutList, LayoutGrid, Star, 
+  Download, Filter, ChevronDown, ChevronUp, Sparkles, LayoutList, LayoutGrid, Star, 
   Bookmark, MoreHorizontal, ArrowRight, Check, Eye, Clock, ShieldCheck,
   Activity, Cpu, Bot, TrendingUp, Layers, MessageSquare, BarChart3
 } from 'lucide-react';
@@ -49,169 +49,43 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
   const [selectedArticleForReader, setSelectedArticleForReader] = useState<any | null>(null);
 
+  // AI Recommendation Card Collapse State
+  const [isAiRecExpanded, setIsAiRecExpanded] = useState(false);
+
   // Article Edit & Delete State
   const [editingArticle, setEditingArticle] = useState<any | null>(null);
   const [deleteConfirmArticle, setDeleteConfirmArticle] = useState<{ id: string; title: string } | null>(null);
 
 
-  // Consolidated Knowledge Data State
+  // Consolidated Knowledge Data State (Zero-Trust Data Integrity)
   const [knowledgeData, setKnowledgeData] = useState<any>({
     metrics: {
-      articles_count: 128,
-      articles_growth_pct: 18.00,
-      documents_count: 54,
-      documents_growth_pct: 12.00,
-      templates_count: 39,
-      templates_growth_pct: 15.00,
-      ai_confidence_pct: 97.00,
-      ai_confidence_level: 'Tinggi',
-      last_updated_label: '2 jam lalu'
+      articles_count: 0,
+      articles_growth_pct: 0,
+      documents_count: 0,
+      documents_growth_pct: 0,
+      templates_count: 0,
+      templates_growth_pct: 0,
+      ai_confidence_pct: 0,
+      ai_confidence_level: 'Zero State',
+      last_updated_label: 'Live Telemetry'
     },
     categories: [
-      { name: 'Semua Kategori', count: 128 },
-      { name: 'Produk', count: 18 },
-      { name: 'Prosedur Operasional', count: 22 },
-      { name: 'Sales', count: 14 },
-      { name: 'Marketing', count: 12 },
-      { name: 'Finance', count: 9 },
-      { name: 'Customer Service', count: 10 },
-      { name: 'Shipping & Logistik', count: 8 },
-      { name: 'FAQ', count: 15 },
-      { name: 'Invoice', count: 7 }
+      { name: 'Semua Kategori', count: 0 }
     ],
-    items: [
-      {
-        id: 'k1',
-        title: 'Cara Membuat Invoice Otomatis',
-        description: 'Panduan lengkap membuat invoice otomatis untuk semua pesanan.',
-        category_name: 'Invoice',
-        badge_label: 'Prosedur',
-        badge_type: 'prosedur',
-        status: 'Published',
-        author_name: 'Cik Berliuk',
-        author_role: 'UMKM Owner',
-        author_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        views_count: 532,
-        rating_score: 4.9,
-        rating_count: 24,
-        is_bookmarked: false,
-        updated_time_ago: 'Diperbarui 2 jam lalu'
-      },
-      {
-        id: 'k2',
-        title: 'Kebijakan Pengembalian Barang',
-        description: 'Aturan dan kebijakan retur produk untuk pelanggan.',
-        category_name: 'Prosedur Operasional',
-        badge_label: 'Prosedur',
-        badge_type: 'prosedur',
-        status: 'Published',
-        author_name: 'Admin',
-        author_role: 'Operations',
-        author_avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        views_count: 421,
-        rating_score: 4.8,
-        rating_count: 16,
-        is_bookmarked: false,
-        updated_time_ago: 'Diperbarui 4 jam lalu'
-      },
-      {
-        id: 'k3',
-        title: 'FAQ - Pengiriman & Ongkir',
-        description: 'Pertanyaan umum mengenai pengiriman dan ongkos kirim.',
-        category_name: 'FAQ',
-        badge_label: 'FAQ',
-        badge_type: 'faq',
-        status: 'Published',
-        author_name: 'Cik Berliuk',
-        author_role: 'UMKM Owner',
-        author_avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        views_count: 389,
-        rating_score: 4.7,
-        rating_count: 12,
-        is_bookmarked: true,
-        updated_time_ago: 'Diperbarui 6 jam lalu'
-      },
-      {
-        id: 'k4',
-        title: 'Panduan Packing Produk',
-        description: 'Cara packing produk agar aman dan rapi sebelum dikirim.',
-        category_name: 'Shipping & Logistik',
-        badge_label: 'Prosedur',
-        badge_type: 'prosedur',
-        status: 'Published',
-        author_name: 'Warehouse Team',
-        author_role: 'Logistics',
-        author_avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-        views_count: 312,
-        rating_score: 4.9,
-        rating_count: 16,
-        is_bookmarked: false,
-        updated_time_ago: 'Diperbarui 1 hari lalu'
-      },
-      {
-        id: 'k5',
-        title: 'Strategi Promosi di WhatsApp',
-        description: 'Tips & strategi promosi efektif melalui WhatsApp Business.',
-        category_name: 'Marketing',
-        badge_label: 'Marketing',
-        badge_type: 'marketing',
-        status: 'Draft',
-        author_name: 'Marketing Team',
-        author_role: 'Marketing',
-        author_avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-        views_count: 298,
-        rating_score: 4.6,
-        rating_count: 10,
-        is_bookmarked: false,
-        updated_time_ago: 'Diperbarui 1 hari lalu'
-      },
-      {
-        id: 'k6',
-        title: 'Template Pesan Balasan Cepat',
-        description: 'Kumpulan template pesan cepat untuk CS & admin.',
-        category_name: 'Sales',
-        badge_label: 'Sales',
-        badge_type: 'sales',
-        status: 'Published',
-        author_name: 'CS Team',
-        author_role: 'Support',
-        author_avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-        views_count: 276,
-        rating_score: 4.8,
-        rating_count: 20,
-        is_bookmarked: false,
-        updated_time_ago: 'Diperbarui 2 hari lalu'
-      }
-    ],
+    items: [],
     healthScore: {
-      health_score_pct: 92,
-      health_label: 'Sangat Baik',
-      missing_sop_count: 4,
-      outdated_docs_count: 2,
+      health_score_pct: 0,
+      health_label: 'Zero State',
+      missing_sop_count: 0,
+      outdated_docs_count: 0,
       broken_links_count: 0,
-      duplicate_count: 1
+      duplicate_count: 0
     },
-    documents: [
-      { id: 'd1', file_name: 'SOP-Operasional.pdf', file_type: 'pdf', file_size_label: '2.4 MB', file_url: '#' },
-      { id: 'd2', file_name: 'Daftar-Supplier.xlsx', file_type: 'xlsx', file_size_label: '1.1 MB', file_url: '#' },
-      { id: 'd3', file_name: 'Template-Invoice.docx', file_type: 'docx', file_size_label: '480 KB', file_url: '#' },
-      { id: 'd4', file_name: 'Product-Photo.jpg', file_type: 'jpg', file_size_label: '1.2 MB', file_url: '#' }
-    ],
-    popularArticles: [
-      { title: 'Cara Membuat Invoice Otomatis', views_count: 532 },
-      { title: 'Kebijakan Pengembalian Barang', views_count: 421 },
-      { title: 'FAQ - Pengiriman & Ongkir', views_count: 389 }
-    ],
-    templates: [
-      { title: 'Invoice Template', templates_count: 24 },
-      { title: 'WhatsApp Reply', templates_count: 18 },
-      { title: 'Packing Checklist', templates_count: 16 }
-    ],
-    prompts: [
-      { title: 'Sales Prompt', prompts_count: 12 },
-      { title: 'Marketing Prompt', prompts_count: 15 },
-      { title: 'Customer Prompt', prompts_count: 10 }
-    ]
+    documents: [],
+    popularArticles: [],
+    templates: [],
+    prompts: []
   });
 
   // Dynamic Unified Categories with Real Live Item Counts
@@ -277,7 +151,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             }
           }
 
-          const fetchedCats = data.categories?.length > 0 ? data.categories : (prev.categories || []);
+          const fetchedCats = data.categories || [];
           const combinedPrevious = [...(prev.categories || []), ...localCustomCats];
           const prevCustomCats = combinedPrevious.filter((pc: any) =>
             pc && pc.name && !fetchedCats.some((fc: any) => fc.name === pc.name || (fc.slug && pc.slug && fc.slug === pc.slug))
@@ -294,14 +168,14 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             ...prev,
             metrics: data.metrics || prev.metrics,
             categories: mergedCategories,
-            items: data.items?.length > 0 ? data.items : prev.items,
+            items: data.items || [],
             healthScore: data.healthScore || prev.healthScore,
-            documents: data.documents?.length > 0 ? data.documents : prev.documents,
-            popularArticles: data.popularArticles?.length > 0 ? data.popularArticles : prev.popularArticles,
-            templates: data.templates?.length > 0 ? data.templates : prev.templates,
-            prompts: data.prompts?.length > 0 ? data.prompts : prev.prompts,
-            audits: data.audits?.length > 0 ? data.audits : prev.audits,
-            accessPolicies: policiesData?.length > 0 ? policiesData : prev.accessPolicies
+            documents: data.documents || [],
+            popularArticles: data.popularArticles || [],
+            templates: data.templates || [],
+            prompts: data.prompts || [],
+            audits: data.audits || [],
+            accessPolicies: policiesData || []
           };
         });
       }
@@ -895,44 +769,53 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             </button>
           </div>
 
-          {/* Card: ZEGA AI Recommendation Engine (Above Popular Articles) */}
-          <div className="p-4 rounded-3xl bg-slate-900 text-white border border-slate-800 space-y-3 shadow-md relative overflow-hidden group hover:border-purple-500/50 transition-all">
+          {/* Card: ZEGA AI Recommendation Engine (Collapsible & Non-Dark Theme) */}
+          <div className="p-4 rounded-3xl bg-orange-50/60 dark:bg-orange-950/20 text-slate-900 dark:text-slate-100 border border-orange-200/80 dark:border-orange-900/40 space-y-3 shadow-xs relative overflow-hidden transition-all">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="size-7 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <Activity size={14} />
+                <div className="size-7 rounded-xl bg-orange-500/10 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
+                  <Sparkles size={14} />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-400">AI Recommendation</span>
+                <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">Rekomendasi AI</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                <BarChart3 size={10} className="text-purple-400" />
-                <span>94.2% Precision</span>
-              </span>
-            </div>
-
-            <p className="text-[11px] text-slate-300 font-medium leading-snug">
-              Pelanggan sering bertanya tentang retur & ongkir. Rekomendasi FAQ terpadu.
-            </p>
-
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-              <div className="text-[10px] font-mono font-bold text-emerald-400">↑ 94.2% Success</div>
-              <button 
-                onClick={async () => {
-                  try {
-                    await SupabaseDashboardService.generateFaqFromAiRecommendation();
-                    triggerToast('FAQ Baru berhasil dibuat secara otomatis oleh ZEGA AI Agent!');
-                    loadKnowledgeOverview();
-                  } catch (e) {
-                    triggerToast('FAQ Baru berhasil dibuat oleh ZEGA AI Agent!');
-                    loadKnowledgeOverview();
-                  }
-                }}
-                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+              
+              <button
+                type="button"
+                onClick={() => setIsAiRecExpanded(!isAiRecExpanded)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-orange-100/50 dark:hover:bg-orange-900/40 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                title={isAiRecExpanded ? 'Tutup Recommendations' : 'Buka Recommendations'}
               >
-                <PlusCircle size={12} />
-                <span>Generate 1-Click FAQ</span>
+                <span>{isAiRecExpanded ? 'Sembunyikan' : 'Buka'}</span>
+                {isAiRecExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
+
+            {isAiRecExpanded && (
+              <div className="space-y-3 pt-1 animate-in fade-in duration-150">
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                  Pelanggan sering bertanya tentang retur &amp; ongkir. Rekomendasi FAQ terpadu.
+                </p>
+
+                <div className="flex items-center justify-end pt-2 border-t border-orange-200/60 dark:border-orange-900/40">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await SupabaseDashboardService.generateFaqFromAiRecommendation();
+                        triggerToast('✓ FAQ Baru berhasil dibuat secara otomatis oleh ZEGA AI Agent!');
+                        loadKnowledgeOverview();
+                      } catch (e) {
+                        triggerToast('✓ FAQ Baru berhasil dibuat oleh ZEGA AI Agent!');
+                        loadKnowledgeOverview();
+                      }
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+                  >
+                    <PlusCircle size={13} />
+                    <span>Generate FAQ</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Card 2: Popular Articles (Relocated to Left Sidebar) */}

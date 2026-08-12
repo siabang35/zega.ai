@@ -114,40 +114,23 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   // Realtime Finance Data
   const [financeData, setFinanceData] = useState<any>({
     metrics: {
-      total_revenue: 2450.00,
-      total_expense: 680.00,
-      net_profit: 1770.00,
-      profit_margin: 72.20,
-      cash_balance_usdc: 1950.00,
-      cash_balance_idr: 31512000.00,
-      revenue_growth: 18.00,
-      expense_growth: -8.00,
-      profit_growth: 32.00,
-      margin_growth: 6.50,
-      period_label: '1 Jul - 31 Jul 2026'
+      total_revenue: 0,
+      total_expense: 0,
+      net_profit: 0,
+      profit_margin: 0,
+      cash_balance_usdc: 0,
+      cash_balance_idr: 0,
+      revenue_growth: 0,
+      expense_growth: 0,
+      profit_growth: 0,
+      margin_growth: 0,
+      period_label: 'Periode Berjalan'
     },
-    cashflow: [
-      { date_label: '1 Jul', income: 350.00, expense: 120.00, balance: 230.00 },
-      { date_label: '6 Jul', income: 620.00, expense: 180.00, balance: 440.00 },
-      { date_label: '11 Jul', income: 500.00, expense: 150.00, balance: 350.00 },
-      { date_label: '16 Jul', income: 1020.00, expense: 420.00, balance: 600.00 },
-      { date_label: '21 Jul', income: 780.00, expense: 210.00, balance: 570.00 },
-      { date_label: '26 Jul', income: 910.00, expense: 310.00, balance: 600.00 },
-      { date_label: '31 Jul', income: 820.00, expense: 250.00, balance: 570.00 }
-    ],
-    expenses: [
-      { category_name: 'Kasir Operasional', percentage: 45.00, amount_usdc: 306.00, color_hex: '#3b82f6' },
-      { category_name: 'Gas & RPC Fee', percentage: 25.00, amount_usdc: 170.00, color_hex: '#f97316' },
-      { category_name: 'SOP Audit Reserve', percentage: 15.00, amount_usdc: 102.00, color_hex: '#a855f7' },
-      { category_name: 'Pengiriman', percentage: 10.00, amount_usdc: 68.00, color_hex: '#06b6d4' },
-      { category_name: 'Lainnya', percentage: 5.00, amount_usdc: 34.00, color_hex: '#64748b' }
-    ],
+    cashflow: [],
+    expenses: [],
     solanaTx: [],
-    invoices: [
-      { invoice_code: 'INV-2026-0722', customer_name: 'Siti Aisyah', due_status: 'Jatuh tempo hari ini', amount_usdc: 25.00 },
-      { invoice_code: 'INV-2026-0720', customer_name: 'Budi Santoso', due_status: '2 hari lagi', amount_usdc: 18.50 },
-      { invoice_code: 'INV-2026-0718', customer_name: 'Dewi Lestari', due_status: '4 hari lagi', amount_usdc: 42.00 }
-    ]
+    invoices: [],
+    insights: []
   });
 
   const [zeroClawLiveTx, setZeroClawLiveTx] = useState<any[]>([]);
@@ -290,28 +273,20 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
   // 1. Cash Flow Multi-Line Chart (Income, Expense, Balance) Dynamic Timeframes
   const getDynamicCashflow = () => {
-    if (cashflowTab === 'Weekly') {
+    const cf = financeData.cashflow || [];
+    if (!cf.length) {
       return {
-        labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-        income: [2450, 3100, 2850, 3600],
-        expense: [680, 890, 720, 950],
-        balance: [1770, 2210, 2130, 2650]
+        labels: [],
+        income: [],
+        expense: [],
+        balance: []
       };
     }
-    if (cashflowTab === 'Monthly') {
-      return {
-        labels: ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-        income: [7800, 8900, 9400, 11200, 12500, 14200],
-        expense: [2400, 2700, 2900, 3100, 3400, 3800],
-        balance: [5400, 6200, 6500, 8100, 9100, 10400]
-      };
-    }
-    // Default Daily
     return {
-      labels: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.date_label) : ['1 Jul', '6 Jul', '11 Jul', '16 Jul', '21 Jul', '26 Jul', '31 Jul'],
-      income: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.income) : [350, 620, 500, 1020, 780, 910, 820],
-      expense: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.expense) : [120, 180, 150, 420, 210, 310, 250],
-      balance: financeData.cashflow?.length ? financeData.cashflow.map((c: any) => c.balance) : [230, 440, 350, 600, 570, 600, 570]
+      labels: cf.map((c: any) => c.date_label || 'Period'),
+      income: cf.map((c: any) => c.income || 0),
+      expense: cf.map((c: any) => c.expense || 0),
+      balance: cf.map((c: any) => c.balance || 0)
     };
   };
 
@@ -449,14 +424,15 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <span>Finance & Solana Payment Terminal</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Kelola keuangan, arus kas, dan pembayaran Solana Pay bisnis Anda dengan AI.
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
+            Manage your business finance, cash flow, and Solana Pay orchestration with AI.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Top Header Actions Bar - TouchPan Horizontal Scroll on Mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden touch-pan-x py-1 shrink-0 text-xs font-semibold">
           {/* Currency Toggle Switcher (USDC vs IDR) */}
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono">
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -488,11 +464,11 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           </div>
 
           {/* View Tab Switcher (Finance Overview vs ZeroClaw Terminal) */}
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold">
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold shrink-0">
             <button
               type="button"
               onClick={() => handleTabChange('overview')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                 activeFinanceTab === 'overview'
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -503,7 +479,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             <button
               type="button"
               onClick={() => handleTabChange('zeroclaw')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFinanceTab === 'zeroclaw'
                   ? 'bg-emerald-600 text-white shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -518,24 +494,24 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           {/* Controls: Date Picker, Filter & Deploy Swarm */}
           <button
             onClick={() => setIsDateModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="px-3 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
           >
-            <Calendar size={14} className="text-slate-400" />
-            <span>{periodLabel}</span>
+            <Calendar size={13} className="text-slate-400" />
+            <span className="whitespace-nowrap">{periodLabel}</span>
           </button>
           <button
             onClick={() => setIsFilterModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="px-3 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
           >
-            <Filter size={14} className="text-slate-400" />
+            <Filter size={13} className="text-slate-400" />
             <span>Filter</span>
           </button>
 
           <button
             onClick={() => setIsDeployModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3 py-1.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
           >
-            <Sparkles size={14} />
+            <Sparkles size={13} />
             <span>+ Deploy AI Swarm</span>
           </button>
         </div>
@@ -728,35 +704,35 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           </div>
 
           {/* Ringkasan Bulanan (col-span-2) */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Ringkasan Bulanan</h3>
 
             <div className="space-y-3 text-xs">
               <div>
                 <div className="text-[10px] text-slate-400 font-bold">Best Performing Day</div>
-                <div className="font-extrabold text-emerald-600 dark:text-emerald-400">22 Jul 2026</div>
+                <div className="font-extrabold text-emerald-600 dark:text-emerald-400">{m.best_day || '-'}</div>
               </div>
               <div className="border-t border-slate-100 dark:border-slate-800 pt-2 flex justify-between">
                 <span className="text-slate-500 font-medium">Total Transactions</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">128</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">{zeroClawLiveTx.length}</span>
               </div>
               <div className="border-t border-slate-100 dark:border-slate-800 pt-2 flex justify-between">
                 <span className="text-slate-500 font-medium">Total Customers</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">86</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">{m.total_customers || 0}</span>
               </div>
               <div className="border-t border-slate-100 dark:border-slate-800 pt-2 flex justify-between">
                 <span className="text-slate-500 font-medium">Average Order Value</span>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100">$28.64</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100">{formatMoney(m.avg_order_value || 0)}</span>
               </div>
               <div className="border-t border-slate-100 dark:border-slate-800 pt-2 flex justify-between">
                 <span className="text-slate-500 font-medium">Repeat Customer Rate</span>
-                <span className="font-extrabold text-emerald-600">42%</span>
+                <span className="font-extrabold text-emerald-600">{m.repeat_rate || 0}%</span>
               </div>
             </div>
 
             <button
               onClick={() => setIsReportModalOpen(true)}
-              className="w-full py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-xs text-center"
+              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer text-center"
             >
               Lihat Laporan Keuangan →
             </button>
@@ -766,7 +742,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         {/* Lower-Middle Section: Solana Payment Terminal & Right Column */}
         <div className="grid lg:grid-cols-12 gap-5">
           {/* Solana Payment Terminal Section (col-span-8) */}
-          <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
+          <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Solana Payment Terminal</h3>
@@ -778,9 +754,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
             <div className="grid md:grid-cols-12 gap-4 items-center">
               {/* Left: QR Code Solana Pay */}
-              <div className="md:col-span-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 text-center space-y-2 border border-slate-100 dark:border-slate-700">
+              <div className="md:col-span-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-center space-y-2 border border-slate-100 dark:border-slate-700">
                 <div className="text-[10px] font-black text-slate-500">QR Code Solana Pay</div>
-                <div className="bg-white p-2 rounded-xl border border-slate-200 inline-block mx-auto shadow-xs">
+                <div className="bg-white p-2 rounded-xl border border-slate-200 inline-block mx-auto">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=1&ecc=M&data=${encodeURIComponent(`solana:${activeMerchantWallet}?amount=25.00`)}`}
                     onError={(e) => {
@@ -814,7 +790,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
                 <div className="space-y-1.5 text-xs">
                   {zeroClawLiveTx.length === 0 ? (
-                    <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-center space-y-2">
+                    <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-center space-y-2">
                       <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 grid place-items-center mx-auto">
                         <QrCode size={18} />
                       </div>
@@ -827,7 +803,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                       <button
                         type="button"
                         onClick={() => handleTabChange('zeroclaw')}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
                       >
                         <QrCode size={12} />
                         <span>Buka Solana Terminal →</span>
@@ -858,7 +834,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
               </div>
 
               {/* Right: Stats Hari Ini */}
-              <div className="md:col-span-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 space-y-3 border border-slate-100 dark:border-slate-700 text-center">
+              <div className="md:col-span-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 space-y-3 border border-slate-100 dark:border-slate-700 text-center">
                 <div className="flex items-center justify-between text-xs font-extrabold text-slate-700 dark:text-slate-300">
                   <span>Stats Hari Ini</span>
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -902,7 +878,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
                 <button
                   onClick={() => handleTabChange('zeroclaw')}
-                  className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-md transition-all"
+                  className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer transition-all"
                 >
                   Buka Terminal →
                 </button>
@@ -912,21 +888,21 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
           {/* Right Column: AI Finance Assistant & Jatuh Tempo Pembayaran (col-span-4) */}
           <div className="lg:col-span-4 space-y-5">
-            {/* AI Finance Assistant Gradient Card */}
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 text-white space-y-3 shadow-md relative overflow-hidden">
+            {/* AI Finance Assistant Card */}
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-slate-100 space-y-3 relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles size={16} className="text-purple-300" />
-                  <h3 className="font-extrabold text-xs tracking-wider uppercase">AI Finance Assistant</h3>
+                  <Sparkles size={16} className="text-purple-600 dark:text-purple-400" />
+                  <h3 className="font-extrabold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-200">AI Finance Assistant</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/30">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800/60">
                     Active
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsAccordionExpanded(!isAccordionExpanded)}
-                    className="px-2.5 py-1 rounded-xl bg-purple-800/60 hover:bg-purple-700/60 text-purple-200 text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 border border-purple-400/30"
+                    className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 border border-slate-200 dark:border-slate-700"
                   >
                     <span>{isAccordionExpanded ? 'Tutup' : 'Buka'}</span>
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isAccordionExpanded ? 'rotate-180' : ''}`} />
@@ -934,70 +910,76 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 </div>
               </div>
 
-              <p className="text-xs text-purple-100 font-medium">
-                ZeroClaw AI mendeteksi <span className="font-bold text-white">{financeData.insights?.length || 3} insight penting</span> untuk Anda:
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                ZeroClaw AI mendeteksi <span className="font-bold text-slate-900 dark:text-white">{financeData.insights?.length || 0} insight penting</span> untuk Anda:
               </p>
 
               <div className="space-y-2.5 text-xs max-h-80 overflow-y-auto pr-0.5">
-                {(isAccordionExpanded ? (financeData.insights || []) : (financeData.insights || []).slice(0, 1)).map((ins: any, idx: number) => (
-                  <div key={ins.id || idx} className="p-3 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/15 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'} alt={ins.model_engine} className="size-6 rounded-lg object-cover bg-white/20 p-0.5" />
-                        <div>
-                          <div className="font-extrabold text-white leading-tight">{ins.title}</div>
-                          <div className="text-[9px] text-purple-200 font-mono mt-0.5">{ins.model_provider || 'ZeroClaw AI'}</div>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black shrink-0 ${
-                        ins.impact_level === 'CRITICAL' ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40' :
-                        ins.impact_level === 'HIGH IMPACT' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' :
-                        'bg-indigo-500/30 text-indigo-200 border border-indigo-400/40'
-                      }`}>
-                        {ins.impact_level || 'RECOMMENDED'}
-                      </span>
-                    </div>
-
-                    <p className="text-[10.5px] text-purple-100/90 leading-relaxed">{ins.description}</p>
-
-                    <div className="pt-1 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleExecuteInsight(ins.id, ins.action_label, ins.status)}
-                        className={`w-full py-1.5 px-3 rounded-xl font-extrabold text-[10.5px] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
-                          ins.status === 'applied'
-                            ? 'bg-emerald-500 text-white shadow-emerald-900/30'
-                            : 'bg-white/20 hover:bg-emerald-600 text-white hover:shadow-md'
-                        }`}
-                      >
-                        {ins.status === 'applied' ? (
-                          <>
-                            <CheckCircle2 size={12} />
-                            <span>✓ Telah Diterapkan</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={12} />
-                            <span>{ins.action_label || 'Terapkan Rekomendasi'}</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+                {(financeData.insights || []).length === 0 ? (
+                  <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-center space-y-1">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Belum ada insight rekomendasi keuangan AI.</p>
                   </div>
-                ))}
+                ) : (
+                  (isAccordionExpanded ? (financeData.insights || []) : (financeData.insights || []).slice(0, 1)).map((ins: any, idx: number) => (
+                    <div key={ins.id || idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <img src={ins.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'} alt={ins.model_engine} className="size-6 rounded-lg object-cover bg-slate-200 dark:bg-slate-700 p-0.5" />
+                          <div>
+                            <div className="font-extrabold text-slate-900 dark:text-white leading-tight">{ins.title}</div>
+                            <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{ins.model_provider || 'ZeroClaw AI'}</div>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black shrink-0 ${
+                          ins.impact_level === 'CRITICAL' ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60' :
+                          ins.impact_level === 'HIGH IMPACT' ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60' :
+                          'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60'
+                        }`}>
+                          {ins.impact_level || 'RECOMMENDED'}
+                        </span>
+                      </div>
+
+                      <p className="text-[10.5px] text-slate-600 dark:text-slate-300 leading-relaxed">{ins.description}</p>
+
+                      <div className="pt-1 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => handleExecuteInsight(ins.id, ins.action_label, ins.status)}
+                          className={`w-full py-1.5 px-3 rounded-xl font-extrabold text-[10.5px] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                            ins.status === 'applied'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-600'
+                          }`}
+                        >
+                          {ins.status === 'applied' ? (
+                            <>
+                              <CheckCircle2 size={12} />
+                              <span>✓ Telah Diterapkan</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles size={12} />
+                              <span>{ins.action_label || 'Terapkan Rekomendasi'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs font-bold pt-1">
                 <button
                   onClick={() => setIsManageSwarmModalOpen(true)}
-                  className="py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700"
                 >
                   <Bot size={14} />
                   <span>Kelola Swarm</span>
                 </button>
                 <button
                   onClick={() => setIsConfigureModelModalOpen(true)}
-                  className="py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700"
                 >
                   <Settings size={14} />
                   <span>Konfigurasi</span>
@@ -1006,7 +988,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             </div>
 
             {/* Jatuh Tempo Pembayaran Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Jatuh Tempo Pembayaran</h3>
                 <button onClick={() => setIsInvoiceModalOpen(true)} className="text-[11px] font-bold text-emerald-600 hover:underline cursor-pointer">
@@ -1015,18 +997,24 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
               </div>
 
               <div className="space-y-2 text-xs">
-                {financeData.invoices.map((inv: any, i: number) => (
-                  <div key={i} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-extrabold text-slate-900 dark:text-slate-100">{inv.invoice_code}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{inv.customer_name}</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9.5px] font-bold text-red-500 block">{inv.due_status}</span>
-                      <span className="font-black text-slate-900 dark:text-slate-100">${inv.amount_usdc.toFixed(2)}</span>
-                    </div>
+                {(financeData.invoices || []).length === 0 ? (
+                  <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-[11px]">
+                    Belum ada invoice jatuh tempo.
                   </div>
-                ))}
+                ) : (
+                  financeData.invoices.map((inv: any, i: number) => (
+                    <div key={i} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <div className="font-extrabold text-slate-900 dark:text-slate-100">{inv.invoice_code}</div>
+                        <div className="text-[10px] text-slate-400 font-medium">{inv.customer_name}</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[9.5px] font-bold text-red-500 block">{inv.due_status}</span>
+                        <span className="font-black text-slate-900 dark:text-slate-100">${(inv.amount_usdc || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1036,7 +1024,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
           <button
             onClick={() => setIsInvoiceModalOpen(true)}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 transition-all flex items-center gap-3 cursor-pointer shadow-xs text-left group"
+            className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 transition-all flex items-center gap-3 cursor-pointer text-left group"
           >
             <div className="size-9 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
               <FileText size={18} />
@@ -1049,7 +1037,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
           <button
             onClick={() => setIsExpenseModalOpen(true)}
-            className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 transition-all flex items-center gap-3 cursor-pointer shadow-xs text-left group"
+            className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500 transition-all flex items-center gap-3 cursor-pointer text-left group"
           >
             <div className="size-9 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
               <Receipt size={18} />

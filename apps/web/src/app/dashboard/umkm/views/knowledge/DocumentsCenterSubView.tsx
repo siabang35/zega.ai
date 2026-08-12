@@ -91,39 +91,47 @@ export function DocumentsCenterSubView({
 
       {/* Grid of Documents */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredDocs.map((doc, idx) => (
-          <div
-            key={doc.id || idx}
-            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 shadow-xs hover:border-orange-500/60 transition-all flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="size-10 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-center">
-                  {getFormatIcon(doc.file_type)}
+        {filteredDocs.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800">
+            <FileText size={32} className="mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+            <p className="text-xs font-bold">Belum ada dokumen tersimpan.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Klik "+ Unggah Dokumen" untuk menyimpan berkas operasional ke Cloudflare R2 CDN.</p>
+          </div>
+        ) : (
+          filteredDocs.map((doc, idx) => (
+            <div
+              key={doc.id || idx}
+              className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 shadow-xs hover:border-orange-500/60 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="size-10 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-center">
+                    {getFormatIcon(doc.file_type)}
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-mono text-[10px] font-bold uppercase text-slate-500">
+                    {doc.file_size_label || '1.2 MB'}
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-mono text-[10px] font-bold uppercase text-slate-500">
-                  {doc.file_size_label || '1.2 MB'}
-                </span>
+
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mt-3 truncate" title={doc.file_name}>
+                  {doc.file_name}
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  CDN Domain: <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold">Cloudflare R2</span>
+                </p>
               </div>
 
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mt-3 truncate" title={doc.file_name}>
-                {doc.file_name}
-              </h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-1">
-                CDN Domain: <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold">Cloudflare R2</span>
-              </p>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <button
+                  onClick={() => handleDownload(doc)}
+                  className="w-full py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/60 font-black text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Download size={13} /> <span>Unduh via CDN</span>
+                </button>
+              </div>
             </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <button
-                onClick={() => handleDownload(doc)}
-                className="w-full py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/60 font-black text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
-              >
-                <Download size={13} /> <span>Unduh via CDN</span>
-              </button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

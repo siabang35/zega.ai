@@ -19,7 +19,7 @@ interface FinanceSubViewProps {
 }
 
 export function FinanceSubView({ triggerToast, dateRange, reportsData }: FinanceSubViewProps) {
-  const [pnl, setPnl] = useState<any>({ gross_revenue_idr: 13500000, cogs_idr: 5400000, gross_profit_idr: 8100000, opex_idr: 3200000, net_profit_idr: 4900000, profit_margin_pct: 36.30, gross_margin_pct: 60.00 });
+  const [pnl, setPnl] = useState<any>({ gross_revenue_idr: 0, cogs_idr: 0, gross_profit_idr: 0, opex_idr: 0, net_profit_idr: 0, profit_margin_pct: 0, gross_margin_pct: 0 });
   const [cashflow, setCashflow] = useState<any[]>([]);
   const [marginTrend, setMarginTrend] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -171,19 +171,10 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
   // Chart Configurations
   const cashFlowData = {
-    labels: (cashflow.length > 0 ? cashflow : [
-      { period_label: 'Minggu 1', income_idr: 3200000, expense_idr: 1800000 },
-      { period_label: 'Minggu 2', income_idr: 4100000, expense_idr: 2200000 },
-      { period_label: 'Minggu 3', income_idr: 2800000, expense_idr: 1500000 },
-      { period_label: 'Minggu 4', income_idr: 3400000, expense_idr: 2100000 },
-    ]).map((c: any) => c.period_label),
+    labels: cashflow.map((c: any) => c.period_label || 'Period'),
     datasets: [
-      { label: 'Pemasukan', data: (cashflow.length > 0 ? cashflow : [
-        { income_idr: 3200000 }, { income_idr: 4100000 }, { income_idr: 2800000 }, { income_idr: 3400000 }
-      ]).map((c: any) => c.income_idr), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false },
-      { label: 'Pengeluaran', data: (cashflow.length > 0 ? cashflow : [
-        { expense_idr: 1800000 }, { expense_idr: 2200000 }, { expense_idr: 1500000 }, { expense_idr: 2100000 }
-      ]).map((c: any) => c.expense_idr), backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 8, borderSkipped: false },
+      { label: 'Pemasukan', data: cashflow.map((c: any) => c.income_idr || 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false },
+      { label: 'Pengeluaran', data: cashflow.map((c: any) => c.expense_idr || 0), backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 8, borderSkipped: false },
     ]
   };
 
@@ -205,15 +196,10 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
   };
 
   const marginData = {
-    labels: (marginTrend.length > 0 ? marginTrend : [
-      { period_label: 'Apr', margin_pct: 28.50 }, { period_label: 'Mei', margin_pct: 31.20 },
-      { period_label: 'Jun', margin_pct: 34.10 }, { period_label: 'Jul', margin_pct: 36.30 },
-    ]).map((m: any) => m.period_label),
+    labels: marginTrend.map((m: any) => m.period_label || 'Period'),
     datasets: [{ 
       label: 'Net Profit Margin %', 
-      data: (marginTrend.length > 0 ? marginTrend : [
-        { margin_pct: 28.50 }, { margin_pct: 31.20 }, { margin_pct: 34.10 }, { margin_pct: 36.30 }
-      ]).map((m: any) => m.margin_pct), 
+      data: marginTrend.map((m: any) => m.margin_pct || 0), 
       borderColor: '#10b981', 
       backgroundColor: 'rgba(16,185,129,0.08)', 
       fill: true, 
@@ -230,14 +216,14 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
     plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 10 }},
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' }},
-      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 10 }, color: '#94a3b8', callback: (v: any) => `${v}%` }, min: 20, max: 45 }
+      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 10 }, color: '#94a3b8', callback: (v: any) => `${v}%` }, min: 0, max: 100 }
     }
   };
 
   return (
     <div className="space-y-6">
       {/* 1. Automation Banner & Actions Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black">
             <PiggyBank size={20} />
@@ -258,21 +244,21 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsBulkUploadModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <UploadCloud size={15} />
             <span>Bulk Invoice Upload</span>
           </button>
           <button
             onClick={() => setIsAddTransactionModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Plus size={15} />
             <span>Tambah Transaksi</span>
           </button>
           <button
             onClick={() => setIsCreateReportModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <FileText size={15} />
             <span>Create Money Report</span>
@@ -283,14 +269,14 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
       {/* 2. Finance KPI Diagnostic Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `Gross Margin ${pnl.gross_margin_pct || 60}%` },
-          { label: 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `Net Margin ${pnl.profit_margin_pct || 36.3}%` },
+          { label: 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `Gross Margin ${pnl.gross_margin_pct || 0}%` },
+          { label: 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `Net Margin ${pnl.profit_margin_pct || 0}%` },
           { label: 'Total Pengeluaran (Expense)', val: `Rp${((pnl.cogs_idr || 0) + (pnl.opex_idr || 0)).toLocaleString('id-ID')}`, icon: CreditCard, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600', sub: 'COGS + Operasional' },
-          { label: 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 36.3}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: 'Performa sehat' },
+          { label: 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 0}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: 'Performa sehat' },
         ].map((card, i) => {
           const IconComp = card.icon;
           return (
-            <div key={i} className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-emerald-500 transition-all">
+            <div key={i} className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 hover:border-emerald-500 transition-all">
               <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
                 <span>{card.label}</span>
                 <div className={`size-8 rounded-xl ${card.bg} ${card.text} flex items-center justify-center`}><IconComp size={16} /></div>
@@ -308,33 +294,49 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
       {/* 3. Cash Flow Chart & Profit Trend Row */}
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Arus Kas Bar Chart (lg:col-span-7) */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Arus Kas (Cash Flow Telemetry)</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Arus Kas</h3>
               <p className="text-[11px] text-slate-400">Pemasukan vs Pengeluaran per Minggu</p>
             </div>
             <button
               onClick={() => setIsCreateReportModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-extrabold cursor-pointer transition-colors flex items-center gap-1"
             >
               <FileText size={12} />
               <span>Cetak PDF Statement</span>
             </button>
           </div>
-          <div className="h-56 w-full pt-1"><Bar data={cashFlowData} options={stackedBarOpts} /></div>
+          <div className="h-56 w-full pt-1">
+            {cashflow.length === 0 ? (
+              <div className="h-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 text-xs font-medium">
+                Belum ada data arus kas.
+              </div>
+            ) : (
+              <Bar data={cashFlowData} options={stackedBarOpts} />
+            )}
+          </div>
         </div>
 
         {/* Profit Margin Trend Line Chart (lg:col-span-5) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Tren Profit Margin (%)</h3>
             <p className="text-[11px] text-slate-400">Pergerakan efisiensi profitabilitas bisnis</p>
           </div>
-          <div className="h-44 w-full"><Line data={marginData} options={lineOpts} /></div>
-          <div className="flex items-center justify-between text-xs pt-1 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-            <span className="font-bold text-slate-500">Target Margin Q3: <span className="text-emerald-600 font-black">40.0%</span></span>
-            <span className="font-mono text-slate-900 dark:text-slate-100 font-black">Saat ini: {pnl.profit_margin_pct}%</span>
+          <div className="h-44 w-full">
+            {marginTrend.length === 0 ? (
+              <div className="h-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 text-xs font-medium">
+                Belum ada tren profit margin.
+              </div>
+            ) : (
+              <Line data={marginData} options={lineOpts} />
+            )}
+          </div>
+          <div className="flex items-center justify-between text-xs pt-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+            <span className="font-bold text-slate-500">Target Margin: <span className="text-emerald-600 font-black">40.0%</span></span>
+            <span className="font-mono text-slate-900 dark:text-slate-100 font-black">Saat ini: {pnl.profit_margin_pct || 0}%</span>
           </div>
         </div>
       </div>
@@ -342,43 +344,43 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
       {/* 4. Bottom Row: Expense Breakdown & Recent Transactions */}
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Rincian Pengeluaran (lg:col-span-5) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Rincian Pengeluaran Operasional</h3>
             <p className="text-[11px] text-slate-400">Proporsi alokasi pengeluaran bisnis</p>
           </div>
 
           <div className="space-y-3">
-            {(expenses.length > 0 ? expenses : [
-              { category: 'Cost of Goods Sold', amount_idr: 5400000, percentage: 62.8, color_hex: '#ef4444' },
-              { category: 'Marketing & Ads', amount_idr: 1200000, percentage: 14.0, color_hex: '#a855f7' },
-              { category: 'Platform Fees (Shopee/Tokped)', amount_idr: 850000, percentage: 9.9, color_hex: '#f97316' },
-              { category: 'Packaging & Shipping', amount_idr: 620000, percentage: 7.2, color_hex: '#3b82f6' },
-              { category: 'AI Tools & Subscription', amount_idr: 350000, percentage: 4.1, color_hex: '#10b981' },
-            ]).map((e: any, i: number) => (
-              <div key={i} className="space-y-1.5 p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <div className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: e.color_hex || '#3b82f6' }} />
-                    <span className="text-slate-900 dark:text-slate-100 truncate">{e.category}</span>
-                  </div>
-                  <span className="font-mono text-slate-600 dark:text-slate-300">
-                    Rp{((e.amount_idr || 0) / 1000000).toFixed(1)}M ({e.percentage}%)
-                  </span>
-                </div>
-                <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-500" 
-                    style={{ width: `${e.percentage}%`, backgroundColor: e.color_hex || '#3b82f6' }} 
-                  />
-                </div>
+            {expenses.length === 0 ? (
+              <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
+                Belum ada data pengeluaran operasional.
               </div>
-            ))}
+            ) : (
+              expenses.map((e: any, i: number) => (
+                <div key={i} className="space-y-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2.5 rounded-full" style={{ backgroundColor: e.color_hex || '#3b82f6' }} />
+                      <span className="text-slate-900 dark:text-slate-100 truncate">{e.category}</span>
+                    </div>
+                    <span className="font-mono text-slate-600 dark:text-slate-300">
+                      Rp{((e.amount_idr || 0) / 1000000).toFixed(1)}M ({e.percentage}%)
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${e.percentage}%`, backgroundColor: e.color_hex || '#3b82f6' }} 
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Transaksi Terbaru (lg:col-span-7) */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Transaksi Keuangan Terbaru</h3>
@@ -401,38 +403,38 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
           </div>
 
           <div className="space-y-2">
-            {(transactions.length > 0 ? transactions : [
-              { description: 'Pembayaran Order #1847', tx_type: 'income', amount_idr: 450000, tx_date: '31 Jul', payment_method: 'Transfer Bank', receipt_url: getR2CdnUrl('receipts/invoice_1847.pdf') },
-              { description: 'Pembelian Stok Kaos Polos', tx_type: 'expense', amount_idr: -1200000, tx_date: '30 Jul', payment_method: 'Transfer', receipt_url: getR2CdnUrl('receipts/receipt_stok_30jul.jpg') },
-              { description: 'Komisi Shopee Fee', tx_type: 'expense', amount_idr: -85000, tx_date: '30 Jul', payment_method: 'Auto-deduct' },
-              { description: 'Pembayaran Order #1846', tx_type: 'income', amount_idr: 680000, tx_date: '29 Jul', payment_method: 'QRIS' },
-              { description: 'Subscription ZEGA AI Growth Plan', tx_type: 'expense', amount_idr: -349000, tx_date: '28 Jul', payment_method: 'Kartu Kredit', receipt_url: getR2CdnUrl('receipts/zega_subscription_receipt.pdf') },
-            ]).map((tx: any, i: number) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 transition-all">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`size-8 rounded-xl flex items-center justify-center ${tx.tx_type === 'income' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60' : 'bg-red-50 text-red-500 dark:bg-red-950/60'}`}>
-                    {tx.tx_type === 'income' ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{tx.description}</span>
-                      {tx.receipt_url && (
-                        <button
-                          onClick={() => setPreviewAttachmentUrl(tx.receipt_url)}
-                          className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 text-[9px] font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
-                        >
-                          <Paperclip size={10} /> CDN Receipt
-                        </button>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-semibold">{tx.tx_date} • {tx.payment_method}</span>
-                  </div>
-                </div>
-                <span className={`text-xs font-black whitespace-nowrap ml-2 ${tx.tx_type === 'income' ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {tx.tx_type === 'income' ? '+' : ''}Rp{Math.abs(tx.amount_idr || 0).toLocaleString('id-ID')}
-                </span>
+            {transactions.length === 0 ? (
+              <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
+                Belum ada transaksi keuangan tercatat.
               </div>
-            ))}
+            ) : (
+              transactions.map((tx: any, i: number) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 transition-all">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`size-8 rounded-xl flex items-center justify-center ${tx.tx_type === 'income' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60' : 'bg-red-50 text-red-500 dark:bg-red-950/60'}`}>
+                      {tx.tx_type === 'income' ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{tx.description}</span>
+                        {tx.receipt_url && (
+                          <button
+                            onClick={() => setPreviewAttachmentUrl(tx.receipt_url)}
+                            className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 text-[9px] font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
+                          >
+                            <Paperclip size={10} /> CDN Receipt
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">{tx.tx_date} • {tx.payment_method}</span>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-black whitespace-nowrap ml-2 ${tx.tx_type === 'income' ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {tx.tx_type === 'income' ? '+' : ''}Rp{Math.abs(tx.amount_idr || 0).toLocaleString('id-ID')}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

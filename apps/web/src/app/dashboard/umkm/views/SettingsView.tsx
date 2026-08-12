@@ -85,16 +85,7 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
   
   // API Keys & Integrations state
   const [webhookUrl, setWebhookUrl] = useState('https://zega-ai.onrender.com/api/v1/webhook');
-  const [integrationsList, setIntegrationsList] = useState<any[]>([
-    { id: 'wa', key: 'wa', name: 'WhatsApp Business', category: 'Channel Penjualan', status: 'Terhubung', account: '+62 812-3456-7890' },
-    { id: 'ig', key: 'ig', name: 'Instagram', category: 'Social Commerce', status: 'Terhubung', account: '@tokocikcik.berluk' },
-    { id: 'shopee', key: 'shopee', name: 'Shopee', category: 'Channel Penjualan', status: 'Terhubung', account: 'tokocikcik.berluk' },
-    { id: 'tiktok', key: 'tiktok', name: 'TikTok Shop', category: 'Social Commerce', status: 'Terhubung', account: '@tokocikcik.berluk' },
-    { id: 'stripe', key: 'stripe', name: 'Stripe Connect', category: 'Payment Gateway', status: 'Terhubung', account: '•••• •••• 4242' },
-    { id: 'midtrans', key: 'midtrans', name: 'Midtrans', category: 'Payment Gateway', status: 'Terhubung', account: 'Merchant ID: 01234567' },
-    { id: 'qris', key: 'qris', name: 'QRIS (VA)', category: 'Payment Gateway', status: 'Terhubung', account: 'Bank Permata •••• 8888' },
-    { id: 'x402', key: 'x402', name: 'x402 Network', category: 'Web3 Crypto', status: 'Terhubung', account: 'Wallet: 0x773...a9b2' }
-  ]);
+  const [integrationsList, setIntegrationsList] = useState<any[]>([]);
 
   // Profile overview state
   const [profileOverview, setProfileOverview] = useState<any>({

@@ -54,7 +54,7 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
             }
           }
 
-          // Fetch primary organization membership
+          // Fetch primary organization & workspace membership
           if (!jwtPayload.organizationId) {
             const { data: membership } = await supabase
               .from('organization_members')
@@ -68,11 +68,31 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
               principal.orgRole = membership.role as ZegaPrincipal['orgRole'];
             }
           }
+
+          // Fetch primary workspace for organization
+          if (principal.organizationId && !principal.workspaceId) {
+            const { data: workspace } = await supabase
+              .from('workspaces')
+              .select('id')
+              .eq('organization_id', principal.organizationId)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            if (workspace) {
+              principal.workspaceId = workspace.id;
+            }
+          }
         }
       } catch (err) {
         // DB enrichment failure is non-fatal — principal still has JWT-level identity
         logger.warn({ err, userId: principal.userId }, '[RequestContext] DB enrichment failed, using JWT-only principal');
       }
+    }
+
+    // Strip client-supplied organization_id / workspace_id parameters from request body if present
+    if (request.body && typeof request.body === 'object') {
+      delete (request.body as Record<string, unknown>).organization_id;
+      delete (request.body as Record<string, unknown>).workspace_id;
     }
 
     return principal;

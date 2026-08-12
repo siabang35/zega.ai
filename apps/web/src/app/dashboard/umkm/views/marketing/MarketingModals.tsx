@@ -15,7 +15,7 @@ function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -570,7 +570,7 @@ export function AllActivitiesModal({
   activities: any[];
 }) {
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="⚡ Semua Aktivitas Telemetri Realtime">
+    <ModalBase isOpen={isOpen} onClose={onClose} title="⚡ Semua Log Aktivitas Realtime">
       <div className="space-y-3 text-xs">
         <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800">
           <div className="flex items-center gap-2">

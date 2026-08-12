@@ -79,7 +79,7 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Cetak Barcode & Label Thermal SKU</span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-extrabold">
+                <span className="px-2.5 py-0.5 rounded-lg text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border border-slate-200 dark:border-slate-700">
                   THERMAL PRINTER READY
                 </span>
               </h2>

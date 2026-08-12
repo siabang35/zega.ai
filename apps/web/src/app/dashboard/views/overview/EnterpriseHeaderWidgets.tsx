@@ -33,16 +33,29 @@ export function EnterpriseHeaderWidgets({
   // Calendar States
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarCurrentMonth, setCalendarCurrentMonth] = useState(new Date());
-  const [selectedDateRange, setSelectedDateRange] = useState('Today (Aug 5, 2026)');
+  const [realtimeTodayDate, setRealtimeTodayDate] = useState(new Date());
+  const [selectedDateRange, setSelectedDateRange] = useState(() => {
+    const now = new Date();
+    return `Today (${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`;
+  });
   const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString('en-US'));
 
   // Notifications States
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: '1', title: 'OWASP Security Gate Triggered', message: 'Rate-limiting token bucket blocked suspicious probe from IP 192.168.1.104', is_read: false, action_url: 'securityEvents', created_at: '10m ago' },
-    { id: '2', title: 'ZeroClaw Swarm Failover', message: 'Frankfurt Node auto-healed latency spike in 22ms', is_read: false, action_url: 'pipeline', created_at: '45m ago' },
-    { id: '3', title: 'Monthly Billing Invoice Ready', message: 'Invoice #INV-2026-08 generated: $128,430.50', is_read: true, action_url: 'costReport', created_at: '2h ago' },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadNotifs = async () => {
+      try {
+        const storeId = await SupabaseDashboardService.getAuthenticatedStoreId();
+        const res = await SupabaseDashboardService.getUmkmNotifications(storeId);
+        if (res?.data) setNotifications(res.data);
+      } catch (err) {
+        console.warn('Enterprise notification fetch error:', err);
+      }
+    };
+    loadNotifs();
+  }, []);
 
   // Upgrade Modal State
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -50,10 +63,12 @@ export function EnterpriseHeaderWidgets({
   // Profile Dropdown State
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
-  // Ticking Clock
+  // Ticking Clock & Realtime Date Auto-Updater
   useEffect(() => {
     const timer = setInterval(() => {
-      setLiveTime(new Date().toLocaleTimeString('en-US'));
+      const now = new Date();
+      setLiveTime(now.toLocaleTimeString('en-US'));
+      setRealtimeTodayDate(now);
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -136,19 +151,38 @@ export function EnterpriseHeaderWidgets({
 
               {/* Date Filter Pills */}
               <div className="grid grid-cols-3 gap-1.5 text-[10px] font-bold">
-                {['Today', 'Last 7 Days', 'This Month'].map((label, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setSelectedDateRange(label);
-                      triggerToast(`Calendar filter set: ${label}`);
-                      setCalendarOpen(false);
-                    }}
-                    className="py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-indigo-400 text-center cursor-pointer"
-                  >
-                    {label}
-                  </button>
-                ))}
+                <button
+                  onClick={() => {
+                    const todayStr = `Today (${realtimeTodayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`;
+                    setSelectedDateRange(todayStr);
+                    triggerToast(`Calendar filter set: ${todayStr}`);
+                    setCalendarOpen(false);
+                  }}
+                  className="py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-indigo-400 text-center cursor-pointer font-extrabold"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedDateRange('Last 7 Days');
+                    triggerToast('Calendar filter set: Last 7 Days');
+                    setCalendarOpen(false);
+                  }}
+                  className="py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-indigo-400 text-center cursor-pointer font-extrabold"
+                >
+                  Last 7 Days
+                </button>
+                <button
+                  onClick={() => {
+                    const monthStr = `This Month (${calendarCurrentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`;
+                    setSelectedDateRange(monthStr);
+                    triggerToast(`Calendar filter set: ${monthStr}`);
+                    setCalendarOpen(false);
+                  }}
+                  className="py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-indigo-400 text-center cursor-pointer font-extrabold"
+                >
+                  This Month
+                </button>
               </div>
 
               {/* Mini Calendar Grid */}
@@ -157,21 +191,37 @@ export function EnterpriseHeaderWidgets({
                   <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold">
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                    <span
-                      key={d}
-                      onClick={() => {
-                        setSelectedDateRange(`Aug ${d}, 2026`);
-                        triggerToast(`Date filter: Aug ${d}, 2026`);
-                        setCalendarOpen(false);
-                      }}
-                      className={`p-1 rounded-lg cursor-pointer transition-colors ${
-                        d === 5 ? 'bg-indigo-600 text-white font-extrabold shadow-sm' : 'hover:bg-indigo-50 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {d}
-                    </span>
-                  ))}
+                  {(() => {
+                    const year = calendarCurrentMonth.getFullYear();
+                    const month = calendarCurrentMonth.getMonth();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+                    
+                    const cells = [];
+                    for (let i = 0; i < firstDayOffset; i++) {
+                      cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
+                    }
+                    for (let d = 1; d <= daysInMonth; d++) {
+                      const isToday = d === realtimeTodayDate.getDate() && month === realtimeTodayDate.getMonth() && year === realtimeTodayDate.getFullYear();
+                      cells.push(
+                        <span
+                          key={`day-${d}`}
+                          onClick={() => {
+                            const dateStr = `${calendarCurrentMonth.toLocaleDateString('en-US', { month: 'short' })} ${d}, ${year}`;
+                            setSelectedDateRange(dateStr);
+                            triggerToast(`Date filter: ${dateStr}`);
+                            setCalendarOpen(false);
+                          }}
+                          className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                            isToday ? 'bg-indigo-600 text-white font-extrabold shadow-sm' : 'hover:bg-indigo-50 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          {d}
+                        </span>
+                      );
+                    }
+                    return cells;
+                  })()}
                 </div>
               </div>
 
@@ -216,36 +266,48 @@ export function EnterpriseHeaderWidgets({
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Bell size={16} className="text-indigo-500" />
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Enterprise Security & System Alerts</h4>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                    Enterprise Security & System Alerts {unreadCount > 0 ? `(${unreadCount})` : ''}
+                  </h4>
                 </div>
-                <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer">
-                  Mark all read
-                </button>
+                {notifications.length > 0 && (
+                  <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-600 hover:underline cursor-pointer">
+                    Mark all read
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {notifications.map((notif, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      triggerToast(`Opening notification: ${notif.title}`);
-                      setNotificationsOpen(false);
-                    }}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                      notif.is_read
-                        ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
-                        : 'bg-indigo-50/50 dark:bg-slate-800/80 border-indigo-200 dark:border-indigo-900/50'
-                    }`}
-                  >
-                    <div className="size-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Activity size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0 text-xs">
-                      <h5 className="font-bold text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notif.message}</p>
-                    </div>
+                {notifications.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <Bell className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No active security alerts</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">System telemetry logs will appear here.</p>
                   </div>
-                ))}
+                ) : (
+                  notifications.map((notif, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        triggerToast(`Opening notification: ${notif.title}`);
+                        setNotificationsOpen(false);
+                      }}
+                      className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                        notif.is_read
+                          ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
+                          : 'bg-indigo-50/50 dark:bg-slate-800/80 border-indigo-200 dark:border-indigo-900/50'
+                      }`}
+                    >
+                      <div className="size-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                        <Activity size={14} />
+                      </div>
+                      <div className="flex-1 min-w-0 text-xs">
+                        <h5 className="font-bold text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notif.message}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </>

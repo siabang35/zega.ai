@@ -10,6 +10,13 @@ export class RateLimiterService {
   public static readonly MAX_STORE_KEYS = 10000;
 
   /**
+   * Format tenant-scoped rate limiter key
+   */
+  public static getTenantKey(organizationId: string, key: string): string {
+    return `org:${organizationId}:${key}`;
+  }
+
+  /**
    * Check if request key exceeds sliding window rate limit.
    * Runs in O(1) time without blocking database disk I/O.
    */
