@@ -1431,14 +1431,16 @@ export function UmkmDashboardContainer({
         <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
           {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
           {copilotOpen && (
-            <div className="w-[94vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
+            <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[72vh] sm:h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
               {/* Dropdown Header */}
               <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2.5 sm:gap-3">
-                  <div className="size-9 sm:size-10 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center">
-                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                      <Bot size={20} className="text-orange-400" />
-                    </div>
+                  <div className="size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+                    <img
+                      src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                      alt="ZEGA Copilot"
+                      className="w-full h-full object-contain p-0.5"
+                    />
                   </div>
                   <div>
                     <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
@@ -1491,10 +1493,12 @@ export function UmkmDashboardContainer({
                   >
                     <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
                       {msg.sender === 'copilot' && (
-                        <div className="size-7 sm:size-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center">
-                          <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                            <Sparkles size={14} className="text-orange-400" />
-                          </div>
+                        <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                          <img
+                            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                            alt="ZEGA Copilot"
+                            className="w-full h-full object-contain p-0"
+                          />
                         </div>
                       )}
 
@@ -1558,10 +1562,12 @@ export function UmkmDashboardContainer({
             onClick={() => setCopilotOpen(!copilotOpen)}
             className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
-            <div className="size-8 sm:size-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
-                <Bot size={18} className="text-orange-400" />
-              </div>
+            <div className="size-11 sm:size-12 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
+              <img
+                src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                alt="ZEGA Copilot"
+                className="w-full h-full object-contain p-0 scale-125"
+              />
             </div>
             <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
               ZEGA Copilot

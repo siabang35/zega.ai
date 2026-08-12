@@ -50,3 +50,38 @@ export function ZegaLogo({
     </div>
   );
 }
+
+interface ZegaCopilotLogoProps {
+  size?: number | string;
+  className?: string;
+  imgClassName?: string;
+  alt?: string;
+}
+
+/**
+ * ZEGA Copilot — Official Brand Logo Component
+ * Served directly from Cloudflare R2 CDN (https://cdn.zegaai.site/assets/logo/zega_copilot.png)
+ */
+export function ZegaCopilotLogo({
+  size = 32,
+  className = '',
+  imgClassName = '',
+  alt = 'ZEGA Copilot Logo',
+}: ZegaCopilotLogoProps) {
+  const pixelSize = typeof size === 'number' ? `${size}px` : size;
+  const cdnCopilotLogoUrl = `${R2_PUBLIC_CDN_DOMAIN}/assets/logo/zega_copilot.png`;
+
+  return (
+    <div className={`inline-flex items-center justify-center select-none ${className}`}>
+      <img
+        src={cdnCopilotLogoUrl}
+        alt={alt}
+        style={{ width: pixelSize, height: pixelSize }}
+        className={`object-contain transition-transform duration-300 ${imgClassName}`}
+        loading="eager"
+        decoding="async"
+      />
+    </div>
+  );
+}
+

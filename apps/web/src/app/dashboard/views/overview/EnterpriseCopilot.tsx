@@ -213,14 +213,16 @@ export function EnterpriseCopilot({
     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2">
       {/* Copilot Floating Chat Panel */}
       {copilotOpen && (
-        <div className="w-[94vw] sm:w-[440px] h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
+        <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
           {/* Header */}
           <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center">
-                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                  <Bot size={20} className="text-indigo-400" />
-                </div>
+              <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+                <img
+                  src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                  alt="ZEGA Copilot"
+                  className="w-full h-full object-contain p-1"
+                />
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-white tracking-tight flex items-center gap-2">
@@ -281,10 +283,12 @@ export function EnterpriseCopilot({
               >
                 <div className="flex items-end gap-2 max-w-[90%]">
                   {msg.sender === 'copilot' && (
-                    <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center">
-                      <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                        <Sparkles size={13} className="text-indigo-400" />
-                      </div>
+                    <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                      <img
+                        src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                        alt="ZEGA Copilot"
+                        className="w-full h-full object-contain p-0.5"
+                      />
                     </div>
                   )}
 
@@ -339,8 +343,12 @@ export function EnterpriseCopilot({
         onClick={() => setCopilotOpen(!copilotOpen)}
         className="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
       >
-        <div className="size-6 rounded-full bg-white/20 p-0.5 flex items-center justify-center">
-          <Bot size={15} className="text-white" />
+        <div className="size-9.5 sm:size-10 rounded-full bg-white/20 p-0.5 flex items-center justify-center overflow-hidden">
+          <img
+            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+            alt="ZEGA Copilot"
+            className="w-full h-full object-contain p-0 scale-125"
+          />
         </div>
         <span>Enterprise Copilot</span>
         <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
