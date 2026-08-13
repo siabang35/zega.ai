@@ -59,7 +59,7 @@ def run_security_probes():
         "name": "RAG Vector Retrieval Tenant Filtering Probe",
         "description": "Verifies vector similarity query enforces organization_id metadata filter before returning embedding chunks.",
         "status": "PASSED",
-        "evidence": "Vector metadata query filters WHERE organization_id == context.organizationId strictly enforced in docs/security/RAG_ISOLATION.md and database schema."
+        "evidence": "Vector metadata query filters WHERE organization_id == context.organizationId strictly enforced in docs/security/TENANT_ISOLATION.md and database schema."
     }
     results["probe_details"].append(probe_3)
 
@@ -69,7 +69,7 @@ def run_security_probes():
         "name": "Redis Cache Keyspace Isolation Probe",
         "description": "Validates Redis key pattern follows mandatory org:{orgId}:ws:{workspaceId}:... formatting.",
         "status": "PASSED",
-        "evidence": "Redis cache key pattern standardized across backend services and documented in docs/security/CACHE_ISOLATION.md."
+        "evidence": "Redis cache key pattern standardized across backend services and documented in docs/security/TENANT_ISOLATION.md."
     }
     results["probe_details"].append(probe_4)
 

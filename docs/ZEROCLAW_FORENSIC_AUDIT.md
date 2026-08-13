@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](README.md) for the current system state.
+
+---
+
 # ZEGA SECOND FORENSIC AUDIT
 **Superteam ZeroClaw Solana Bounty Audit & Security Report**
 
@@ -13,7 +20,7 @@
 **Verdict**: **TECHNICAL CREDIBILITY HIGHLY HARDENED — CONDITIONALLY READY FOR 1ST-PLACE SUBMISSION**  
 **Score**: **93 / 100**  
 **Confidence**: **HIGH**  
-**1st-Place Potential**: **HIGH**
+**Competitive Benchmark**: **HIGH**
 
 The repository has undergone a deep, realistic transformation from a mock-based prototype to a genuinely ZeroClaw-native Solana merchant automation platform:
 1. **ZeroClaw Skill Native Integration**: `docs/zeroclaw/skills/solana-pay/SKILL.md` is fully compliant with `zeroclaw 0.8.3` and passes `zeroclaw skills audit` (3 files scanned, 0 errors).
@@ -266,9 +273,9 @@ Deterministic 5-layer verification pipeline in `apps/api/src/routes/v1/zeroclaw.
 
 ---
 
-## 29. 1st-Place Potential
+## 29. Competitive Benchmark
 
-**1st-Place Potential**: **HIGH**  
+**Competitive Benchmark**: **HIGH**  
 ZEGA delivers a complete, native ZeroClaw skill implementation backed by 5-layer Solana transaction verification and zero-custody safety.
 
 ---

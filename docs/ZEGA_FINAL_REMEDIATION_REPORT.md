@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](README.md) for the current system state.
+
+---
+
 # ZEGA FINAL REMEDIATION & BOUNTY HARDENING REPORT
 
 **Date**: August 9, 2026  

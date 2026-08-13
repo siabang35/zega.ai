@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](../README.md) for the current system state.
+
+---
+
 # ZEGA.AI FULL TECHNICAL REMEDIATION & PRODUCTION CERTIFICATION REPORT
 
 **Principal Architects**: Principal Architect, Principal Database Engineer, Application Security Engineer, Enterprise SaaS Architect, AI Security Architect, DevSecOps Engineer, Production Reliability Engineer  

@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](../README.md) for the current system state.
+
+---
+
 # ZEGA.AI — FINAL ENTERPRISE PRODUCTION HARDENING & SECURITY CERTIFICATION REPORT
 
 **Document ID:** `ZEGA-CERT-20260812-V10`  

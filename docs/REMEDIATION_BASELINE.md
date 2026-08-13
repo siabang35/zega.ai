@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](README.md) for the current system state.
+
+---
+
 # ZEGA Remediation & Bounty Baseline Assessment
 
 **Document Date**: August 9, 2026  
@@ -108,7 +115,7 @@ ZEGA (Zero-friction Enterprise Generative AI & Automation) is a hybrid monorepo 
 
 ### Files to Preserve Untouched
 - `apps/api/src/services/solanaRpcManager.ts`
-- `apps/api/src/services/r2StorageService.js`
+- `apps/api/src/services/r2StorageService.ts`
 - `packages/zeroclaw-bridge/src/client.ts`
 - `apps/web/*` (Next.js frontend application)
 - All Supabase migration files in `supabase/migrations/*`

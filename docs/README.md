@@ -1,46 +1,38 @@
-# 📚 ZEGA AI Documentation Index
+# ZEGA.AI Documentation Index
 
-Welcome to the official documentation repository for **ZEGA AI × ZeroClaw** — Autonomous Solana Pay Merchant Infrastructure.
+> Technical documentation for the ZEGA.AI platform. All documentation is maintained under strict evidence-based governance (`governance/EVIDENCE_STANDARD.md`).
 
----
+## Start Here
 
-## 🛡️ Security, Hardening & Audit Reports
+- **[Platform Architecture](architecture/ZEGA_PLATFORM_ARCHITECTURE.md)** — Master platform architecture, workspace topology, and tenant context.
+- **[Security Architecture](security/ARCHITECTURE.md)** — Security controls, threat matrix, and isolation boundaries.
+- **[Tenant Isolation Security](security/TENANT_ISOLATION.md)** — 14-layer defense-in-depth isolation rules for RAG, Cache, Storage, AI, and MCP.
+- **[Data Ownership Matrix](tenancy/DATA_OWNERSHIP_MATRIX.md)** — Tenancy ownership mapping for all inventoried database tables.
+- **[Payment Infrastructure](payments/x402_PAYMENT_INFRASTRUCTURE.md)** — `x402` payment settlement matrix, Solana vault controls, and Privy keyless signing.
+- **[ZeroClaw Integration Guide](zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md)** — Production integration of ZeroClaw agent runtime daemon and ZEGA bridge package.
 
-These documents contain the complete hostile forensic audit, threat model, automated test matrices, and security remediation history for the Superteam Brasil ZeroClaw Bounty.
+## Engineering
 
-| Document | Category | Summary |
-|----------|----------|---------|
-| [**`ZEROCLAW_FORENSIC_AUDIT.md`**](ZEROCLAW_FORENSIC_AUDIT.md) | 🛡️ Audit Report | **Hostile Forensic Security Audit (Score 91/100 GO Verdict)** — 10-layer deep code, config, & schema evaluation. |
-| [**`ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md`**](ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md) | 🔑 Architecture | **Privy Non-Custodial Solana Withdrawal Architecture** — Dual-auth integration, Base58 address resolution, and enclave signing. |
-| [**`ZEGA_FINAL_HARDENING_REPORT.md`**](ZEGA_FINAL_HARDENING_REPORT.md) | 🔒 Verification | **Final System Hardening Report** — Automated test suite breakdown (89/89 PASS) & deployment matrices. |
-| [**`REMEDIATION_BASELINE.md`**](REMEDIATION_BASELINE.md) | 🧪 Remediation | **Security Remediation Baseline Log** — Fixes for anti-replay, RLS policies, & PostgreSQL triggers. |
-| [**`SECURITY_THREAT_MODEL.md`**](zeroclaw/SECURITY_THREAT_MODEL.md) | 🛡️ OWASP Security | **Threat Model & OWASP Level 3 Prompt Injection Protection** — Injection prevention & T1 custody boundaries. |
+- **[Architecture](architecture/ZEGA_PLATFORM_ARCHITECTURE.md)** — Monorepo workspace structure, Fastify microservices, and Vercel configuration.
+- **[Database](database/DATABASE_INVENTORY.md)** — 77 unique database tables inventory, RLS status, schema drift, and migration exceptions.
+- **[Tenancy](tenancy/TENANT_MODEL.md)** — Canonical hierarchy, store reconciliation framework, UMKM shared SaaS, Enterprise, and Superadmin control plane.
+- **[Payments](payments/x402_PAYMENT_INFRASTRUCTURE.md)** — Settlement verification pipeline, RPC failover, atomic withdrawals, and runbooks.
+- **[ZeroClaw](zeroclaw/ZEROCLAW_INTEGRATION_MATRIX.md)** — [Integration Guide](zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) | [Operator Guide](zeroclaw/AGENT_OPERATOR_GUIDE.md)
+- **[Operations](operations/DISASTER_RECOVERY.md)** — Disaster recovery procedures and runbooks.
 
----
+## Security & Verification
 
-## 🤖 ZeroClaw Integration Guides
+- **[Security Architecture](security/ARCHITECTURE.md)** — [Tenant Isolation](security/TENANT_ISOLATION.md) | [RBAC Matrix](security/RBAC.md) | [Cross-Tenant Tests](security/CROSS_TENANT_TESTS.md) | [Audit V2 Report](security/AUDIT_V2_REPORT.md)
+- **[Test Matrix](verification/TEST_MATRIX.md)** — 366 executable test cases, test categories, and verification mapping.
+- **[Evidence Standard](governance/EVIDENCE_STANDARD.md)** — Absolute Evidence Hierarchy (E0–E7), status taxonomy, and rules.
 
-| Document | Description |
-|----------|-------------|
-| [**`zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`**](zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) | Architectural guide connecting ZeroClaw Rust runtime with Fastify & Supabase. |
-| [**`zeroclaw/AGENT_OPERATOR_GUIDE.md`**](zeroclaw/AGENT_OPERATOR_GUIDE.md) | Operational manual for running merchant agents on WhatsApp, Telegram, & Web POS. |
-| [**`zeroclaw/REPRODUCIBILITY.md`**](zeroclaw/REPRODUCIBILITY.md) | **Step-by-Step Judge Reproducibility Manual** for setting up local & devnet daemons. |
-| [**`zeroclaw/config.toml`**](zeroclaw/config.toml) | Reference production ZeroClaw agent configuration file. |
+## Product
 
----
+- **[PRD Index & Specifications](PRD/README.md)** — Product specifications 01 to 44 marked by canonical status (`PROPOSED`, `PLANNED`, `PARTIALLY_IMPLEMENTED`, `IMPLEMENTED`, `VERIFIED`).
 
-## 📐 Product Requirement Documents (PRDs)
+## Audit & Historical Evidence
 
-The [`PRD/`](PRD/) directory contains 41 detailed specifications covering every aspect of ZEGA AI:
-
-- [**`PRD/01-EXECUTIVE-SUMMARY.md`**](PRD/01-EXECUTIVE-SUMMARY.md) — Platform Vision & Objectives
-- [**`PRD/02-SYSTEM-ARCHITECTURE.md`**](PRD/02-SYSTEM-ARCHITECTURE.md) — System Topology & Component Layout
-- [**`PRD/04-PAYMENT-INFRASTRUCTURE.md`**](PRD/04-PAYMENT-INFRASTRUCTURE.md) — Solana Pay Reference Key Polling & Reconciliation
-- [**`PRD/05-SECURITY-COMPLIANCE.md`**](PRD/05-SECURITY-COMPLIANCE.md) — OWASP Security & Keyless T1 Custody Rules
-- [**`PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md`**](PRD/19-ZEROCLAW-SOLANA-INTEGRATION-SPEC.md) — Native ZeroClaw Integration Specification
-- [**`PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md`**](PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) — 4-Tier RPC Provider Failover Architecture
-- [**`PRD/36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md`**](PRD/36-ZERO-CLAW-HARDENED-INVOICE-DELIVERY-AND-REALTIME-VAULT-SPEC.md) — Hardened Invoice Vault & CDN Spec
-
----
-
-*Copyright © 2026 ZEGA AI. All rights reserved.*
+- **[Claim-Evidence Reconciliation](audit/CLAIM_EVIDENCE_RECONCILIATION.md)** — Reconciled claim-to-evidence mappings.
+- **[Audit Score Reconciliation](audit/AUDIT_SCORE_RECONCILIATION.md)** — Reconciliation of historical scores into status standards.
+- **[Documentation Integrity Report](audit/DOCUMENTATION_INTEGRITY_REPORT.md)** — Forensic audit findings and structural remediation report.
+- **[Historical & Remediation Baseline](REMEDIATION_BASELINE.md)** — Historical remediation assessment baseline.

@@ -98,7 +98,7 @@ ZEGA AI eliminates these by enabling any user to deploy **specialized AI agents 
 | G3 | Achieve >90% precision on agent task execution | Accuracy rate per agent type |
 | G4 | Support 100,000+ concurrent agent instances globally | Horizontal scaling verified |
 | G5 | Integrate with 200+ real-world platforms natively | Connector count & usage metrics |
-| G6 | Deliver enterprise-grade security (SOC2, ISO 27001) | Certification achieved |
+| G6 | Deliver enterprise security compliance framework (SOC2, ISO 27001) | Certification achieved |
 | G7 | Enable real-time cross-agent collaboration with <500ms latency | A2A protocol P99 |
 | G8 | Provide world-class UI/UX for mobile and desktop | NPS ≥ 70, WCAG 2.1 AA |
 | G9 | Support non-custodial machine-to-machine payments | x402 + Stripe volume |

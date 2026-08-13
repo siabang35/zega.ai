@@ -144,7 +144,7 @@ ZEGA integrates `@privy-io/react-auth` v2.11.x (browser) and `@privy-io/server-a
 - **Dual-Auth Architecture:** Preserves native authentication (Email/Brevo OTP, Google, GitHub OAuth) while using Privy's embedded wallet for Solana transaction signing.
 - **Client-Side Signing:** Browser-side transaction signing executes via `useSignTransaction` from `@privy-io/react-auth/solana`, targeting `effectiveSigningAddress` resolved from the authenticated user's Privy wallet list.
 - **Wallet-less UX:** Users execute withdrawals without requiring external browser extension wallets (e.g., Phantom, Solflare).
-- **Technical Details:** See [`docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md`](docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md).
+- **Technical Details:** See [`docs/payments/x402_PAYMENT_INFRASTRUCTURE.md`](docs/payments/x402_PAYMENT_INFRASTRUCTURE.md) and [`docs/PRD/44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md`](docs/PRD/44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md).
 
 ---
 
@@ -165,7 +165,7 @@ ZEGA integrates `@privy-io/react-auth` v2.11.x (browser) and `@privy-io/server-a
 
 ZEGA integrates with [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) v0.8.3 as a self-hosted agent execution runtime (pinned version range: `>=0.8.0 <0.9.0-alpha`). ZeroClaw handles agent reasoning, channel I/O (Telegram, Webhook), SOP execution, and skill dispatch. ZEGA provides the application tier — REST APIs, Solana RPC management, settlement verification, and database persistence.
 
-The bridge client (`@zega/zeroclaw-bridge`) communicates with the ZeroClaw daemon's HTTP Gateway API on port `4242`. See [`packages/zeroclaw-bridge/`](packages/zeroclaw-bridge/) for implementation and [`docs/zeroclaw/ZEROCLAW_VERSION.md`](docs/zeroclaw/ZEROCLAW_VERSION.md) for the version compatibility matrix.
+The bridge client (`@zega/zeroclaw-bridge`) communicates with the ZeroClaw daemon's HTTP Gateway API on port `4242`. See [`packages/zeroclaw-bridge/`](packages/zeroclaw-bridge/) for implementation and [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) for the integration guide.
 
 ---
 
@@ -231,13 +231,11 @@ The CI pipeline (`.github/workflows/ci.yml`) executes: dependency security audit
 
 | Topic | Path |
 |---|---|
-| Privy Withdrawal Architecture | [`docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md`](docs/ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md) |
-| Payment Infrastructure Audit & Runbook | [`docs/PAYMENT_INFRASTRUCTURE_AUDIT_AND_RUNBOOK.md`](docs/PAYMENT_INFRASTRUCTURE_AUDIT_AND_RUNBOOK.md) |
-| ZeroClaw Solana Integration & Showcase | [`docs/ZEROCLAW_SOLANA_INTEGRATION_SHOWCASE.md`](docs/ZEROCLAW_SOLANA_INTEGRATION_SHOWCASE.md) |
+| Payment & Withdrawal Infrastructure | [`docs/payments/x402_PAYMENT_INFRASTRUCTURE.md`](docs/payments/x402_PAYMENT_INFRASTRUCTURE.md) |
+| Zero-Trust Withdrawal Specification | [`docs/PRD/44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md`](docs/PRD/44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md) |
 | ZeroClaw Integration Guide | [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) |
-| ZeroClaw Version & Compatibility | [`docs/zeroclaw/ZEROCLAW_VERSION.md`](docs/zeroclaw/ZEROCLAW_VERSION.md) |
+| ZeroClaw Integration Matrix | [`docs/zeroclaw/ZEROCLAW_INTEGRATION_MATRIX.md`](docs/zeroclaw/ZEROCLAW_INTEGRATION_MATRIX.md) |
 | Security Threat Model | [`docs/zeroclaw/SECURITY_THREAT_MODEL.md`](docs/zeroclaw/SECURITY_THREAT_MODEL.md) |
-| Bounty Reproducibility Guide | [`docs/zeroclaw/REPRODUCIBILITY.md`](docs/zeroclaw/REPRODUCIBILITY.md) |
 | RPC Failover Manager Specification | [`docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md`](docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) |
 
 ---

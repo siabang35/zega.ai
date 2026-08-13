@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](../README.md) for the current system state.
+
+---
+
 # ZEGA AI — Production Security Hardening, Adversarial Audit & Architecture Walkthrough V2
 
 ## 1. Executive Summary
@@ -26,7 +33,41 @@
 
 ---
 
-## 3. Threat Model & Attacker Vectors
+## 3. Secrets & Credentials Security Audit
+
+### Secret Columns Audit
+Identified secret storage columns across live database tables:
+- `users.password_hash`
+- `enterprise_webhook_settings.signature_secret`
+- `umkm_settings_api_keys_list.key_token`
+- `enterprise_mcp_configs.api_key`
+- `otps.code_hash`
+
+### Hardened Secrets Standards
+1. **No Plaintext Storage**: All API keys, tokens, and webhook secrets MUST be hashed (SHA-256 for verification-only) or encrypted at rest using AES-256-GCM (for retrieval).
+2. **API Exposure Exclusion**: Secret columns MUST be marked as unselectable in standard ORM default queries and excluded from API response serializations.
+
+---
+
+## 4. Personally Identifiable Information (PII) Audit & Governance
+
+### PII Classification Matrix
+| Data Field | PII Level | Storage Encrypted | Retention Period | Export Restrictions |
+|---|---|---|---|---|
+| Customer Email (`email`) | LEVEL 2 (Sensitive) | At Rest | Account Lifetime | Tenant Admin Only |
+| Customer Phone (`phone`) | LEVEL 2 (Sensitive) | At Rest | Account Lifetime | Tenant Admin Only |
+| Customer Address (`address`) | LEVEL 2 (Sensitive) | Standard | Account Lifetime | Masked in Exports |
+| IP Address (`ip_address`) | LEVEL 1 (Internal) | Standard | 90 Days | Operational Logs |
+| Chat Conversation Messages | LEVEL 3 (Confidential) | At Rest | 1 Year / Custom | Enterprise Admin |
+
+### Retention & Account Deletion Policy
+When a customer or organization requests account deletion (GDPR / PDP Compliance):
+- Hard deletion of all `organization_id` records across database tables within 30 days.
+- Audit logs retained in anonymized format for legal compliance.
+
+---
+
+## 5. Threat Model & Attacker Vectors
 
 - **Attacker A (Unauthenticated)**: Probes public endpoints (`/v1/auth/verify-otp`, `/v1/newsletter/subscribe`). Blocked by fail-closed rate limiters and strict Base58 / email schema validation.
 - **Attacker B (Authenticated Tenant)**: Attempts cross-tenant IDOR access to agents or settlements. Blocked by Supabase Row Level Security (`user_id::text = auth.uid()::text`).
@@ -34,9 +75,9 @@
 
 ---
 
-## 4. Trust Boundary Map
+## 6. Trust Boundary Map
 
-```
+```text
 [ Untrusted Client (Browser/Mobile) ]
                │
                ▼  (HTTP-Only Cookie / Signed JWT)
@@ -53,7 +94,7 @@
 
 ---
 
-## 5. Critical Vulnerability Findings Matrix
+## 7. Critical Vulnerability Findings Matrix
 
 ### [P1 High] Hardcoded Root Admin Email Check
 - **Location**: `apps/api/src/routes/v1/auth.routes.ts` (Line 209)
@@ -69,7 +110,7 @@
 
 ---
 
-## 6. Security Invariants & Production Readiness Scorecard
+## 8. Security Invariants & Production Readiness Scorecard
 
 ### Core Guarantees
 1. **Settlement Invariant**: A Solana transaction signature is never accepted unless verified on-chain, matched against SPL token allowlist, freshness <72h, and checked against DB anti-replay.

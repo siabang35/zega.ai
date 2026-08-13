@@ -1,6 +1,6 @@
 # ZEGA Platform Architecture & Domain Boundaries
 
-## Executive Architecture Summary
+## 1. Executive Architecture Summary
 
 ZEGA.AI is an AI-native enterprise platform structured around three distinct, decoupled security and operational domains:
 
@@ -8,7 +8,7 @@ ZEGA.AI is an AI-native enterprise platform structured around three distinct, de
 2. **DOMAIN B: Enterprise Platform** — High-governance multi-tenant and dedicated platform supporting custom RBAC/ABAC, workspace hierarchies, SSO/SCIM, and fine-grained resource policy controls.
 3. **DOMAIN C: Superadmin / Control Plane** — Internal ZEGA administrative control-plane for infrastructure, tenant registry, telemetry, and security oversight, strictly prohibited from direct customer data plane access.
 
-```
+```text
 +-----------------------------------------------------------------------------------+
 |                            ZEGA CONTROL PLANE (SUPERADMIN)                         |
 |   Tenant Registry | Deployment Registry | System Health | Break-Glass Audit       |
@@ -24,35 +24,67 @@ ZEGA.AI is an AI-native enterprise platform structured around three distinct, de
 +-------------------------------+               +-------------------------------+
 ```
 
-## Platform Domains & Security Boundaries
+---
 
-### 1. Domain A: UMKM Shared SaaS
+## 2. Monorepo Workspace Structure & Deployment Architecture
 
+ZEGA AI uses an enterprise-grade monorepo architecture built with **pnpm workspaces** and **Turborepo** build orchestration:
+
+```text
+ZEGA/
+├── apps/
+│   ├── web/                     # Frontend React + Vite Application
+│   │   ├── src/
+│   │   │   ├── app/             # Modular Dashboards (Enterprise, UMKM, SuperAdmin)
+│   │   │   │   ├── dashboard/
+│   │   │   │   │   ├── enterprise/views/ZeroClawTerminalView.tsx # ZeroClaw Solana Terminal
+│   │   │   │   │   └── umkm/views/FinanceView.tsx               # UMKM Solana Pay Finance View
+│   │   │   │   └── DocsPage.tsx  # Web Documentation Portal (/docs)
+│   │   │   ├── main.tsx         # Entrypoint
+│   │   │   └── index.css        # Core Design System & Tokens
+│   │   ├── public/              # Static Assets (Logo, Fonts)
+│   │   ├── vercel.json          # Sub-workspace Vercel Config
+│   │   └── package.json
+│   └── api/                     # Backend Fastify Microservice
+│       ├── src/
+│       │   └── routes/v1/
+│       │       ├── zeroclaw.routes.ts # ZeroClaw Solana RPC & Checkpoint Endpoints
+│       │       └── auth.routes.ts     # Brevo OTP & Turnstile Auth Routes
+│       └── package.json
+├── packages/
+│   ├── config/                  # Base TypeScript & Tooling Configs
+│   ├── shared/                  # Monorepo Shared Utilities & Types
+│   └── supabase/                # Supabase Integration Client & Types
+├── supabase/                    # Database Migrations & Seeds
+├── docs/                        # Complete PRD & Architectural Documentation
+├── vercel.json                  # Monorepo Vercel Deployment Configuration
+├── turbo.json                   # Pipeline Configuration
+└── pnpm-workspace.yaml          # Monorepo Workspace Definitions
+```
+
+---
+
+## 3. Platform Domains & Security Boundaries
+
+### Domain A: UMKM Shared SaaS
 - **Multi-Tenancy Hierarchy**: `User -> Organization Membership -> Organization -> Workspace -> Business Unit / Store -> Resource`.
 - **Authoritative Identifier**: `organization_id`.
 - **Sub-Scope Identifier**: `workspace_id`.
 - **Business Unit Identifier**: `store_id` (represents branch/location, NEVER sole tenant authority).
-- **Security Principle**: `user_id != tenant_id`. One organization contains multiple users with distinct roles (Owner, Admin, Manager, Staff, Viewer).
 
-### 2. Domain B: Enterprise Governance Platform
-
+### Domain B: Enterprise Governance Platform
 - **Governance Hierarchy**: `Organization -> Department -> Workspace -> Team -> Project -> Environment -> Resource`.
 - **Authentication**: SAML 2.0 / OIDC SSO, mandatory MFA, automated SCIM provisioning.
 - **Authorization**: Fine-grained RBAC with optional ABAC conditions (IP ranges, time-windows, classification tags).
-- **Deployment Topologies**:
-  - `SHARED_CLOUD` (Logical isolation via RLS and tenant-aware routing)
-  - `DEDICATED_CLOUD` (Isolated database/compute instance per enterprise)
-  - `CUSTOMER_MANAGED` (Customer AWS/GCP/Azure tenant deployment)
-  - `ON_PREMISE` (Self-hosted air-gapped enterprise execution node)
+- **Deployment Topologies**: `SHARED_CLOUD`, `DEDICATED_CLOUD`, `CUSTOMER_MANAGED`, `ON_PREMISE`.
 
-### 3. Domain C: Superadmin Control Plane
-
+### Domain C: Superadmin Control Plane
 - **Role**: Platform management, telemetry, billing metadata, infrastructure health monitoring.
-- **Data Isolation Rules**:
-  - Superadmin accounts possess ZERO automatic access to customer data plane records (invoices, knowledge, chats, customer lists).
-  - Customer data inspection requires explicit, audited **Break-Glass** activation (time-bounded, MFA-verified, customer-notified).
+- **Data Isolation Rules**: Superadmin accounts possess ZERO automatic access to customer data plane records. Customer data inspection requires explicit, audited **Break-Glass** activation.
 
-## Canonical Tenant Context Architecture
+---
+
+## 4. Canonical Tenant Context Architecture
 
 Every backend request, API invocation, worker job execution, and AI prompt context MUST derive identity from a verified, server-side `TenantContext`:
 
@@ -72,8 +104,7 @@ export interface ServerTenantContext {
 ```
 
 ### Context Derivation Hierarchy
-
 1. **Authentication Token**: Extract `auth_user_id` from cryptographically signed JWT / Privy session.
 2. **Membership Resolution**: Lookup `organization_memberships` table for valid `(user_id, organization_id)` association.
 3. **Workspace Validation**: Confirm target `workspace_id` belongs to resolved `organization_id`.
-4. **Header Validation**: If request header `X-Organization-Id` or `X-Workspace-Id` is provided, backend MUST verify user membership before accepting context. NEVER blindly copy client headers into query parameters.
+4. **Header Validation**: If request header `X-Organization-Id` or `X-Workspace-Id` is provided, backend MUST verify user membership before accepting context.
