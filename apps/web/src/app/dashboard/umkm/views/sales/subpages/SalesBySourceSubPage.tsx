@@ -18,6 +18,7 @@ import {
   Filter
 } from 'lucide-react';
 import { SupabaseDashboardService } from '@/app/dashboard/services/supabaseService';
+import { useLanguage } from '@/i18n/translations';
 
 interface SalesBySourceSubPageProps {
   sources?: any[];
@@ -30,6 +31,8 @@ export function SalesBySourceSubPage({
   aiInsights = [],
   triggerToast = () => {} 
 }: SalesBySourceSubPageProps) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const [expandedInsightIds, setExpandedInsightIds] = useState<Set<string>>(new Set(['1', '2']));
   const [allExpanded, setAllExpanded] = useState<boolean>(false);
   const [activeChartTab, setActiveChartTab] = useState<'distribution' | 'funnel' | 'growth'>('distribution');
@@ -157,11 +160,11 @@ export function SalesBySourceSubPage({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  Sales by Source & Atribusi Trafik
+                  {t.salesView.sourceHeaderTitle || 'Sales by Source & Atribusi Trafik'}
                 </h2>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-                Analisis mendalam atribusi omset dari kampanye iklan, media sosial, search engine, dan chat secara terpusat.
+                {t.salesView.sourceHeaderSubtitle || 'Analisis mendalam atribusi omset dari kampanye iklan, media sosial, search engine, dan chat secara terpusat.'}
               </p>
             </div>
           </div>
@@ -172,7 +175,7 @@ export function SalesBySourceSubPage({
               className="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs cursor-pointer transition-all flex items-center gap-1.5"
             >
               <BarChart3 size={14} />
-              <span>Ekspor Data Atribusi</span>
+              <span>{t.salesView.exportSourceData || 'Ekspor Data Atribusi'}</span>
             </button>
           </div>
         </div>
@@ -180,43 +183,43 @@ export function SalesBySourceSubPage({
         {/* Top Summary Telemetry Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-1">
           <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Impressions</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">{t.salesView.totalImpressions || 'Total Impressions'}</span>
             <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 font-mono">
               {totalImpressions.toLocaleString('id-ID')}
             </span>
-            <span className="text-[10px] font-medium text-slate-500 block mt-0.5">Jangkauan Kampanye</span>
+            <span className="text-[10px] font-medium text-slate-500 block mt-0.5">{t.salesView.campaignReach || 'Jangkauan Kampanye'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Klik Kontak</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">{t.salesView.totalContactClicks || 'Total Klik Kontak'}</span>
             <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 font-mono">
               {totalClicks.toLocaleString('id-ID')}
             </span>
-            <span className="text-[10px] font-medium text-blue-500/80 block mt-0.5">Click-Through Traffic</span>
+            <span className="text-[10px] font-medium text-blue-500/80 block mt-0.5">{t.salesView.clickThroughTraffic || 'Click-Through Traffic'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Pembeli</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">{t.salesView.totalBuyers || 'Total Pembeli'}</span>
             <span className="text-base sm:text-lg font-bold text-purple-600 dark:text-purple-400 font-mono">
               {totalBuyers} Orders
             </span>
-            <span className="text-[10px] font-medium text-purple-500/80 block mt-0.5">Converted Buyers</span>
+            <span className="text-[10px] font-medium text-purple-500/80 block mt-0.5">{t.salesView.convertedBuyers || 'Converted Buyers'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Total Omset Sumber</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">{t.salesView.totalSourceRevenue || 'Total Omset Sumber'}</span>
             <span className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 font-mono">
               Rp{(totalRev / 1000000).toFixed(2)}M
             </span>
-            <span className="text-[10px] font-medium text-emerald-500/80 block mt-0.5">Verified Revenue</span>
+            <span className="text-[10px] font-medium text-emerald-500/80 block mt-0.5">{t.salesView.verifiedRevenue || 'Verified Revenue'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 col-span-2 md:col-span-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Avg Conversion Rate</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">{t.salesView.conversionRate || 'Avg Conversion Rate'}</span>
             <span className="text-base sm:text-lg font-bold text-orange-600 dark:text-orange-400 font-mono">
               {avgConversionRate}%
             </span>
-            <span className="text-[10px] font-medium text-orange-500/80 block mt-0.5">Click-to-Buyer Ratio</span>
+            <span className="text-[10px] font-medium text-orange-500/80 block mt-0.5">{t.salesView.clickToBuyerRatio || 'Click-to-Buyer Ratio'}</span>
           </div>
         </div>
       </div>
@@ -227,7 +230,7 @@ export function SalesBySourceSubPage({
           <div className="flex items-center gap-2">
             <PieChartIcon size={18} className="text-orange-500" />
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Visualisasi Atribusi Trafik & Corong Konversi (Standard Enterprise)
+              {t.salesView.visualTitle || 'Visualisasi Atribusi Trafik & Corong Konversi (Standard Enterprise)'}
             </h3>
           </div>
 
@@ -240,7 +243,7 @@ export function SalesBySourceSubPage({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              Distribusi Omset (%)
+              {t.salesView.distOmsetTab || 'Distribusi Omset (%)'}
             </button>
             <button
               onClick={() => setActiveChartTab('funnel')}
@@ -250,7 +253,7 @@ export function SalesBySourceSubPage({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              Corong Konversi (Funnel)
+              {t.salesView.funnelTab || 'Corong Konversi (Funnel)'}
             </button>
             <button
               onClick={() => setActiveChartTab('growth')}
@@ -260,7 +263,7 @@ export function SalesBySourceSubPage({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              Pertumbuhan MoM (%)
+              {t.salesView.growthTab || 'Pertumbuhan MoM (%)'}
             </button>
           </div>
         </div>

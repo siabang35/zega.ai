@@ -47,6 +47,8 @@ const LOCAL_FALLBACKS: Record<string, string> = {
   'Email Blast': '/assets/logo/sendgrid.webp',
 };
 
+import { useLanguage } from '../../../../../../i18n/translations';
+
 interface PerformaByChannelSubPageProps {
   channels?: any[];
   getChannelLogo?: (name: string) => { cdn: string; fallback: string };
@@ -54,6 +56,8 @@ interface PerformaByChannelSubPageProps {
 }
 
 export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubPageProps) {
+  const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
   const [channelData, setChannelData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [chartMetric, setChartMetric] = useState<'revenue' | 'leads'>('revenue');
@@ -98,22 +102,25 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
   // Filtered Channels for Table
   const filteredChannels = channelData.filter(ch =>
     !searchQuery ||
-    ch.channel_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ch.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    (ch.channel_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (ch.category || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Chart.js Configuration
+  // Chart.js Bar Data
   const barChartData = {
-    labels: channelData.map(ch => ch.channel_name),
+    labels: channelData.map(ch => ch.channel_name || 'Channel'),
     datasets: [
       {
-        label: chartMetric === 'revenue' ? 'Omset Generated (Rp)' : 'Total Leads Terkonversi',
-        data: channelData.map(ch => chartMetric === 'revenue' ? parseFloat(ch.revenue_num || 0) : ch.leads_count || 0),
-        backgroundColor: channelData.map(ch => ch.color_hex || '#3b82f6'),
-        borderColor: channelData.map(ch => ch.color_hex || '#3b82f6'),
-        borderWidth: 1,
+        label: chartMetric === 'revenue' ? (m.revenueRp || 'Pendapatan (Rp)') : (m.totalLeads || 'Total Leads'),
+        data: channelData.map(ch => chartMetric === 'revenue' ? parseFloat(ch.revenue_num || 0) : (ch.leads_count || 0)),
+        backgroundColor: chartMetric === 'revenue' 
+          ? ['rgba(16, 185, 129, 0.85)', 'rgba(249, 115, 22, 0.85)', 'rgba(139, 92, 246, 0.85)', 'rgba(6, 182, 212, 0.85)', 'rgba(236, 72, 153, 0.85)']
+          : ['rgba(59, 130, 246, 0.85)', 'rgba(14, 165, 233, 0.85)', 'rgba(99, 102, 241, 0.85)', 'rgba(168, 85, 247, 0.85)', 'rgba(236, 72, 153, 0.85)'],
+        borderColor: chartMetric === 'revenue' 
+          ? ['#10b981', '#f97316', '#8b5cf6', '#06b6d4', '#ec4899']
+          : ['#3b82f6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899'],
+        borderWidth: 1.5,
         borderRadius: 8,
-        barThickness: 32,
       }
     ]
   };
@@ -122,20 +129,16 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: false,
+      },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-        titleFont: { size: 12, weight: 'bold' as const },
-        bodyFont: { size: 11 },
-        padding: 12,
-        cornerRadius: 10,
         callbacks: {
           label: (context: any) => {
-            const rawVal = context.raw;
-            if (chartMetric === 'revenue') {
-              return ` Pendapatan: Rp${parseFloat(rawVal).toLocaleString('id-ID')}`;
-            }
-            return ` Leads: ${rawVal} Orang`;
+            const val = context.raw;
+            return chartMetric === 'revenue' 
+              ? ` Pendapatan: Rp${val.toLocaleString('id-ID')}` 
+              : ` Total Leads: ${val} Leads`;
           }
         }
       }
@@ -143,10 +146,10 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11, weight: 'bold' as const }, color: '#64748b' }
+        ticks: { font: { size: 10 }, color: '#94a3b8' }
       },
       y: {
-        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+        grid: { color: 'rgba(148, 163, 184, 0.1)' },
         ticks: {
           font: { size: 10 },
           color: '#94a3b8',
@@ -249,24 +252,14 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
 </body>
 </html>`;
 
-    const blob = new Blob([htmlContent], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ZEGA_Performa_Saluran_Pemasaran_${new Date().toISOString().slice(0, 10)}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    const printWin = window.open('', '_blank');
-    if (printWin) {
-      printWin.document.write(htmlContent);
-      printWin.document.close();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      triggerToast('📄 Mengunduh Laporan PDF Performa Saluran...');
+    } else {
+      triggerToast('⚠️ Gagal membuka jendela cetak PDF.');
     }
-
-    triggerToast('📥 Dokumen PDF Performa Saluran Pemasaran berhasil diunduh!');
-    setShowExportModal(false);
   };
 
   return (
@@ -279,10 +272,10 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
           </div>
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Analisis Performa Saluran (Channel Performance)</span>
+              <span>{m.channelPerfTitle || 'Analisis Performa Saluran (Channel Performance)'}</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Analisis efisiensi reach, engagement, konversi leads & omset per platform secara real-time.
+              {m.channelPerfSubtitle || 'Analisis efisiensi reach, engagement, konversi leads & omset per platform secara real-time.'}
             </p>
           </div>
         </div>
@@ -293,14 +286,14 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-200/80 dark:border-slate-700"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
-            <span>Sync Data DB</span>
+            <span>{m.syncDataDb || 'Sync Data DB'}</span>
           </button>
           <button
             onClick={handleExportPdfReport}
             className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
           >
             <Download size={14} />
-            <span>Ekspor Laporan PDF</span>
+            <span>{m.exportPdfReport || 'Ekspor Laporan PDF'}</span>
           </button>
         </div>
       </div>
@@ -310,7 +303,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
         {/* Card 1: Top Performing Channel */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>TOP PERFORMING CHANNEL</span>
+            <span>{m.topPerformingChannel || 'TOP PERFORMING CHANNEL'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
               <TrendingUp size={16} />
             </div>
@@ -329,7 +322,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
         {/* Card 2: Highest Engagement Rate */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>HIGHEST ENGAGEMENT RATE</span>
+            <span>{m.highestEngagementRate || 'HIGHEST ENGAGEMENT RATE'}</span>
             <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
               <MousePointerClick size={16} />
             </div>
@@ -341,14 +334,14 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Pertumbuhan tertinggi ({highestEng?.trend_pct || '0%'})
+            {m.highestGrowth || 'Pertumbuhan tertinggi'} ({highestEng?.trend_pct || '0%'})
           </p>
         </div>
 
         {/* Card 3: Rata-Rata ROAS Channel */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>RATA-RATA ROAS CHANNEL</span>
+            <span>{m.avgChannelRoas || 'RATA-RATA ROAS CHANNEL'}</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
               <DollarSign size={16} />
             </div>
@@ -357,13 +350,13 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             <span>{avgRoas}x ROAS</span>
             <ArrowUpRight size={18} className="text-orange-500" />
           </div>
-          <p className="text-xs text-slate-500 font-medium">Biaya iklan efisien & terintegrasi DB</p>
+          <p className="text-xs text-slate-500 font-medium">{m.adCostEfficientDb || 'Biaya iklan efisien & terintegrasi DB'}</p>
         </div>
 
         {/* Card 4: Total Leads Generated */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>TOTAL LEADS GENERATED</span>
+            <span>{m.totalLeadsGenerated || 'TOTAL LEADS GENERATED'}</span>
             <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
               <Users size={16} />
             </div>
@@ -383,10 +376,10 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <BarChart3 size={18} className="text-emerald-600" />
-              <span>Visualisasi Perbandingan Performa Saluran (Chart.js Bar Chart)</span>
+              <span>{m.channelComparisonTitle || 'Visualisasi Perbandingan Performa Saluran (Chart.js Bar Chart)'}</span>
             </h3>
             <p className="text-xs text-slate-400">
-              Perbandingan pendapatan & leads yang dihasilkan dari setiap saluran pemasaran
+              {m.channelComparisonSubtitle || 'Perbandingan pendapatan & leads yang dihasilkan dari setiap saluran pemasaran'}
             </p>
           </div>
 
@@ -399,7 +392,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              Pendapatan (Rp)
+              {m.revenueRp || 'Pendapatan (Rp)'}
             </button>
             <button
               onClick={() => setChartMetric('leads')}
@@ -409,7 +402,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              Total Leads
+              {m.totalLeads || 'Total Leads'}
             </button>
           </div>
         </div>
@@ -419,7 +412,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
             <Bar data={barChartData} options={barChartOptions} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-xs font-medium">
-              Memuat grafik perbandingan performa saluran...
+              {m.loadingChannelChart || 'Memuat grafik perbandingan performa saluran...'}
             </div>
           )}
         </div>
@@ -430,10 +423,10 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-              Daftar Saluran Pemasaran Terhubung
+              {m.connectedChannelsList || 'Daftar Saluran Pemasaran Terhubung'}
             </h3>
             <p className="text-xs text-slate-400">
-              Breakdown efisiensi reach, engagement, leads, & omset terintegrasi Supabase DB
+              {m.connectedChannelsSubtitle || 'Breakdown efisiensi reach, engagement, leads, & omset terintegrasi Supabase DB'}
             </p>
           </div>
 
@@ -442,7 +435,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
               <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari saluran..."
+                placeholder={m.searchChannels || 'Cari saluran...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none text-slate-900 dark:text-slate-100 w-40"
@@ -453,7 +446,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
               className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <Download size={13} />
-              <span>Ekspor PDF</span>
+              <span>{m.exportPdfReport || 'Ekspor PDF'}</span>
             </button>
           </div>
         </div>
@@ -476,7 +469,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
               {filteredChannels.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-6 text-center text-slate-400 text-xs">
-                    Tidak ada saluran pemasaran yang ditemukan.
+                    {m.noChannelsFound || 'Tidak ada saluran pemasaran yang ditemukan.'}
                   </td>
                 </tr>
               ) : (

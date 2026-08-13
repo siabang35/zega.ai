@@ -3,6 +3,7 @@ import {
   X, Check, DollarSign, Target, Calendar, Filter, Sparkles, TrendingUp,
   ShoppingBag, ArrowUpRight, Award, RefreshCw, BarChart2, HelpCircle, User, ShieldCheck
 } from 'lucide-react';
+import { useLanguage } from '@/i18n/translations';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export function SetGoalModal({
   onSaveGoal: (val: number) => void;
   triggerToast: (msg: string) => void
 }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const [target, setTarget] = useState(currentGoal || 20000000);
 
   const handleSave = () => {
@@ -51,12 +54,12 @@ export function SetGoalModal({
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Atur Target Penjualan Bulanan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.goalModalTitle || 'Atur Target Penjualan Bulanan'}>
       <div className="space-y-4 text-xs">
-        <p className="text-slate-500 dark:text-slate-400">Tentukan target pendapatan bulanan untuk memotivasi tim sales dan AI Assistant Anda.</p>
+        <p className="text-slate-500 dark:text-slate-400">{u.goalModalDesc || 'Tentukan target pendapatan bulanan untuk memotivasi tim sales dan AI Assistant Anda.'}</p>
 
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Target Pendapatan (Rp)</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.targetRevenueLabel || 'Target Pendapatan (Rp)'}</label>
           <div className="relative">
             <input
               type="number"
@@ -71,16 +74,16 @@ export function SetGoalModal({
         <div className="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 text-orange-800 dark:text-orange-300 space-y-1">
           <div className="flex items-center gap-1.5 font-bold">
             <Target size={14} className="text-orange-500" />
-            <span>Target Saat Ini: Rp{target.toLocaleString('id-ID')}</span>
+            <span>{u.currentGoalPrefix || 'Target Saat Ini:'} Rp{target.toLocaleString('id-ID')}</span>
           </div>
-          <p className="text-[11px]">Progres pencapaian Anda saat ini akan dihitung secara otomatis secara real-time.</p>
+          <p className="text-[11px]">{u.goalProgressNote || 'Progres pencapaian Anda saat ini akan dihitung secara otomatis secara real-time.'}</p>
         </div>
 
         <button
           onClick={handleSave}
           className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-md"
         >
-          Simpan Target Baru
+          {u.saveNewGoalBtn || 'Simpan Target Baru'}
         </button>
       </div>
     </ModalBase>

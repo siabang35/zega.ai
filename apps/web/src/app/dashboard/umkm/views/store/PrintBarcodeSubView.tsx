@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Barcode, Printer, Download, Search, Check, Layers } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface PrintBarcodeSubViewProps {
   triggerToast: (msg: string) => void;
@@ -9,6 +10,9 @@ interface PrintBarcodeSubViewProps {
 }
 
 export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcodeSubViewProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,10 +54,10 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
 
   const handlePrintTrigger = () => {
     if (selectedProductIds.length === 0) {
-      triggerToast('Mohon pilih minimal 1 produk untuk dicetak barcodenya');
+      triggerToast(s.selectMinBarcode || 'Mohon pilih minimal 1 produk untuk dicetak barcodenya');
       return;
     }
-    triggerToast(`🖨️ Mengirim ${selectedProductIds.length} label barcode thermal ke printer...`);
+    triggerToast(`🖨️ ${s.sendingBarcodeToPrinter || 'Mengirim'} ${selectedProductIds.length} ${s.thermalBarcodeLabels || 'label barcode thermal ke printer...'}`);
     window.print();
   };
 
@@ -78,13 +82,13 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>Cetak Barcode & Label Thermal SKU</span>
+                <span>{s.printBarcodeTitle || 'Cetak Barcode & Label Thermal SKU'}</span>
                 <span className="px-2.5 py-0.5 rounded-lg text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border border-slate-200 dark:border-slate-700">
                   THERMAL PRINTER READY
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Hasilkan stiker barcode standar 2x1 / 3x1 untuk ditempel pada produk & rak toko fisik Anda.
+                {s.printBarcodeSubtitle || 'Hasilkan stiker barcode standar 2x1 / 3x1 untuk ditempel pada produk & rak toko fisik Anda.'}
               </p>
             </div>
           </div>
@@ -95,8 +99,8 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
               onChange={e => setPaperLayout(e.target.value as any)}
               className="px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-2xs"
             >
-              <option value="2x1">Layout Thermal 2x1 Kolom</option>
-              <option value="3x1">Layout Thermal 3x1 Kolom</option>
+              <option value="2x1">{s.layout2x1 || 'Layout Thermal 2x1 Kolom'}</option>
+              <option value="3x1">{s.layout3x1 || 'Layout Thermal 3x1 Kolom'}</option>
             </select>
 
             <button
@@ -104,7 +108,7 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
               className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-98"
             >
               <Printer size={16} />
-              <span>Cetak Barcode ({selectedProductIds.length})</span>
+              <span>{s.printBarcode || 'Cetak Barcode'} ({selectedProductIds.length})</span>
             </button>
           </div>
         </div>
@@ -115,13 +119,13 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
           <div className="lg:col-span-5 space-y-3.5">
             <div className="flex items-center justify-between">
               <h4 className="font-black text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <span>Pilih Produk Barcode</span>
+                <span>{s.selectBarcodeProducts || 'Pilih Produk Barcode'}</span>
                 <span className="px-2 py-0.2 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
                   {selectedProductIds.length} / {products.length}
                 </span>
               </h4>
               <button onClick={selectAll} className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
-                {selectedProductIds.length === products.length ? 'Batal Semua' : 'Pilih Semua'}
+                {selectedProductIds.length === products.length ? (s.deselectAll || 'Batal Semua') : (s.selectAll || 'Pilih Semua')}
               </button>
             </div>
 
@@ -130,7 +134,7 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari produk berdasarkan nama atau SKU..."
+                placeholder={s.searchBarcodePlaceholder || 'Cari produk berdasarkan nama atau SKU...'}
                 className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 font-bold focus:outline-none focus:border-blue-500"
               />
               <Search size={15} className="absolute left-3 top-3 text-slate-400" />
@@ -167,14 +171,14 @@ export function PrintBarcodeSubView({ triggerToast, onNavigateTab }: PrintBarcod
             <div className="flex items-center justify-between">
               <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Printer size={15} className="text-blue-500" />
-                <span>Preview Lembar Thermal Stiker ({paperLayout})</span>
+                <span>{s.previewThermalSheet || 'Preview Lembar Thermal Stiker'} ({paperLayout})</span>
               </h4>
-              <span className="text-[11px] font-bold text-slate-400">Dimensi Standard 50x30mm</span>
+              <span className="text-[11px] font-bold text-slate-400">{s.standardDimensions || 'Dimensi Standard 50x30mm'}</span>
             </div>
 
             {selectedProducts.length === 0 ? (
               <div className="p-16 text-center text-slate-400 text-xs font-bold border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                Belum ada produk yang dipilih untuk preview cetak barcode.
+                {s.noProductsSelectedForBarcode || 'Belum ada produk yang dipilih untuk preview cetak barcode.'}
               </div>
             ) : (
               <div className={`grid ${paperLayout === '2x1' ? 'grid-cols-2' : 'grid-cols-3'} gap-3.5 max-h-[440px] overflow-y-auto p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner`}>

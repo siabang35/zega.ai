@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tag, Percent, DollarSign, CheckCircle2, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ManageDiscountSubViewProps {
   triggerToast: (msg: string) => void;
@@ -9,6 +10,7 @@ interface ManageDiscountSubViewProps {
 }
 
 export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDiscountSubViewProps) {
+  const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
   const handleApplyDiscount = async () => {
     const val = parseFloat(discountValue);
     if (!val || val <= 0) {
-      triggerToast('Mohon masukkan besaran diskon yang valid');
+      triggerToast(t.storeView.invalidDiscountToast);
       return;
     }
 
@@ -60,10 +62,11 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
         discountFlat: discountType === 'flat' ? val : 0
       });
 
-      triggerToast(`🎉 Diskon ${discountType === 'percent' ? `${val}%` : `Rp${val.toLocaleString('id-ID')}`} berhasil diterapkan!`);
+      const valFormatted = discountType === 'percent' ? `${val}%` : `Rp${val.toLocaleString('id-ID')}`;
+      triggerToast(t.storeView.discountAppliedSuccessToast.replace('{val}', valFormatted));
       await loadProducts();
     } catch (err: any) {
-      triggerToast(`⚠️ Gagal menerapkan diskon: ${err.message || 'Error Server'}`);
+      triggerToast(t.storeView.discountAppliedFailedToast.replace('{err}', err.message || 'Server Error'));
     } finally {
       setSubmitting(false);
     }
@@ -73,6 +76,8 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
     if (selectedCategory === 'Semua') return true;
     return p.category === selectedCategory;
   });
+
+  const categoryDisplayName = (cat: string) => (cat === 'Semua' ? t.storeView.allCategories : cat);
 
   return (
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
@@ -87,13 +92,13 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>Pengaturan Diskon & Promo Massal</span>
+                <span>{t.storeView.bulkDiscountTitle}</span>
                 <span className="px-2.5 py-0.5 rounded-lg text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border border-slate-200 dark:border-slate-700">
-                  BULK DISCOUNT ENGINE
+                  {t.storeView.bulkDiscountBadge}
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Terapkan diskon persentase atau potongan harga untuk produk terpilih atau per kategori secara otomatis.
+                {t.storeView.bulkDiscountSubtitle}
               </p>
             </div>
           </div>
@@ -104,29 +109,40 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
           <div className="flex items-center justify-between">
             <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Sparkles size={16} className="text-amber-500" />
-              <span>Kalkulator & Pengaplikasi Diskon Massal</span>
+              <span>{t.storeView.bulkDiscountCalculatorTitle}</span>
             </h4>
             <span className="text-xs font-bold text-slate-500">
-              Selected: <strong className="text-orange-600 dark:text-orange-400">{selectedProductIds.length > 0 ? `${selectedProductIds.length} Produk` : `Semua Produk (${selectedCategory})`}</strong>
+              {t.storeView.selectedLabel}{' '}
+              <strong className="text-orange-600 dark:text-orange-400">
+                {selectedProductIds.length > 0
+                  ? t.storeView.specificProductsSelected.replace('{count}', String(selectedProductIds.length))
+                  : t.storeView.allProductsInCat.replace('{cat}', categoryDisplayName(selectedCategory))}
+              </strong>
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs font-bold">
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">Target Kategori Produk</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">
+                {t.storeView.targetCategoryLabel}
+              </label>
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-extrabold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 shadow-2xs"
               >
                 {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {categoryDisplayName(cat)}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">Tipe Potongan Harga</label>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">
+                {t.storeView.discountTypeLabel}
+              </label>
               <div className="grid grid-cols-2 gap-1 p-1 bg-slate-200/60 dark:bg-slate-900 rounded-xl">
                 <button
                   type="button"
@@ -135,7 +151,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                     discountType === 'percent' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  % Persen
+                  {t.storeView.percentType}
                 </button>
                 <button
                   type="button"
@@ -144,14 +160,14 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                     discountType === 'flat' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  Rp Flat (Nominal)
+                  {t.storeView.flatType}
                 </button>
               </div>
             </div>
 
             <div>
               <label className="block text-slate-600 dark:text-slate-400 mb-1.5 font-extrabold">
-                {discountType === 'percent' ? 'Nilai Persentase Diskon (%)' : 'Nilai Potongan Price (Rp)'}
+                {discountType === 'percent' ? t.storeView.discountPercentLabel : t.storeView.discountFlatLabel}
               </label>
               <div className="relative">
                 <input
@@ -170,7 +186,12 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 dark:border-slate-700/80 pt-4">
             <span className="text-xs text-slate-500 font-medium">
-              Targeting Scope: <strong className="text-slate-900 dark:text-slate-100">{selectedProductIds.length > 0 ? `${selectedProductIds.length} produk spesifik dipilih` : `Semua katalog produk dalam kategori "${selectedCategory}"`}</strong>
+              {t.storeView.targetingScope}{' '}
+              <strong className="text-slate-900 dark:text-slate-100">
+                {selectedProductIds.length > 0
+                  ? t.storeView.specificProductsSelected.replace('{count}', String(selectedProductIds.length))
+                  : t.storeView.allCatalogProductsInCat.replace('{cat}', categoryDisplayName(selectedCategory))}
+              </strong>
             </span>
 
             <button
@@ -179,7 +200,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
             >
               {submitting ? <RefreshCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-              <span>Terapkan Diskon Massal</span>
+              <span>{submitting ? t.storeView.applyingDiscount : t.storeView.applyBulkDiscountBtn}</span>
             </button>
           </div>
         </div>
@@ -188,9 +209,9 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Daftar Produk Target Diskon</span>
+              <span>{t.storeView.discountTargetProductsTitle}</span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
-                {filteredProducts.length} Produk
+                {t.storeView.productsCountBadge.replace('{count}', String(filteredProducts.length))}
               </span>
             </h4>
 
@@ -202,7 +223,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                 }}
                 className="text-xs font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                {selectedProductIds.length === filteredProducts.length ? 'Batalkan Pilih Semua' : 'Pilih Semua Produk'}
+                {selectedProductIds.length === filteredProducts.length ? t.storeView.deselectAll : t.storeView.selectAllProducts}
               </button>
             )}
           </div>
@@ -211,19 +232,19 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead className="bg-slate-100/80 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center">PILIH</th>
-                  <th className="py-3 px-4">PRODUK</th>
-                  <th className="py-3 px-4">KATEGORI</th>
-                  <th className="py-3 px-4">HARGA ASLI</th>
-                  <th className="py-3 px-4">HARGA PROMO SAAT INI</th>
-                  <th className="py-3 px-4 text-right">STATUS PROMO</th>
+                  <th className="py-3 px-4 w-12 text-center">{t.storeView.colSelect}</th>
+                  <th className="py-3 px-4">{t.storeView.colProduct}</th>
+                  <th className="py-3 px-4">{t.storeView.colCategory}</th>
+                  <th className="py-3 px-4">{t.storeView.colOriginalPrice}</th>
+                  <th className="py-3 px-4">{t.storeView.colCurrentPromoPrice}</th>
+                  <th className="py-3 px-4 text-right">{t.storeView.colPromoStatus}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredProducts.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-400 font-semibold">
-                      Tidak ada produk ditemukan untuk kategori ini.
+                      {t.storeView.noProductsCategory}
                     </td>
                   </tr>
                 ) : (
@@ -246,7 +267,7 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                           />
                         </td>
                         <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-slate-100">{product.name}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-500">{product.category}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-500">{categoryDisplayName(product.category)}</td>
                         <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300">Rp{(product.price_idr || 0).toLocaleString('id-ID')}</td>
                         <td className="py-3 px-4 font-black text-orange-600 dark:text-orange-400">
                           {product.discount_price_idr ? `Rp${(product.discount_price_idr).toLocaleString('id-ID')}` : '-'}
@@ -254,10 +275,10 @@ export function ManageDiscountSubView({ triggerToast, onNavigateTab }: ManageDis
                         <td className="py-3 px-4 text-right">
                           {product.discount_price_idr ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold border border-emerald-200 dark:border-emerald-900">
-                              Diskon Aktif
+                              {t.storeView.activeDiscountBadge}
                             </span>
                           ) : (
-                            <span className="text-[11px] text-slate-400 font-normal">Harga Normal</span>
+                            <span className="text-[11px] text-slate-400 font-normal">{t.storeView.normalPriceBadge}</span>
                           )}
                         </td>
                       </tr>

@@ -47,6 +47,7 @@ interface StoreViewProps {
 
 export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigateTab }: StoreViewProps) {
   const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
   const [storeData, setStoreData] = useState<any>({
     metrics: {
       total_products: 0,
@@ -304,17 +305,17 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
               <button onClick={() => setSubView('catalog')} className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1 cursor-pointer">
                 <Store size={14} className="text-orange-500" />
-                <span>Store Management</span>
+                <span>{s.title || 'Store Management'}</span>
               </button>
               <ChevronRight size={13} />
-              <span className="text-blue-600 dark:text-blue-400 font-black">Halaman Dedicated Top Selling</span>
+              <span className="text-blue-600 dark:text-blue-400 font-black">{s.topSelling || 'Top Selling'}</span>
             </div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>🏆 Top Selling Products & Performance Analytics</span>
+              <span>🏆 {s.topSellingAndOrders || 'Top Selling Products & Performance Analytics'}</span>
               <span className="px-3 py-0.5 rounded-full text-xs font-black bg-blue-600 text-white">9ROUTER AI</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-1">
-              Halaman dedicated analisa volume penjualan, revenue omset produk terlaris, dan rekomendasi otomatis AI Copilot.
+              {s.subtitle || 'Manage product catalog, stock inventory, and multi-channel store sync.'}
             </p>
           </div>
 
@@ -323,7 +324,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
               onClick={() => setSubView('catalog')}
               className="px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-extrabold text-xs hover:bg-slate-800 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
             >
-              ← Kembali ke Overview Store
+              ← {s.mainCatalog || 'Overview Store'}
             </button>
           </div>
         </div>
@@ -332,46 +333,46 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-3xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 space-y-1">
             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
-              <span>Total Omset Top Selling</span>
+              <span>{s.estimatedRevenue || 'Total Omset Top Selling'}</span>
               <DollarSign size={16} />
             </div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               Rp{totalTopRev.toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] text-blue-600 font-bold">↑ 24% dari produk terlaris</div>
+            <div className="text-[10px] text-blue-600 font-bold">↑ 24%</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/60 space-y-1">
             <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
-              <span>Total Volume Terjual</span>
+              <span>{s.totalStock || 'Total Volume Terjual'}</span>
               <Package size={16} />
             </div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {totalTopSold} Unit
             </div>
-            <div className="text-[10px] text-emerald-600 font-bold">Terjual across all channels</div>
+            <div className="text-[10px] text-emerald-600 font-bold">Across all channels</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-purple-50/60 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-900/60 space-y-1">
             <div className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center justify-between">
-              <span>Produk Juara #1</span>
+              <span>{s.topSelling || 'Produk Juara #1'}</span>
               <TrendingUp size={16} />
             </div>
             <div className="text-base font-black text-slate-900 dark:text-slate-100 truncate">
               {topLeader ? topLeader.name : '-'}
             </div>
-            <div className="text-[10px] text-purple-600 font-bold">{topLeader ? `${topLeader.sold} unit terjual` : 'Belum ada data'}</div>
+            <div className="text-[10px] text-purple-600 font-bold">{topLeader ? `${topLeader.sold} unit` : '-'}</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 space-y-1">
             <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
-              <span>Status AI Catalog</span>
+              <span>{s.aiAnalysis || 'Status AI Catalog'}</span>
               <Sparkles size={16} />
             </div>
             <div className="text-base font-black text-slate-900 dark:text-slate-100">
               ⚡ High Conversion
             </div>
-            <div className="text-[10px] text-amber-600 font-bold">Di-optimalkan oleh 9Router Layer 5</div>
+            <div className="text-[10px] text-amber-600 font-bold">9Router AI</div>
           </div>
         </div>
 
@@ -379,9 +380,9 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Leaderboard Penjualan Produk Terlaris</span>
+              <span>{s.leaderboardTitle || 'Leaderboard Penjualan Produk Terlaris'}</span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
-                {sortedTopSelling.length} Produk
+                {sortedTopSelling.length} {s.activeCatalog || 'Produk'}
               </span>
             </h3>
 
@@ -391,7 +392,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari produk terlaris..."
+                  placeholder={s.searchProductPlaceholder || 'Cari produk...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:outline-hidden"
@@ -404,14 +405,14 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-3">PERINGKAT</th>
-                  <th className="py-3 px-3">PRODUK TERLARIS</th>
+                  <th className="py-3 px-3">#</th>
+                  <th className="py-3 px-3">{s.colProduct || 'PRODUK TERLARIS'}</th>
                   <th className="py-3 px-3">SKU</th>
-                  <th className="py-3 px-3">KATEGORI</th>
+                  <th className="py-3 px-3">{s.colCategory || 'KATEGORI'}</th>
                   <th className="py-3 px-3">TERJUAL</th>
-                  <th className="py-3 px-3">ESTIMASI REVENUE</th>
-                  <th className="py-3 px-3">SISA STOK</th>
-                  <th className="py-3 px-3 text-right">AKSI PROMO AI</th>
+                  <th className="py-3 px-3">{s.estimatedRevenue || 'ESTIMASI REVENUE'}</th>
+                  <th className="py-3 px-3">{s.remainingStock || 'SISA STOK'}</th>
+                  <th className="py-3 px-3 text-right">{s.aiPromoAction || 'AKSI PROMO AI'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -469,13 +470,13 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                               onClick={() => { setSelectedProductForAnalysis(product); setIsAnalysisModalOpen(true); }}
                               className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300 font-bold text-xs cursor-pointer transition-all flex items-center gap-1"
                             >
-                              <BarChart2 size={13} /> <span>Analisis AI</span>
+                              <BarChart2 size={13} /> <span>{s.aiAnalysis || 'Analisis AI'}</span>
                             </button>
                             <button
                               onClick={() => { setSelectedProductForEdit(product); setIsEditModalOpen(true); }}
                               className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1"
                             >
-                              <Edit size={13} /> <span>Kelola</span>
+                              <Edit size={13} /> <span>{s.manage || 'Kelola'}</span>
                             </button>
                           </div>
                         </td>
@@ -503,17 +504,17 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
               <button onClick={() => setSubView('catalog')} className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1 cursor-pointer">
                 <Store size={14} className="text-orange-500" />
-                <span>Store Management</span>
+                <span>{s.title || 'Store Management'}</span>
               </button>
               <ChevronRight size={13} />
-              <span className="text-amber-600 dark:text-amber-400 font-black">Halaman Dedicated Stok Alert</span>
+              <span className="text-amber-600 dark:text-amber-400 font-black">{s.stockAlert || 'Stok Alert'}</span>
             </div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>⚠️ Peringatan Stok & Restok Otomatis (Stok Alert)</span>
+              <span>⚠️ {s.criticalStockAlert || 'Peringatan Stok & Restok Otomatis (Stok Alert)'}</span>
               <span className="px-3 py-0.5 rounded-full text-xs font-black bg-amber-500 text-white">ZEROCLAW EDGE</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-1">
-              Sistem pemantauan stok kritis real-time dengan integrasi langsung ke Supabase RPC stored procedures & AI Swarm auto-replenishment.
+              {s.subtitle || 'Manage product catalog, stock inventory, and multi-channel store sync.'}
             </p>
           </div>
 
@@ -522,7 +523,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
               onClick={() => setSubView('catalog')}
               className="px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-extrabold text-xs hover:bg-slate-800 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
             >
-              ← Kembali ke Overview Store
+              ← {s.mainCatalog || 'Overview Store'}
             </button>
           </div>
         </div>
@@ -531,46 +532,46 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-3xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-1">
             <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
-              <span>Stok Kritis (≤ 10 Unit)</span>
+              <span>{s.criticalStockItems || 'Stok Kritis (≤ 10 Unit)'}</span>
               <AlertTriangle size={16} />
             </div>
             <div className="text-2xl font-black text-amber-700 dark:text-amber-300">
-              {lowStockItems.length} Produk
+              {lowStockItems.length} {s.activeCatalog || 'Produk'}
             </div>
-            <div className="text-[10px] text-amber-600 font-bold">Membutuhkan restok segera</div>
+            <div className="text-[10px] text-amber-600 font-bold">{s.lowStockAlerts || 'Membutuhkan restok segera'}</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900 space-y-1">
             <div className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center justify-between">
-              <span>Stok Kosong (Out of Stock)</span>
+              <span>{s.outOfStockRisk || 'Stok Kosong (Out of Stock)'}</span>
               <AlertCircle size={16} />
             </div>
             <div className="text-2xl font-black text-red-700 dark:text-red-300">
-              {outOfStockItems.length} Produk
+              {outOfStockItems.length} {s.activeCatalog || 'Produk'}
             </div>
-            <div className="text-[10px] text-red-600 font-bold">Risiko kehilangan pesanan</div>
+            <div className="text-[10px] text-red-600 font-bold">{s.outOfStock || 'Stok Kosong'}</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-1">
             <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
-              <span>Estimasi Unit Restok</span>
+              <span>{s.estimatedRestockUnits || 'Estimasi Unit Restok'}</span>
               <Layers size={16} />
             </div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {lowStockItems.length * 50} Unit
             </div>
-            <div className="text-[10px] text-blue-600 font-bold">Rekomendasi 50 unit per produk</div>
+            <div className="text-[10px] text-blue-600 font-bold">50 unit / {s.colProduct || 'produk'}</div>
           </div>
 
           <div className="p-4 rounded-3xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-1">
             <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
-              <span>Telemetry Auto-Restok</span>
+              <span>{s.telemetryAutoRestock || 'Telemetry Auto-Restok'}</span>
               <RefreshCw size={16} />
             </div>
             <div className="text-base font-black text-emerald-700 dark:text-emerald-300">
-              ⚡ Terhubung Supabase
+              ⚡ Supabase RPC
             </div>
-            <div className="text-[10px] text-emerald-600 font-bold">RPC fn_quick_restok active</div>
+            <div className="text-[10px] text-emerald-600 font-bold">fn_quick_restok</div>
           </div>
         </div>
 
@@ -578,9 +579,9 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Daftar Inventaris Stok Kritis & Aksi Restok Cepat</span>
+              <span>{s.inventoryListAndQuickRestock || 'Daftar Inventaris Stok Kritis & Aksi Restok Cepat'}</span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-extrabold">
-                {lowStockItems.length} Kritis
+                {lowStockItems.length} {s.critical || 'Kritis'}
               </span>
             </h3>
           </div>
@@ -589,20 +590,20 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-3">PRODUK KRITIS</th>
+                  <th className="py-3 px-3">{s.colProduct || 'PRODUK KRITIS'}</th>
                   <th className="py-3 px-3">SKU</th>
-                  <th className="py-3 px-3">KATEGORI</th>
-                  <th className="py-3 px-3">STOK SAAT INI</th>
+                  <th className="py-3 px-3">{s.colCategory || 'KATEGORI'}</th>
+                  <th className="py-3 px-3">{s.colStock || 'STOK SAAT INI'}</th>
                   <th className="py-3 px-3">TERJUAL</th>
                   <th className="py-3 px-3">STATUS AI</th>
-                  <th className="py-3 px-3 text-right">AKSI RESTOK INSTAN (SUPABASE RPC)</th>
+                  <th className="py-3 px-3 text-right">{s.quickRestock || 'AKSI RESTOK INSTAN (SUPABASE RPC)'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {lowStockItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-16 text-center text-slate-400 font-semibold">
-                      🎉 Semua produk stoknya aman (di atas 10 unit)!
+                      🎉 {s.noProductsFound || 'Semua produk stoknya aman!'}
                     </td>
                   </tr>
                 ) : (
@@ -634,7 +635,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                       <td className="py-3.5 px-3 font-bold text-slate-700 dark:text-slate-300">{product.sold || 0} unit</td>
                       <td className="py-3.5 px-3">
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 flex items-center gap-1 w-fit">
-                          <span>⚡ Restok Kritis</span>
+                          <span>⚡ {s.critical || 'Restok Kritis'}</span>
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right">
@@ -689,28 +690,28 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         {/* Card 1: Total Produk */}
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Total Produk</span>
+            <span>{s.totalProducts || 'Total Produk'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center">
               <Package size={16} />
             </div>
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{storeData.metrics.total_products}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 8 produk baru</div>
+            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 8</div>
           </div>
         </div>
 
         {/* Card 2: Total Stok */}
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Total Stok</span>
+            <span>{s.totalStock || 'Total Stok'}</span>
             <div className="size-8 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 flex items-center justify-center">
               <Layers size={16} />
             </div>
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{storeData.metrics.total_stock.toLocaleString('id-ID')}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 120 unit masuk</div>
+            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">↑ 120</div>
           </div>
         </div>
 
@@ -723,7 +724,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs cursor-pointer hover:border-amber-400 transition-all group"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Stok Rendah</span>
+            <span>{s.lowStockTitle || 'Stok Rendah'}</span>
             <div className="size-8 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
               <AlertTriangle size={16} />
             </div>
@@ -731,7 +732,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{storeData.metrics.low_stock_count}</div>
             <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1">
-              <span>Buka Stok Alert</span>
+              <span>{s.stockAlert || 'Buka Stok Alert'}</span>
               <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -746,7 +747,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs cursor-pointer hover:border-blue-400 transition-all group"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Top Selling & Orders</span>
+            <span>{s.topSellingAndOrders || 'Top Selling & Orders'}</span>
             <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
               <ShoppingBag size={16} />
             </div>
@@ -754,7 +755,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{storeData.metrics.today_orders}</div>
             <div className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
-              <span>Lihat Leaderboard</span>
+              <span>{s.topSelling || 'Lihat Leaderboard'}</span>
               <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -763,7 +764,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         {/* Card 5: Nilai Stok */}
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Nilai Stok</span>
+            <span>{s.stockValue || 'Nilai Stok'}</span>
             <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center">
               <DollarSign size={16} />
             </div>
@@ -772,7 +773,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
               Rp{(storeData.metrics.stock_value_idr).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">Total value semua stok</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">Total Value</div>
           </div>
         </div>
       </div>
@@ -784,7 +785,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>Performa Store</span>
+                <span>{s.storePerformance || 'Performa Store'}</span>
               </h3>
               <div className="flex items-center gap-4 text-[11px] font-bold pt-1">
                 <span className="text-blue-500 flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> Orders</span>
@@ -816,20 +817,20 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         {/* Col 2: Top Selling Products (lg:col-span-3) */}
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Top Selling Products</h3>
+            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{s.topSelling || 'Top Selling Products'}</h3>
             <button 
               onClick={() => onNavigateTab ? onNavigateTab('top_selling') : handleShowTopSelling()} 
               className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[10px] font-black cursor-pointer flex items-center gap-1 transition-all"
             >
-              <span>Lihat Semua</span>
+              <span>{s.seeAll || 'Lihat Semua'}</span>
               <ChevronRight size={11} />
             </button>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 dark:border-slate-800">
-              <span>Produk</span>
-              <span>Terjual</span>
+              <span>{s.colProduct || 'Produk'}</span>
+              <span>TERJUAL</span>
             </div>
 
             {storeData.topSelling.map((p: any, idx: number) => {
@@ -872,13 +873,13 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <span>Stok Alert</span>
+                <span>{s.stockAlert || 'Stok Alert'}</span>
               </h3>
               <button 
                 onClick={() => onNavigateTab ? onNavigateTab('manage_stock_limit') : handleShowLowStock()} 
                 className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/60 text-[10px] font-black cursor-pointer flex items-center gap-1 transition-all"
               >
-                <span>Lihat Semua</span>
+                <span>{s.seeAll || 'Lihat Semua'}</span>
                 <ChevronRight size={11} />
               </button>
             </div>
@@ -913,7 +914,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400">
-                      Stok: {item.stock}
+                      {s.colStock || 'Stok'}: {item.stock}
                     </span>
                   </div>
                 );
@@ -925,7 +926,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             onClick={() => onNavigateTab ? onNavigateTab('manage_stock_limit') : handleShowLowStock()}
             className="w-full py-2.5 rounded-2xl border border-orange-200 dark:border-orange-900/80 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
           >
-            <span>Kelola Stok Rendah</span>
+            <span>{s.manage || 'Kelola'} {s.lowStockTitle || 'Stok Rendah'}</span>
             <ChevronRight size={14} />
           </button>
         </div>
@@ -938,10 +939,10 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           {/* Table Control Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Daftar Produk</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.manageProducts || 'Daftar Produk'}</h3>
               {lowStockFilter && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 text-[10px] font-black animate-in fade-in">
-                  <span>⚠️ Stok Rendah (≤ 10)</span>
+                  <span>⚠️ {s.lowStockTitle || 'Stok Rendah'} (≤ 10)</span>
                   <button 
                     onClick={() => { setLowStockFilter(false); triggerToast('Filter stok rendah di-reset'); }}
                     className="hover:underline text-[9px] cursor-pointer ml-1 text-orange-800 dark:text-orange-200 font-extrabold"
@@ -960,7 +961,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari produk..."
+                  placeholder={s.searchProductPlaceholder || 'Cari produk...'}
                   className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-44"
                 />
               </div>
@@ -971,18 +972,18 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 onChange={(e) => { setCategoryFilter(e.target.value); setLowStockFilter(false); }}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none"
               >
-                <option value="Semua Kategori">Semua Kategori</option>
-                <option value="Fashion & Pakaian">Fashion & Pakaian</option>
-                <option value="Makanan & Minuman">Makanan & Minuman (F&B)</option>
-                <option value="Kecantikan & Skincare">Kecantikan & Skincare</option>
-                <option value="Elektronik & Gadget">Elektronik & Gadget</option>
-                <option value="Perlengkapan Rumah">Perlengkapan Rumah & Lifestyle</option>
-                <option value="Kerajinan & Souvenir">Kerajinan & Souvenir</option>
-                <option value="Kesehatan & Herbal">Kesehatan & Herbal</option>
-                <option value="Apparel">Apparel (Legacy)</option>
-                <option value="Drinkware">Drinkware (Legacy)</option>
-                <option value="Accessories">Accessories (Legacy)</option>
-                <option value="Lainnya">Lainnya</option>
+                <option value="Semua Kategori">{s.allCategories || 'Semua Kategori'}</option>
+                <option value="Fashion & Pakaian">{s.fashionPakaian || 'Fashion & Pakaian'}</option>
+                <option value="Makanan & Minuman">{s.fnb || 'Makanan & Minuman (F&B)'}</option>
+                <option value="Kecantikan & Skincare">{s.beautySkincare || 'Kecantikan & Skincare'}</option>
+                <option value="Elektronik & Gadget">{s.electronicsGadgets || 'Elektronik & Gadget'}</option>
+                <option value="Perlengkapan Rumah">{s.homeLifestyle || 'Perlengkapan Rumah & Lifestyle'}</option>
+                <option value="Kerajinan & Souvenir">{s.handicrafts || 'Kerajinan & Souvenir'}</option>
+                <option value="Kesehatan & Herbal">{s.healthHerbal || 'Kesehatan & Herbal'}</option>
+                <option value="Apparel">Apparel</option>
+                <option value="Drinkware">Drinkware</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Lainnya">{s.other || 'Lainnya'}</option>
               </select>
 
               {/* Status Filter */}
@@ -991,10 +992,10 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 onChange={(e) => { setStatusFilter(e.target.value); setLowStockFilter(false); }}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none"
               >
-                <option value="Semua Status">Semua Status</option>
-                <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
-                <option value="Draft">Draft</option>
+                <option value="Semua Status">{s.allStatus || 'Semua Status'}</option>
+                <option value="Aktif">{s.statusActive || 'Aktif'}</option>
+                <option value="Nonaktif">{s.statusInactive || 'Nonaktif'}</option>
+                <option value="Draft">{s.statusDraft || 'Draft'}</option>
               </select>
 
               {/* Filter Button */}
@@ -1012,14 +1013,14 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-2.5 px-3">PRODUK</th>
+                  <th className="py-2.5 px-3">{s.colProduct || 'PRODUK'}</th>
                   <th className="py-2.5 px-3">SKU</th>
-                  <th className="py-2.5 px-3">KATEGORI</th>
-                  <th className="py-2.5 px-3">STOK</th>
+                  <th className="py-2.5 px-3">{s.colCategory || 'KATEGORI'}</th>
+                  <th className="py-2.5 px-3">{s.colStock || 'STOK'}</th>
                   <th className="py-2.5 px-3">TERJUAL</th>
-                  <th className="py-2.5 px-3">HARGA</th>
+                  <th className="py-2.5 px-3">{s.colPrice || 'HARGA'}</th>
                   <th className="py-2.5 px-3">STATUS</th>
-                  <th className="py-2.5 px-3 text-right">AKSI</th>
+                  <th className="py-2.5 px-3 text-right">{s.colAction || 'AKSI'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1125,7 +1126,11 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
 
             return (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-slate-800">
-                <span>Menampilkan {startIdx} - {endIdx} dari {filteredProducts.length} produk</span>
+                <span>
+                  {s.showingRangeOfTotal
+                    ? s.showingRangeOfTotal.replace('{start}', String(startIdx)).replace('{end}', String(endIdx)).replace('{total}', String(filteredProducts.length))
+                    : `Menampilkan ${startIdx} - ${endIdx} dari ${filteredProducts.length} produk`}
+                </span>
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -1165,12 +1170,12 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           {/* Kategori Produk Card */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Kategori Produk</h3>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{s.category || 'Kategori Produk'}</h3>
               <button 
                 onClick={() => { setCategoryFilter('Semua Kategori'); setLowStockFilter(false); triggerToast('Semua kategori ditampilkan'); }} 
                 className="text-[10px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                Lihat Semua
+                {s.seeAll || 'Lihat Semua'}
               </button>
             </div>
 
@@ -1182,7 +1187,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                   onClick={() => {
                     setCategoryFilter(cat.name);
                     setLowStockFilter(false);
-                    triggerToast(`✓ Filter Kategori: ${cat.name}`);
+                    triggerToast(`✓ Filter: ${cat.name}`);
                     const tableEl = document.getElementById('product-table-section');
                     if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth' });
                   }}
@@ -1196,7 +1201,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     <span className="size-2 rounded-full bg-emerald-500 flex-shrink-0" />
                     <span className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{cat.name}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 flex-shrink-0">{cat.count || cat.product_count} Produk</span>
+                  <span className="text-[10px] font-bold text-slate-400 flex-shrink-0">{cat.count || cat.product_count} {s.activeCatalog || 'Produk'}</span>
                 </button>
               ))}
             </div>
@@ -1204,7 +1209,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
 
           {/* Aksi Cepat Grid Card */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs">
-            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aksi Cepat</h3>
+            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{s.quickActions || 'Aksi Cepat'}</h3>
 
             <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-extrabold">
               <button
@@ -1214,7 +1219,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 mx-auto grid place-items-center">
                   <Package size={14} />
                 </div>
-                <span>Tambah Produk</span>
+                <span>{s.addProduct || 'Tambah Produk'}</span>
               </button>
 
               <button
@@ -1224,7 +1229,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 mx-auto grid place-items-center">
                   <Upload size={14} />
                 </div>
-                <span>Bulk Upload</span>
+                <span>{s.bulkUpload || 'Bulk Upload'}</span>
               </button>
 
               <button
@@ -1234,7 +1239,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 mx-auto grid place-items-center">
                   <Percent size={14} />
                 </div>
-                <span>Atur Diskon</span>
+                <span>{s.setDiscount || 'Atur Diskon'}</span>
               </button>
 
               <button
@@ -1244,7 +1249,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 mx-auto grid place-items-center">
                   <Tag size={14} />
                 </div>
-                <span>Kelola Kategori</span>
+                <span>{s.manageCategories || 'Kelola Kategori'}</span>
               </button>
 
               <button
@@ -1254,7 +1259,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 mx-auto grid place-items-center">
                   <Barcode size={14} />
                 </div>
-                <span>Cetak Barcode</span>
+                <span>{s.printBarcode || 'Cetak Barcode'}</span>
               </button>
 
               <button
@@ -1264,7 +1269,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="size-7 rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 mx-auto grid place-items-center">
                   <RefreshCw size={14} />
                 </div>
-                <span>Sinkron Stok</span>
+                <span>{s.syncStock || 'Sinkron Stok'}</span>
               </button>
             </div>
           </div>

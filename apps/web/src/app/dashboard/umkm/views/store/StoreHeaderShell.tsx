@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Store, Plus, Upload, Download, Sparkles, ChevronRight, ChevronDown, Package, TrendingUp, AlertTriangle, FileSpreadsheet, Printer, Tag
 } from 'lucide-react';
+import { useLanguage } from '../../../../../i18n/translations';
 
 export type StoreSubTab = 
   | 'store' 
@@ -37,6 +38,8 @@ export function StoreHeaderShell({
   onOpenExportModal,
   onOpenDeployModal
 }: StoreHeaderShellProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -53,26 +56,26 @@ export function StoreHeaderShell({
   const getSubViewLabel = () => {
     switch (activeTab) {
       case 'manage_product':
-        return 'Kelola Produk';
+        return s.manageProducts || 'Kelola Produk';
       case 'top_selling':
-        return 'Top Selling';
+        return s.topSelling || 'Top Selling';
       case 'manage_stock_limit':
-        return 'Stok Alert';
+        return s.stockAlert || 'Stok Alert';
       case 'add_product':
-        return 'Tambah Produk';
+        return s.addProduct || 'Tambah Produk';
       case 'bulk_upload':
-        return 'Bulk Upload';
+        return s.bulkUploadCsvJson || 'Bulk Upload';
       case 'manage_discount':
-        return 'Atur Diskon';
+        return s.manageDiscountBulk || 'Atur Diskon';
       case 'manage_category':
-        return 'Kelola Kategori';
+        return s.manageCategory || 'Kelola Kategori';
       case 'print_barcode':
-        return 'Cetak Barcode';
+        return s.printBarcode || 'Cetak Barcode';
       case 'stock_sync':
-        return 'Sinkron Stok';
+        return s.stockSync || 'Sinkron Stok';
       case 'store':
       default:
-        return 'Katalog Utama';
+        return s.mainCatalog || 'Katalog Utama';
     }
   };
 
@@ -87,16 +90,16 @@ export function StoreHeaderShell({
               className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Store size={14} className="text-orange-500" />
-              <span>Store Management</span>
+              <span>{s.title || 'Store Management'}</span>
             </button>
             <ChevronRight size={13} />
             <span className="text-slate-900 dark:text-slate-100 font-extrabold">{getSubViewLabel()}</span>
           </div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100">
-            Store & Inventory Management
+            {s.title || 'Store & Inventory Management'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Manage product catalog, stock inventory, and multi-channel store sync.
+            {s.subtitle || 'Manage product catalog, stock inventory, and multi-channel store sync.'}
           </p>
         </div>
 
@@ -107,7 +110,7 @@ export function StoreHeaderShell({
             onClick={onOpenDeployModal} 
             className="px-3.5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-extrabold shadow-xs cursor-pointer flex items-center gap-1.5 transition-all active:scale-98"
           >
-            <Sparkles size={14} /> <span>Deploy AI Swarm</span>
+            <Sparkles size={14} /> <span>{s.deployAiSwarm || 'Deploy AI Swarm'}</span>
           </button>
 
           {/* Clean Enterprise Dropdown Button */}
@@ -117,7 +120,7 @@ export function StoreHeaderShell({
               className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all active:scale-98"
             >
               <Plus size={16} /> 
-              <span>Tambah & Impor Produk</span>
+              <span>{s.addProductsAndImport || 'Tambah & Impor Produk'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -135,8 +138,8 @@ export function StoreHeaderShell({
                     <Plus size={16} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Tambah Produk Manual</div>
-                    <div className="text-[10px] text-slate-400 font-medium">Formulir input single produk baru</div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">{s.addSingleProduct || 'Tambah Produk Manual'}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">{s.addSingleProductDesc || 'Formulir input single produk baru'}</div>
                   </div>
                 </button>
 
@@ -152,8 +155,8 @@ export function StoreHeaderShell({
                     <FileSpreadsheet size={16} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Bulk Upload CSV / JSON</div>
-                    <div className="text-[10px] text-slate-400 font-medium">Impor katalog massal sekaligus</div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">{s.bulkUploadCsvJson || 'Bulk Upload CSV / JSON'}</div>
+                    <div className="text-[10px] text-slate-400 font-medium">{s.bulkUploadDesc || 'Impor katalog massal sekaligus'}</div>
                   </div>
                 </button>
 
@@ -167,7 +170,7 @@ export function StoreHeaderShell({
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-3 transition-colors cursor-pointer"
                 >
                   <Printer size={15} className="text-slate-500 ml-1.5" />
-                  <span className="text-xs font-semibold">Cetak Barcode Tag</span>
+                  <span className="text-xs font-semibold">{s.printBarcodeTag || 'Cetak Barcode Tag'}</span>
                 </button>
 
                 <button
@@ -178,7 +181,7 @@ export function StoreHeaderShell({
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-3 transition-colors cursor-pointer"
                 >
                   <Tag size={15} className="text-slate-500 ml-1.5" />
-                  <span className="text-xs font-semibold">Atur Diskon Massal</span>
+                  <span className="text-xs font-semibold">{s.manageDiscountBulk || 'Atur Diskon Massal'}</span>
                 </button>
               </div>
             )}
@@ -194,10 +197,10 @@ export function StoreHeaderShell({
       <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
         {/* Core Views Group */}
         {[
-          { id: 'store', label: 'Katalog Utama', icon: Package },
-          { id: 'manage_product', label: 'Kelola Produk', icon: Package, badge: metrics.total_products || 0 },
-          { id: 'top_selling', label: 'Top Selling', icon: TrendingUp, badge: '🏆' },
-          { id: 'manage_stock_limit', label: 'Stok Alert', icon: AlertTriangle, badge: `${metrics.low_stock_count || 0} Kritis` },
+          { id: 'store', label: s.mainCatalog || 'Katalog Utama', icon: Package },
+          { id: 'manage_product', label: s.manageProducts || 'Kelola Produk', icon: Package, badge: metrics.total_products || 0 },
+          { id: 'top_selling', label: s.topSelling || 'Top Selling', icon: TrendingUp, badge: '🏆' },
+          { id: 'manage_stock_limit', label: s.stockAlert || 'Stok Alert', icon: AlertTriangle, badge: `${metrics.low_stock_count || 0} ${s.critical || 'Kritis'}` },
         ].map(tab => {
           const isActive = activeTab === tab.id;
           const IconComp = tab.icon;
@@ -229,10 +232,10 @@ export function StoreHeaderShell({
 
         {/* Tools Group */}
         {[
-          { id: 'manage_discount', label: 'Atur Diskon', icon: Sparkles },
-          { id: 'manage_category', label: 'Kelola Kategori', icon: Package },
-          { id: 'print_barcode', label: 'Cetak Barcode', icon: Package },
-          { id: 'stock_sync', label: 'Sinkron Stok', icon: Sparkles }
+          { id: 'manage_discount', label: s.manageDiscountBulk || 'Atur Diskon', icon: Sparkles },
+          { id: 'manage_category', label: s.manageCategory || 'Kelola Kategori', icon: Package },
+          { id: 'print_barcode', label: s.printBarcode || 'Cetak Barcode', icon: Package },
+          { id: 'stock_sync', label: s.stockSync || 'Sinkron Stok', icon: Sparkles }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           const IconComp = tab.icon;

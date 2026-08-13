@@ -105,6 +105,9 @@ const SAMPLE_JSON_BLUEPRINT = `{
 }`;
 
 export function AutomationView({ triggerToast }: AutomationViewProps) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmAutomations || {};
+
   const [filterTab, setFilterTab] = useState('Semua');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
   const [searchQuery, setSearchQuery] = useState('');
@@ -356,13 +359,13 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Automation</h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{u.title || 'Automation'}</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[10px] font-extrabold">
-              Enterprise Workflow Engine
+              {u.badge || 'Enterprise Workflow Engine'}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Buat dan kelola workflow otomatisasi tanpa kode. Hemat waktu, kurangi kesalahan, tingkatkan produktivitas.
+            {u.subtitle || 'Buat dan kelola workflow otomatisasi tanpa kode. Hemat waktu, kurangi kesalahan, tingkatkan produktivitas.'}
           </p>
         </div>
 
@@ -372,7 +375,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
           >
             <BookOpen size={14} className="text-orange-500" />
-            <span>Dokumentasi Engine</span>
+            <span>{u.engineDocs || 'Dokumentasi Engine'}</span>
           </button>
 
           <button
@@ -380,7 +383,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
           >
             <Upload size={14} className="text-orange-500" />
-            <span>Impor Workflow</span>
+            <span>{u.importWorkflow || 'Impor Workflow'}</span>
           </button>
 
           <button
@@ -388,7 +391,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer transition-all"
           >
             <Plus size={16} />
-            <span>Buat Automation</span>
+            <span>{u.createAutomation || 'Buat Automation'}</span>
           </button>
         </div>
       </div>
@@ -400,7 +403,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* CARD 1: ACTIVE AUTOMATIONS */}
         <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">Active Automations</span>
+            <span className="text-[11px] font-semibold text-slate-400">{u.activeAutomations || 'Active Automations'}</span>
             <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
               <Play size={14} />
             </div>
@@ -408,7 +411,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">{runningCount}</div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ Live DB State</span>
+              <span>{u.liveDbState || '▲ Live DB State'}</span>
             </div>
           </div>
         </div>
@@ -416,7 +419,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* CARD 2: TASKS AUTOMATED TODAY */}
         <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">Tasks Automated Today</span>
+            <span className="text-[11px] font-semibold text-slate-400">{u.tasksAutomatedToday || 'Tasks Automated Today'}</span>
             <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 size={14} />
             </div>
@@ -424,7 +427,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today ?? 0}</div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ Live Telemetry</span>
+              <span>{u.liveTelemetry || '▲ Live Telemetry'}</span>
             </div>
           </div>
         </div>
@@ -432,7 +435,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* CARD 3: SUCCESS RATE */}
         <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">Success Rate</span>
+            <span className="text-[11px] font-semibold text-slate-400">{u.successRate || 'Success Rate'}</span>
             <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
               <ShieldCheck size={14} />
             </div>
@@ -444,7 +447,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 : '0%'}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ Live Telemetry</span>
+              <span>{u.liveTelemetry || '▲ Live Telemetry'}</span>
             </div>
           </div>
         </div>
@@ -452,17 +455,17 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* CARD 4: HOURS SAVED THIS WEEK */}
         <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">Hours Saved This Week</span>
+            <span className="text-[11px] font-semibold text-slate-400">{u.hoursSavedThisWeek || 'Hours Saved This Week'}</span>
             <div className="size-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
               <Clock size={14} />
             </div>
           </div>
           <div>
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-              {`${kpiData.hours_saved_weekly ?? 0} Jam`}
+              {`${kpiData.hours_saved_weekly ?? 0} ${u.hoursUnit || 'Jam'}`}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ Live Calculation</span>
+              <span>{u.liveCalculation || '▲ Live Calculation'}</span>
             </div>
           </div>
         </div>
@@ -470,7 +473,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* CARD 5: COST SAVED THIS MONTH */}
         <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 col-span-2 sm:col-span-1 hover:border-orange-400/50 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">Cost Saved This Month</span>
+            <span className="text-[11px] font-semibold text-slate-400">{u.costSavedThisMonth || 'Cost Saved This Month'}</span>
             <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
               <DollarSign size={14} />
             </div>
@@ -480,7 +483,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               Rp{(kpiData.estimated_ai_salary_saved || ((kpiData.hours_saved_weekly || 0) * 150000)).toLocaleString('id-ID')}
             </div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
-              <span>▲ Live Revenue</span>
+              <span>{u.liveRevenue || '▲ Live Revenue'}</span>
             </div>
           </div>
         </div>
@@ -493,17 +496,17 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* Left Tabs with Realtime Counts */}
         <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold">
           {[
-            { label: 'Semua', count: totalCount, color: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300' },
-            { label: 'Berjalan', count: runningCount, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
-            { label: 'Dijeda', count: pausedCount, color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
-            { label: 'Gagal', count: failedCount, color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
-            { label: 'Selesai', count: completedCount, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' }
+            { id: 'Semua', label: u.all || 'Semua', count: totalCount, color: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300' },
+            { id: 'Berjalan', label: u.running || 'Berjalan', count: runningCount, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+            { id: 'Dijeda', label: u.paused || 'Dijeda', count: pausedCount, color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+            { id: 'Gagal', label: u.failed || 'Gagal', count: failedCount, color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
+            { id: 'Selesai', label: u.completed || 'Selesai', count: completedCount, color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' }
           ].map((tab) => (
             <button
-              key={tab.label}
-              onClick={() => setFilterTab(tab.label)}
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id)}
               className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                filterTab === tab.label
+                filterTab === tab.id
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/50 dark:border-slate-800'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
@@ -524,7 +527,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari automation..."
+              placeholder={u.searchPlaceholder || 'Cari automation...'}
               className="pl-8 pr-4 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs w-48 focus:outline-none focus:border-orange-500 font-medium"
             />
           </div>
@@ -534,11 +537,11 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
           >
-            <option value="Semua Status">Semua Status</option>
-            <option value="Berjalan">Berjalan ({runningCount})</option>
-            <option value="Dijeda">Dijeda ({pausedCount})</option>
-            <option value="Gagal">Gagal ({failedCount})</option>
-            <option value="Selesai">Selesai ({completedCount})</option>
+            <option value="Semua Status">{u.allStatus || 'Semua Status'}</option>
+            <option value="Berjalan">{u.running || 'Berjalan'} ({runningCount})</option>
+            <option value="Dijeda">{u.paused || 'Dijeda'} ({pausedCount})</option>
+            <option value="Gagal">{u.failed || 'Gagal'} ({failedCount})</option>
+            <option value="Selesai">{u.completed || 'Selesai'} ({completedCount})</option>
           </select>
 
           <div className="flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
@@ -566,9 +569,11 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         {/* LEFT 8 COLS: DAFTAR AUTOMATION */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div className="flex items-center justify-between pb-1">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Daftar Automation</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.title || 'Daftar Automation'}</h3>
             <span className="text-[11px] font-bold text-slate-400">
-              Showing {filteredAutomations.length} of {automations.length} workflows
+              {(u.showingWorkflows || 'Showing {showing} of {total} workflows')
+                .replace('{showing}', String(filteredAutomations.length))
+                .replace('{total}', String(automations.length))}
             </span>
           </div>
 
@@ -578,9 +583,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <Workflow size={24} />
               </div>
               <div className="max-w-xs mx-auto space-y-1">
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Zero State — Belum ada Workflow Automation</h4>
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.zeroStateTitle || 'Zero State — Belum ada Workflow Automation'}</h4>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Database tenant belum memiliki workflow otomatisasi. Buat automation baru atau impor file blueprint JSON.
+                  {u.zeroStateDesc || 'Database tenant belum memiliki workflow otomatisasi. Buat automation baru atau impor file blueprint JSON.'}
                 </p>
               </div>
               <div className="flex items-center justify-center gap-2 pt-1">
@@ -589,14 +594,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
                 >
                   <Upload size={13} className="text-orange-500" />
-                  <span>Impor Workflow</span>
+                  <span>{u.importWorkflow || 'Impor Workflow'}</span>
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                 >
                   <Plus size={14} />
-                  <span>Buat Automation</span>
+                  <span>{u.createAutomation || 'Buat Automation'}</span>
                 </button>
               </div>
             </div>
@@ -605,13 +610,13 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <th className="pb-3 pl-2">AUTOMATION WORKFLOW</th>
-                    <th className="pb-3">AI ENGINE / ROUTER</th>
-                    <th className="pb-3">TRIGGER EVENT</th>
-                    <th className="pb-3">LAST EXECUTION</th>
-                    <th className="pb-3">STATUS</th>
-                    <th className="pb-3 text-center">SUCCESS RATE</th>
-                    <th className="pb-3 pr-2 text-right">AKSI</th>
+                    <th className="pb-3 pl-2">{u.colWorkflow || 'AUTOMATION WORKFLOW'}</th>
+                    <th className="pb-3">{u.colEngine || 'AI ENGINE / ROUTER'}</th>
+                    <th className="pb-3">{u.colTrigger || 'TRIGGER EVENT'}</th>
+                    <th className="pb-3">{u.colLastRun || 'LAST EXECUTION'}</th>
+                    <th className="pb-3">{u.colStatus || 'STATUS'}</th>
+                    <th className="pb-3 text-center">{u.colSuccessRate || 'SUCCESS RATE'}</th>
+                    <th className="pb-3 pr-2 text-right">{u.colAction || 'AKSI'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -632,7 +637,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                         <td className="py-3.5 pl-2 pr-3 max-w-[220px]">
                           <div className="flex items-center gap-1.5 mb-1">
                             <span className="px-1.5 py-0.2 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-extrabold flex items-center gap-1">
-                              <Workflow size={10} /> Event Workflow
+                              <Workflow size={10} /> {u.eventWorkflow || 'Event Workflow'}
                             </span>
                           </div>
                           <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate group-hover:text-orange-500 transition-colors" title={item.title}>
@@ -667,7 +672,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                         </td>
 
                         <td className="py-3.5 pr-3 text-[10.5px] text-slate-400 whitespace-nowrap">
-                          {item.last_run || '2 menit yang lalu'}
+                          {item.last_run || `2 ${u.ago || 'menit yang lalu'}`}
                         </td>
 
                         <td className="py-3.5 pr-3 whitespace-nowrap">
@@ -679,7 +684,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                               : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                           }`}>
                             <span className={`size-1.5 rounded-full ${isRunning ? 'bg-emerald-500' : isPaused ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                            {isRunning ? 'Berjalan' : isPaused ? 'Dijeda' : 'Gagal'}
+                            {isRunning ? (u.running || 'Berjalan') : isPaused ? (u.paused || 'Dijeda') : (u.failed || 'Gagal')}
                           </span>
                         </td>
 
@@ -702,7 +707,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                                 }
                               }}
                               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer transition-colors"
-                              title={isRunning ? 'Pause Workflow' : 'Resume Workflow'}
+                              title={isRunning ? (u.pauseWorkflow || 'Pause Workflow') : (u.resumeWorkflow || 'Resume Workflow')}
                             >
                               {isRunning ? <Pause size={14} className="text-amber-500" /> : <Play size={14} className="text-emerald-500" />}
                             </button>
@@ -716,7 +721,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                                 }
                               }}
                               className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors"
-                              title="Delete Workflow"
+                              title={u.deleteWorkflow || 'Delete Workflow'}
                             >
                               <Trash2 size={14} />
                             </button>
@@ -749,11 +754,11 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                             <TriggerIcon size={14} />
                           </div>
                           <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-extrabold flex items-center gap-1">
-                            <Workflow size={10} /> Event Workflow
+                            <Workflow size={10} /> {u.eventWorkflow || 'Event Workflow'}
                           </span>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${isRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          • {isRunning ? 'Berjalan' : 'Dijeda'}
+                          • {isRunning ? (u.running || 'Berjalan') : (u.paused || 'Dijeda')}
                         </span>
                       </div>
                       <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{item.title}</h4>
@@ -774,7 +779,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                         onClick={() => triggerToast(`Configuring ${item.title}`)}
                         className="text-orange-500 font-bold hover:underline cursor-pointer"
                       >
-                        Edit Workflow &gt;
+                        {u.editWorkflow || 'Edit Workflow >'}
                       </button>
                     </div>
                   </div>
@@ -786,12 +791,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           {/* Interactive Dynamic Pagination Footer */}
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-medium">
             <span>
-              Menampilkan {filteredAutomations.length === 0 ? 0 : (validCurrentPage - 1) * pageSize + 1}-
-              {Math.min(validCurrentPage * pageSize, filteredAutomations.length)} dari {filteredAutomations.length} automation
+              {(u.showingRange || 'Menampilkan {from}-{to} dari {total} automation')
+                .replace('{from}', String(filteredAutomations.length === 0 ? 0 : (validCurrentPage - 1) * pageSize + 1))
+                .replace('{to}', String(Math.min(validCurrentPage * pageSize, filteredAutomations.length)))
+                .replace('{total}', String(filteredAutomations.length))}
             </span>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px]">Tampilkan:</span>
+              <span className="text-[11px]">{u.showPerPage || 'Tampilkan:'}</span>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -800,9 +807,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 }}
                 className="px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value={4}>4 per halaman</option>
-                <option value={6}>6 per halaman</option>
-                <option value={10}>10 per halaman</option>
+                <option value={4}>4 {u.perPage || 'per halaman'}</option>
+                <option value={6}>6 {u.perPage || 'per halaman'}</option>
+                <option value={10}>10 {u.perPage || 'per halaman'}</option>
               </select>
 
               <div className="flex items-center gap-1">
@@ -846,9 +853,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           {/* WIDGET 1: RINGKASAN WORKFLOW (CHART.JS INTERACTIVE REALTIME DOUGHNUT) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4.5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Ringkasan Workflow</h3>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{u.workflowSummary || 'Ringkasan Workflow'}</h3>
               <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Realtime Sync
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> {u.realtimeSync || 'Realtime Sync'}
               </span>
             </div>
 
@@ -857,25 +864,25 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <Doughnut data={doughnutData} options={doughnutOptions} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                   <span className="text-base font-black text-slate-900 dark:text-slate-100">{totalCount}</span>
-                  <span className="text-[8px] font-bold text-slate-400">Total</span>
+                  <span className="text-[8px] font-bold text-slate-400">{u.total || 'Total'}</span>
                 </div>
               </div>
 
               <div className="space-y-1.5 flex-1 text-[11px] font-bold">
                 <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" />Berjalan</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-500" />{u.running || 'Berjalan'}</span>
                   <span>{runningCount} ({runningPct}%)</span>
                 </div>
                 <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-500" />Dijeda</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-500" />{u.paused || 'Dijeda'}</span>
                   <span>{pausedCount} ({pausedPct}%)</span>
                 </div>
                 <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" />Gagal</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-rose-500" />{u.failed || 'Gagal'}</span>
                   <span>{failedCount} ({failedPct}%)</span>
                 </div>
                 <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-indigo-500" />Selesai</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-indigo-500" />{u.completed || 'Selesai'}</span>
                   <span>{completedCount} ({completedPct}%)</span>
                 </div>
               </div>
@@ -885,8 +892,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           {/* WIDGET 2: EKSEKUSI OTOMATISASI (CHART.JS SMOOTH GRADIENT LINE) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4.5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Eksekusi Otomatisasi</h3>
-              <span className="text-[10px] font-bold text-slate-400">7 Hari Terakhir</span>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{u.automationExecution || 'Eksekusi Otomatisasi'}</h3>
+              <span className="text-[10px] font-bold text-slate-400">{u.last7Days || '7 Hari Terakhir'}</span>
             </div>
             <div className="h-28 w-full pt-1">
               <Line data={lineChartData} options={lineChartOptions} />
@@ -896,8 +903,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
           {/* WIDGET 3: TEMPLATE POPULER */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4.5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Template Populer</h3>
-              <button onClick={() => setShowTemplateModal(true)} className="text-[10px] font-extrabold text-orange-500 hover:underline cursor-pointer">Lihat Semua &gt;</button>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{u.popularTemplates || 'Template Populer'}</h3>
+              <button onClick={() => setShowTemplateModal(true)} className="text-[10px] font-extrabold text-orange-500 hover:underline cursor-pointer">{u.seeAllTemplates || 'Lihat Semua >'}</button>
             </div>
 
             <div className="space-y-2.5">
@@ -935,7 +942,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                       }}
                       className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-orange-500 hover:text-white transition-all cursor-pointer shadow-xs flex-shrink-0"
                     >
-                      Gunakan
+                      {u.useTemplate || 'Gunakan'}
                     </button>
                   </div>
                 );
@@ -950,7 +957,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* BOTTOM BANNER: BUAT AUTOMATION DALAM 3 LANGKAH MUDAH */}
       {/* ========================================================================= */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-        <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Buat Automation dalam 3 Langkah Mudah</h3>
+        <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.threeStepsTitle || 'Buat Automation dalam 3 Langkah Mudah'}</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 flex items-center gap-3">
@@ -958,8 +965,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               1
             </div>
             <div>
-              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Pilih Trigger</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Pilih event yang memulai workflow otomatisasi Anda.</p>
+              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.step1Title || 'Pilih Trigger'}</h4>
+              <p className="text-[10px] text-slate-400 mt-0.5">{u.step1Desc || 'Pilih event yang memulai workflow otomatisasi Anda.'}</p>
             </div>
           </div>
 
@@ -968,8 +975,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               2
             </div>
             <div>
-              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Tambah Aksi</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Tambahkan aksi yang ingin dijalankan oleh AI Employee.</p>
+              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.step2Title || 'Tambah Aksi'}</h4>
+              <p className="text-[10px] text-slate-400 mt-0.5">{u.step2Desc || 'Tambahkan aksi yang ingin dijalankan oleh AI Employee.'}</p>
             </div>
           </div>
 
@@ -978,8 +985,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               3
             </div>
             <div>
-              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aktifkan</h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Nyalakan automation dan biarkan AI bekerja 24/7.</p>
+              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.step3Title || 'Aktifkan'}</h4>
+              <p className="text-[10px] text-slate-400 mt-0.5">{u.step3Desc || 'Nyalakan automation dan biarkan AI bekerja 24/7.'}</p>
             </div>
           </div>
         </div>
@@ -990,7 +997,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer"
           >
             <BookOpen size={14} className="text-orange-500" />
-            <span>Lihat Dokumentasi &gt;</span>
+            <span>{u.viewDocs || 'Lihat Dokumentasi >'}</span>
           </button>
         </div>
       </div>
@@ -1004,7 +1011,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <FileCode size={20} className="text-orange-500" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Impor Blueprint Workflow Automation</h3>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.importModalTitle || 'Impor Blueprint Workflow Automation'}</h3>
               </div>
               <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X size={18} />
@@ -1014,16 +1021,16 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             <div className="space-y-3">
               <div className="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900 text-xs text-orange-800 dark:text-orange-300 space-y-1">
                 <div className="font-extrabold flex items-center gap-1">
-                  <Sparkles size={14} /> Import Workflow JSON Blueprint
+                  <Sparkles size={14} /> {u.importJsonHeadline || 'Import Workflow JSON Blueprint'}
                 </div>
-                <p className="text-[11px]">Unggah berkas JSON dari komputer atau tempel definisi blueprint workflow di bawah ini.</p>
+                <p className="text-[11px]">{u.importJsonDesc || 'Unggah berkas JSON dari komputer atau tempel definisi blueprint workflow di bawah ini.'}</p>
               </div>
 
               {/* File Upload Button */}
               <div className="flex items-center gap-2">
                 <label className="flex-1 px-3 py-2 rounded-xl border border-dashed border-orange-300 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/30 hover:bg-orange-100/50 text-xs font-bold text-orange-700 dark:text-orange-300 flex items-center justify-center gap-2 cursor-pointer transition-colors">
                   <Upload size={14} />
-                  <span>Pilih File Blueprint (.json)</span>
+                  <span>{u.chooseBlueprintFile || 'Pilih File Blueprint (.json)'}</span>
                   <input
                     type="file"
                     accept=".json"
@@ -1047,7 +1054,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Workflow Definition (JSON Syntax)</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">{u.workflowDefinitionLabel || 'Workflow Definition (JSON Syntax)'}</label>
                 <textarea
                   rows={7}
                   value={importJsonText}
@@ -1062,7 +1069,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   onClick={() => setImportJsonText(SAMPLE_JSON_BLUEPRINT)}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
-                  Load Order Preset
+                  {u.loadOrderPreset || 'Load Order Preset'}
                 </button>
                 <button
                   type="button"
@@ -1075,7 +1082,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   }, null, 2))}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
-                  Load WA Bot Preset
+                  {u.loadWaBotPreset || 'Load WA Bot Preset'}
                 </button>
                 <button
                   type="button"
@@ -1088,7 +1095,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   }, null, 2))}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
-                  Load Restock Preset
+                  {u.loadRestockPreset || 'Load Restock Preset'}
                 </button>
               </div>
             </div>
@@ -1099,7 +1106,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="font-extrabold text-xs text-slate-200 flex items-center gap-2">
                     <RefreshCw size={14} className="animate-spin text-orange-500" />
-                    <span>Processing Realtime Workflow Validation...</span>
+                    <span>{u.processingValidation || 'Processing Realtime Workflow Validation...'}</span>
                   </span>
                   <span className="text-[9.5px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold uppercase">
                     {importProgressStep}
@@ -1109,22 +1116,22 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <div className="space-y-1 text-[10.5px]">
                   <div className={`flex items-center gap-2 ${importProgressStep === 'parsing_schema' ? 'text-amber-400 font-bold' : 'text-emerald-400'}`}>
                     <span>{importProgressStep === 'parsing_schema' ? '⏳' : '✓'}</span>
-                    <span>1. Validating JSON syntax & blueprint schema definitions...</span>
+                    <span>1. {u.validationStep1 || 'Validating JSON syntax & blueprint schema definitions...'}</span>
                   </div>
 
                   <div className={`flex items-center gap-2 ${['db_persist', 'gateway_verification', 'completed'].includes(importProgressStep) ? (importProgressStep === 'db_persist' ? 'text-amber-400 font-bold' : 'text-emerald-400') : 'text-slate-600'}`}>
                     <span>{importProgressStep === 'db_persist' ? '⏳' : ['gateway_verification', 'completed'].includes(importProgressStep) ? '✓' : '•'}</span>
-                    <span>2. Executing Supabase DB atomic stored procedure insert...</span>
+                    <span>2. {u.validationStep2 || 'Executing Supabase DB atomic stored procedure insert...'}</span>
                   </div>
 
                   <div className={`flex items-center gap-2 ${['gateway_verification', 'completed'].includes(importProgressStep) ? (importProgressStep === 'gateway_verification' ? 'text-amber-400 font-bold' : 'text-emerald-400') : 'text-slate-600'}`}>
                     <span>{importProgressStep === 'gateway_verification' ? '⏳' : importProgressStep === 'completed' ? '✓' : '•'}</span>
-                    <span>3. Verifying 9Router Layer 5 & ZeroClaw daemon route handshake...</span>
+                    <span>3. {u.validationStep3 || 'Verifying 9Router Layer 5 & ZeroClaw daemon route handshake...'}</span>
                   </div>
 
                   <div className={`flex items-center gap-2 ${importProgressStep === 'completed' ? 'text-emerald-400 font-bold' : 'text-slate-600'}`}>
                     <span>{importProgressStep === 'completed' ? '✓' : '•'}</span>
-                    <span>4. Realtime subscription broadcast & workflow ready!</span>
+                    <span>4. {u.validationStep4 || 'Realtime subscription broadcast & workflow ready!'}</span>
                   </div>
                 </div>
               </div>
@@ -1141,7 +1148,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
               >
-                Batal
+                {u.cancel || 'Batal'}
               </button>
               <button
                 type="button"
@@ -1199,7 +1206,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
               >
                 {isImporting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                <span>{isImporting ? 'Validating...' : 'Validate & Import Workflow'}</span>
+                <span>{isImporting ? (u.validating || 'Validating...') : (u.validateAndImport || 'Validate & Import Workflow')}</span>
               </button>
             </div>
           </div>
@@ -1215,7 +1222,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Workflow size={20} className="text-orange-500" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Buat Automation Baru</h3>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.createModalTitle || 'Buat Automation Baru'}</h3>
               </div>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X size={18} />
@@ -1261,7 +1268,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               className="space-y-3.5"
             >
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Judul Workflow Automation</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">{u.workflowTitleLabel || 'Judul Workflow Automation'}</label>
                 <input
                   type="text"
                   required
@@ -1273,7 +1280,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Event Trigger Workflow</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">{u.eventTriggerLabel || 'Event Trigger Workflow'}</label>
                 <select
                   value={newAutomationForm.trigger_event}
                   onChange={(e) => setNewAutomationForm({ ...newAutomationForm, trigger_event: e.target.value })}
@@ -1291,7 +1298,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
               {/* RICH AI MODEL SELECTION POPOVER DROPDOWN */}
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">AI Engine Router & Model Provider</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">{u.aiEngineLabel || 'AI Engine Router & Model Provider'}</label>
                 <div className="relative">
                   {(() => {
                     const selEngine = AI_MODEL_ENGINES.find(m => m.id === newAutomationForm.model_engine) || AI_MODEL_ENGINES[0];
@@ -1352,7 +1359,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">Deskripsi Ringkas</label>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">{u.descriptionLabel || 'Deskripsi Ringkas'}</label>
                 <textarea
                   rows={2}
                   value={newAutomationForm.description}
@@ -1368,14 +1375,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 cursor-pointer"
                 >
-                  Batal
+                  {u.cancel || 'Batal'}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 size={14} />
-                  <span>Simpan & Aktifkan</span>
+                  <span>{u.saveAndActivate || 'Simpan & Aktifkan'}</span>
                 </button>
               </div>
             </form>
@@ -1395,8 +1402,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   <BookOpen size={20} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Dokumentasi Real Model Router & R2 CDN</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Enterprise Event-Driven Workflow Architecture</p>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">{u.docModalTitle || 'Dokumentasi Real Model Router & R2 CDN'}</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">{u.docModalSubtitle || 'Enterprise Event-Driven Workflow Architecture'}</p>
                 </div>
               </div>
               <button
@@ -1410,16 +1417,16 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             {/* Architecture Overview Card */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-500/10 via-slate-50 to-slate-100 dark:from-orange-950/30 dark:via-slate-800/40 dark:to-slate-900 border border-orange-500/20 space-y-2">
               <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold text-xs">
-                <Workflow size={14} /> Event-Driven Engine vs Autonomous AI Workforce
+                <Workflow size={14} /> {u.archHeadline || 'Event-Driven Engine vs Autonomous AI Workforce'}
               </div>
               <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                Modul <strong>AI Automations</strong> menangani workflow terpicu event multi-langkah (seperti order masuk, stok menipis, dan pengingat pembayaran) dengan eksekusi otomatis tanpa jeda. Berbeda dari AI Workforce yang merupakan agen percakapan otonom.
+                {u.archDesc || 'Modul AI Automations menangani workflow terpicu event multi-langkah (seperti order masuk, stok menipis, dan pengingat pembayaran) dengan eksekusi otomatis tanpa jeda. Berbeda dari AI Workforce yang merupakan agen percakapan otonom.'}
               </p>
             </div>
 
             {/* Model Router Specifications */}
             <div className="space-y-3">
-              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Supported Real Model Engines & Providers</h4>
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{u.supportedEnginesHeader || 'Supported Real Model Engines & Providers'}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {AI_MODEL_ENGINES.map((model) => (
                   <div key={model.id} className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-start gap-3">
@@ -1439,7 +1446,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
             {/* Cloudflare R2 CDN Asset Registry */}
             <div className="space-y-2.5">
-              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Cloudflare R2 CDN Asset Registry</h4>
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{u.cdnRegistryHeader || 'Cloudflare R2 CDN Asset Registry'}</h4>
               <div className="p-3 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[10.5px] space-y-1.5 overflow-x-auto">
                 <div className="text-slate-400">// CDN Base URL: https://cdn.zegaai.site</div>
                 <div>Llama 3.3 CDN  : https://cdn.zegaai.site/assets/logo/llama.jpg</div>
@@ -1458,7 +1465,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 onClick={() => setShowDocModal(false)}
                 className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
-                Tutup Dokumentasi
+                {u.closeDocs || 'Tutup Dokumentasi'}
               </button>
             </div>
           </div>
@@ -1478,8 +1485,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Templates Gallery Automation</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Pilih preset workflow otomatisasi teruji terintegrasi Real Model & R2 CDN</p>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">{u.templateGalleryTitle || 'Templates Gallery Automation'}</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">{u.templateGallerySubtitle || 'Pilih preset workflow otomatisasi teruji terintegrasi Real Model & R2 CDN'}</p>
                 </div>
               </div>
               <button
@@ -1594,7 +1601,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                         className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1 flex-shrink-0"
                       >
                         <Zap size={12} />
-                        <span>Deploy Template</span>
+                        <span>{u.deployTemplate || 'Deploy Template'}</span>
                       </button>
                     </div>
                   </div>
@@ -1608,7 +1615,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 onClick={() => setShowTemplateModal(false)}
                 className="px-5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
               >
-                Tutup Gallery
+                {u.closeGallery || 'Tutup Gallery'}
               </button>
             </div>
           </div>

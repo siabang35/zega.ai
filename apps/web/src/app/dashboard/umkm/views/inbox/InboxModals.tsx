@@ -3,6 +3,7 @@ import {
   X, Check, Settings, Copy, MessageSquare, Instagram, ShoppingBag, Video, 
   FileText, Sparkles, User, Package, Truck, MapPin, Zap, ExternalLink, RefreshCw
 } from 'lucide-react';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
 
 // 1. Manage Integrations Modal
 export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isOpen: boolean; onClose: () => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const [channels, setChannels] = useState([
     { name: 'WhatsApp Business API', icon: MessageSquare, color: 'text-emerald-500', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/wa/store-123' },
     { name: 'Instagram Direct', icon: Instagram, color: 'text-pink-500', connected: true, webhook: 'https://zega-ai.onrender.com/webhooks/ig/store-123' },
@@ -40,9 +44,9 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
   ]);
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Kelola Integrasi Multi-Channel">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.modalIntegrationsTitle || "Kelola Integrasi Multi-Channel"}>
       <div className="space-y-3 text-xs">
-        <p className="text-slate-500 dark:text-slate-400">Hubungkan channel komunikasi pelanggan untuk menerima dan membalas pesan secara realtime.</p>
+        <p className="text-slate-500 dark:text-slate-400">{u.modalIntegrationsSub || 'Hubungkan channel komunikasi pelanggan untuk menerima dan membalas pesan secara realtime.'}</p>
         
         <div className="space-y-2">
           {channels.map((ch, idx) => (
@@ -60,7 +64,7 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
                   const updated = [...channels];
                   updated[idx].connected = !updated[idx].connected;
                   setChannels(updated);
-                  triggerToast(`${ch.name} ${updated[idx].connected ? 'Terhubung' : 'Terputus'}`);
+                  triggerToast(`${ch.name} ${updated[idx].connected ? (u.connectedStatus || 'Terhubung') : (u.disconnectedStatus || 'Terputus')}`);
                 }}
                 className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] cursor-pointer transition-all ${
                   ch.connected 
@@ -68,7 +72,7 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
                     : 'bg-orange-500 text-white hover:bg-orange-600'
                 }`}
               >
-                {ch.connected ? 'Terhubung' : 'Hubungkan'}
+                {ch.connected ? (u.connectedStatus || 'Terhubung') : (u.connectAction || 'Hubungkan')}
               </button>
             </div>
           ))}
@@ -80,6 +84,9 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
 
 // 2. Quick Create Order Modal
 export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }: { isOpen: boolean; onClose: () => void; onInsertText: (txt: string) => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const [product, setProduct] = useState('Paket Basic Skincare Remaja');
   const [price, setPrice] = useState(199000);
   const [qty, setQty] = useState(1);
@@ -94,10 +101,10 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Buat Order Cepat">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.createOrder || "Buat Order Cepat"}>
       <div className="space-y-3 text-xs">
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Pilih Produk</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.selectProduct || 'Pilih Produk'}</label>
           <select 
             value={product}
             onChange={(e) => {
@@ -116,7 +123,7 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Jumlah (Qty)</label>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.qtyLabel || 'Jumlah (Qty)'}</label>
             <input 
               type="number" 
               min={1}
@@ -126,7 +133,7 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
             />
           </div>
           <div>
-            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Total Harga</label>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.totalPriceLabel || 'Total Harga'}</label>
             <div className="p-2.5 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900 font-extrabold text-orange-600 dark:text-orange-400">
               Rp{(price * qty).toLocaleString('id-ID')}
             </div>
@@ -134,7 +141,7 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
         </div>
 
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Alamat Tujuan</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.deliveryAddressLabel || 'Alamat Tujuan'}</label>
           <textarea 
             value={address} 
             onChange={(e) => setAddress(e.target.value)}
@@ -147,7 +154,7 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
           onClick={handleCreate}
           className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold shadow-md cursor-pointer"
         >
-          Buat Order & Masukkan Ke Chat
+          {u.createOrderSubmit || 'Buat Order & Masukkan Ke Chat'}
         </button>
       </div>
     </ModalBase>
@@ -156,6 +163,9 @@ export function CreateOrderModal({ isOpen, onClose, onInsertText, triggerToast }
 
 // 3. Cek Ongkir Modal
 export function CheckOngkirModal({ isOpen, onClose, onInsertText, triggerToast }: { isOpen: boolean; onClose: () => void; onInsertText: (txt: string) => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const [destination, setDestination] = useState('Denpasar, Bali');
   const [courier, setCourier] = useState('JNE Reguler');
   const [rate, setRate] = useState(15000);
@@ -168,10 +178,10 @@ export function CheckOngkirModal({ isOpen, onClose, onInsertText, triggerToast }
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Kalkulator Cek Ongkir">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.checkOngkirTitle || "Kalkulator Cek Ongkir"}>
       <div className="space-y-3 text-xs">
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Kota Tujuan</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.destinationCity || 'Kota Tujuan'}</label>
           <input 
             type="text" 
             value={destination} 
@@ -181,7 +191,7 @@ export function CheckOngkirModal({ isOpen, onClose, onInsertText, triggerToast }
         </div>
 
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Pilih Ekspedisi</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.selectCourier || 'Pilih Ekspedisi'}</label>
           <select 
             value={courier}
             onChange={(e) => {
@@ -204,7 +214,7 @@ export function CheckOngkirModal({ isOpen, onClose, onInsertText, triggerToast }
           onClick={handleSendRate}
           className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-md cursor-pointer"
         >
-          Kirim Tarif Ongkir Ke Chat
+          {u.sendRateToChat || 'Kirim Tarif Ongkir Ke Chat'}
         </button>
       </div>
     </ModalBase>
@@ -213,6 +223,9 @@ export function CheckOngkirModal({ isOpen, onClose, onInsertText, triggerToast }
 
 // 4. Track Order Modal
 export function TrackOrderModal({ isOpen, onClose, onInsertText, triggerToast }: { isOpen: boolean; onClose: () => void; onInsertText: (txt: string) => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const resi = 'ZEGA-8821992';
   const status = 'Dalam Pengiriman (Out for Delivery)';
 
@@ -224,15 +237,15 @@ export function TrackOrderModal({ isOpen, onClose, onInsertText, triggerToast }:
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Lacak Resi Pengiriman">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.trackOrderTitle || "Lacak Resi Pengiriman"}>
       <div className="space-y-3 text-xs">
         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
           <div className="flex justify-between">
-            <span className="text-slate-400">Nomor Resi:</span>
+            <span className="text-slate-400">{u.resiNumberLabel || 'Nomor Resi:'}</span>
             <span className="font-mono font-extrabold text-orange-500">{resi}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Status Terbaru:</span>
+            <span className="text-slate-400">{u.latestStatusLabel || 'Status Terbaru:'}</span>
             <span className="font-extrabold text-emerald-600">{status}</span>
           </div>
         </div>
@@ -241,7 +254,7 @@ export function TrackOrderModal({ isOpen, onClose, onInsertText, triggerToast }:
           onClick={handleSendTracking}
           className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-md cursor-pointer"
         >
-          Kirim Update Resi Ke Chat
+          {u.sendTrackingToChat || 'Kirim Update Resi Ke Chat'}
         </button>
       </div>
     </ModalBase>
@@ -250,6 +263,9 @@ export function TrackOrderModal({ isOpen, onClose, onInsertText, triggerToast }:
 
 // 5. Product Catalog Modal
 export function ProductCatalogModal({ isOpen, onClose, onInsertText, triggerToast }: { isOpen: boolean; onClose: () => void; onInsertText: (txt: string) => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const products = [
     { name: 'Paket Basic Skincare Remaja', price: 199000, img: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=100&q=80' },
     { name: 'Paket Premium Glowing', price: 499000, img: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=100&q=80' },
@@ -257,7 +273,7 @@ export function ProductCatalogModal({ isOpen, onClose, onInsertText, triggerToas
   ];
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Katalog Produk">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.productCatalogTitle || "Katalog Produk"}>
       <div className="space-y-3 text-xs">
         {products.map((p, idx) => (
           <div key={idx} className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -276,7 +292,7 @@ export function ProductCatalogModal({ isOpen, onClose, onInsertText, triggerToas
               }}
               className="px-3 py-1.5 rounded-xl bg-orange-500 text-white font-extrabold cursor-pointer"
             >
-              Sisipkan
+              {u.insertBtn || 'Sisipkan'}
             </button>
           </div>
         ))}
@@ -287,8 +303,11 @@ export function ProductCatalogModal({ isOpen, onClose, onInsertText, triggerToas
 
 // 6. AI Reasoning Log Modal
 export function AiReasoningModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="AI Assistant Reasoning & Diagnostics Log">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.aiReasoningTitle || "AI Assistant Reasoning & Diagnostics Log"}>
       <div className="space-y-3 text-xs font-mono">
         <div className="p-3 rounded-2xl bg-slate-900 text-emerald-400 space-y-1 text-[11px]">
           <p>[SYSTEM] Model: ZEGA-Copilot-v4-Turbine</p>
@@ -314,6 +333,9 @@ export function CustomerFullProfileModal({
   customer: any; 
   triggerToast: (msg: string) => void; 
 }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   if (!customer) return null;
 
   const sampleOrders = [
@@ -322,7 +344,7 @@ export function CustomerFullProfileModal({
   ];
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Profil Lengkap Pelanggan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.customerProfileTitle || "Profil Lengkap Pelanggan"}>
       <div className="space-y-4 text-xs">
         {/* Customer Avatar & Primary Metadata */}
         <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
@@ -335,7 +357,7 @@ export function CustomerFullProfileModal({
             <div className="flex items-center gap-1.5">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{customer.customer_name}</h3>
               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[9px] font-extrabold flex items-center gap-0.5">
-                <Check size={10} /> Terverifikasi
+                <Check size={10} /> {u.verifiedBadge || 'Terverifikasi'}
               </span>
             </div>
             <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">{customer.customer_phone}</p>
@@ -346,33 +368,33 @@ export function CustomerFullProfileModal({
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold">Total Order</p>
+            <p className="text-[10px] text-slate-400 font-bold">{u.totalOrder || 'Total Order'}</p>
             <p className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5">{customer.total_orders || 3}x</p>
           </div>
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold">Total Belanja</p>
+            <p className="text-[10px] text-slate-400 font-bold">{u.totalSpent || 'Total Belanja'}</p>
             <p className="font-black text-sm text-blue-600 dark:text-blue-400 mt-0.5">Rp{(customer.total_spent || 650000).toLocaleString('id-ID')}</p>
           </div>
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold">Member Sejak</p>
+            <p className="text-[10px] text-slate-400 font-bold">{u.memberSince || 'Member Sejak'}</p>
             <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">{customer.customer_since || '12 Mei 2026'}</p>
           </div>
         </div>
 
         {/* Contact Info & Address */}
         <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5">Detail Kontak & Alamat Pengiriman</h4>
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5">{u.contactDetailsTitle || 'Detail Kontak & Alamat Pengiriman'}</h4>
           <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
-            <p><strong className="text-slate-400 font-medium">No. WhatsApp:</strong> {customer.customer_phone}</p>
-            <p><strong className="text-slate-400 font-medium">Email:</strong> {customer.customer_email || 'siti.aisyah@gmail.com'}</p>
-            <p><strong className="text-slate-400 font-medium">Alamat:</strong> {customer.customer_address || 'Jl. Gatot Subroto No. 88, Denpasar Selatan, Bali 80225'}</p>
-            <p><strong className="text-slate-400 font-medium">Agen Penanggung Jawab:</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{customer.assigned_agent || 'Cicik Berluk (CS Lead)'}</span></p>
+            <p><strong className="text-slate-400 font-medium">{u.waNumberLabel || 'No. WhatsApp:'}</strong> {customer.customer_phone}</p>
+            <p><strong className="text-slate-400 font-medium">{u.emailLabel || 'Email:'}</strong> {customer.customer_email || 'siti.aisyah@gmail.com'}</p>
+            <p><strong className="text-slate-400 font-medium">{u.addressLabel || 'Alamat:'}</strong> {customer.customer_address || 'Jl. Gatot Subroto No. 88, Denpasar Selatan, Bali 80225'}</p>
+            <p><strong className="text-slate-400 font-medium">{u.assignedAgentLabel || 'Agen Penanggung Jawab:'}</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{customer.assigned_agent || 'Cicik Berluk (CS Lead)'}</span></p>
           </div>
         </div>
 
         {/* Order History */}
         <div className="space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">Riwayat Transaksi Terakhir</h4>
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{u.transactionHistoryTitle || 'Riwayat Transaksi Terakhir'}</h4>
           <div className="space-y-1.5">
             {sampleOrders.map((ord) => (
               <div key={ord.id} className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
@@ -401,7 +423,7 @@ export function CustomerFullProfileModal({
             }}
             className="flex-1 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer text-center"
           >
-            Hubungi WhatsApp
+            {u.contactWaBtn || 'Hubungi WhatsApp'}
           </button>
           <button
             onClick={() => {
@@ -410,7 +432,7 @@ export function CustomerFullProfileModal({
             }}
             className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs cursor-pointer text-center"
           >
-            Kirim Email
+            {u.sendEmailBtn || 'Kirim Email'}
           </button>
         </div>
       </div>
@@ -430,6 +452,9 @@ export function AssignAgentModal({
   onAssign: (agentName: string) => void;
   triggerToast: (msg: string) => void;
 }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const agents = [
     { name: 'Cicik Berluk', role: 'Owner & CS Lead', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80' },
     { name: 'Andi Wijaya', role: 'Support Specialist', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&q=80' },
@@ -438,9 +463,9 @@ export function AssignAgentModal({
   ];
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Tugaskan Agen CS">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.assignAgentTitle || "Tugaskan Agen CS"}>
       <div className="space-y-3 text-xs">
-        <p className="text-slate-500 dark:text-slate-400">Pilih anggota tim atau AI Co-Pilot untuk menangani percakapan ini secara langsung.</p>
+        <p className="text-slate-500 dark:text-slate-400">{u.assignAgentDesc || 'Pilih anggota tim atau AI Co-Pilot untuk menangani percakapan ini secara langsung.'}</p>
         <div className="space-y-2">
           {agents.map((agent, idx) => (
             <div key={idx} className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
@@ -459,7 +484,7 @@ export function AssignAgentModal({
                 }}
                 className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] cursor-pointer shadow-xs"
               >
-                Pilih
+                {u.selectAgentBtn || 'Pilih'}
               </button>
             </div>
           ))}
@@ -481,6 +506,9 @@ export function AddTagModal({
   onAddTag: (tagName: string) => void;
   triggerToast: (msg: string) => void;
 }) {
+  const { t } = useLanguage();
+  const u = (t as any).umkmInbox || t.inboxView || {};
+
   const [tagInput, setTagInput] = useState('');
   const presetTags = ['High Priority', 'Order Inquiry', 'VIP Customer', 'Wholesale', 'Skincare', 'Restock', 'Retur / Garansi'];
 
@@ -494,21 +522,21 @@ export function AddTagModal({
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Tambah Tag Label Percakapan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.addTagTitle || "Tambah Tag Label Percakapan"}>
       <form onSubmit={handleSubmit} className="space-y-3 text-xs">
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Nama Tag Baru</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.newTagNameLabel || 'Nama Tag Baru'}</label>
           <input
             type="text"
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
-            placeholder="Ketik nama tag (cth: High Priority, Retur...)"
+            placeholder={u.tagInputPlaceholder || "Ketik nama tag (cth: High Priority, Retur...)"}
             className="w-full p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-xs focus:outline-none focus:border-blue-600"
           />
         </div>
 
         <div>
-          <label className="font-extrabold text-slate-400 block mb-1.5 text-[10px]">Atau pilih tag rekomendasi:</label>
+          <label className="font-extrabold text-slate-400 block mb-1.5 text-[10px]">{u.orSelectPreset || 'Atau pilih tag rekomendasi:'}</label>
           <div className="flex flex-wrap gap-1.5">
             {presetTags.map((pt, idx) => (
               <button
@@ -531,7 +559,7 @@ export function AddTagModal({
           type="submit"
           className="w-full py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold shadow-xs cursor-pointer mt-2"
         >
-          Simpan Tag Baru
+          {u.saveNewTagBtn || 'Simpan Tag Baru'}
         </button>
       </form>
     </ModalBase>

@@ -63,13 +63,17 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
     try {
       const res = await SupabaseDashboardService.quickRestockProduct(productId, addQty);
       if (res.success) {
-        triggerToast(`✓ Stok ${productName} berhasil ditambah +${addQty} unit!`);
+        triggerToast(
+          t.storeView.quickRestockSuccessToast
+            .replace('{productName}', productName)
+            .replace('{addQty}', String(addQty))
+        );
         await loadData();
       } else {
-        triggerToast(`❌ Gagal merestok: ${res.error || 'Terjadi kesalahan'}`);
+        triggerToast(t.storeView.quickRestockFailedToast.replace('{err}', res.error || 'Error'));
       }
     } catch (err: any) {
-      triggerToast(`❌ Error: ${err.message || 'Gagal terhubung ke database'}`);
+      triggerToast(t.storeView.quickRestockFailedToast.replace('{err}', err.message || 'Error'));
     } finally {
       setRestockingId(null);
     }
@@ -78,10 +82,10 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
   const handleDuplicate = async (productId: string) => {
     try {
       await SupabaseDashboardService.duplicateStoreProduct(productId);
-      triggerToast('Produk berhasil diduplikasi');
+      triggerToast(t.storeView.productDuplicatedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal menduplikasi produk');
+      triggerToast(t.storeView.productDuplicateFailedToast);
     } finally {
       setActiveMenuId(null);
     }
@@ -90,23 +94,23 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
   const handleToggleStatus = async (productId: string) => {
     try {
       await SupabaseDashboardService.toggleStoreProductStatus(productId);
-      triggerToast('Status produk diperbarui');
+      triggerToast(t.storeView.productStatusUpdatedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal mengubah status produk');
+      triggerToast(t.storeView.productStatusUpdateFailedToast);
     } finally {
       setActiveMenuId(null);
     }
   };
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('Hapus produk ini dari katalog?')) return;
+    if (!confirm(t.storeView.confirmDeleteProductCatalog)) return;
     try {
       await SupabaseDashboardService.deleteStoreProduct(productId);
-      triggerToast('Produk berhasil dihapus');
+      triggerToast(t.storeView.productDeletedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal menghapus produk');
+      triggerToast(t.storeView.productDeleteFailedToast);
     } finally {
       setActiveMenuId(null);
     }
@@ -134,6 +138,8 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
 
   const categoriesList = ['Semua', ...Array.from(new Set(lowStockProducts.map((p: any) => p.category || 'Apparel')))];
 
+  const categoryDisplayName = (cat: string) => (cat === 'Semua' ? t.storeView.allCategories : cat);
+
   return (
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
       {/* Unified Enterprise Header Shell */}
@@ -146,23 +152,29 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
       {/* Alert KPI Summary Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Produk Stok Kritis (≤ 10 Unit)</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            {t.storeView.criticalStockKpiTitle}
+          </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-orange-600">{lowStockProducts.length}</span>
-            <span className="text-xs font-extrabold text-slate-500">Perlu Restok</span>
+            <span className="text-xs font-extrabold text-slate-500">{t.storeView.needRestock}</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Stok Habis Total (0 Unit)</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            {t.storeView.outOfStockKpiTitle}
+          </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-red-600">{outOfStockProducts.length}</span>
-            <span className="text-xs font-bold text-slate-400">Kosong</span>
+            <span className="text-xs font-bold text-slate-400">{t.storeView.emptyStock}</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nilai Total Inventaris Toko</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            {t.storeView.totalStockValueKpiTitle}
+          </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
               Rp{(storeData.metrics.stock_value_idr || 0).toLocaleString('id-ID')}
@@ -175,9 +187,9 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>⚠️ Monitoring Produk Terindikasi Stok Rendah</span>
+            <span>{t.storeView.lowStockMonitoringTitle}</span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 font-black">
-              {filteredStockAlerts.length} Action Required
+              {t.storeView.actionRequiredBadge.replace('{count}', String(filteredStockAlerts.length))}
             </span>
           </h3>
 
@@ -185,7 +197,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
           <div className="flex items-center gap-2 flex-wrap">
             <input 
               type="text" 
-              placeholder="Cari nama / SKU..."
+              placeholder={t.storeView.searchNameSkuPlaceholder}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="px-3.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:border-orange-500 w-44"
@@ -197,7 +209,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
               className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold focus:outline-none focus:border-orange-500"
             >
               {categoriesList.map((cat: any) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{categoryDisplayName(cat)}</option>
               ))}
             </select>
 
@@ -206,9 +218,9 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
               onChange={e => setStockLevelFilter(e.target.value as any)}
               className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-extrabold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-orange-500"
             >
-              <option value="all">Semua Stok Rendah (≤10)</option>
-              <option value="out">Kosong Total (0 Unit)</option>
-              <option value="critical">Stok Kritis (1-10 Unit)</option>
+              <option value="all">{t.storeView.filterAllLowStock}</option>
+              <option value="out">{t.storeView.filterTotalOut}</option>
+              <option value="critical">{t.storeView.filterCriticalStock}</option>
             </select>
           </div>
         </div>
@@ -217,19 +229,19 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
           <table className="w-full text-left text-xs font-medium border-collapse">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-3">PRODUK</th>
-                <th className="py-3 px-3">SKU</th>
-                <th className="py-3 px-3">KATEGORI</th>
-                <th className="py-3 px-3">SISA STOK</th>
-                <th className="py-3 px-3">STATUS STOK</th>
-                <th className="py-3 px-3 text-right">QUICK RESTOCK & AKSI DEDICATED</th>
+                <th className="py-3 px-3">{t.storeView.colProduct}</th>
+                <th className="py-3 px-3">{t.storeView.colSku}</th>
+                <th className="py-3 px-3">{t.storeView.colCategory}</th>
+                <th className="py-3 px-3">{t.storeView.colRemainingStock}</th>
+                <th className="py-3 px-3">{t.storeView.colStockStatus}</th>
+                <th className="py-3 px-3 text-right">{t.storeView.colQuickRestockAction}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredStockAlerts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500 font-bold">
-                    Tidak ada produk yang memenuhi filter stok.
+                    {t.storeView.noProductsStockFilter}
                   </td>
                 </tr>
               ) : (
@@ -256,22 +268,22 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                         </div>
                       </td>
                       <td className="py-3.5 px-3 font-mono text-[11px] text-slate-500">{product.sku}</td>
-                      <td className="py-3.5 px-3 font-semibold text-slate-600 dark:text-slate-400">{product.category}</td>
+                      <td className="py-3.5 px-3 font-semibold text-slate-600 dark:text-slate-400">{categoryDisplayName(product.category)}</td>
                       <td className="py-3.5 px-3">
                         <span className={`px-2.5 py-1 rounded-xl text-xs font-black ${
                           isOutOfStock ? 'bg-red-500 text-white' : 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'
                         }`}>
-                          {product.stock} unit
+                          {product.stock} {t.storeView.units}
                         </span>
                       </td>
                       <td className="py-3.5 px-3">
                         {isOutOfStock ? (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 font-black flex items-center gap-1 w-fit">
-                            <ShieldAlert size={12} /> Kosong Total
+                            <ShieldAlert size={12} /> {t.storeView.outOfStockTotalBadge}
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 font-black flex items-center gap-1 w-fit">
-                            <AlertTriangle size={12} /> Stok Kritis
+                            <AlertTriangle size={12} /> {t.storeView.criticalStockBadge}
                           </span>
                         )}
                       </td>
@@ -282,14 +294,14 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                             disabled={isRestocking}
                             className="px-2.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all"
                           >
-                            +10 Unit
+                            {t.storeView.add10Units}
                           </button>
                           <button
                             onClick={() => handleQuickRestock(product.id, 50, product.name)}
                             disabled={isRestocking}
                             className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all"
                           >
-                            +50 Unit
+                            {t.storeView.add50Units}
                           </button>
 
                           {/* 3-Dots Action Menu */}
@@ -311,7 +323,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
                                   <Edit size={13} className="text-orange-500" />
-                                  <span>Edit Gambar & Diskon Promo</span>
+                                  <span>{t.storeView.menuEditProductPromo}</span>
                                 </button>
 
                                 <button
@@ -319,7 +331,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
                                   <BarChart2 size={13} className="text-blue-500" />
-                                  <span>Analisis AI Swarm</span>
+                                  <span>{t.storeView.menuAiSwarmAnalysis}</span>
                                 </button>
 
                                 <button
@@ -327,7 +339,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
                                   <Barcode size={13} className="text-indigo-500" />
-                                  <span>Cetak Barcode SKU</span>
+                                  <span>{t.storeView.menuPrintSkuBarcode}</span>
                                 </button>
 
                                 <button
@@ -335,7 +347,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
                                   <Layers size={13} className="text-cyan-500" />
-                                  <span>Salin (Duplikasi)</span>
+                                  <span>{t.storeView.menuDuplicateProduct}</span>
                                 </button>
 
                                 <button
@@ -343,7 +355,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
                                   <RefreshCw size={13} className="text-emerald-500" />
-                                  <span>{product.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan Produk'}</span>
+                                  <span>{product.status === 'Aktif' ? t.storeView.menuDeactivateProduct : t.storeView.menuActivateProduct}</span>
                                 </button>
 
                                 <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
@@ -353,7 +365,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 cursor-pointer"
                                 >
                                   <AlertTriangle size={13} />
-                                  <span>Hapus Produk</span>
+                                  <span>{t.storeView.menuDeleteProduct}</span>
                                 </button>
                               </div>
                             )}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Download, Upload, Filter, Tag, Barcode, RefreshCw, Percent, Package, Check, Trash2 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -14,6 +15,9 @@ interface ModalBaseProps {
  * 1. Add Product Modal (Professional E-Commerce Edition with Device Upload, Dropzone, CDN & Multi-Attribute Telemetry)
  */
 export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [category, setCategory] = useState('Apparel');
@@ -104,9 +108,9 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Package size={20} className="text-orange-500" />
-              <span>Tambah Produk Baru (Konfigurasi Lengkap)</span>
+              <span>{s.addSingleProduct || 'Tambah Produk Baru (Konfigurasi Lengkap)'}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Lengkapi spesifikasi produk, foto real dari HP/Laptop, & channel penjualan.</p>
+            <p className="text-xs text-slate-400 font-medium">{s.addSingleProductDesc || 'Lengkapi spesifikasi produk, foto real dari HP/Laptop, & channel penjualan.'}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
             <X size={18} />
@@ -362,14 +366,14 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
               onClick={onClose}
               className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 cursor-pointer text-xs"
             >
-              Batal
+              {s.closeModal || 'Batal'}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black cursor-pointer shadow-md text-xs transition-all"
             >
-              {submitting ? 'Menyimpan ke Database...' : 'Simpan Produk Real Sekarang'}
+              {submitting ? (s.savingProduct || 'Menyimpan ke Database...') : (s.saveNewProduct || 'Simpan Produk Real Sekarang')}
             </button>
           </div>
         </form>
@@ -382,6 +386,9 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
  * 2. Import Products Modal (Real Multi-Format CSV, JSON, TSV, Excel Support & Batch Database Insertion)
  */
 export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedProducts, setParsedProducts] = useState<any[]>([]);
   const [isParsing, setIsParsing] = useState(false);
@@ -514,8 +521,8 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
               <Upload size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Import Massal Produk</h3>
-              <p className="text-xs text-slate-400 font-medium">Dukungan CSV, JSON, TSV, & Excel (.xlsx)</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{s.uploadCsvExcel || 'Import Massal Produk'}</h3>
+              <p className="text-xs text-slate-400 font-medium">{s.batchUploadDesc || 'Dukungan CSV, JSON, TSV, & Excel (.xlsx)'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
@@ -600,6 +607,9 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
  * 3. Export Data Modal with Real PDF/CSV File Downloads
  */
 export function ExportDataModal({ isOpen, onClose, triggerToast }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   if (!isOpen) return null;
@@ -672,7 +682,7 @@ Laporan ini dihasilkan secara otomatis oleh ZeroClaw AI Store Engine.
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Download size={16} className="text-emerald-500" /> Export Data Toko & Stok
+            <Download size={16} className="text-emerald-500" /> {s.exportCatalogData || 'Export Data Toko & Stok'}
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={16} /></button>
         </div>
@@ -716,6 +726,9 @@ Laporan ini dihasilkan secara otomatis oleh ZeroClaw AI Store Engine.
  * 4. Deploy AI Store Swarm Modal
  */
 export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [swarmName, setSwarmName] = useState('AI Inventory Auto-Stock Swarm');
   const [selectedModel, setSelectedModel] = useState('9Router-Auto-Stock-Optimizer');
   const [submitting, setSubmitting] = useState(false);
@@ -784,7 +797,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
-              <span>Deploy AI Inventory Swarm Engine</span>
+              <span>{s.deploySwarmTitle || 'Deploy AI Inventory Swarm Engine'}</span>
             </h3>
             <p className="text-xs text-slate-400 font-medium">Pilih mesin AI mutakhir untuk otomatisasi katalog dan inventaris toko.</p>
           </div>
@@ -805,7 +818,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
           </div>
 
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-2">Pilih Real AI Engine Model:</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-2">{s.selectAiEngine || 'Pilih Real AI Engine Model:'}</label>
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {modelOptions.map((model) => (
                 <div
@@ -829,7 +842,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
                     <div className="flex items-center justify-between">
                       <span className="font-extrabold text-slate-900 dark:text-slate-100">{model.name}</span>
                       {selectedModel === model.id && (
-                        <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black">Dipilih</span>
+                        <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black">{s.selectedModel || 'Dipilih'}</span>
                       )}
                     </div>
                     <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{model.desc}</p>
@@ -845,14 +858,14 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 cursor-pointer"
           >
-            Batal
+            {s.closeModal || 'Batal'}
           </button>
           <button
             onClick={handleDeploy}
             disabled={submitting}
             className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-xs"
           >
-            {submitting ? 'Men-deploy...' : 'Deploy Swarm Sekarang'}
+            {submitting ? (s.deployingSwarm || 'Men-deploy...') : (s.deploySwarmNow || 'Deploy Swarm Sekarang')}
           </button>
         </div>
       </div>
@@ -864,6 +877,9 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
  * 5. Edit Product Modal
  */
 export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, product }: ModalBaseProps & { product: any }) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [name, setName] = useState(product?.name || '');
   const [sku, setSku] = useState(product?.sku || '');
   const [category, setCategory] = useState(product?.category || 'Fashion & Pakaian');
@@ -1090,12 +1106,12 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
               className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/60 dark:hover:bg-red-900/80 dark:text-red-400 font-extrabold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <Trash2 size={15} />
-              <span>Hapus Produk</span>
+              <span>{s.deleteProduct || 'Hapus Produk'}</span>
             </button>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 cursor-pointer">Batal</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 cursor-pointer">{s.closeModal || 'Batal'}</button>
               <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-xs">
-                {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {submitting ? (s.savingProduct || 'Menyimpan...') : (s.saveChanges || 'Simpan Perubahan')}
               </button>
             </div>
           </div>
@@ -1109,6 +1125,9 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
  * 6. Product Performance Analysis Modal
  */
 export function ProductAnalysisModal({ isOpen, onClose, triggerToast, product }: ModalBaseProps & { product: any }) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   if (!isOpen || !product) return null;
 
   return (
@@ -1144,7 +1163,7 @@ export function ProductAnalysisModal({ isOpen, onClose, triggerToast, product }:
         <div className="p-3.5 rounded-2xl bg-orange-50/60 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800 space-y-1.5">
           <div className="flex items-center gap-2 text-xs font-black text-orange-700 dark:text-orange-300">
             <img src="https://cdn.zegaai.site/assets/logo/9router.png" alt="9Router" className="size-4 rounded-full" />
-            <span>AI Recommendation (9Router Layer 5)</span>
+            <span>{s.aiRecommendation || 'AI Recommendation (9Router Layer 5)'}</span>
           </div>
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
             Produk ini memiliki rasio konversi tinggi di Shopee & Tokopedia. Disarankan menaikkan stok cadangan sebesar 30% dan mengaktifkan kampanye diskon 5% untuk menaikkan volume penjualan.
@@ -1152,7 +1171,7 @@ export function ProductAnalysisModal({ isOpen, onClose, triggerToast, product }:
         </div>
 
         <button onClick={() => { triggerToast(`✓ Laporan analisis ${product.name} telah diunduh!`); onClose(); }} className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs text-center">
-          Unduh Laporan Performa PDF
+          {s.downloadPerformancePdf || 'Unduh Laporan Performa PDF'}
         </button>
       </div>
     </div>
@@ -1163,6 +1182,9 @@ export function ProductAnalysisModal({ isOpen, onClose, triggerToast, product }:
  * 7. Atur Diskon Bulk Modal
  */
 export function BulkDiscountModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [discountPercent, setDiscountPercent] = useState('10');
   const [targetCategory, setTargetCategory] = useState('Semua Kategori');
   const [submitting, setSubmitting] = useState(false);
@@ -1215,9 +1237,9 @@ export function BulkDiscountModal({ isOpen, onClose, triggerToast, onRefresh }: 
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">Batal</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100">{s.closeModal || 'Batal'}</button>
           <button onClick={handleApply} disabled={submitting} className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold cursor-pointer">
-            {submitting ? 'Menerapkan...' : 'Terapkan Diskon Bulk'}
+            {submitting ? (s.applyingDiscount || 'Menerapkan...') : (s.applyBulkDiscount || 'Terapkan Diskon Bulk')}
           </button>
         </div>
       </div>
@@ -1229,6 +1251,9 @@ export function BulkDiscountModal({ isOpen, onClose, triggerToast, onRefresh }: 
  * 8. Kelola Kategori Modal
  */
 export function ManageCategoriesModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [newCatName, setNewCatName] = useState('');
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([
@@ -1321,6 +1346,9 @@ export function ManageCategoriesModal({ isOpen, onClose, triggerToast, onRefresh
  * 9. Cetak Barcode & QR Modal
  */
 export function BarcodePrintModal({ isOpen, onClose, triggerToast, product }: ModalBaseProps & { product?: any }) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   if (!isOpen) return null;
 
   const skuCode = product?.sku || 'TSH-BLK-001';
@@ -1378,6 +1406,9 @@ export function BarcodePrintModal({ isOpen, onClose, triggerToast, product }: Mo
  * 10. Sinkron Stok Multi-Channel Modal
  */
 export function StockSyncModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [syncing, setSyncing] = useState(false);
 
   if (!isOpen) return null;
@@ -1430,9 +1461,9 @@ export function StockSyncModal({ isOpen, onClose, triggerToast, onRefresh }: Mod
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold">Tutup</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold">{s.closeModal || 'Tutup'}</button>
           <button onClick={handleSync} disabled={syncing} className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer">
-            {syncing ? 'Menyinkronkan...' : 'Mulai Sinkronisasi Real-Time'}
+            {syncing ? (s.syncingStock || 'Menyinkronkan...') : (s.stockSyncTitle || 'Mulai Sinkronisasi Real-Time')}
           </button>
         </div>
       </div>

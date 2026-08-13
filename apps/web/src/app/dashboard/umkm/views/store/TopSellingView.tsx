@@ -64,10 +64,10 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
   const handleDuplicate = async (productId: string) => {
     try {
       await SupabaseDashboardService.duplicateStoreProduct(productId);
-      triggerToast('Produk berhasil diduplikasi (Salinan dibuat)');
+      triggerToast(t.storeView.productDuplicatedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal menduplikasi produk');
+      triggerToast(t.storeView.productDuplicateFailedToast);
     } finally {
       setActiveMenuId(null);
     }
@@ -76,23 +76,23 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
   const handleToggleStatus = async (productId: string) => {
     try {
       await SupabaseDashboardService.toggleStoreProductStatus(productId);
-      triggerToast('Status produk diperbarui');
+      triggerToast(t.storeView.productStatusUpdatedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal mengaktifkan/nonaktifkan produk');
+      triggerToast(t.storeView.productStatusUpdateFailedToast);
     } finally {
       setActiveMenuId(null);
     }
   };
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('Hapus produk ini dari katalog?')) return;
+    if (!confirm(t.storeView.confirmDeleteProductCatalog)) return;
     try {
       await SupabaseDashboardService.deleteStoreProduct(productId);
-      triggerToast('Produk berhasil dihapus');
+      triggerToast(t.storeView.productDeletedToast);
       loadData();
     } catch (err: any) {
-      triggerToast('Gagal menghapus produk');
+      triggerToast(t.storeView.productDeleteFailedToast);
     } finally {
       setActiveMenuId(null);
     }
@@ -123,6 +123,8 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
   // Extract unique categories
   const categoriesList = ['Semua', ...Array.from(new Set(storeData.products.map((p: any) => p.category || 'Apparel')))];
 
+  const categoryDisplayName = (cat: string) => (cat === 'Semua' ? t.storeView.allCategories : cat);
+
   return (
     <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
       {/* Unified Enterprise Header Shell */}
@@ -135,15 +137,15 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
       {/* KPI Cards Header */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Volume Terjual</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">{t.storeView.totalVolumeSold}</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900 dark:text-slate-100">{totalSoldUnits.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-extrabold text-blue-600">Unit Produk</span>
+            <span className="text-xs font-extrabold text-blue-600">{t.storeView.productUnits}</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Estimasi Omzet Top Selling</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">{t.storeView.estimatedTopSellingRevenue}</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-600">Rp{totalRevenue.toLocaleString('id-ID')}</span>
             <span className="text-xs font-bold text-slate-400">IDR</span>
@@ -151,13 +153,13 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Produk Paling Laris (#1)</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">{t.storeView.topSellingProductNum1}</span>
           <div className="flex items-center gap-2">
             <span className="text-base font-extrabold text-slate-900 dark:text-slate-100 truncate">
               {sortedTopProducts[0]?.name || 'N/A'}
             </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-black shrink-0">
-              🥇 Champion
+              {t.storeView.championBadge}
             </span>
           </div>
         </div>
@@ -167,9 +169,9 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>🏆 Leaderboard Penjualan Produk</span>
+            <span>{t.storeView.leaderboardTitle}</span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300 font-bold">
-              {sortedTopProducts.length} Produk Tampil
+              {t.storeView.productsCountDisplayed.replace('{count}', String(sortedTopProducts.length))}
             </span>
           </h3>
 
@@ -177,7 +179,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
           <div className="flex items-center gap-2 flex-wrap">
             <input 
               type="text" 
-              placeholder="Cari nama / SKU..."
+              placeholder={t.storeView.searchNameSkuPlaceholder}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="px-3.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:border-orange-500 w-44"
@@ -189,7 +191,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
               className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold focus:outline-none focus:border-orange-500"
             >
               {categoriesList.map((cat: any) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{categoryDisplayName(cat)}</option>
               ))}
             </select>
 
@@ -198,9 +200,9 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
               onChange={e => setSortBy(e.target.value as any)}
               className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-extrabold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-orange-500"
             >
-              <option value="sold">Urut: Terlaris (Unit)</option>
-              <option value="revenue">Urut: Omzet (Rp)</option>
-              <option value="stock">Urut: Stok Terbanyak</option>
+              <option value="sold">{t.storeView.sortTopSoldUnits}</option>
+              <option value="revenue">{t.storeView.sortTopRevenue}</option>
+              <option value="stock">{t.storeView.sortMostStock}</option>
             </select>
           </div>
         </div>
@@ -209,13 +211,13 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
           <table className="w-full text-left text-xs font-medium border-collapse">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-3">PERINGKAT</th>
-                <th className="py-3 px-3">PRODUK</th>
-                <th className="py-3 px-3">KATEGORI</th>
-                <th className="py-3 px-3">HARGA SATUAN</th>
-                <th className="py-3 px-3">UNIT TERJUAL</th>
-                <th className="py-3 px-3">ESTIMASI REVENUE</th>
-                <th className="py-3 px-3 text-right">AKSI REKOMENDASI</th>
+                <th className="py-3 px-3">{t.storeView.colRank}</th>
+                <th className="py-3 px-3">{t.storeView.colProduct}</th>
+                <th className="py-3 px-3">{t.storeView.colCategory}</th>
+                <th className="py-3 px-3">{t.storeView.colUnitPrice}</th>
+                <th className="py-3 px-3">{t.storeView.colUnitsSold}</th>
+                <th className="py-3 px-3">{t.storeView.colEstimatedRevenue}</th>
+                <th className="py-3 px-3 text-right">{t.storeView.colActionRecommendation}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -255,13 +257,13 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                         </div>
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 font-semibold text-slate-600 dark:text-slate-400">{product.category}</td>
+                    <td className="py-3.5 px-3 font-semibold text-slate-600 dark:text-slate-400">{categoryDisplayName(product.category)}</td>
                     <td className="py-3.5 px-3 font-bold text-slate-900 dark:text-slate-100">
                       Rp{(Number(product.price_idr) || 0).toLocaleString('id-ID')}
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-black text-xs">
-                        🔥 {product.sold || 0} unit
+                        🔥 {product.sold || 0} {t.storeView.units}
                       </span>
                     </td>
                     <td className="py-3.5 px-3 font-black text-emerald-600">
@@ -273,13 +275,13 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                           onClick={() => { setSelectedProductForAnalysis(product); setIsAnalysisModalOpen(true); }}
                           className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300 font-bold text-xs cursor-pointer transition-all flex items-center gap-1"
                         >
-                          <BarChart2 size={13} /> <span>Analisis AI</span>
+                          <BarChart2 size={13} /> <span>{t.storeView.aiAnalysisBtn}</span>
                         </button>
                         <button
                           onClick={() => { setSelectedProductForEdit(product); setIsEditModalOpen(true); }}
                           className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1"
                         >
-                          <Edit size={13} /> <span>Edit</span>
+                          <Edit size={13} /> <span>{t.storeView.editBtn}</span>
                         </button>
 
                         {/* 3-Dots Action Menu */}
@@ -301,7 +303,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                                 className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                               >
                                 <Edit size={13} className="text-orange-500" />
-                                <span>Edit Detail & Diskon</span>
+                                <span>{t.storeView.menuEditDetailDiscount}</span>
                               </button>
 
                               <button
@@ -309,7 +311,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                                 className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                               >
                                 <Barcode size={13} className="text-indigo-500" />
-                                <span>Cetak Barcode SKU</span>
+                                <span>{t.storeView.menuPrintSkuBarcode}</span>
                               </button>
 
                               <button
@@ -317,7 +319,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                                 className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                               >
                                 <Layers size={13} className="text-blue-500" />
-                                <span>Salin (Duplikasi)</span>
+                                <span>{t.storeView.menuDuplicateProduct}</span>
                               </button>
 
                               <button
@@ -325,7 +327,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                                 className="w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                               >
                                 <RefreshCw size={13} className="text-emerald-500" />
-                                <span>{product.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan Produk'}</span>
+                                <span>{product.status === 'Aktif' ? t.storeView.menuDeactivateProduct : t.storeView.menuActivateProduct}</span>
                               </button>
 
                               <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
@@ -335,7 +337,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
                                 className="w-full text-left px-3.5 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 cursor-pointer"
                               >
                                 <AlertTriangle size={13} />
-                                <span>Hapus Produk</span>
+                                <span>{t.storeView.menuDeleteProduct}</span>
                               </button>
                             </div>
                           )}

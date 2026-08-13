@@ -15,6 +15,7 @@ interface MarketingReportsSubPageProps {
 
 export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingReportsSubPageProps) {
   const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedAuditReport, setSelectedAuditReport] = useState<any | null>(null);
@@ -269,7 +270,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
         {/* KPI 1: ROAS */}
         <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Total Marketing Return (ROAS)</span>
+            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{m.totalRoas || 'Total Marketing Return (ROAS)'}</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950 text-orange-500 flex items-center justify-center">
               <TrendingUp size={18} />
             </div>
@@ -279,14 +280,14 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
           </div>
           <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
             <ArrowUpRight size={14} />
-            <span>Efisiensi Iklan Real-Time Database</span>
+            <span>{m.realtimeAdEfficiency || 'Efisiensi Iklan Real-Time Database'}</span>
           </p>
         </div>
 
         {/* KPI 2: Cost Per Acquisition */}
         <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Cost per Acquisition (CPA / CPL)</span>
+            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{m.costPerAcquisition || 'Cost per Acquisition (CPA / CPL)'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-500 flex items-center justify-center">
               <DollarSign size={18} />
             </div>
@@ -294,13 +295,13 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
           <div className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
             Rp{(parseFloat(metrics?.cost_per_lead || activeReport?.cpl_idr || 0)).toLocaleString('id-ID')}
           </div>
-          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Efisiensi Biaya Iklan</p>
+          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{m.adCostEfficiency || 'Efisiensi Biaya Iklan'}</p>
         </div>
 
         {/* KPI 3: AI Swarm Model Engine */}
         <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">AI Swarm Model Engine</span>
+            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{m.aiSwarmEngine || 'AI Swarm Model Engine'}</span>
             <div className="size-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-500 flex items-center justify-center">
               <ShieldCheck size={18} />
             </div>
@@ -322,10 +323,10 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
           <div>
             <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <PieIcon size={18} className="text-orange-500" />
-              <span>Atribusi Pendapatan & Leads Berdasarkan Saluran (Source Channel)</span>
+              <span>{m.revenueAttributionTitle || 'Atribusi Pendapatan & Leads Berdasarkan Saluran (Source Channel)'}</span>
             </h3>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Visualisasi interaktif: Arahkan kursor / klik pada segmen donut untuk melihat rincian teratribusi AI Engine {activeReport?.period_range ? `(${activeReport.period_range})` : ''}
+              {m.revenueAttributionSubtitle || 'Visualisasi interaktif: Arahkan kursor / klik pada segmen donut untuk melihat rincian teratribusi AI Engine'} {activeReport?.period_range ? `(${activeReport.period_range})` : ''}
             </p>
           </div>
 
@@ -334,7 +335,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer hover:bg-slate-100 transition-all shrink-0 self-start sm:self-auto"
           >
             <Download size={14} className="text-slate-500" />
-            <span>Export CSV Laporan</span>
+            <span>{m.exportCsvReport || 'Export CSV Laporan'}</span>
           </button>
         </div>
 
@@ -397,12 +398,12 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
                   </div>
                 ) : (
                   <div className="space-y-0.5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Pendapatan</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.totalReportRevenue || 'Total Pendapatan'}</span>
                     <div className="text-base font-black text-slate-900 dark:text-slate-100 tracking-tight">
                       Rp{(totalReportRevenue / 1000000).toFixed(1)} JT
                     </div>
                     <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/50 inline-block">
-                      {activeReport?.leads_count || 0} Total Leads
+                      {activeReport?.leads_count || 0} {m.totalLeadsLabel || 'Total Leads'}
                     </span>
                   </div>
                 )}
@@ -412,10 +413,10 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             {/* Hover Tooltip / Status Info */}
             <div className="text-center space-y-1">
               <p className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400">
-                Laporan Aktif: <span className="text-orange-600 dark:text-orange-400 font-black">{activeReport?.report_title}</span>
+                {m.activeReportLabel || 'Laporan Aktif'}: <span className="text-orange-600 dark:text-orange-400 font-black">{activeReport?.report_title}</span>
               </p>
               <p className="text-[10px] font-semibold text-slate-400">
-                Model Atribusi: <span className="text-slate-700 dark:text-slate-300 font-bold">{activeReport?.model_attribution || 'DeepSeek R1'}</span>
+                {m.attributionModelLabel || 'Model Atribusi'}: <span className="text-slate-700 dark:text-slate-300 font-bold">{activeReport?.model_attribution || 'DeepSeek R1'}</span>
               </p>
             </div>
           </div>
@@ -431,52 +432,34 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
                   onMouseLeave={() => setHoveredSource(null)}
                   onClick={() => {
                     setHoveredSource(item.source);
-                    triggerToast(`📊 Saluran ${item.source}: Rp${(item.revenue || 0).toLocaleString('id-ID')} (${item.percentage}% Kontribusi)`);
+                    triggerToast(`📊 Filter Atribusi: ${item.source} (${item.percentage}% - Rp${(item.revenue || 0).toLocaleString('id-ID')})`);
                   }}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-2xs ${
-                    isHovered 
-                      ? 'bg-orange-50/40 dark:bg-slate-800 border-orange-400 dark:border-orange-600 scale-[1.01]' 
-                      : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:border-orange-300 dark:hover:border-orange-800'
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    isHovered
+                      ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 shadow-xs'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      {/* Indicator Pill */}
-                      <div
-                        className="size-4 rounded-full shrink-0 shadow-2xs transition-transform duration-200"
-                        style={{ 
-                          backgroundColor: item.color || '#10b981',
-                          transform: isHovered ? 'scale(1.25)' : 'scale(1)'
-                        }}
-                      />
-
-                      <img
-                        src={item.icon || 'https://cdn.zegaai.site/assets/logo/whatsapp.png'}
-                        onError={(e: any) => { e.target.onerror = null; e.target.src = 'https://cdn.zegaai.site/assets/logo/zegalogo.png'; }}
-                        alt={item.source}
-                        className="size-8 rounded-xl object-contain bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 shrink-0"
-                      />
-
-                      <div className="min-w-0">
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                          {item.source}
-                        </h4>
-                        <p className="text-[11px] text-slate-400 font-medium">
-                          {item.leads || 0} Leads • Conv. Rate {item.conversion || '0.0%'}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <span>{item.source}</span>
+                        <span className="text-[10px] font-bold text-slate-400">({item.percentage}%)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {item.leads} Leads Terkonversi
+                      </p>
                     </div>
+                  </div>
 
-                    <div className="text-right shrink-0">
-                      <div className="font-black text-xs text-slate-900 dark:text-slate-100">
-                        Rp{(parseFloat(item.revenue) || 0).toLocaleString('id-ID')}
-                      </div>
-                      <span
-                        className="text-[10px] font-black px-2.5 py-0.5 rounded-md inline-block mt-0.5"
-                        style={{ backgroundColor: `${item.color}15`, color: item.color }}
-                      >
-                        {item.percentage || 0}% Kontribusi
-                      </span>
+                  <div className="text-right">
+                    <div className="font-black text-xs text-slate-900 dark:text-slate-100">
+                      Rp{(item.revenue || 0).toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-0.5">
+                      <ArrowUpRight size={11} />
+                      <span>{item.percentage}% Share</span>
                     </div>
                   </div>
                 </div>
@@ -487,27 +470,27 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. EXECUTIVE REPORTS DATA LIST & ACTIONS */}
+      {/* 3. EXECUTIVE REPORTS TABLE CARD */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <FileText size={16} className="text-orange-500" />
-              <span>Daftar Laporan Pemasaran Eksekutif (Real-Time Database)</span>
+              <span>{m.reportsListTitle || 'Daftar Laporan Pemasaran Eksekutif (Real-Time Database)'}</span>
               {loading && <RefreshCw size={13} className="animate-spin text-orange-500" />}
             </h3>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Klik salah satu laporan untuk memperbarui diagram Donut & atribusi saluran di atas.
+              {m.reportsListSubtitle || 'Klik salah satu laporan untuk memperbarui diagram Donut & atribusi saluran di atas.'}
             </p>
           </div>
 
           <button
             onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all shrink-0 self-start sm:self-auto"
+            className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all shrink-0 self-start sm:self-auto"
           >
-            <Plus size={15} />
-            <span>Generate Laporan Baru</span>
+            <Sparkles size={14} />
+            <span>{m.generateNewReport || 'Generate Laporan Baru'}</span>
           </button>
         </div>
 

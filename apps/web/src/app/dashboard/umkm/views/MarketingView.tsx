@@ -51,6 +51,7 @@ interface MarketingViewProps {
 
 export function MarketingView({ triggerToast = () => {}, onNavigateTab }: MarketingViewProps) {
   const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
 
   const getInitialSubTab = (): MarketingSubTab => {
     if (typeof window !== 'undefined') {
@@ -363,11 +364,11 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            {t.marketingView?.title || 'Marketing Overview'}
+            {m.title || 'Marketing Overview'}
             {loading && <RefreshCw size={16} className="animate-spin text-orange-500" />}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            {t.marketingView?.subtitle || 'Pantau semua aktivitas marketing Anda dalam satu dashboard.'}
+            {m.subtitle || 'Pantau semua aktivitas marketing Anda dalam satu dashboard.'}
           </p>
         </div>
 
@@ -378,7 +379,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
           >
             <Zap size={14} className="fill-current" />
-            <span>+ Deploy AI Swarm</span>
+            <span>+ {m.deploySwarm || 'Deploy AI Swarm'}</span>
           </button>
 
           {/* Date Picker Button */}
@@ -396,7 +397,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-all"
           >
             <Filter size={14} className="text-orange-500" />
-            <span>Filter</span>
+            <span>{m.filter || 'Filter'}</span>
           </button>
         </div>
       </div>
@@ -406,12 +407,12 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
       {/* ========================================================================= */}
       <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2.5 overflow-x-auto">
         {[
-          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-          { id: 'campaign', label: 'Campaign', icon: Megaphone },
-          { id: 'konten', label: 'AI Content Studio', icon: Sparkles },
-          { id: 'channel', label: 'Performa by Channel', icon: BarChart3 },
-          { id: 'reports', label: 'Reports', icon: FileText },
-          { id: 'aktivitas', label: 'Aktivitas', icon: Activity },
+          { id: 'overview', label: m.overviewTab || 'Overview', icon: LayoutDashboard },
+          { id: 'campaign', label: m.campaignTab || 'Campaign', icon: Megaphone },
+          { id: 'konten', label: m.kontenTab || 'AI Content Studio', icon: Sparkles },
+          { id: 'channel', label: m.channelTab || 'Performa by Channel', icon: BarChart3 },
+          { id: 'reports', label: m.reportsTab || 'Reports', icon: FileText },
+          { id: 'aktivitas', label: m.aktivitasTab || 'Aktivitas', icon: Activity },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -612,7 +613,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         {/* Performa Over Time Chart (6 Cols) */}
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Performa Over Time</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.performanceOverTime || 'Performa Over Time'}</h3>
 
             <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-[11px] font-bold">
               {(['Daily', 'Weekly', 'Monthly'] as const).map((tab) => (
@@ -650,7 +651,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         {/* Performa by Channel Table (4 Cols) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mb-3">Performa by Channel</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mb-3">{m.performanceByChannel || 'Performa by Channel'}</h3>
             <div className="space-y-2 text-xs">
               <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1">
                 <span className="col-span-4">Channel</span>
@@ -687,7 +688,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             onClick={() => setActiveSubTab('channel')}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 transition-colors pt-2 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Channel</span>
+            <span>{m.viewAll || 'Lihat Semua Channel'}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>
@@ -695,12 +696,12 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         {/* Ringkasan Bulanan Card (2 Cols) */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
           <div className="space-y-3">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Ringkasan Bulanan</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.monthlySummary || 'Ringkasan Bulanan'}</h3>
             
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase">Best Performing Campaign</span>
+              <span className="text-[10px] font-bold text-slate-400 block uppercase">{m.bestPerformingCampaign || 'Best Performing Campaign'}</span>
               <div className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate">
-                {campaigns[0]?.campaign_name || 'Belum Ada Campaign'}
+                {campaigns[0]?.campaign_name || m.noCampaignYet || 'Belum Ada Campaign'}
               </div>
               <div className="font-black text-emerald-600 text-xs">
                 Rp{(campaigns[0]?.revenue || campaigns[0]?.revenue_num || 0).toLocaleString('id-ID')}
@@ -721,13 +722,13 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-medium">
-                <span>Repeat Customer Rate</span>
+                <span>{m.repeatCustomerRate || 'Repeat Customer Rate'}</span>
                 <span className="font-extrabold text-slate-900 dark:text-slate-100">
                   {metrics?.repeat_customer_rate || 0}%
                 </span>
               </div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-medium border-t border-slate-100 dark:border-slate-800 pt-2">
-                <span>Total Spend</span>
+                <span>{m.totalSpend || 'Total Spend'}</span>
                 <span className="font-black text-slate-900 dark:text-slate-100">
                   Rp{(metrics?.total_spend || 0).toLocaleString('id-ID')}
                 </span>
@@ -739,7 +740,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             onClick={() => setActiveSubTab('reports')}
             className="w-full py-2.5 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 hover:bg-orange-100 font-extrabold text-xs cursor-pointer text-center transition-all flex items-center justify-center gap-1.5"
           >
-            <span>Lihat Laporan Lengkap</span>
+            <span>{m.seeFullReport || 'Lihat Laporan Lengkap'}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>
@@ -753,12 +754,12 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Campaigns</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.topCampaigns || 'Top Campaigns'}</h3>
               <button
                 onClick={() => setActiveModal('createCampaign')}
                 className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-[11px] flex items-center gap-1 cursor-pointer"
               >
-                <Plus size={14} /> Campaign Baru
+                <Plus size={14} /> + {m.newCampaign || 'Campaign Baru'}
               </button>
             </div>
 
@@ -803,6 +804,12 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                   </div>
                 );
               })}
+              {campaigns.length === 0 && (
+                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1">
+                  <p className="font-extrabold text-xs text-slate-600 dark:text-slate-400">{m.noCampaignYet || 'Belum Ada Campaign'}</p>
+                  <p className="text-[11px] text-slate-400">{m.noCampaignsFound || 'Tidak ada data campaign aktif'}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -810,7 +817,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             onClick={() => setActiveSubTab('campaign')}
             className="w-full text-center text-xs font-bold text-slate-400 hover:text-orange-500 transition-colors pt-2 cursor-pointer flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Campaign</span>
+            <span>{m.viewAll || 'Lihat Semua Campaign'}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>
@@ -820,8 +827,8 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">AI Content Studio</h3>
-                <p className="text-[11px] text-slate-400 font-medium">Buat konten marketing dengan AI dalam hitungan detik.</p>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.aiContentStudio || 'AI Content Studio'}</h3>
+                <p className="text-[11px] text-slate-400 font-medium">{m.aiContentStudioSubtitle || 'Buat konten marketing dengan AI dalam hitungan detik.'}</p>
               </div>
             </div>
 
@@ -879,7 +886,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all"
           >
             <Sparkles size={14} />
-            <span>Akses Content AI Studio</span>
+            <span>{m.accessContentStudio || 'Akses Content AI Studio'}</span>
           </button>
         </div>
 
@@ -888,9 +895,9 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           {/* Executive AI Recommendations Card */}
           <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Rekomendasi Optimasi Realtime</h3>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{m.realtimeOptimization || 'Rekomendasi Optimasi Realtime'}</h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400">{insights.length} Insight Aktif</span>
+                <span className="text-[10px] font-bold text-slate-400">{insights.length} {m.activeInsights || 'Insight Aktif'}</span>
                 {insights.length > 1 && (
                   <button
                     onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
@@ -947,13 +954,13 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                         <>
                           <div className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs">
                             <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400" />
-                            <span>✓ Telah Diterapkan</span>
+                            <span>✓ {m.applied || 'Telah Diterapkan'}</span>
                           </div>
                           <button
                             onClick={() => handleViewInsightResult(ins)}
                             className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
                           >
-                            <span>Lihat Hasil</span>
+                            <span>{m.viewAllResult || 'Lihat Hasil'}</span>
                             <ArrowUpRight size={13} />
                           </button>
                         </>
@@ -964,13 +971,13 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                             className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             <Sparkles size={13} className="text-amber-300" />
-                            <span>{ins.action_label || 'Terapkan Sekarang'}</span>
+                            <span>{ins.action_label || m.applyNow || 'Terapkan Sekarang'}</span>
                           </button>
                           <button
                             onClick={() => handlePreviewInsight(ins)}
                             className="py-2 px-3 rounded-xl bg-slate-200/80 dark:bg-slate-700/80 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer border border-slate-300/60 dark:border-slate-600/60"
                           >
-                            <span>Pratinjau</span>
+                            <span>{m.preview || 'Pratinjau'}</span>
                           </button>
                         </>
                       )}
@@ -984,8 +991,8 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           {/* Aktivitas Terbaru Live Feed */}
           <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aktivitas Terbaru</h3>
-              <button onClick={() => setActiveSubTab('aktivitas')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">Lihat Semua ↗</button>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{m.recentActivities || 'Aktivitas Terbaru'}</h3>
+              <button onClick={() => setActiveSubTab('aktivitas')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">{m.viewAll || 'Lihat Semua'} ↗</button>
             </div>
 
             <div className="space-y-2.5 text-xs">

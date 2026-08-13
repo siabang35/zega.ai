@@ -477,15 +477,36 @@ export function UmkmDashboardContainer({
   // 3 Categorized Menu Groups
   const menuOverview = [
     { id: 'umkm', label: t.sidebarNav?.beranda || 'Beranda', icon: LayoutDashboard },
-    { id: 'my_agents', label: t.sidebarNav?.aiEmployee || 'AI Employees', icon: Bot, subItems: ['AI Support', 'Sales Agent', 'Swarms'] },
+    { 
+      id: 'my_agents', 
+      label: t.sidebarNav?.aiEmployee || 'AI Employees', 
+      icon: Bot, 
+      subItems: [t.umkmSubmenus?.aiSupport || 'AI Support', t.umkmSubmenus?.salesAgent || 'Sales Agent', t.umkmSubmenus?.swarms || 'Swarms'] 
+    },
     { id: 'sandbox', label: t.sidebarNav?.otokomasi || 'Automation', icon: Workflow },
-    { id: 'wa_bot', label: t.sidebarNav?.inbox || 'Inbox', icon: MessageSquare, badge: inboxUnreadBadge > 0 ? String(inboxUnreadBadge) : undefined, subItems: ['WhatsApp', 'Instagram DMs', 'Shopee Chat'] },
+    { 
+      id: 'wa_bot', 
+      label: t.sidebarNav?.inbox || 'Inbox', 
+      icon: MessageSquare, 
+      badge: inboxUnreadBadge > 0 ? String(inboxUnreadBadge) : undefined, 
+      subItems: [t.umkmSubmenus?.whatsapp || 'WhatsApp', t.umkmSubmenus?.instagramDms || 'Instagram DMs', t.umkmSubmenus?.shopeeChat || 'Shopee Chat'] 
+    },
   ];
 
   const menuBusiness = [
-    { id: 'sales_rekap', label: t.sidebarNav?.penjualan || 'Sales', icon: BarChart3, subItems: ['Ringkasan Sales', 'Transaksi', 'Metode Bayar'] },
+    { 
+      id: 'sales_rekap', 
+      label: t.sidebarNav?.penjualan || 'Sales', 
+      icon: BarChart3, 
+      subItems: [t.umkmSubmenus?.salesSummary || 'Ringkasan Sales', t.umkmSubmenus?.transactions || 'Transaksi', t.umkmSubmenus?.paymentMethods || 'Metode Bayar'] 
+    },
     { id: 'ai_copywriter', label: t.sidebarNav?.pemasaran || 'Marketing', icon: Megaphone },
-    { id: 'invoice_gen', label: t.sidebarNav?.keuangan || 'Finance', icon: FileText, subItems: ['Invoices', 'Laporan Keuangan', 'Pajak'] },
+    { 
+      id: 'invoice_gen', 
+      label: t.sidebarNav?.keuangan || 'Finance', 
+      icon: FileText, 
+      subItems: [t.umkmSubmenus?.invoices || 'Invoices', t.umkmSubmenus?.financialReports || 'Laporan Keuangan', t.umkmSubmenus?.tax || 'Pajak'] 
+    },
     { id: 'store', label: t.sidebarNav?.tokoSaya || 'Store', icon: ShoppingBag },
     { id: 'customers', label: t.sidebarNav?.pelanggan || 'Customers', icon: Users },
     { id: 'reports', label: t.sidebarNav?.laporanAi || 'Reports', icon: PieChart },
@@ -499,14 +520,24 @@ export function UmkmDashboardContainer({
       id: 'settings', 
       label: t.sidebarNav?.pengaturan || 'Settings', 
       icon: Settings, 
-      subItems: ['Profil & Akun', 'Tim & Pengguna', 'Integrasi', 'AI Preferences', 'Notifikasi', 'Keamanan', 'Billing & Invoice', 'API Keys', 'System'] 
+      subItems: [
+        t.umkmSubmenus?.profileAccount || 'Profil & Akun',
+        t.umkmSubmenus?.teamUsers || 'Tim & Pengguna',
+        t.umkmSubmenus?.integrations || 'Integrasi',
+        t.umkmSubmenus?.aiPreferences || 'AI Preferences',
+        t.umkmSubmenus?.notifications || 'Notifikasi',
+        t.umkmSubmenus?.security || 'Keamanan',
+        t.umkmSubmenus?.billingInvoice || 'Billing & Invoice',
+        t.umkmSubmenus?.apiKeys || 'API Keys',
+        t.umkmSubmenus?.system || 'System'
+      ] 
     }
   ];
 
   const navigationCategories = [
-    { title: 'OVERVIEW', items: menuOverview },
-    { title: 'BISNIS', items: menuBusiness },
-    { title: 'PENGATURAN', items: menuSettings },
+    { title: t.umkmCategories?.overview || 'OVERVIEW', items: menuOverview },
+    { title: t.umkmCategories?.business || 'BISNIS', items: menuBusiness },
+    { title: t.umkmCategories?.settings || 'PENGATURAN', items: menuSettings },
   ];
 
   const renderNavGroup = (title: string, items: typeof menuOverview) => (
@@ -632,13 +663,13 @@ export function UmkmDashboardContainer({
                   className="h-11 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
                 />
                 <span className="text-[9.5px] text-slate-400 font-semibold block mt-0.5 whitespace-nowrap">
-                  AI Platform untuk UMKM
+                  {t.umkmWidget?.subtitle || 'AI Platform untuk UMKM'}
                 </span>
               </div>
 
               <button
                 onClick={toggleSidebar}
-                title="Ciutkan Sidebar"
+                title={t.umkmWidget?.collapseSidebar || 'Ciutkan Sidebar'}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               >
                 <PanelLeftClose size={18} />
@@ -648,7 +679,7 @@ export function UmkmDashboardContainer({
             <div className="flex flex-col items-center gap-2.5 pb-2">
               <button
                 onClick={toggleSidebar}
-                title="Perluas Sidebar"
+                title={t.umkmWidget?.expandSidebar || 'Perluas Sidebar'}
                 className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <PanelLeftOpen size={20} />
@@ -688,26 +719,25 @@ export function UmkmDashboardContainer({
 
           {/* 3 Categorized Menu Sections */}
           <nav className="space-y-4 pt-1">
-            {renderNavGroup('OVERVIEW', menuOverview)}
-            {renderNavGroup('BISNIS', menuBusiness)}
-            {renderNavGroup('PENGATURAN', menuSettings)}
+            {renderNavGroup(t.umkmCategories?.overview || 'OVERVIEW', menuOverview)}
+            {renderNavGroup(t.umkmCategories?.business || 'BISNIS', menuBusiness)}
+            {renderNavGroup(t.umkmCategories?.settings || 'PENGATURAN', menuSettings)}
           </nav>
         </div>
 
         {/* Sidebar Bottom Widgets */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
           {/* Paket Anda Card (Expanded vs Collapsed Compact Mode) */}
-          {/* Paket Anda Card (Expanded vs Collapsed Compact Mode) */}
           {!isCollapsed ? (
             <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2 transition-all duration-300">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-bold text-slate-400">Paket Anda</span>
+                <span className="text-[10px] font-bold text-slate-400">{t.umkmWidget?.yourPlan || 'Paket Anda'}</span>
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
                   billingOverview?.plan?.status === 'Aktif'
                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
                     : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                 }`}>
-                  {billingOverview?.plan?.status || 'Inaktif'}
+                  {billingOverview?.plan?.status === 'Aktif' ? (t.umkmWidget?.active || 'Aktif') : (t.umkmWidget?.inactive || 'Inaktif')}
                 </span>
               </div>
               
@@ -721,7 +751,7 @@ export function UmkmDashboardContainer({
                 <div>
                   <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">{billingOverview?.plan?.plan_name || 'Free'}</h5>
                   <p className="text-[9.5px] text-slate-400 font-medium">
-                    {billingOverview?.plan?.expires_at ? `Berakhir pada ${new Date(billingOverview.plan.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Tidak ada paket aktif'}
+                    {billingOverview?.plan?.expires_at ? `${t.umkmWidget?.expiresOn || 'Berakhir pada'} ${new Date(billingOverview.plan.expires_at).toLocaleDateString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : (t.umkmWidget?.noActivePlan || 'Tidak ada paket aktif')}
                   </p>
                 </div>
               </div>
@@ -730,7 +760,7 @@ export function UmkmDashboardContainer({
                 <div className="flex justify-between text-[9.5px] font-bold text-slate-500">
                   <span>AI Credits</span>
                   <span className="text-slate-900 dark:text-slate-100">
-                    {(billingOverview?.plan?.credits_remaining || 0).toLocaleString('id-ID')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString('id-ID')}
+                    {(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')}
                   </span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
@@ -741,18 +771,18 @@ export function UmkmDashboardContainer({
               <button 
                 onClick={() => {
                   setActiveTab('billing');
-                  triggerToast('✓ Membuka Manajer Paket Subskripsi...');
+                  triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.billing || 'Billing'}...`);
                 }}
                 className="w-full py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-800 dark:text-slate-200 text-[11px] font-bold transition-colors cursor-pointer"
               >
-                Kelola Paket
+                {t.umkmWidget?.managePlan || 'Kelola Paket'}
               </button>
             </div>
           ) : (
             <div 
               onClick={() => setActiveTab('billing')}
               className="p-2 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
-              title={`${billingOverview?.plan?.plan_name || 'Free'} Plan: ${(billingOverview?.plan?.credits_remaining || 0).toLocaleString('id-ID')} / ${(billingOverview?.plan?.credits_limit || 0).toLocaleString('id-ID')} AI Credits`}
+              title={`${billingOverview?.plan?.plan_name || 'Free'} Plan: ${(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / ${(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} AI Credits`}
             >
               <img 
                 src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
@@ -769,15 +799,15 @@ export function UmkmDashboardContainer({
             <button
               onClick={() => {
                 setActiveTab('help');
-                triggerToast('✓ Membuka Pusat Bantuan & Bimbingan ZEGA...');
+                triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.bantuan || 'Bantuan'}...`);
               }}
-              title="Pusat Bantuan"
+              title={t.umkmWidget?.help || 'Bantuan'}
               className={`flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer ${
                 isCollapsed ? 'w-full px-0' : 'flex-1 px-3'
               }`}
             >
               <HelpCircle size={16} className="text-orange-500" />
-              {!isCollapsed && <span>Bantuan</span>}
+              {!isCollapsed && <span>{t.umkmWidget?.help || 'Bantuan'}</span>}
             </button>
 
             <button
@@ -786,13 +816,13 @@ export function UmkmDashboardContainer({
                 await SupabaseDashboardService.signOut();
                 onClose();
               }}
-              title="Keluar dari akun (Sign Out)"
+              title={t.umkmWidget?.signOut || 'Keluar'}
               className={`flex items-center justify-center gap-1.5 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors cursor-pointer ${
                 isCollapsed ? 'w-full px-0' : 'px-3'
               }`}
             >
               <LogOut size={16} />
-              {!isCollapsed && <span>Keluar</span>}
+              {!isCollapsed && <span>{t.umkmWidget?.signOut || 'Keluar'}</span>}
             </button>
           </div>
         </div>

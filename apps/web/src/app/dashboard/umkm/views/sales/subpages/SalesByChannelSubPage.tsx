@@ -5,6 +5,7 @@ import {
   BarChart3, TrendingUp, Layers, Activity, ShieldCheck, Filter
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../../services/supabaseService';
+import { useLanguage } from '@/i18n/translations';
 
 interface SalesByChannelSubPageProps {
   channels?: any[];
@@ -17,6 +18,8 @@ export function SalesByChannelSubPage({
   aiInsights = [], 
   triggerToast = () => {} 
 }: SalesByChannelSubPageProps) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const resolveCdnIconUrl = (rawUrl?: string) => {
     if (!rawUrl) return 'https://cdn.zegaai.site/assets/logo/deepseek.webp';
     let url = rawUrl;
@@ -98,15 +101,12 @@ export function SalesByChannelSubPage({
   };
 
   const handleActionTrigger = async (headline: string, action: string, actionId: string) => {
+    setExecutingActionId(actionId);
     try {
-      setExecutingActionId(actionId);
-      await SupabaseDashboardService.logSystemAuditLog('AI_CHANNEL_SWARM_ACTION', 'Success', {
-        recommendation: headline,
-        action: action,
-        timestamp: new Date().toISOString()
-      });
-      triggerToast(`✓ Aksi Channel Executed: ${action} (${headline}) — Telemetri Audit Tersimpan!`);
-    } catch (e) {
+      await SupabaseDashboardService.logSystemAuditLog(
+        'AI_SWARM_CHANNEL_ACTION',
+        `Tindakan AI Swarm Channel: ${action} (${headline})`
+      );
       triggerToast(`✓ Aksi Channel Executed: ${action} (${headline})`);
     } finally {
       setExecutingActionId(null);
@@ -154,23 +154,23 @@ export function SalesByChannelSubPage({
           <div className="flex items-center gap-2">
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <ShoppingBag className="text-orange-600 dark:text-orange-500" size={18} />
-              <span>Sales by Channel Analytics</span>
+              <span>{u.channelHeaderTitle || 'Sales by Channel Analytics'}</span>
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-            Analisis kontribusi omset per saluran penjualan (WhatsApp, Shopee, Instagram, TikTok) berbasis data transaksi Supabase.
+            {u.channelHeaderSubtitle || 'Analisis kontribusi omset per saluran penjualan (WhatsApp, Shopee, Instagram, TikTok) berbasis data transaksi Supabase.'}
           </p>
         </div>
 
         {/* Executive KPI Summary Badges */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-right">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">RATA-RATA KONVERSI</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">{u.avgConversion || u.avgConversionLabel || 'RATA-RATA KONVERSI'}</span>
             <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{avgConversionRate}% Chat → Order</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-right">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">TOTAL OMSET CHANNEL</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">{u.totalChannelRevenue || u.totalChannelOmsetLabel || 'TOTAL OMSET CHANNEL'}</span>
             <span className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono">
               Rp{(totalRev / 1000000).toFixed(2)}M
             </span>
@@ -187,10 +187,10 @@ export function SalesByChannelSubPage({
           <div className="w-full flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2 text-left">
               <PieChartIcon size={16} className="text-orange-500" />
-              <span>Diagram Donut Pangsa Saluran</span>
+              <span>{u.donutTitle || u.donutChannelTitle || 'Diagram Donut Pangsa Saluran'}</span>
             </h3>
             <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-              {deduplicatedChannels.length} Channels Active
+              {deduplicatedChannels.length} {u.activeChannelsSuffix || 'Channels Active'}
             </span>
           </div>
 

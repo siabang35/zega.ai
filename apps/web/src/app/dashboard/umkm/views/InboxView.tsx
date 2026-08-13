@@ -22,6 +22,7 @@ interface InboxViewProps {
 
 export function InboxView({ triggerToast }: InboxViewProps) {
   const { t } = useLanguage();
+  const u = (t as any).umkmInbox || (t as any).inboxView || {};
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [mobileTab, setMobileTab] = useState<'list' | 'chat' | 'info'>('chat'); // Responsive mobile tab state
   const [channelTab, setChannelTab] = useState('Semua');
@@ -133,25 +134,25 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
   const fallbackConv = {
     id: 'empty-state',
-    customer_name: 'Belum Ada Pelanggan',
+    customer_name: u.noCustomerYet || t.inboxView.noCustomerYet || 'Belum Ada Pelanggan',
     customer_phone: '-',
     customer_email: '-',
     customer_avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     channel: 'whatsapp',
     status: 'unread',
     priority: 'low',
-    intent: 'Zero State',
-    sentiment: 'Netral',
+    intent: u.zeroStateIntent || t.inboxView.zeroStateIntent || 'Zero State',
+    sentiment: u.neutralSentiment || t.inboxView.neutralSentiment || 'Netral',
     ai_confidence: 100,
     tags: [],
-    last_message: 'Belum ada pesan masuk',
+    last_message: u.noIncomingMessagesYet || t.inboxView.noIncomingMessagesYet || 'Belum ada pesan masuk',
     last_message_time: '-',
     unread_count: 0,
     total_orders: 0,
     total_spent: 0,
     customer_since: '2026',
     ai_auto_respond: true,
-    ai_summary: 'Belum ada percakapan masuk dari pelanggan.',
+    ai_summary: u.noConversationsSummary || t.inboxView.noConversationsSummary || 'Belum ada percakapan masuk dari pelanggan.',
     suggested_actions: []
   };
 
@@ -512,7 +513,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           }`}
         >
           <MessageSquare size={14} />
-          <span>Percakapan</span>
+          <span>{u.mobileConversations || 'Percakapan'}</span>
           <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px]">
             {filteredConversations.length}
           </span>
@@ -525,7 +526,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           }`}
         >
           <Send size={14} />
-          <span>Pesan ({activeConv.customer_name.split(' ')[0]})</span>
+          <span>{u.mobileMessages || 'Pesan'} ({activeConv.customer_name.split(' ')[0]})</span>
         </button>
 
         <button
@@ -535,7 +536,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           }`}
         >
           <Bot size={14} />
-          <span>Info & AI</span>
+          <span>{u.mobileInfoAi || 'Info & AI'}</span>
         </button>
       </div>
 
@@ -555,12 +556,12 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               <button
                 onClick={() => setIsLeftSidebarOpen(true)}
                 className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all cursor-pointer shadow-xs"
-                title="Tampilkan Panel Percakapan (Expand Left)"
+                title={u.expandSidebar || "Tampilkan Panel Percakapan (Expand Left)"}
               >
                 <PanelLeftOpen size={16} />
               </button>
 
-              <div className="px-1.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black" title="Total Percakapan">
+              <div className="px-1.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black" title={u.totalConversations || "Total Percakapan"}>
                 {filteredConversations.length}
               </div>
 
@@ -611,7 +612,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={t.inboxView.searchPlaceholder}
+                      placeholder={u.searchPlaceholder || 'Cari percakapan...'}
                       className="w-full pl-8 pr-8 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-blue-500 transition-all text-slate-900 dark:text-slate-100"
                     />
                     {searchQuery && (
@@ -631,7 +632,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs font-bold'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
-                    title="Filter Lanjutan"
+                    title={u.advancedFilterTitle || "Filter Lanjutan"}
                   >
                     <Sliders size={14} />
                     {activeFilterCount > 0 && (
@@ -644,7 +645,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   <button 
                     onClick={() => setIsLeftSidebarOpen(false)} 
                     className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer"
-                    title="Sembunyikan Panel Percakapan (Collapse Left)"
+                    title={u.collapseSidebar || "Sembunyikan Panel Percakapan (Collapse Left)"}
                   >
                     <PanelLeftClose size={14} />
                   </button>
@@ -656,24 +657,24 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                       <div className="flex items-center gap-1.5">
                         <Sliders size={14} className="text-blue-600 dark:text-blue-400" />
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Filter Lanjutan Percakapan</h4>
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.advancedFilterTitle || 'Filter Lanjutan Percakapan'}</h4>
                       </div>
                       {activeFilterCount > 0 && (
                         <button
                           onClick={resetAdvancedFilters}
                           className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                         >
-                          Reset Filter ({activeFilterCount})
+                          {u.resetFilter || 'Reset Filter'} ({activeFilterCount})
                         </button>
                       )}
                     </div>
 
                     {/* FILTER 1: PRIORITAS */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Tingkat Prioritas</label>
+                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">{u.priorityLevel || 'Tingkat Prioritas'}</label>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          { key: 'all', label: 'Semua' },
+                          { key: 'all', label: u.channelAll || 'Semua' },
                           { key: 'high', label: 'High Priority' },
                           { key: 'medium', label: 'Medium' },
                           { key: 'low', label: 'Low' },
@@ -696,7 +697,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                     {/* FILTER 2: INTENT PELANGGAN */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Kategori Intent (Tujuan)</label>
+                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">{u.intentCategory || 'Kategori Intent (Tujuan)'}</label>
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           'all', 'Order Inquiry', 'Product Question', 'Restock', 'Sizing', 'How to Order', 'Shipping', 'Invoice'
@@ -711,7 +712,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                           >
-                            {i === 'all' ? 'Semua Intent' : i}
+                            {i === 'all' ? (u.allIntents || 'Semua Intent') : i}
                           </button>
                         ))}
                       </div>
@@ -719,13 +720,13 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                     {/* FILTER 3: SENTIMEN AI */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">Analisis Sentimen AI</label>
+                      <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">{u.aiSentiment || 'Analisis Sentimen AI'}</label>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          { key: 'all', label: 'Semua Sentimen' },
-                          { key: 'Positif', label: 'Positif 👍' },
-                          { key: 'Netral', label: 'Netral 😐' },
-                          { key: 'Negatif', label: 'Negatif 👎' },
+                          { key: 'all', label: u.allSentiments || 'Semua Sentimen' },
+                          { key: 'Positif', label: u.positive || 'Positif 👍' },
+                          { key: 'Netral', label: u.neutral || 'Netral 😐' },
+                          { key: 'Negatif', label: u.negative || 'Negatif 👎' },
                         ].map(s => (
                           <button
                             key={s.key}
@@ -752,7 +753,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                           onChange={(e) => setAdvancedFilters(prev => ({ ...prev, starredOnly: e.target.checked }))}
                           className="rounded text-blue-600 focus:ring-blue-500 size-4"
                         />
-                        <span>Hanya Bintang ⭐</span>
+                        <span>{u.starredOnly || 'Hanya Bintang ⭐'}</span>
                       </label>
 
                       <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
@@ -762,7 +763,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                           onChange={(e) => setAdvancedFilters(prev => ({ ...prev, hasUnread: e.target.checked }))}
                           className="rounded text-blue-600 focus:ring-blue-500 size-4"
                         />
-                        <span>Hanya Belum Dibaca ✉️</span>
+                        <span>{u.unreadOnly || 'Hanya Belum Dibaca ✉️'}</span>
                       </label>
                     </div>
 
@@ -773,7 +774,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                         onClick={() => setShowAdvancedFilter(false)}
                         className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-extrabold cursor-pointer"
                       >
-                        Tutup
+                        {u.close || 'Tutup'}
                       </button>
                       <button
                         type="button"
@@ -783,7 +784,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                         }}
                         className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold cursor-pointer shadow-xs"
                       >
-                        Terapkan Filter
+                        {u.applyFilter || 'Terapkan Filter'}
                       </button>
                     </div>
                   </div>
@@ -825,7 +826,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     </span>
                   )}
                   <button onClick={resetAdvancedFilters} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline cursor-pointer">
-                    Reset Semua
+                    {u.resetAll || 'Reset Semua'}
                   </button>
                 </div>
               )}
@@ -833,10 +834,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               {/* Sub-Filter Tabs */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl text-[11px] font-bold">
                 {[
-                  { key: 'Semua', label: t.inboxView.subTabAll },
-                  { key: 'Belum Dibaca', label: t.inboxView.subTabUnread, badge: conversations.filter(c => c.status === 'unread').length || undefined },
-                  { key: 'Menunggu', label: t.inboxView.subTabWaiting },
-                  { key: 'Selesai', label: t.inboxView.subTabCompleted },
+                  { key: 'Semua', label: u.subTabAll || t.inboxView.subTabAll },
+                  { key: 'Belum Dibaca', label: u.subTabUnread || t.inboxView.subTabUnread, badge: conversations.filter(c => c.status === 'unread').length || undefined },
+                  { key: 'Menunggu', label: u.subTabWaiting || t.inboxView.subTabWaiting },
+                  { key: 'Selesai', label: u.subTabCompleted || t.inboxView.subTabCompleted },
                 ].map(sub => (
                   <button
                     key={sub.key}
@@ -864,19 +865,19 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     <MessageSquare size={18} />
                   </div>
                   <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                    {conversations.length === 0 ? 'Belum Ada Percakapan Masuk' : 'Tidak ada percakapan yang cocok'}
+                    {conversations.length === 0 ? (u.noConversations || 'Belum Ada Percakapan Masuk') : (u.noMatchingConversations || 'Tidak ada percakapan yang cocok')}
                   </h4>
                   <p className="text-[11px] text-slate-400 font-medium max-w-xs mx-auto">
                     {conversations.length === 0
-                      ? 'Kotak masuk Anda masih bersih. Saat pelanggan berkirim pesan via WhatsApp atau Instagram, percakapan akan muncul secara realtime di sini.'
-                      : 'Cobalah ubah kata kunci pencarian atau reset filter lanjutan yang aktif.'}
+                      ? (u.emptyInboxDesc || 'Kotak masuk Anda masih bersih. Saat pelanggan berkirim pesan via WhatsApp atau Instagram, percakapan akan muncul secara realtime di sini.')
+                      : (u.noMatchDesc || 'Cobalah ubah kata kunci pencarian atau reset filter lanjutan yang aktif.')}
                   </p>
                   {conversations.length > 0 && (
                     <button
                       onClick={resetAdvancedFilters}
                       className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 cursor-pointer"
                     >
-                      Reset Filter
+                      {u.resetFilter || 'Reset Filter'}
                     </button>
                   )}
                 </div>
@@ -992,10 +993,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <button
                   onClick={() => setIsLeftSidebarOpen(true)}
                   className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all text-xs font-extrabold flex items-center gap-1.5 cursor-pointer mr-1 shadow-2xs"
-                  title="Tampilkan Panel Percakapan (Expand Left)"
+                  title={u.expandSidebar || "Tampilkan Panel Percakapan (Expand Left)"}
                 >
                   <PanelLeftOpen size={15} />
-                  <span className="hidden sm:inline">Daftar Chat</span>
+                  <span className="hidden sm:inline">{u.mobileConversations || 'Daftar Chat'}</span>
                 </button>
               )}
               <div className="relative">
@@ -1021,7 +1022,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   {activeConv.customer_phone}
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  Bergabung {formatDate(activeConv.customer_since)} • Total Order {activeConv.total_orders} • Total Belanja Rp{activeConv.total_spent?.toLocaleString('id-ID')}
+                  {u.customerSince || 'Bergabung'} {formatDate(activeConv.customer_since)} • {u.totalOrder || 'Total Order'} {activeConv.total_orders} • {u.totalSpent || 'Total Belanja'} Rp{activeConv.total_spent?.toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
@@ -1031,14 +1032,14 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               <button 
                 onClick={() => setActiveModal('assignAgent')} 
                 className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
-                title="Tugaskan Agen CS"
+                title={u.assignedAgent || "Tugaskan Agen CS"}
               >
                 <UserPlus size={15} />
               </button>
               <button 
                 onClick={() => setActiveModal('addTag')} 
                 className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
-                title="Tambah Tag Label"
+                title={u.addTag || "Tambah Tag Label"}
               >
                 <Tag size={15} />
               </button>
@@ -1053,7 +1054,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 className={`p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${
                   activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
                 }`} 
-                title={activeConv.is_starred ? 'Lepas Bintang' : 'Tandai Bintang'}
+                title={activeConv.is_starred ? (u.unstar || 'Lepas Bintang') : (u.markStarred || 'Tandai Bintang')}
               >
                 <Star size={15} className={activeConv.is_starred ? 'fill-amber-500 text-amber-500' : ''} />
               </button>
@@ -1063,7 +1064,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <button 
                   onClick={() => setShowMoreMenu(!showMoreMenu)} 
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
-                  title="Opsi Lanjutan"
+                  title={u.moreOptions || "Opsi Lanjutan"}
                 >
                   <MoreHorizontal size={15} />
                 </button>
@@ -1077,7 +1078,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
                     >
-                      Tandai Belum Dibaca
+                      {u.markUnread || 'Tandai Belum Dibaca'}
                     </button>
                     <button
                       onClick={async () => {
@@ -1087,7 +1088,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
                     >
-                      Arsipkan Percakapan
+                      {u.archiveConversation || 'Arsipkan Percakapan'}
                     </button>
                     <button
                       onClick={() => {
@@ -1096,7 +1097,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
                     >
-                      Lihat Profil Lengkap Pelanggan
+                      {u.viewFullProfileOption || 'Lihat Profil Lengkap Pelanggan'}
                     </button>
                     <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
                     <button
@@ -1106,7 +1107,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-extrabold cursor-pointer"
                     >
-                      Blokir Pelanggan
+                      {u.blockCustomer || 'Blokir Pelanggan'}
                     </button>
                   </div>
                 )}
@@ -1118,7 +1119,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 dark:from-blue-950/60 dark:via-purple-950/40 dark:to-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 p-2.5 rounded-2xl flex items-center justify-between text-xs text-blue-950 dark:text-blue-200 shadow-xs">
             <div className="flex items-center gap-2 font-bold">
               <Bot size={14} className="text-blue-500 animate-pulse" />
-              <span>ZeroClaw & 9Router Multi-LLM Model Aktif (Real-time Stream)</span>
+              <span>{u.aiStreamActive || 'ZeroClaw & 9Router Multi-LLM Model Aktif (Real-time Stream)'}</span>
               <span title="Model AI ditentukan secara otomatis oleh 9Router berdasarkan intent, akurasi & latensi secara real-time">
                 <HelpCircle size={12} className="text-purple-500 cursor-pointer" />
               </span>
@@ -1199,7 +1200,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             {isAiTyping && (
               <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 p-2 rounded-2xl animate-pulse border border-purple-200 dark:border-purple-800/60">
                 <Bot size={13} className="animate-bounce text-blue-500" />
-                <span>AI Assistant sedang mengetik balasan otomatis...</span>
+                <span>{u.aiTyping || 'AI Assistant sedang mengetik balasan otomatis...'}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1213,7 +1214,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2.5 py-1 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                   <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-extrabold">
                     <FileText size={12} className="text-blue-500" />
-                    Template Balasan Cepat
+                    {u.quickReplyTemplates || 'Template Balasan Cepat'}
                   </span>
                   <button 
                     type="button"
@@ -1255,10 +1256,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   type="button"
                   onClick={handleGenerateAiDraft}
                   className="px-2.5 py-1.5 rounded-xl border border-purple-300 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/80 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 flex items-center gap-1 flex-shrink-0 cursor-pointer shadow-xs transition-all animate-in fade-in"
-                  title="Hasilkan Draf Balasan Otomatis Berbasis AI"
+                  title="Hasikan Draf Balasan Otomatis Berbasis AI"
                 >
                   <Bot size={12} className="text-purple-600 dark:text-purple-400" />
-                  <span>Draft AI</span>
+                  <span>{u.draftAiBtn || 'Draft AI'}</span>
                 </button>
               )}
 
@@ -1268,7 +1269,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
               >
                 <ShoppingCart size={12} className="text-blue-500" />
-                <span>{t.inboxView.createOrder}</span>
+                <span>{u.createOrder || t.inboxView.createOrder}</span>
               </button>
               <button
                 type="button"
@@ -1276,7 +1277,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
               >
                 <Truck size={12} className="text-blue-500" />
-                <span>{t.inboxView.checkOngkir}</span>
+                <span>{u.checkOngkir || t.inboxView.checkOngkir}</span>
               </button>
               <button
                 type="button"
@@ -1284,7 +1285,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
               >
                 <MapPin size={12} className="text-emerald-500" />
-                <span>{t.inboxView.trackOrder}</span>
+                <span>{u.trackOrder || t.inboxView.trackOrder}</span>
               </button>
               <button
                 type="button"
@@ -1292,7 +1293,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 flex-shrink-0 cursor-pointer"
               >
                 <Package size={12} className="text-purple-500" />
-                <span>{t.inboxView.productCatalog}</span>
+                <span>{u.productCatalog || t.inboxView.productCatalog}</span>
               </button>
               <button
                 type="button"
@@ -1304,7 +1305,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 }`}
               >
                 <FileText size={12} className={showTemplateMenu ? 'text-blue-600' : 'text-slate-500'} />
-                <span>{t.inboxView.template}</span>
+                <span>{u.template || t.inboxView.template}</span>
                 <ChevronDown size={10} className={`transition-transform ${showTemplateMenu ? 'rotate-180' : ''}`} />
               </button>
             </div>
@@ -1369,7 +1370,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder={t.inboxView.typeMessage}
+                placeholder={u.typeMessage || t.inboxView.typeMessage}
                 className="w-full bg-transparent px-2 text-xs font-medium focus:outline-none text-slate-900 dark:text-slate-100 pr-28"
               />
 
@@ -1393,7 +1394,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               {showAttachmentMenu && (
                 <div className="absolute right-8 bottom-full mb-2 z-50 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-2 w-60 space-y-1 animate-in fade-in slide-in-from-bottom-2 text-xs">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                    <span>Lampiran Berkas</span>
+                    <span>{u.attachments || 'Lampiran Berkas'}</span>
                     <button type="button" onClick={() => setShowAttachmentMenu(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-bold cursor-pointer">✕</button>
                   </div>
                   <button
@@ -1405,7 +1406,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     className="w-full text-left p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/60 text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                   >
                     <Paperclip size={14} className="text-blue-500" />
-                    <span>Unggah Berkas / PDF / Word</span>
+                    <span>{u.uploadDocPdf || 'Unggah Berkas / PDF / Word'}</span>
                   </button>
                   <button
                     type="button"
@@ -1416,7 +1417,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     className="w-full text-left p-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/60 text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                   >
                     <ImageIcon size={14} className="text-purple-500" />
-                    <span>Pilih Gambar dari Galeri</span>
+                    <span>{u.chooseGalleryImage || 'Pilih Gambar dari Galeri'}</span>
                   </button>
                 </div>
               )}
@@ -1431,7 +1432,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     showEmojiPicker ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
-                  title="Pilih Emoji"
+                  title={u.chooseEmoji || "Pilih Emoji"}
                 >
                   <Smile size={15} />
                 </button>
@@ -1444,7 +1445,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     showAttachmentMenu ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
-                  title="Lampirkan Berkas"
+                  title={u.attachFile || "Lampirkan Berkas"}
                 >
                   <Paperclip size={15} />
                 </button>
@@ -1454,7 +1455,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                     attachedImage ? 'text-purple-500 bg-purple-50 dark:bg-purple-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
-                  title="Unggah Gambar"
+                  title={u.uploadImage || "Unggah Gambar"}
                 >
                   <ImageIcon size={15} />
                 </button>
@@ -1462,7 +1463,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <button
                   type="submit"
                   className="size-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-xs transition-all ml-1 active:scale-95"
-                  title="Kirim Pesan"
+                  title={u.sendMessage || "Kirim Pesan"}
                 >
                   <Send size={13} />
                 </button>
@@ -1474,7 +1475,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               <div className="flex items-center gap-1">
                 <HelpCircle size={11} className="text-slate-400" />
                 <span className={aiAssistantEnabled ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}>
-                  {aiAssistantEnabled ? 'Auto-respond AI Aktif' : t.inboxView.sentByAi}
+                  {aiAssistantEnabled ? (u.autoRespondAiActive || 'Auto-respond AI Aktif') : (u.sentByAi || t.inboxView.sentByAi)}
                 </span>
               </div>
 
@@ -1663,7 +1664,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <textarea
                   value={newNoteInput}
                   onChange={(e) => setNewNoteInput(e.target.value)}
-                  placeholder="Tulis catatan internal (hanya tim Anda yang bisa lihat)..."
+                  placeholder={u.writeInternalNote || "Tulis catatan internal (hanya tim Anda yang bisa lihat)..."}
                   className="w-full p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-orange-500"
                   rows={2}
                 />
@@ -1671,7 +1672,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   onClick={handleAddNote}
                   className="w-full py-1.5 rounded-xl bg-orange-500 text-white font-extrabold text-xs shadow-xs cursor-pointer"
                 >
-                  Simpan Catatan
+                  {u.saveNote || 'Simpan Catatan'}
                 </button>
               </div>
             )}
@@ -1683,7 +1684,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     {note.note_text}
                   </p>
                   <p className="text-[9px] text-slate-400">
-                    Ditambahkan oleh {note.created_by} • {formatDate(note.created_at)}
+                    {u.addedBy || 'Ditambahkan oleh'} {note.created_by} • {formatDate(note.created_at)}
                   </p>
                 </div>
               ))}

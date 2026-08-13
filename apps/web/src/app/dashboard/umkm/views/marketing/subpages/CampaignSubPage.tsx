@@ -4,6 +4,7 @@ import {
   DollarSign, Users, Sparkles, CheckCircle2, RefreshCw, Eye,
   X, Filter, Cpu, Layers, ShieldCheck, LineChart, SlidersHorizontal, Terminal, Activity, Check
 } from 'lucide-react';
+import { useLanguage } from '../../../../../../i18n/translations';
 import { SupabaseDashboardService } from '../../../../services/supabaseService';
 import { supabase } from '../../../../../../lib/supabase';
 
@@ -52,6 +53,9 @@ interface CampaignSubPageProps {
 }
 
 export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: CampaignSubPageProps) {
+  const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
+
   const [campaignList, setCampaignList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -296,10 +300,10 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           </div>
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>AI Marketing Campaigns</span>
+              <span>{m.aiMarketingCampaignsTitle || 'AI Marketing Campaigns'}</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kelola, otomatisasi, dan analisis campaign pemasaran berkinerja tinggi berbasis model AI Swarm.
+              {m.aiMarketingCampaignsSubtitle || 'Kelola, otomatisasi, dan analisis campaign pemasaran berkinerja tinggi berbasis model AI Swarm.'}
             </p>
           </div>
         </div>
@@ -310,7 +314,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-200/80 dark:border-slate-700"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
-            <span>Sync Data</span>
+            <span>{m.syncData || 'Sync Data'}</span>
           </button>
           <button
             onClick={() => {
@@ -320,7 +324,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
           >
             <Plus size={14} />
-            <span>+ Buat Campaign Baru</span>
+            <span>{m.createNewCampaign || '+ Buat Campaign Baru'}</span>
           </button>
         </div>
       </div>
@@ -330,7 +334,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
         {/* Card 1: Total Campaign */}
         <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
-            <span>TOTAL CAMPAIGN</span>
+            <span>{m.totalCampaign || 'TOTAL CAMPAIGN'}</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
               <Megaphone size={16} />
             </div>
@@ -339,14 +343,14 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             {campaignList.length} Campaign
           </div>
           <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            {totalActive} Campaign Aktif Hari Ini
+            {totalActive} {m.activeCampaignsToday || 'Campaign Aktif Hari Ini'}
           </p>
         </div>
 
         {/* Card 2: Total Revenue Campaign */}
         <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
-            <span>TOTAL REVENUE CAMPAIGN</span>
+            <span>{m.totalRevenueCampaign || 'TOTAL REVENUE CAMPAIGN'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
               <DollarSign size={16} />
             </div>
@@ -355,14 +359,14 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             Rp{totalRevenue.toLocaleString('id-ID')}
           </div>
           <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            ↑ 18.4% vs Bulan Lalu
+            ↑ 18.4% {m.vsLastMonth || 'vs Bulan Lalu'}
           </p>
         </div>
 
         {/* Card 3: Total Leads Campaign */}
         <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
-            <span>TOTAL LEADS CAMPAIGN</span>
+            <span>{m.totalLeadsCampaign || 'TOTAL LEADS CAMPAIGN'}</span>
             <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
               <Users size={16} />
             </div>
@@ -371,14 +375,14 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             {totalLeads} Leads
           </div>
           <p className="text-xs font-bold text-blue-600 dark:text-blue-400">
-            Conversion Rate 3.8%
+            {m.conversionRate || 'Conversion Rate'} 3.8%
           </p>
         </div>
 
         {/* Card 4: Average ROAS */}
         <div className="p-4.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-slate-400 dark:hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-extrabold tracking-wider">
-            <span>AVERAGE ROAS</span>
+            <span>{m.avgRoas || 'AVERAGE ROAS'}</span>
             <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
               <TrendingUp size={16} />
             </div>
@@ -387,7 +391,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             {avgRoas}x
           </div>
           <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
-            Target ROAS 3.0x Terlampaui
+            {m.targetRoasExceeded || 'Target ROAS 3.0x Terlampaui'}
           </p>
         </div>
       </div>
@@ -398,9 +402,9 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <LineChart size={18} className="text-orange-500" />
-              <span>Grafik Tren Performa Campaign</span>
+              <span>{m.campaignTrendChartTitle || 'Grafik Tren Performa Campaign'}</span>
             </h3>
-            <p className="text-xs text-slate-400">Analisis tren performa campaign aktif & selesai dalam format grafik area</p>
+            <p className="text-xs text-slate-400">{m.campaignTrendChartSubtitle || 'Analisis tren performa campaign aktif & selesai dalam format grafik area'}</p>
           </div>
 
           {/* Metric Selector Buttons */}
@@ -413,7 +417,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Revenue (Rp)
+              {m.revenueRp || 'Revenue (Rp)'}
             </button>
             <button
               onClick={() => setChartMetric('leads')}
@@ -443,7 +447,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <Line data={lineChartData} options={lineChartOptions} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-              Memuat grafik tren campaign...
+              {m.loadingCampaignTrendChart || 'Memuat grafik tren campaign...'}
             </div>
           )}
         </div>
@@ -456,7 +460,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nama campaign atau channel..."
+              placeholder={m.searchCampaignPlaceholder || 'Cari nama campaign atau channel...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
@@ -464,24 +468,27 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           </div>
 
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl text-xs font-bold">
-            {(['Semua', 'Aktif', 'Selesai'] as const).map(status => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1 rounded-xl text-[11px] transition-all cursor-pointer ${
-                  statusFilter === status 
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-extrabold' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+            {(['Semua', 'Aktif', 'Selesai'] as const).map(status => {
+              let label = status === 'Semua' ? (m.allStatus || 'Semua') : status === 'Aktif' ? (m.active || 'Aktif') : (m.completed || 'Selesai');
+              return (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1 rounded-xl text-[11px] transition-all cursor-pointer ${
+                    statusFilter === status 
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-extrabold' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="text-xs font-semibold text-slate-400 text-right">
-          Menampilkan <span className="font-extrabold text-slate-700 dark:text-slate-300">{filteredCampaigns.length}</span> campaign
+          {m.showingCampaigns || 'Menampilkan'} <span className="font-extrabold text-slate-700 dark:text-slate-300">{filteredCampaigns.length}</span> campaign
         </div>
       </div>
 
@@ -540,7 +547,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 font-medium">Estimasi Revenue</span>
+                  <span className="text-slate-500 font-medium">{m.estimatedRevenue || 'Estimasi Revenue'}</span>
                   <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">
                     Rp{parseFloat(c.revenue_num || 0).toLocaleString('id-ID')}
                   </span>
@@ -554,19 +561,26 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                   className="flex-1 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
                 >
                   <Eye size={13} />
-                  <span>Detail</span>
+                  <span>{m.detail || 'Detail'}</span>
                 </button>
                 <button
                   onClick={() => handleOptimizeCampaign(c)}
                   className="py-2 px-3.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                 >
                   <SlidersHorizontal size={13} />
-                  <span>Optimasi Campaign</span>
+                  <span>{m.optimizeCampaign || 'Optimasi Campaign'}</span>
                 </button>
               </div>
             </div>
           );
         })}
+        {filteredCampaigns.length === 0 && (
+          <div className="col-span-full p-8 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-300 dark:border-slate-800 text-center space-y-2">
+            <Megaphone size={32} className="mx-auto text-slate-400 opacity-60" />
+            <h4 className="font-extrabold text-sm text-slate-700 dark:text-slate-300">{m.noCampaignYet || 'Belum Ada Campaign'}</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">{m.noCampaignsFound || 'Tidak ada campaign yang ditemukan.'}</p>
+          </div>
+        )}
       </div>
 
       {/* MODAL 1: Detail Telemetri Campaign */}
@@ -598,28 +612,28 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Estimasi Revenue</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">{m.estimatedRevenue || 'Estimasi Revenue'}</span>
                 <p className="text-base font-black text-emerald-600 mt-0.5">
                   Rp{parseFloat(selectedDetailCampaign.revenue_num || 0).toLocaleString('id-ID')}
                 </p>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">ROAS Campaign</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">{m.roasCampaign || 'ROAS Campaign'}</span>
                 <p className="text-base font-black text-purple-600 mt-0.5">
                   {selectedDetailCampaign.roas_text || '3.8x'}
                 </p>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Target Reach & Leads</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">{m.targetReachLeads || 'Target Reach & Leads'}</span>
                 <p className="text-base font-black text-slate-900 dark:text-slate-100 mt-0.5">
                   {selectedDetailCampaign.reach_text} Audiens / {selectedDetailCampaign.leads_count} Leads
                 </p>
               </div>
 
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Anggaran Campaign</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">{m.campaignBudget || 'Anggaran Campaign'}</span>
                 <p className="text-base font-black text-slate-900 dark:text-slate-100 mt-0.5">
                   Rp{parseFloat(selectedDetailCampaign.budget_num || 500000).toLocaleString('id-ID')}
                 </p>
@@ -629,7 +643,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             {/* Creative Banner Preview */}
             {selectedDetailCampaign.creative_image_url && (
               <div className="space-y-1.5">
-                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Materi Kreatif Campaign (AI Generated)</span>
+                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">{m.creativeMaterial || 'Materi Kreatif Campaign (AI Generated)'}</span>
                 <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-40 bg-slate-900 flex items-center justify-center">
                   <img
                     src={selectedDetailCampaign.creative_image_url}
@@ -644,7 +658,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-slate-800 space-y-1.5 text-xs">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-extrabold text-orange-400 flex items-center gap-1">
-                  <CheckCircle2 size={13} /> Status: {selectedDetailCampaign.status}
+                  <CheckCircle2 size={13} /> {m.status || 'Status'}: {selectedDetailCampaign.status}
                 </span>
                 <span className="font-mono text-[10px] text-slate-400">ID: {selectedDetailCampaign.id}</span>
               </div>
@@ -652,7 +666,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                 AI Engine: {selectedDetailCampaign.model_engine || 'DeepSeek R1 & 9Router Swarm'}
               </p>
               <p className="text-[11px] text-slate-400">
-                Target Segment: {selectedDetailCampaign.target_audience || 'Pelanggan Setia'}
+                {m.targetSegment || 'Target Segment'}: {selectedDetailCampaign.target_audience || 'Pelanggan Setia'}
               </p>
             </div>
 
@@ -661,7 +675,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                 onClick={() => setSelectedDetailCampaign(null)}
                 className="px-4 py-2 rounded-2xl bg-slate-900 text-white font-extrabold text-xs cursor-pointer"
               >
-                Tutup Detail
+                {m.closeDetail || 'Tutup Detail'}
               </button>
             </div>
           </div>
@@ -676,7 +690,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
               <div className="flex items-center gap-2">
                 <Terminal size={18} className="text-orange-400" />
                 <h3 className="text-sm font-bold text-slate-100">
-                  AI Swarm Optimization Terminal: {optimizingCampaign.campaign_name}
+                  {m.aiSwarmTerminal || 'AI Swarm Optimization Terminal'}: {optimizingCampaign.campaign_name}
                 </h3>
               </div>
               <button
@@ -701,7 +715,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
               {isOptimizingActive && (
                 <div className="flex items-center gap-2 text-slate-400 animate-pulse pt-2">
                   <Activity size={14} className="animate-spin text-orange-400" />
-                  <span>Eksekusi optimasi AI sedang berlangsung...</span>
+                  <span>{m.aiOptimizationExecuting || 'Eksekusi optimasi AI sedang berlangsung...'}</span>
                 </div>
               )}
             </div>
@@ -716,11 +730,11 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                   onClick={() => setOptimizingCampaign(null)}
                   className="px-4 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer"
                 >
-                  <Check size={14} /> Selesai & Tutup
+                  <Check size={14} /> {m.doneAndClose || 'Selesai & Tutup'}
                 </button>
               ) : (
                 <span className="text-[11px] text-orange-400 font-extrabold animate-pulse">
-                  Proses Dibalik Layar Active...
+                  {m.behindScenesActive || 'Proses Dibalik Layar Active...'}
                 </span>
               )}
             </div>
@@ -738,7 +752,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Plus size={18} className="text-orange-500" />
-                <span>Buat Campaign Baru</span>
+                <span>{m.createNewCampaign || 'Buat Campaign Baru'}</span>
               </h3>
               <button
                 type="button"
@@ -752,7 +766,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             <div className="space-y-3 text-xs">
               <div>
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">
-                  Nama Campaign
+                  {m.campaignNameLabel || 'Nama Campaign'}
                 </label>
                 <input
                   type="text"
@@ -766,7 +780,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
 
               <div>
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">
-                  Saluran Pemasaran (Channel)
+                  {m.channelLabel || 'Saluran Pemasaran (Channel)'}
                 </label>
                 <select
                   value={newChannelName}
@@ -783,7 +797,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
 
               <div>
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">
-                  Periode Campaign
+                  {m.campaignPeriodLabel || 'Periode Campaign'}
                 </label>
                 <input
                   type="text"
@@ -795,7 +809,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
 
               <div>
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">
-                  Target Segmen Audiens
+                  {m.targetAudienceLabel || 'Target Segmen Audiens'}
                 </label>
                 <input
                   type="text"
@@ -812,13 +826,13 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-bold text-xs cursor-pointer"
               >
-                Batal
+                {m.cancel || 'Batal'}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer"
               >
-                Simpan & Deploy AI
+                {m.saveAndDeployAi || 'Simpan & Deploy AI'}
               </button>
             </div>
           </form>

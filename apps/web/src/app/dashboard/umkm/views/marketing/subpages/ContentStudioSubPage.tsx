@@ -71,7 +71,11 @@ interface AnalyticsItem {
   total_shares: number;
 }
 
+import { useLanguage } from '../../../../../../i18n/translations';
+
 export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId = '11111111-1111-1111-1111-111111111111' }) => {
+  const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -327,11 +331,11 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-              AI Content & Video Studio Command Center
+              {m.contentStudioTitle || 'AI Content & Video Studio Command Center'}
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Studio pembuatan video reels, TikTok shorts, & copywriting otomatis enterprise.
+            {m.contentStudioSubtitle || 'Studio pembuatan video reels, TikTok shorts, & copywriting otomatis enterprise.'}
           </p>
         </div>
 
@@ -348,7 +352,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
             className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer"
           >
             <Sparkles size={16} />
-            <span>+ Buat Konten & Video AI Baru</span>
+            <span>{m.createAiContentVideo || '+ Buat Konten & Video AI Baru'}</span>
           </button>
         </div>
       </div>
@@ -356,40 +360,40 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Konten & Post</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{m.totalContentPosts || 'Total Konten & Post'}</span>
           <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{totalPosts}</div>
           <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-            ↑ 18% vs bulan lalu
+            ↑ 18% {m.vsLastMonth || 'vs bulan lalu'}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">AI Video Reels Created</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{m.aiVideoReelsCreated || 'AI Video Reels Created'}</span>
           <div className="text-2xl font-black text-amber-500 dark:text-amber-400 flex items-center gap-1.5">
             <Film size={22} />
             <span>{totalVideos}</span>
           </div>
           <span className="inline-block px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
-            Enterprise Video Engine
+            {m.enterpriseVideoEngine || 'Enterprise Video Engine'}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rata-rata Engagement</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{m.avgEngagement || 'Rata-rata Engagement'}</span>
           <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{avgEngagement}%</div>
           <span className="inline-block px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">
-            High Performer
+            {m.highPerformer || 'High Performer'}
           </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kolaborasi & Export Ready</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{m.collaborationExportReady || 'Kolaborasi & Export Ready'}</span>
           <div className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pt-1 truncate">
             <Users size={16} />
-            <span>Enterprise Assets Synced</span>
+            <span>{m.enterpriseAssetsSynced || 'Enterprise Assets Synced'}</span>
           </div>
           <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold">
-            Workflow Status: Active Team
+            {m.workflowStatusActive || 'Workflow Status: Active Team'}
           </span>
         </div>
       </div>
@@ -400,12 +404,12 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <BarChart3 size={16} className="text-indigo-600 dark:text-indigo-400" />
-              <span>Analisis Performa Konten & AI Video Per Platform</span>
+              <span>{m.contentPerfByPlatform || 'Analisis Performa Konten & AI Video Per Platform'}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Perbandingan tingkat engagement (%), total postingan, dan jumlah video reel AI per saluran.</p>
+            <p className="text-xs text-slate-400 font-medium">{m.contentPerfByPlatformSubtitle || 'Perbandingan tingkat engagement (%), total postingan, dan jumlah video reel AI per saluran.'}</p>
           </div>
           <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-xl">
-            Realtime Analytics DB
+            {m.realtimeAnalyticsDb || 'Realtime Analytics DB'}
           </span>
         </div>
 
@@ -419,10 +423,10 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
         {/* Media Type Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
           {[
-            { id: 'Semua', label: 'Semua Konten', icon: Layers },
-            { id: 'video', label: '🎬 Video & Reels', icon: Video },
-            { id: 'image', label: '🖼️ Image & Posts', icon: ImageIcon },
-            { id: 'text', label: '📝 Copywriting', icon: FileText }
+            { id: 'Semua', label: m.allContent || 'Semua Konten', icon: Layers },
+            { id: 'video', label: m.videoReels || '🎬 Video & Reels', icon: Video },
+            { id: 'image', label: m.imagePosts || '🖼️ Image & Posts', icon: ImageIcon },
+            { id: 'text', label: m.copywriting || '📝 Copywriting', icon: FileText }
           ].map((tab) => {
             return (
               <button
@@ -447,7 +451,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
             onChange={(e) => setActivePlatform(e.target.value)}
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
           >
-            <option value="Semua">Semua Platform</option>
+            <option value="Semua">{m.allPlatforms || 'Semua Platform'}</option>
             <option value="TikTok">TikTok</option>
             <option value="Instagram">Instagram</option>
             <option value="WhatsApp">WhatsApp</option>
@@ -460,7 +464,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
             onChange={(e) => setActiveStatus(e.target.value)}
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
           >
-            <option value="Semua">Semua Status</option>
+            <option value="Semua">{m.allStatus || 'Semua Status'}</option>
             <option value="Published">Published</option>
             <option value="Scheduled">Scheduled</option>
             <option value="Draft">Draft</option>
@@ -471,7 +475,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari konten atau hashtag..."
+              placeholder={m.searchContentHashtags || 'Cari konten atau hashtag...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500"

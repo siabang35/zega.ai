@@ -649,10 +649,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
-            Selamat datang kembali, {displayName || 'Seninquez'}! <span className="text-2xl">👋</span>
+            {u.welcomeBack || 'Selamat datang kembali,'} {displayName || 'Seninquez'}! <span className="text-2xl">👋</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-            Berikut adalah ikhtisar terkini dan performa operasional bisnis Anda hari ini.
+            {u.overviewSubtitle || 'Berikut adalah ikhtisar terkini dan performa operasional bisnis Anda hari ini.'}
           </p>
         </div>
       </div>
@@ -666,14 +666,14 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             <AlertCircle className="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
             <div>
               <p className="text-xs font-bold">{errorState}</p>
-              <p className="text-[11px] opacity-80">Gagal menghubungkan ke database Supabase Realtime.</p>
+              <p className="text-[11px] opacity-80">{u.errorDesc || 'Gagal menghubungkan ke database Supabase Realtime.'}</p>
             </div>
           </div>
           <button
             onClick={() => loadDashboardData()}
             className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
           >
-            Coba Lagi
+            {u.retry || 'Coba Lagi'}
           </button>
         </div>
       )}
@@ -706,7 +706,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-orange-400/50 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pendapatan (Hari Ini)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{u.revenueToday || 'Pendapatan (Hari Ini)'}</span>
             <div className="size-8 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
               <DollarSign size={15} />
             </div>
@@ -717,7 +717,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </div>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
               <TrendingUp size={12} />
-              <span>{kpiData?.today_revenue_trend !== undefined && kpiData?.today_revenue_trend !== null ? `${kpiData.today_revenue_trend > 0 ? '+' : ''}${kpiData.today_revenue_trend}%` : '0%'} vs kemarin</span>
+              <span>{kpiData?.today_revenue_trend !== undefined && kpiData?.today_revenue_trend !== null ? `${kpiData.today_revenue_trend > 0 ? '+' : ''}${kpiData.today_revenue_trend}%` : '0%'} {u.vsYesterday || 'vs kemarin'}</span>
             </div>
           </div>
         </div>
@@ -728,7 +728,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-purple-400/50 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pesanan (Hari Ini)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{u.ordersToday || 'Pesanan (Hari Ini)'}</span>
             <div className="size-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
               <ShoppingBag size={15} />
             </div>
@@ -739,7 +739,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </div>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
-              <span>Hari ini</span>
+              <span>{u.today || 'Hari ini'}</span>
             </div>
           </div>
         </div>
@@ -750,7 +750,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-blue-400/50 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Pelanggan Baru</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{u.newCustomersTitle || 'Pelanggan Baru'}</span>
             <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
               <UserPlus size={15} />
             </div>
@@ -761,7 +761,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </div>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
-              <span>Hari ini</span>
+              <span>{u.today || 'Hari ini'}</span>
             </div>
           </div>
         </div>
@@ -772,7 +772,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-emerald-400/50 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Konversi</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{u.conversion || 'Konversi'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
               <Activity size={15} />
             </div>
@@ -783,7 +783,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </div>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
-              <span>Database real-time</span>
+              <span>{u.realtimeDb || 'Database real-time'}</span>
             </div>
           </div>
         </div>
@@ -794,7 +794,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1 hover:border-amber-400/50 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Rata-rata Order</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{u.avgOrder || 'Rata-rata Order'}</span>
             <div className="size-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
               <Clock size={15} />
             </div>
@@ -805,7 +805,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             </div>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
-              <span>AOV Hari Ini</span>
+              <span>{u.aovToday || 'AOV Hari Ini'}</span>
             </div>
           </div>
         </div>
@@ -822,27 +822,27 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Ringkasan Penjualan</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.salesSummary || 'Ringkasan Penjualan'}</h3>
               <select
                 value={salesTimeframe}
                 onChange={(e) => setSalesTimeframe(e.target.value as any)}
                 className="text-[11px] font-semibold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="7d">7 Hari Terakhir</option>
-                <option value="30d">30 Hari Terakhir</option>
+                <option value="7d">{u.last7Days || '7 Hari Terakhir'}</option>
+                <option value="30d">{u.last30Days || '30 Hari Terakhir'}</option>
               </select>
             </div>
 
             <div className="mt-2 space-y-0.5">
               <span className="text-[11px] text-slate-400 font-medium block">
-                Total Pendapatan ({salesTimeframe === '7d' ? '7 Hari' : '30 Hari'})
+                {u.totalRevenue || 'Total Pendapatan'} ({salesTimeframe === '7d' ? (u.last7Days || '7 Hari') : (u.last30Days || '30 Hari')})
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-black text-slate-900 dark:text-slate-50">
                   Rp{timeframeTotalRevenue.toLocaleString('id-ID')}
                 </span>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
-                  <ShoppingBag size={11} /> {timeframeTotalOrders} pesanan
+                  <ShoppingBag size={11} /> {timeframeTotalOrders} {u.ordersCount || 'pesanan'}
                 </span>
               </div>
             </div>
@@ -887,8 +887,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
                 <BarChart2 size={24} className="text-slate-400 mb-1" />
-                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Belum ada data penjualan</p>
-                <p className="text-[10px] text-slate-400">Transaksi baru akan otomatis direkam dalam grafik ini.</p>
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">{u.noSalesData || 'Belum ada data penjualan'}</p>
+                <p className="text-[10px] text-slate-400">{u.salesDataSub || 'Transaksi baru akan otomatis direkam dalam grafik ini.'}</p>
               </div>
             )}
           </div>
@@ -898,12 +898,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Aktivitas Terbaru</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.recentActivity || 'Aktivitas Terbaru'}</h3>
               <button
                 onClick={() => onNavigateTab('customer_activity_stream')}
                 className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                Lihat semua
+                {u.seeAll || 'Lihat semua'}
               </button>
             </div>
 
@@ -936,7 +936,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 })
               ) : (
                 <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
-                  Belum ada aktivitas terbaru dari database
+                  {u.noActivity || 'Belum ada aktivitas terbaru dari database'}
                 </div>
               )}
             </div>
@@ -949,9 +949,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           {/* CARD 1: SISTEM & INTEGRASI */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Sistem & Integrasi</h3>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.systemIntegrations || 'Sistem & Integrasi'}</h3>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[8.5px] font-extrabold flex items-center gap-1">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Semua Sistem Normal
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> {u.allSystemsNormal || 'Semua Sistem Normal'}
               </span>
             </div>
 
@@ -959,41 +959,41 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               <div onClick={() => onNavigateTab('my_agents')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <Bot size={13} className="text-indigo-500" />
-                  <span>AI Workforce</span>
+                  <span>{u.aiWorkforce || 'AI Workforce'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• Terhubung</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• {u.connected || 'Terhubung'}</span>
               </div>
 
               <div onClick={() => onNavigateTab('automation')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <Workflow size={13} className="text-purple-500" />
-                  <span>Automations</span>
+                  <span>{u.automations || 'Automations'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• 12 Workflow Aktif</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• 12 {u.activeWorkflows || 'Workflow Aktif'}</span>
               </div>
 
               <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <Activity size={13} className="text-blue-500" />
-                  <span>Database</span>
+                  <span>{u.database || 'Database'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• Aman</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">• {u.secure || 'Aman'}</span>
               </div>
 
               <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <CheckCircle size={13} className="text-emerald-500" />
-                  <span>Backup</span>
+                  <span>{u.backup || 'Backup'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Terakhir: 12 jam lalu</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ {u.lastBackup || 'Terakhir: 12 jam lalu'}</span>
               </div>
 
               <div onClick={() => onNavigateTab('marketplace')} className="flex items-center justify-between cursor-pointer hover:text-orange-500 transition-colors">
                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
                   <ShieldCheck size={13} className="text-amber-500" />
-                  <span>API & Integrasi</span>
+                  <span>{u.apiIntegrations || 'API & Integrasi'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Terhubung</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ {u.connected || 'Terhubung'}</span>
               </div>
             </div>
 
@@ -1001,19 +1001,19 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               onClick={() => onNavigateTab('automation')}
               className="w-full mt-1 text-center py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-1 cursor-pointer"
             >
-              <span>Lihat Status Lengkap</span> <ArrowRight size={11} />
+              <span>{u.viewFullStatus || 'Lihat Status Lengkap'}</span> <ArrowRight size={11} />
             </button>
           </div>
 
           {/* CARD 2: AKTIVITAS OTOMASI TERBARU */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Aktivitas Otomasi Terbaru</h3>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.recentAutomations || 'Aktivitas Otomasi Terbaru'}</h3>
               <button
                 onClick={() => onNavigateTab('automation')}
                 className="text-[10.5px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                Lihat semua
+                {u.seeAll || 'Lihat semua'}
               </button>
             </div>
 
@@ -1031,12 +1031,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         {auto.name}
                       </span>
                     </div>
-                    <span className="text-[9px] text-slate-400 shrink-0 ml-1">{auto.lastRun || 'Aktif'}</span>
+                    <span className="text-[9px] text-slate-400 shrink-0 ml-1">{auto.lastRun || (u.active || 'Aktif')}</span>
                   </div>
                 ))
               ) : (
                 <div className="py-4 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
-                  Belum ada otomasi terdaftar di database
+                  {u.noAutomations || 'Belum ada otomasi terdaftar di database'}
                 </div>
               )}
             </div>
@@ -1055,12 +1055,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Produk Terlaris</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.topProducts || 'Produk Terlaris'}</h3>
               <button
                 onClick={() => onNavigateTab('top_selling')}
                 className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                Lihat semua
+                {u.seeAll || 'Lihat semua'}
               </button>
             </div>
 
@@ -1086,7 +1086,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   ))
               ) : (
                 <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
-                  Belum ada data produk terlaris di database
+                  {u.noTopProducts || 'Belum ada data produk terlaris di database'}
                 </div>
               )}
             </div>
@@ -1097,12 +1097,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Tugas AI Hari Ini</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.aiTasksToday || 'Tugas AI Hari Ini'}</h3>
               <button
                 onClick={() => onNavigateTab('my_agents')}
                 className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
               >
-                Lihat semua
+                {u.seeAll || 'Lihat semua'}
               </button>
             </div>
 
@@ -1119,7 +1119,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 ))
               ) : (
                 <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
-                  Belum ada tugas AI aktif di database hari ini
+                  {u.noAiTasks || 'Belum ada tugas AI aktif di database hari ini'}
                 </div>
               )}
             </div>
@@ -1130,7 +1130,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
           <div>
             <div className="pb-2 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Aksi Cepat</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.quickActions || 'Aksi Cepat'}</h3>
             </div>
 
             <div className="mt-2.5 grid grid-cols-4 gap-2 text-center">
@@ -1145,7 +1145,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-orange-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <Plus size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Tambah Produk</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.addProduct || 'Tambah Produk'}</span>
               </button>
 
               {/* 2. Buat Pesanan */}
@@ -1156,7 +1156,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-purple-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <ShoppingBag size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Buat Pesanan</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.createOrder || 'Buat Pesanan'}</span>
               </button>
 
               {/* 3. Kirim Promo */}
@@ -1170,7 +1170,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <Megaphone size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Kirim Promo</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.sendPromo || 'Kirim Promo'}</span>
               </button>
 
               {/* 4. Lihat Laporan */}
@@ -1181,7 +1181,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-blue-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <BarChart2 size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Lihat Laporan</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.viewReport || 'Lihat Laporan'}</span>
               </button>
 
               {/* 5. Buat Invoice */}
@@ -1195,7 +1195,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <FileText size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Buat Invoice</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.createInvoice || 'Buat Invoice'}</span>
               </button>
 
               {/* 6. Kelola Stok */}
@@ -1206,7 +1206,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-amber-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <Store size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Kelola Stok</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.manageStock || 'Kelola Stok'}</span>
               </button>
 
               {/* 7. Broadcast */}
@@ -1220,7 +1220,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-purple-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <Send size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Broadcast</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.broadcast || 'Broadcast'}</span>
               </button>
 
               {/* 8. Pengaturan */}
@@ -1231,7 +1231,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <div className="size-7 rounded-xl bg-slate-700 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                   <SlidersHorizontal size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">Pengaturan</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.settings || 'Pengaturan'}</span>
               </button>
             </div>
           </div>
@@ -1244,12 +1244,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       {/* ========================================================================= */}
       <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 font-medium">
         <div>
-          © 2025 ZEGA AI. Semua hak dilindungi.
+          {u.footerRights || '© 2025 ZEGA AI. Semua hak dilindungi.'}
         </div>
         <div className="flex items-center gap-4">
-          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Kebijakan Privasi</span>
-          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Syarat & Ketentuan</span>
-          <span onClick={() => onNavigateTab('help')} className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">Bantuan</span>
+          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.privacyPolicy || 'Kebijakan Privasi'}</span>
+          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.termsConditions || 'Syarat & Ketentuan'}</span>
+          <span onClick={() => onNavigateTab('help')} className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.help || 'Bantuan'}</span>
         </div>
       </div>
 

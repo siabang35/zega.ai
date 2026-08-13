@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
@@ -19,6 +20,9 @@ interface FinanceSubViewProps {
 }
 
 export function FinanceSubView({ triggerToast, dateRange, reportsData }: FinanceSubViewProps) {
+  const { t } = useLanguage();
+  const f = (t.financeView || {}) as any;
+
   const [pnl, setPnl] = useState<any>({ gross_revenue_idr: 0, cogs_idr: 0, gross_profit_idr: 0, opex_idr: 0, net_profit_idr: 0, profit_margin_pct: 0, gross_margin_pct: 0 });
   const [cashflow, setCashflow] = useState<any[]>([]);
   const [marginTrend, setMarginTrend] = useState<any[]>([]);
@@ -230,13 +234,13 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
           </div>
           <div>
             <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Intelijen Keuangan & Automation Money Reports</span>
+              <span>{f.subpageTitle || 'Intelijen Keuangan & Automation Money Reports'}</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
                 <Sparkles size={11} /> ZeroClaw Automation Active
               </span>
             </h2>
             <p className="text-xs text-slate-400 font-medium">
-              Kalkulasi otomatis P&L, Arus Kas, dan pencetakan Money Reports berbasis AI.
+              {f.subpageSubtitle || 'Kalkulasi otomatis P&L, Arus Kas, dan pencetakan Money Reports berbasis AI.'}
             </p>
           </div>
         </div>
@@ -247,21 +251,21 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
             className="px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <UploadCloud size={15} />
-            <span>Bulk Invoice Upload</span>
+            <span>{f.bulkInvoiceUpload || 'Bulk Invoice Upload'}</span>
           </button>
           <button
             onClick={() => setIsAddTransactionModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Plus size={15} />
-            <span>Tambah Transaksi</span>
+            <span>{f.addTransaction || 'Tambah Transaksi'}</span>
           </button>
           <button
             onClick={() => setIsCreateReportModalOpen(true)}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <FileText size={15} />
-            <span>Create Money Report</span>
+            <span>{f.createMoneyReport || 'Create Money Report'}</span>
           </button>
         </div>
       </div>
@@ -269,10 +273,10 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
       {/* 2. Finance KPI Diagnostic Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `Gross Margin ${pnl.gross_margin_pct || 0}%` },
-          { label: 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `Net Margin ${pnl.profit_margin_pct || 0}%` },
-          { label: 'Total Pengeluaran (Expense)', val: `Rp${((pnl.cogs_idr || 0) + (pnl.opex_idr || 0)).toLocaleString('id-ID')}`, icon: CreditCard, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600', sub: 'COGS + Operasional' },
-          { label: 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 0}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: 'Performa sehat' },
+          { label: f.grossRevenue || 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `Gross Margin ${pnl.gross_margin_pct || 0}%` },
+          { label: f.netProfit || 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `Net Margin ${pnl.profit_margin_pct || 0}%` },
+          { label: f.totalExpense || 'Total Pengeluaran (Expense)', val: `Rp${((pnl.cogs_idr || 0) + (pnl.opex_idr || 0)).toLocaleString('id-ID')}`, icon: CreditCard, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600', sub: 'COGS + Operasional' },
+          { label: f.netMarginGrowth || 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 0}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: 'Performa sehat' },
         ].map((card, i) => {
           const IconComp = card.icon;
           return (
@@ -297,21 +301,21 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Arus Kas</h3>
-              <p className="text-[11px] text-slate-400">Pemasukan vs Pengeluaran per Minggu</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.cashFlowChartTitle || 'Arus Kas'}</h3>
+              <p className="text-[11px] text-slate-400">{f.cashFlowChartDesc || 'Pemasukan vs Pengeluaran per Minggu'}</p>
             </div>
             <button
               onClick={() => setIsCreateReportModalOpen(true)}
               className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-extrabold cursor-pointer transition-colors flex items-center gap-1"
             >
               <FileText size={12} />
-              <span>Cetak PDF Statement</span>
+              <span>{f.printPdfStatement || 'Cetak PDF Statement'}</span>
             </button>
           </div>
           <div className="h-56 w-full pt-1">
             {cashflow.length === 0 ? (
               <div className="h-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 text-xs font-medium">
-                Belum ada data arus kas.
+                {f.noCashFlowData || 'Belum ada data arus kas.'}
               </div>
             ) : (
               <Bar data={cashFlowData} options={stackedBarOpts} />
@@ -322,21 +326,21 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         {/* Profit Margin Trend Line Chart (lg:col-span-5) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Tren Profit Margin (%)</h3>
-            <p className="text-[11px] text-slate-400">Pergerakan efisiensi profitabilitas bisnis</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.profitMarginTrend || 'Tren Profit Margin (%)'}</h3>
+            <p className="text-[11px] text-slate-400">{f.profitMarginTrendDesc || 'Pergerakan efisiensi profitabilitas bisnis'}</p>
           </div>
           <div className="h-44 w-full">
             {marginTrend.length === 0 ? (
               <div className="h-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 text-xs font-medium">
-                Belum ada tren profit margin.
+                {f.noProfitMarginData || 'Belum ada tren profit margin.'}
               </div>
             ) : (
               <Line data={marginData} options={lineOpts} />
             )}
           </div>
           <div className="flex items-center justify-between text-xs pt-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-            <span className="font-bold text-slate-500">Target Margin: <span className="text-emerald-600 font-black">40.0%</span></span>
-            <span className="font-mono text-slate-900 dark:text-slate-100 font-black">Saat ini: {pnl.profit_margin_pct || 0}%</span>
+            <span className="font-bold text-slate-500">{f.targetMargin || 'Target Margin:'} <span className="text-emerald-600 font-black">40.0%</span></span>
+            <span className="font-mono text-slate-900 dark:text-slate-100 font-black">{f.currentMargin || 'Saat ini:'} {pnl.profit_margin_pct || 0}%</span>
           </div>
         </div>
       </div>
@@ -346,14 +350,14 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         {/* Rincian Pengeluaran (lg:col-span-5) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Rincian Pengeluaran Operasional</h3>
-            <p className="text-[11px] text-slate-400">Proporsi alokasi pengeluaran bisnis</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.operationalExpenses || 'Rincian Pengeluaran Operasional'}</h3>
+            <p className="text-[11px] text-slate-400">{f.operationalExpensesDesc || 'Proporsi alokasi pengeluaran bisnis'}</p>
           </div>
 
           <div className="space-y-3">
             {expenses.length === 0 ? (
               <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
-                Belum ada data pengeluaran operasional.
+                {f.noOperationalExpenses || 'Belum ada data pengeluaran operasional.'}
               </div>
             ) : (
               expenses.map((e: any, i: number) => (
@@ -383,21 +387,21 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Transaksi Keuangan Terbaru</h3>
-              <p className="text-[11px] text-slate-400">Mutasi kas & pencatatan transaksi live</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.recentFinancialTx || 'Transaksi Keuangan Terbaru'}</h3>
+              <p className="text-[11px] text-slate-400">{f.recentFinancialTxDesc || 'Mutasi kas & pencatatan transaksi live'}</p>
             </div>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setIsBulkUploadModalOpen(true)}
                 className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[10px] font-extrabold cursor-pointer hover:bg-indigo-100 transition-colors flex items-center gap-1"
               >
-                <UploadCloud size={12} /> Bulk Invoice
+                <UploadCloud size={12} /> {f.bulkInvoice || 'Bulk Invoice'}
               </button>
               <button
                 onClick={() => setIsAddTransactionModalOpen(true)}
                 className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold cursor-pointer hover:bg-blue-100 transition-colors"
               >
-                + Catat Baru
+                {f.recordNew || '+ Catat Baru'}
               </button>
             </div>
           </div>
@@ -405,7 +409,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
           <div className="space-y-2">
             {transactions.length === 0 ? (
               <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
-                Belum ada transaksi keuangan tercatat.
+                {f.noTransactions || 'Belum ada transaksi keuangan tercatat.'}
               </div>
             ) : (
               transactions.map((tx: any, i: number) => (

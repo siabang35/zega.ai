@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layers, Plus, Edit2, Trash2, Check, Package, Sparkles } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { StoreHeaderShell } from './StoreHeaderShell';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ManageCategorySubViewProps {
   triggerToast: (msg: string) => void;
@@ -9,6 +10,9 @@ interface ManageCategorySubViewProps {
 }
 
 export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCategorySubViewProps) {
+  const { t } = useLanguage();
+  const s = (t.storeView || {}) as any;
+
   const [categoriesData, setCategoriesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState('');
@@ -52,10 +56,10 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
     setSubmitting(true);
     try {
       setCategoriesData(prev => [...prev, { name: newCatName.trim(), count: 0, icon: '📦' }]);
-      triggerToast(`✓ Kategori "${newCatName}" berhasil ditambahkan!`);
+      triggerToast(`✓ ${s.categoryAdded || 'Kategori'} "${newCatName}" ${s.categoryAddedSuccess || 'berhasil ditambahkan!'}`);
       setNewCatName('');
     } catch (err) {
-      triggerToast('⚠️ Gagal membuat kategori');
+      triggerToast(`⚠️ ${s.failedCreateCategory || 'Gagal membuat kategori'}`);
     } finally {
       setSubmitting(false);
     }
@@ -70,26 +74,26 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
     setSubmitting(true);
     try {
       await SupabaseDashboardService.manageStoreCategory('rename', oldName, renameValue.trim());
-      triggerToast(`✓ Kategori "${oldName}" diubah menjadi "${renameValue.trim()}"`);
+      triggerToast(`✓ ${s.categoryRenamed || 'Kategori'} "${oldName}" ${s.changedTo || 'diubah menjadi'} "${renameValue.trim()}"`);
       setEditingCategory(null);
       await loadData();
     } catch (err: any) {
-      triggerToast('⚠️ Gagal mengedit nama kategori');
+      triggerToast(`⚠️ ${s.failedEditCategory || 'Gagal mengedit nama kategori'}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteCategory = async (catName: string) => {
-    if (!window.confirm(`Hapus kategori "${catName}"? Produk dalam kategori ini akan dipindahkan ke "Lainnya".`)) return;
+    if (!window.confirm(`${s.confirmDeleteCategory || 'Hapus kategori'} "${catName}"?`)) return;
 
     setSubmitting(true);
     try {
       await SupabaseDashboardService.manageStoreCategory('delete', catName);
-      triggerToast(`✓ Kategori "${catName}" berhasil dihapus`);
+      triggerToast(`✓ ${s.categoryDeleted || 'Kategori'} "${catName}" ${s.deletedSuccess || 'berhasil dihapus'}`);
       await loadData();
     } catch (err: any) {
-      triggerToast('⚠️ Gagal menghapus kategori');
+      triggerToast(`⚠️ ${s.failedDeleteCategory || 'Gagal menghapus kategori'}`);
     } finally {
       setSubmitting(false);
     }
@@ -108,19 +112,19 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>Kelola Kategori Produk Katalog</span>
+                <span>{s.manageCategoryTitle || 'Kelola Kategori Produk Katalog'}</span>
                 <span className="px-2.5 py-0.5 rounded-lg text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border border-slate-200 dark:border-slate-700">
                   CATALOG TAXONOMY
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Strukturkan kategori produk katalog toko Anda agar memudahkan pelanggan mencari dan memesan barang.
+                {s.manageCategorySubtitle || 'Strukturkan kategori produk katalog toko Anda agar memudahkan pelanggan mencari dan memesan barang.'}
               </p>
             </div>
           </div>
 
           <div className="text-xs font-bold text-slate-500">
-            Total Kategori: <strong className="text-purple-600 dark:text-purple-400 font-extrabold">{categoriesData.length} Kategori</strong>
+            {s.totalCategories || 'Total Kategori'}: <strong className="text-purple-600 dark:text-purple-400 font-extrabold">{categoriesData.length} {s.categoriesCount || 'Kategori'}</strong>
           </div>
         </div>
 
@@ -128,7 +132,7 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
         <div className="p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
           <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Sparkles size={15} className="text-purple-500" />
-            <span>Buat Kategori Katalog Baru</span>
+            <span>{s.createNewCategory || 'Buat Kategori Katalog Baru'}</span>
           </h4>
           <form onSubmit={handleAddCategory} className="flex flex-col sm:flex-row gap-3">
             <input
@@ -136,7 +140,7 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
               required
               value={newCatName}
               onChange={e => setNewCatName(e.target.value)}
-              placeholder="Masukkan Nama Kategori Baru (cth: Aksesoris Gadget, Apparel Pria, Drinkware)..."
+              placeholder={s.inputNewCategoryPlaceholder || 'Masukkan Nama Kategori Baru (cth: Aksesoris Gadget, Apparel Pria, Drinkware)...'}
               className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-purple-500 shadow-2xs"
             />
             <button
@@ -145,7 +149,7 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
               className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0 active:scale-98"
             >
               <Plus size={16} />
-              <span>Tambah Kategori</span>
+              <span>{s.addCategory || 'Tambah Kategori'}</span>
             </button>
           </form>
         </div>
@@ -153,9 +157,9 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
         {/* Category List Grid */}
         <div className="space-y-3">
           <h4 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>Daftar Kategori Aktif</span>
+            <span>{s.activeCategoriesList || 'Daftar Kategori Aktif'}</span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
-              {categoriesData.length} Kategori
+              {categoriesData.length} {s.categoriesCount || 'Kategori'}
             </span>
           </h4>
 
@@ -190,7 +194,7 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
                       ) : (
                         <>
                           <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{cat.name}</h4>
-                          <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">{cat.count} produk terdaftar</span>
+                          <span className="text-[11px] font-semibold text-slate-400 block mt-0.5">{cat.count} {s.registeredProducts || 'produk terdaftar'}</span>
                         </>
                       )}
                     </div>
@@ -201,14 +205,14 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
                       <button
                         onClick={() => { setEditingCategory(cat.name); setRenameValue(cat.name); }}
                         className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                        title="Edit Nama Kategori"
+                        title={s.editCategoryName || 'Edit Nama Kategori'}
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => handleDeleteCategory(cat.name)}
                         className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/60 text-red-500 transition-colors cursor-pointer"
-                        title="Hapus Kategori"
+                        title={s.deleteCategory || 'Hapus Kategori'}
                       >
                         <Trash2 size={14} />
                       </button>

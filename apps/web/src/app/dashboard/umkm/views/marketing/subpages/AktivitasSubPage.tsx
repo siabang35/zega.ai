@@ -15,6 +15,7 @@ interface AktivitasSubPageProps {
 
 export function AktivitasSubPage({ activities: initialActivities = [], triggerToast }: AktivitasSubPageProps) {
   const { t } = useLanguage();
+  const m = (t.marketingView || {}) as any;
   const [activities, setActivities] = useState<any[]>(initialActivities);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua Source');
@@ -49,7 +50,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
 
   // Filter activities by source category
   const filteredList = activities.filter(act => {
-    if (selectedCategory === 'Semua Source') return true;
+    if (selectedCategory === 'Semua Source' || selectedCategory === 'All') return true;
     return (act.source_category || '').toLowerCase() === selectedCategory.toLowerCase();
   });
 
@@ -179,11 +180,11 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2.5 tracking-tight">
             <Activity size={20} className="text-orange-500" />
-            <span>Aktivitas by Source & AI Model Telemetry</span>
+            <span>{m.activitiesTitle || 'Aktivitas by Source & AI Model Telemetry'}</span>
             {loading && <RefreshCw size={14} className="animate-spin text-orange-500" />}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Audit eksekusi real-time AI Models, Edge Swarms, Messaging Gateway, dan integrasi Marketplace.
+            {m.activitiesSubtitle || 'Audit eksekusi real-time AI Models, Edge Swarms, Messaging Gateway, dan integrasi Marketplace.'}
           </p>
         </div>
 
@@ -195,7 +196,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
             className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <Play size={13} className={simulating ? 'animate-spin' : 'fill-current'} />
-            <span>{simulating ? 'Menjalankan AI...' : 'Simulasi AI Event'}</span>
+            <span>{simulating ? 'Menjalankan AI...' : '+ Simulasi AI Event'}</span>
           </button>
 
           {/* Action 2: Export Telemetry CSV */}
@@ -225,7 +226,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
         {/* KPI 1: Total Executions */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase">Total Eksekusi</span>
+            <span className="text-[11px] font-extrabold text-slate-400 uppercase">{m.totalExecutions || 'Total Eksekusi'}</span>
             <div className="size-6 rounded-lg bg-orange-50 dark:bg-orange-950 text-orange-500 flex items-center justify-center font-bold text-xs">
               <Layers size={13} />
             </div>
@@ -303,7 +304,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
               <Filter size={15} className="text-orange-500" />
               <span>Filter Berdasarkan Sumber (Source Category)</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Pilih kategori saluran telemetry untuk memfilter stream aktivitas</p>
+            <p className="text-xs text-slate-400 font-medium">{m.filterTelemetryDesc || 'Pilih kategori saluran telemetry untuk memfilter stream aktivitas'}</p>
           </div>
 
           <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl text-xs font-bold overflow-x-auto">
@@ -316,7 +317,7 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
                   }`}
               >
-                {cat}
+                {cat === 'Semua Source' ? (m.filterAll || 'Semua Source') : cat}
               </button>
             ))}
           </div>
@@ -327,8 +328,8 @@ export function AktivitasSubPage({ activities: initialActivities = [], triggerTo
           {filteredList.length === 0 ? (
             <div className="p-8 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
               <AlertCircle size={28} className="mx-auto text-slate-400" />
-              <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Tidak ada aktivitas telemetry untuk kategori ini.</p>
-              <p className="text-[11px] text-slate-400">Klik "+ Simulasi AI Event" di atas untuk mengirim payload simulasi baru.</p>
+              <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{m.noActivitiesForCategory || 'Tidak ada aktivitas telemetry untuk kategori ini.'}</p>
+              <p className="text-[11px] text-slate-400">{m.clickSimulateAiEvent || 'Klik "+ Simulasi AI Event" di atas untuk mengirim payload simulasi baru.'}</p>
             </div>
           ) : (
             filteredList.map((act, i) => (

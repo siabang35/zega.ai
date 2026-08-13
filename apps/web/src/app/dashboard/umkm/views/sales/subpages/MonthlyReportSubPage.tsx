@@ -6,6 +6,7 @@ import {
   PieChart as PieChartIcon, Activity, Layers, Filter, Sparkles, Cpu
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../../services/supabaseService';
+import { useLanguage } from '@/i18n/translations';
 
 interface MonthlyReportSubPageProps {
   monthlyReports?: any[];
@@ -20,6 +21,8 @@ export function MonthlyReportSubPage({
   insights = [], 
   triggerToast = () => {} 
 }: MonthlyReportSubPageProps) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const defaultReports = [
     {
       period_month: 'Juli 2026',
@@ -285,11 +288,11 @@ export function MonthlyReportSubPage({
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Calendar className="text-orange-600 dark:text-orange-500" size={18} />
-                <span>Laporan Eksekutif Bulanan</span>
+                <span>{u.monthlyReportTitle || 'Laporan Eksekutif Bulanan'}</span>
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-              Analisis kinerja finansial, tren penjualan, dan alokasi model rekomendasi bisnis berbasis data Supabase.
+              {u.monthlyReportSubtitle || 'Analisis kinerja finansial, tren penjualan, dan alokasi model rekomendasi bisnis berbasis data Supabase.'}
             </p>
           </div>
         </div>
@@ -299,9 +302,9 @@ export function MonthlyReportSubPage({
             <BarChart3 size={24} />
           </div>
           <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">Belum Ada Laporan Eksekutif Bulanan</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">{u.noReportTitle || 'Belum Ada Laporan Eksekutif Bulanan'}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Laporan eksekutif bulanan dan analisis kinerja akan ditampilkan setelah transaksi penjualan dicatat di database.
+              {u.noReportSubtitle || 'Laporan eksekutif bulanan dan analisis kinerja akan ditampilkan setelah transaksi penjualan dicatat di database.'}
             </p>
           </div>
         </div>
@@ -319,11 +322,11 @@ export function MonthlyReportSubPage({
           <div className="flex items-center gap-2">
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Calendar className="text-orange-600 dark:text-orange-500" size={18} />
-              <span>Laporan Eksekutif Bulanan</span>
+              <span>{u.monthlyReportTitle || 'Laporan Eksekutif Bulanan'}</span>
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-            Analisis kinerja finansial, grafik tren penjualan harian/mingguan, dan alokasi model rekomendasi bisnis berbasis data Supabase.
+            {u.monthlyReportSubtitle || 'Analisis kinerja finansial, grafik tren penjualan harian/mingguan, dan alokasi model rekomendasi bisnis berbasis data Supabase.'}
           </p>
         </div>
 
@@ -350,7 +353,7 @@ export function MonthlyReportSubPage({
             className="px-3.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Printer size={14} />
-            <span>Cetak PDF</span>
+            <span>{u.printPdfBtn || 'Cetak PDF'}</span>
           </button>
         </div>
       </div>
@@ -363,7 +366,7 @@ export function MonthlyReportSubPage({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
               <BarChart3 size={14} className="text-orange-500" />
-              <span>RINGKASAN PERFORMA • {activeReport.period_month}</span>
+              <span>{u.perfSummary || 'RINGKASAN PERFORMA'} • {activeReport.period_month}</span>
             </div>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight font-mono">
               Rp{(activeReport.total_revenue_idr || 0).toLocaleString('id-ID')}
@@ -374,7 +377,7 @@ export function MonthlyReportSubPage({
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-right shrink-0">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase block">PUNCAK SALES DAY</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">{u.peakSalesDay || 'PUNCAK SALES DAY'}</span>
             <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{activeReport.best_day_date}</span>
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5 font-mono">
               Rp{(activeReport.best_day_revenue_idr || 0).toLocaleString('id-ID')}
@@ -385,27 +388,27 @@ export function MonthlyReportSubPage({
         {/* High-Density Distinct Core Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800 space-y-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase block">TOTAL TRANSAKSI</span>
-            <span className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono">{activeReport.total_orders} Orders</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">↑ 18% vs bulan lalu</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">{u.totalTransactions || 'TOTAL TRANSAKSI'}</span>
+            <span className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono">{activeReport.total_orders} {u.ordersUnit || 'Orders'}</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">↑ 18% {u.vsLastMonthTrend || 'vs bulan lalu'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800 space-y-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase block">RATA-RATA ORDER (AOV)</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">{u.avgOrderValueAov || 'RATA-RATA ORDER (AOV)'}</span>
             <span className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Rp{(activeReport.avg_order_value_idr || 0).toLocaleString('id-ID')}</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">↑ 5.2% vs target</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">↑ 5.2% {u.vsTargetTrend || 'vs target'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800 space-y-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase block">ESTIMASI LABA BERSIH</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">{u.estNetProfit || 'ESTIMASI LABA BERSIH'}</span>
             <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
               Rp{Math.round((activeReport.total_revenue_idr || 0) * 0.35).toLocaleString('id-ID')}
             </span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal block">Net Margin 35%</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal block">{u.netMargin || 'Net Margin'} 35%</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800 space-y-1">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase block">REPEAT CUSTOMER RATE</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">{u.repeatCustomerRate || 'REPEAT CUSTOMER RATE'}</span>
             <span className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">{activeReport.repeat_customer_pct}%</span>
             <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold block font-mono">Rp{(activeReport.returning_customer_val_idr || 0).toLocaleString('id-ID')}</span>
           </div>
@@ -425,15 +428,15 @@ export function MonthlyReportSubPage({
               </div>
               <div>
                 <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                  Grafik Tren Omset Penjualan (Enterprise Standard)
+                  {u.salesTrendChartTitle || 'Grafik Tren Omset Penjualan (Enterprise Standard)'}
                 </h3>
                 <p className="text-[10.5px] text-slate-400 font-normal">
-                  Kurva tren omset mingguan periode {activeReport.period_month}
+                  {u.weeklyTrendSubtitle || 'Kurva tren omset mingguan periode'} {activeReport.period_month}
                 </p>
               </div>
             </div>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-              Line Chart • 4 Minggu
+              {u.lineChart4Weeks || 'Line Chart • 4 Minggu'}
             </span>
           </div>
 
@@ -470,7 +473,7 @@ export function MonthlyReportSubPage({
                 >
                   <span className="text-[10px] text-orange-400 font-semibold block">{linePoints.points[hoveredPointIndex].week}</span>
                   <span className="text-xs font-bold block font-mono">Rp{linePoints.points[hoveredPointIndex].revenue.toLocaleString('id-ID')}</span>
-                  <span className="text-[9.5px] text-emerald-400 font-normal block">{linePoints.points[hoveredPointIndex].orders} Pesanan ({linePoints.points[hoveredPointIndex].growth})</span>
+                  <span className="text-[9.5px] text-emerald-400 font-normal block">{linePoints.points[hoveredPointIndex].orders} {u.ordersUnit || 'Pesanan'} ({linePoints.points[hoveredPointIndex].growth})</span>
                 </div>
               )}
             </div>
@@ -503,10 +506,10 @@ export function MonthlyReportSubPage({
               </div>
               <div>
                 <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                  Diagram Distribusi Channel
+                  {u.channelDistTitle || 'Diagram Distribusi Channel'}
                 </h3>
                 <p className="text-[10.5px] text-slate-400 font-normal">
-                  Persentase kontribusi omset per saluran penjualan
+                  {u.channelDistSubtitle || 'Persentase kontribusi omset per saluran penjualan'}
                 </p>
               </div>
             </div>
@@ -537,7 +540,7 @@ export function MonthlyReportSubPage({
               {/* Dynamic Center Label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                 <span className="text-[9px] font-semibold text-slate-400 uppercase">
-                  {activeHoveredChannel ? activeHoveredChannel.channel : 'TOTAL OMSET'}
+                  {activeHoveredChannel ? activeHoveredChannel.channel : (u.totalOmsetUpper || 'TOTAL OMSET')}
                 </span>
                 <span className="text-xs font-bold text-slate-900 dark:text-slate-100 font-mono">
                   {activeHoveredChannel ? `${activeHoveredChannel.percentage}%` : '100%'}
@@ -595,17 +598,17 @@ export function MonthlyReportSubPage({
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Target size={16} className="text-orange-500" />
-                <span>Pencapaian Target & Cohort Customer</span>
+                <span>{u.targetAndCohortTitle || 'Pencapaian Target & Cohort Customer'}</span>
               </h3>
               <span className="text-xs font-bold text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-md bg-orange-50 dark:bg-orange-950/50 border border-orange-200/50 font-mono">
-                {targetPct}% Reached
+                {targetPct}% {u.reached || 'Reached'}
               </span>
             </div>
 
             {/* Target Revenue Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-500">Target Monthly: Rp{targetRevenue.toLocaleString('id-ID')}</span>
+                <span className="text-slate-500">{u.targetMonthly || 'Target Monthly:'} Rp{targetRevenue.toLocaleString('id-ID')}</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono">Rp{(activeReport.total_revenue_idr || 0).toLocaleString('id-ID')}</span>
               </div>
               <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -616,8 +619,8 @@ export function MonthlyReportSubPage({
             {/* Integrated Customer Cohort Visual Line */}
             <div className="space-y-2 pt-2">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-purple-600 dark:text-purple-400">Repeat ({activeReport.repeat_customer_pct}%)</span>
-                <span className="text-blue-600 dark:text-blue-400">Baru ({100 - (activeReport.repeat_customer_pct || 42)}%)</span>
+                <span className="text-purple-600 dark:text-purple-400">{u.repeat || 'Repeat'} ({activeReport.repeat_customer_pct}%)</span>
+                <span className="text-blue-600 dark:text-blue-400">{u.baru || 'Baru'} ({100 - (activeReport.repeat_customer_pct || 42)}%)</span>
               </div>
               <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
                 <div className="h-full bg-purple-500" style={{ width: `${activeReport.repeat_customer_pct}%` }} />
@@ -633,14 +636,14 @@ export function MonthlyReportSubPage({
           {/* Financial Deductions & Net Margin Overview */}
           <div className="space-y-2 text-xs pt-3 border-t border-slate-100 dark:border-slate-800">
             <div className="flex justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800">
-              <span className="text-slate-500 font-normal">Total Pengembalian (Refund):</span>
+              <span className="text-slate-500 font-normal">{u.totalRefundLabel || 'Total Pengembalian (Refund):'}</span>
               <span className="font-bold text-rose-600 dark:text-rose-400 font-mono">
                 -Rp{(activeReport.total_refund_idr || 0).toLocaleString('id-ID')}
               </span>
             </div>
 
             <div className="flex justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800">
-              <span className="text-slate-500 font-normal">Estimasi Net Profit (Margin 35%):</span>
+              <span className="text-slate-500 font-normal">{u.estNetProfitMargin || 'Estimasi Net Profit (Margin 35%):'}</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                 Rp{Math.round((activeReport.total_revenue_idr || 0) * 0.35).toLocaleString('id-ID')}
               </span>
@@ -654,14 +657,14 @@ export function MonthlyReportSubPage({
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Cpu size={16} className="text-orange-500" />
-                <span>Rekomendasi Analisis Bisnis (Real Models)</span>
+                <span>{u.businessRecommendationsTitle || 'Rekomendasi Analisis Bisnis (Real Models)'}</span>
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={toggleAllAccordions}
                   className="text-[10.5px] font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer transition-all"
                 >
-                  {allExpanded ? 'Collapse All' : 'Expand All'}
+                  {allExpanded ? (u.collapseAll || 'Collapse All') : (u.expandAll || 'Expand All')}
                 </button>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 text-[10px] font-bold border border-orange-200/50">
                   {currentInsights.length} Recommendations
@@ -731,7 +734,7 @@ export function MonthlyReportSubPage({
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                                Kepercayaan: {ins.confidence_pct || 98}%
+                                {u.confidenceLabel || 'Kepercayaan:'} {ins.confidence_pct || 98}%
                               </span>
                               {ins.estimated_impact && (
                                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/50">
@@ -748,7 +751,7 @@ export function MonthlyReportSubPage({
                               }}
                               className="px-3.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-semibold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
                             >
-                              <span>{executingActionId === insightId ? 'Eksekusi...' : ins.action_suggestion}</span>
+                              <span>{executingActionId === insightId ? (u.executingBtn || 'Eksekusi...') : ins.action_suggestion}</span>
                               <ArrowUpRight size={13} />
                             </button>
                           </div>

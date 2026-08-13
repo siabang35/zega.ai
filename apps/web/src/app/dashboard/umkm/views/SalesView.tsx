@@ -46,6 +46,7 @@ interface SalesViewProps {
 
 export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewProps) {
   const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const [timeTab, setTimeTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
 
   const getInitialSubTab = (): 'overview' | 'sales_by_source' | 'sales_by_channel' | 'monthly_report' => {
@@ -165,49 +166,67 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
   // Dynamic Chart Configuration for Daily, Weekly, and Monthly Time Tabs
   const getChartConfig = () => {
     const totalRev = metrics.total_revenue || 0;
+    const dayLabels = t.language === 'en' 
+      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      : t.language === 'zh'
+      ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+      : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ming'];
+
+    const weekLabels = t.language === 'en'
+      ? ['Week 1', 'Week 2', 'Week 3', 'Week 4']
+      : t.language === 'zh'
+      ? ['第1周', '第2周', '第3周', '第4周']
+      : ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'];
+
+    const monthLabels = t.language === 'en'
+      ? ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6']
+      : t.language === 'zh'
+      ? ['第1月', '第2月', '第3月', '第4月', '第5月', '第6月']
+      : ['Bulan 1', 'Bulan 2', 'Bulan 3', 'Bulan 4', 'Bulan 5', 'Bulan 6'];
+
     if (totalRev === 0) {
       return {
-        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ming'],
+        labels: dayLabels,
         actualData: [0, 0, 0, 0, 0, 0, 0],
         targetData: [0, 0, 0, 0, 0, 0, 0],
         formatVal: (v: number) => `Rp${v.toLocaleString('id-ID')}`,
         yAxisFormat: (v: any) => `Rp0`,
-        peakText: 'Puncak Penjualan: Belum Ada Transaksi',
-        avgText: 'Rata-rata: Rp0 / hari',
-        growthBadge: '0% vs Mgg Lalu'
+        peakText: u.peakSalesNoTx || 'Puncak Penjualan: Belum Ada Transaksi',
+        avgText: u.avgSalesPerDay?.replace('{val}', 'Rp0') || 'Rata-rata: Rp0 / hari',
+        growthBadge: `0% ${u.vsLastWeek || 'vs Mgg Lalu'}`
       };
     }
     if (timeTab === 'Daily') {
       return {
-        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ming'],
+        labels: dayLabels,
         actualData: [0, 0, 0, 0, 0, 0, 0],
         targetData: [0, 0, 0, 0, 0, 0, 0],
         formatVal: (v: number) => `Rp${(v * 1000000).toLocaleString('id-ID')}`,
         yAxisFormat: (v: any) => `Rp${(v * 1000).toFixed(0)}k`,
-        peakText: 'Penjualan Hari Ini',
-        avgText: 'Rata-rata Penjualan Harian',
-        growthBadge: `${metrics.revenue_growth || 0}% vs Mgg Lalu`
+        peakText: u.todaySales || 'Penjualan Hari Ini',
+        avgText: u.avgDailySales || 'Rata-rata Penjualan Harian',
+        growthBadge: `${metrics.revenue_growth || 0}% ${u.vsLastWeek || 'vs Mgg Lalu'}`
       };
     } else if (timeTab === 'Weekly') {
       return {
-        labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+        labels: weekLabels,
         actualData: [0, 0, 0, 0],
         targetData: [0, 0, 0, 0],
         formatVal: (v: number) => `Rp${(v * 1000000).toLocaleString('id-ID')}`,
         yAxisFormat: (v: any) => `Rp${v}M`,
-        peakText: 'Puncak Penjualan Mingguan',
-        avgText: 'Rata-rata Mingguan',
-        growthBadge: `${metrics.revenue_growth || 0}% vs Bln Lalu`
+        peakText: u.weeklyPeakSales || 'Puncak Penjualan Mingguan',
+        avgText: u.weeklyAvg || 'Rata-rata Mingguan',
+        growthBadge: `${metrics.revenue_growth || 0}% ${u.vsLastMonth || 'vs Bln Lalu'}`
       };
     } else {
       return {
-        labels: ['Bulan 1', 'Bulan 2', 'Bulan 3', 'Bulan 4', 'Bulan 5', 'Bulan 6'],
+        labels: monthLabels,
         actualData: [0, 0, 0, 0, 0, (totalRev / 1000000)],
         targetData: [0, 0, 0, 0, 0, 0],
         formatVal: (v: number) => `Rp${v.toFixed(2)}M`,
         yAxisFormat: (v: any) => `Rp${v}M`,
-        peakText: 'Puncak Penjualan Bulanan',
-        avgText: 'Rata-rata Bulanan',
+        peakText: u.monthlyPeakSales || 'Puncak Penjualan Bulanan',
+        avgText: u.monthlyAvg || 'Rata-rata Bulanan',
         growthBadge: `${metrics.revenue_growth || 0}% MoM`
       };
     }
@@ -220,7 +239,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
     labels: chartConfig.labels,
     datasets: [
       {
-        label: 'Aktual Revenue',
+        label: t.salesView.actualRevenue || 'Aktual Revenue',
         data: chartConfig.actualData,
         borderColor: '#f97316',
         borderWidth: 3,
@@ -240,7 +259,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
         pointBorderWidth: 2,
       },
       {
-        label: 'Target Sales',
+        label: t.salesView.targetSales || 'Target Sales',
         data: chartConfig.targetData,
         borderColor: '#94a3b8',
         borderWidth: 2,
@@ -326,7 +345,8 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
     },
   };
 
-  const goalPct = Math.min(100, Math.round((salesGoal.current_revenue / salesGoal.target_revenue) * 100));
+  const rawGoalPct = (salesGoal.target_revenue > 0) ? Math.min(100, Math.round(((salesGoal.current_revenue || 0) / salesGoal.target_revenue) * 100)) : 0;
+  const goalPct = isNaN(rawGoalPct) ? 0 : rawGoalPct;
 
   return (
     <div className="space-y-6 font-sans pb-10">
@@ -354,7 +374,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
               }`}
             >
               <BarChart3 size={14} />
-              <span>Overview</span>
+              <span>{t.salesView.subTabOverview || 'Overview'}</span>
             </button>
 
             <button
@@ -366,7 +386,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
               }`}
             >
               <TrendingUp size={14} />
-              <span>Sales by Source</span>
+              <span>{t.salesView.subTabSalesBySource || 'Sales by Source'}</span>
             </button>
 
             <button
@@ -378,7 +398,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
               }`}
             >
               <ShoppingBag size={14} />
-              <span>Sales by Channel</span>
+              <span>{t.salesView.subTabSalesByChannel || 'Sales by Channel'}</span>
             </button>
 
             <button
@@ -390,7 +410,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
               }`}
             >
               <Calendar size={14} />
-              <span>Monthly Report</span>
+              <span>{t.salesView.subTabMonthlyReport || 'Monthly Report'}</span>
             </button>
           </div>
         </div>
@@ -402,7 +422,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
             className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-none"
           >
             <Workflow size={14} />
-            <span>Optimasi Model</span>
+            <span>{t.salesView.modelOptimization || 'Optimasi Model'}</span>
           </button>
 
           {/* Date Picker Button */}
@@ -618,17 +638,19 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
 
           <div className="h-44 relative flex items-center justify-center my-2">
             {channels.length > 0 ? (
-              <Doughnut data={doughnutData} options={doughnutOptions} />
+              <>
+                <Doughnut data={doughnutData} options={doughnutOptions} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.totalOmsetUpper || 'TOTAL'}</span>
+                  <span className="text-base font-bold text-slate-900 dark:text-slate-100">Rp{(metrics.total_revenue || 0).toLocaleString('id-ID')}</span>
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center text-center p-4 text-slate-400">
                 <ShoppingBag size={28} className="mb-1 opacity-50 text-slate-400" />
-                <span className="text-xs font-medium">Belum Ada Transaksi Channel</span>
+                <span className="text-xs font-medium">{u.noChannelTx || 'Belum Ada Transaksi Channel'}</span>
               </div>
             )}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total</span>
-              <span className="text-base font-bold text-slate-900 dark:text-slate-100">Rp{(metrics.total_revenue || 0).toLocaleString('id-ID')}</span>
-            </div>
           </div>
 
           <div className="space-y-2 text-[11px] font-medium pt-1">
@@ -645,7 +667,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
                 </div>
               ))
             ) : (
-              <div className="text-center text-[11px] font-medium text-slate-400 py-2">Tidak ada data channel aktif</div>
+              <div className="text-center text-[11px] font-medium text-slate-400 py-2">{u.noActiveChannelData || 'Tidak ada data channel aktif'}</div>
             )}
           </div>
         </div>
@@ -680,7 +702,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
                   </div>
                 ))
               ) : (
-                <div className="text-center py-6 text-xs font-medium text-slate-400">Belum ada produk terjual di database</div>
+                <div className="text-center py-6 text-xs font-medium text-slate-400">{u.noProductsInDb || 'Belum ada produk terjual di database'}</div>
               )}
             </div>
           </div>
@@ -754,7 +776,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
                   );
                 })
               ) : (
-                <div className="text-center py-6 text-xs font-medium text-slate-400">Belum ada sumber transaksi tercatat</div>
+                <div className="text-center py-6 text-xs font-medium text-slate-400">{u.noSourceTx || 'Belum ada sumber transaksi tercatat'}</div>
               )}
             </div>
           </div>
@@ -763,7 +785,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
             onClick={() => setActiveSubTab('sales_by_source')}
             className="w-full text-center text-xs font-semibold text-slate-500 hover:text-orange-600 pt-2 cursor-pointer transition-colors"
           >
-            Lihat Semua Sumber →
+            {u.viewAllSources || 'Lihat Semua Sumber →'}
           </button>
         </div>
 
@@ -776,7 +798,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
             <div className="space-y-2 text-[11px]">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>{t.salesView.bestDay}</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{metrics.monthly_best_day_date || 'Belum Ada Transaksi'}</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{metrics.monthly_best_day_date || u.noBestDayTx || 'Belum Ada Transaksi'}</span>
               </div>
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>{t.salesView.totalRefund}</span>
@@ -848,9 +870,9 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
               <TrendingUp size={16} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Rekomendasi Analisis Penjualan</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">{u.salesAnalysisRecs || 'Rekomendasi Analisis Penjualan'}</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Analisis otomatis berdasarkan data performa transaksi Supabase real-time
+                {u.autoAnalysisDesc || 'Analisis otomatis berdasarkan data performa transaksi Supabase real-time'}
               </p>
             </div>
           </div>
