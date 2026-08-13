@@ -423,55 +423,57 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     <div className="space-y-6 font-sans">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="hidden sm:block">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <span>{f.title || 'Finance & Solana Payment Terminal'}</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             {f.subtitle || 'Manage your business finance, cash flow, and Solana Pay orchestration with AI.'}
           </p>
         </div>
 
         {/* Top Header Actions Bar - TouchPan Horizontal Scroll on Mobile */}
         <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden touch-pan-x py-1 shrink-0 text-xs font-semibold">
-          {/* Currency Toggle Switcher (USDC vs IDR) */}
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setCurrencyMode('USDC');
-                if (triggerToast) triggerToast('Mata uang diubah ke USDC ($)');
-              }}
-              className={`px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer ${
-                currencyMode === 'USDC'
-                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              USDC (Solana)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCurrencyMode('IDR');
-                if (triggerToast) triggerToast('Mata uang diubah ke IDR (Rp)');
-              }}
-              className={`px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer ${
-                currencyMode === 'IDR'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              IDR (Rp)
-            </button>
-          </div>
+          {/* Currency Toggle Switcher (USDC vs IDR) - Displayed ONLY in Finance Overview */}
+          {activeFinanceTab === 'overview' && (
+            <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrencyMode('USDC');
+                  if (triggerToast) triggerToast('Mata uang diubah ke USDC ($)');
+                }}
+                className={`px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer ${
+                  currencyMode === 'USDC'
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                USDC (Solana)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrencyMode('IDR');
+                  if (triggerToast) triggerToast('Mata uang diubah ke IDR (Rp)');
+                }}
+                className={`px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer ${
+                  currencyMode === 'IDR'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                IDR (Rp)
+              </button>
+            </div>
+          )}
 
-          {/* View Tab Switcher (Finance Overview vs ZeroClaw Terminal) */}
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold shrink-0">
+          {/* View Tab Switcher (Finance Overview vs ZeroClaw Terminal) - Mobile Touch Optimized */}
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-extrabold shrink-0 shadow-xs">
             <button
               type="button"
               onClick={() => handleTabChange('overview')}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer touch-manipulation select-none active:scale-95 ${
                 activeFinanceTab === 'overview'
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -482,7 +484,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             <button
               type="button"
               onClick={() => handleTabChange('zeroclaw')}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer touch-manipulation select-none active:scale-95 flex items-center gap-1.5 ${
                 activeFinanceTab === 'zeroclaw'
                   ? 'bg-emerald-600 text-white shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'

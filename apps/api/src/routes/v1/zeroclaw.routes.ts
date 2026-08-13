@@ -6359,6 +6359,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const cleanTarget = String(target).trim().slice(0, 100);
     const cleanDescription = (description ? String(description).replace(/<[^>]*>?/gm, '').trim() : 'Pesanan Produk').slice(0, 250);
 
+    // 🛡️ OWASP Security Gate 1: Anti-Prompt Injection Scanning (Zero-Trust Prompt Integrity)
+    const isInjectionFlagged = INJECTION_PATTERNS.some((pattern) => pattern.test(cleanDescription) || pattern.test(cleanTarget));
+    if (isInjectionFlagged) {
+      logger.warn({ cleanTarget, cleanDescription }, '🚨 OWASP Threat Blocked: Invoice creation rejected due to prompt injection attempt.');
+      return reply.status(400).send({
+        success: false,
+        error: '[OWASP-SEC-01] Threat Detected: Invoice creation rejected due to malicious prompt injection / script pattern.'
+      });
+    }
+
     // 🛡️ OWASP Input Validation Rule 5: Target Identifier Format Enforcement (Telegram @username / Chat ID or WhatsApp E.164)
     const isTgTarget = /^@?[a-zA-Z0-9_]{3,32}$/.test(cleanTarget) || /^-?\d{5,15}$/.test(cleanTarget);
     const isWaTarget = /^\+?[1-9]\d{7,14}$/.test(cleanTarget) || /^08\d{8,12}$/.test(cleanTarget);
@@ -6397,6 +6407,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     const actionId = `action_dispatch_${Date.now()}`;
     const referenceKey = generateSolanaPayReferenceKey();
+
+    // 🛡️ OWASP Security Gate 2: Zero-Trust Cryptographic HMAC Payload Signature
+    const integritySecret = process.env.JWT_SECRET || 'zega-zero-trust-integrity-key-2026';
+    const owaspIntegrityHash = createHmac('sha256', integritySecret)
+      .update(`${recipient}:${numericAmount.toFixed(2)}:${referenceKey}:${now}`)
+      .digest('hex');
 
     // ⚡ Real-Time ZeroClaw Background Signature Monitoring: Auto-register Reference Key & Recipient Wallet
     zeroClawSignatureMonitor.registerMonitoredAddress(referenceKey, 'reference', 'user@zegaai.site', numericAmount, target, channel);
@@ -6582,12 +6598,18 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       blinkUrl,
       deliveryType,
       externalResponse,
+      integrityHash: owaspIntegrityHash,
       status: 'sent',
       sentAt: new Date().toISOString()
     };
 
     const responseBody = {
       success: true,
+      dispatched: true,
+      deliveryType,
+      externalResponse,
+      integrityHash: owaspIntegrityHash,
+      pairingUrl: 'https://t.me/zeg4ai_bot?start=pair',
       message: deliveryType === 'live_api'
         ? `Invoice terkirim LIVE ke ${channel.toUpperCase()} (${target})!`
         : `Invoice disiapkan & disimulasikan terkirim ke ${channel.toUpperCase()} (${target}). (Set API Key untuk pengiriman nyata).`,

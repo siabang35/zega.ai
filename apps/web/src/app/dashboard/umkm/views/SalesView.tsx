@@ -45,7 +45,7 @@ interface SalesViewProps {
 }
 
 export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const u = (t.salesView || {}) as any;
   const [timeTab, setTimeTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
 
@@ -166,21 +166,21 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
   // Dynamic Chart Configuration for Daily, Weekly, and Monthly Time Tabs
   const getChartConfig = () => {
     const totalRev = metrics.total_revenue || 0;
-    const dayLabels = t.language === 'en' 
+    const dayLabels = language === 'en' 
       ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-      : t.language === 'zh'
+      : language === 'zh'
       ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
       : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ming'];
 
-    const weekLabels = t.language === 'en'
+    const weekLabels = language === 'en'
       ? ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-      : t.language === 'zh'
+      : language === 'zh'
       ? ['第1周', '第2周', '第3周', '第4周']
       : ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'];
 
-    const monthLabels = t.language === 'en'
+    const monthLabels = language === 'en'
       ? ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6']
-      : t.language === 'zh'
+      : language === 'zh'
       ? ['第1月', '第2月', '第3月', '第4月', '第5月', '第6月']
       : ['Bulan 1', 'Bulan 2', 'Bulan 3', 'Bulan 4', 'Bulan 5', 'Bulan 6'];
 

@@ -803,10 +803,17 @@ export function ZeroClawTerminalView({
         json = await res.json();
       }
 
-      const checkoutLink = json?.invoice?.blinkUrl || `https://zegaai.site/checkout?reference=${refKeyStr || ''}`;
+      const checkoutLink = json?.invoice?.blinkUrl || json?.blinkUrl || `https://zegaai.site/checkout?reference=${refKeyStr || ''}`;
+      const deliveryTypeResolved = json?.deliveryType || json?.invoice?.deliveryType;
+      const isLiveSent = deliveryTypeResolved === 'live_api' || deliveryTypeResolved === 'photo_qr' || deliveryTypeResolved === 'text_fallback';
 
-      if (json?.invoice?.deliveryType === 'live_api') {
+      if (isLiveSent) {
         onTriggerToast(`🟢 Invoice (${amountDisplay} USDC) TERKIRIM OTOMATIS LIVE KE ${targetChannel.toUpperCase()} (${targetAddr})!`);
+      } else if (json?.externalResponse?.status === 'pending_bot_start' || json?.invoice?.externalResponse?.status === 'pending_bot_start') {
+        onTriggerToast(`⚠️ Invoice (${amountDisplay} USDC) aktif! Pembeli (${targetAddr}) belum menekan /start di @zeg4ai_bot.`);
+        if (typeof window !== 'undefined') {
+          window.open('https://t.me/zeg4ai_bot?start=pair', '_blank');
+        }
       } else {
         // Direct Share Fallback: Trigger 1-Click Telegram Direct Share / WhatsApp Web
         const shareText = `🧾 ZEGA ENTERPRISE INVOICE (${amountDisplay} USDC)\n\n• Order: ${descriptionText}\n• Merchant: ${activeMerchantWallet.slice(0, 6)}...${activeMerchantWallet.slice(-4)}\n\n⚡ Bayar via Solana Blink / Checkout:\n${checkoutLink}`;
@@ -2807,8 +2814,8 @@ export function ZeroClawTerminalView({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <h2 className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight hidden sm:block">
-                Finance & Solana Payment Terminal
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                ZeroClaw Engine Daemon
               </h2>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60 uppercase">
                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> ONLINE
@@ -2819,7 +2826,7 @@ export function ZeroClawTerminalView({
               </span>
             </div>
             <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 hidden sm:block">
-              Manage your business finance, cash flow, and Solana Pay orchestration with AI.
+              Deterministic settlement bridge, keyless vault & prompt injection guard.
             </p>
           </div>
         </div>
@@ -2902,23 +2909,23 @@ export function ZeroClawTerminalView({
       </div>
 
 
-      {/* EMBEDDED KEYLESS SOLANA CUSTODY WALLET CARD (FOR AUTHENTICATED USERS) */}
-      <div className="p-3.5 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-none space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2.5 border-b border-slate-800/80">
+      {/* EMBEDDED KEYLESS SOLANA CUSTODY WALLET CARD (DARK SLEEK INTEGRATION) */}
+      <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-md space-y-3.5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="size-9 rounded-xl bg-emerald-950/80 border border-emerald-700/60 p-1.5 flex items-center justify-center shrink-0">
+            <div className="size-9 rounded-xl bg-slate-950 border border-slate-800 p-1.5 flex items-center justify-center shrink-0">
               <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="Solana" className="size-full object-contain" />
             </div>
             <div className="min-w-0 space-y-0.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-xs sm:text-sm text-slate-100 truncate">Embedded Solana Wallet</h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/80 text-[9px] uppercase font-mono font-bold shrink-0">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 text-[9px] uppercase font-mono font-bold shrink-0">
                   Keyless T1
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 min-w-0">
                 <span className="shrink-0 text-slate-500">Address:</span>
-                <span className="text-emerald-300 font-bold truncate max-w-[180px] sm:max-w-xs">{activeMerchantWallet}</span>
+                <span className="text-emerald-400 font-bold truncate max-w-[180px] sm:max-w-xs">{activeMerchantWallet}</span>
               </div>
             </div>
           </div>
@@ -2967,21 +2974,21 @@ export function ZeroClawTerminalView({
           </div>
         </div>
 
-        {/* Live Balances Stream */}
-        <div className="grid grid-cols-2 gap-2.5 text-xs font-mono min-w-0">
-          <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-0.5 min-w-0">
+        {/* Live Balances Stream - Seamless Dark Slate Best Practices */}
+        <div className="grid grid-cols-2 gap-3 text-xs font-mono min-w-0">
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 space-y-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[9.5px] text-slate-400 font-sans font-medium uppercase truncate">SOL BALANCE</span>
+              <span className="text-[10px] text-slate-400 font-sans font-extrabold uppercase tracking-wider truncate">SOL BALANCE</span>
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Devnet RPC Live" />
             </div>
-            <p className="text-xs sm:text-sm font-bold text-emerald-400 truncate">{solBalance} SOL</p>
+            <p className="text-xs sm:text-base font-black text-emerald-400 truncate">{solBalance} SOL</p>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-0.5 min-w-0">
+          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 space-y-1 min-w-0">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[9.5px] text-slate-400 font-sans font-medium uppercase truncate">USDC BALANCE</span>
+              <span className="text-[10px] text-slate-400 font-sans font-extrabold uppercase tracking-wider truncate">USDC BALANCE</span>
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" title="SPL Token Vault" />
             </div>
-            <p className="text-xs sm:text-sm font-bold text-emerald-400 truncate">{usdcBalance} USDC</p>
+            <p className="text-xs sm:text-base font-black text-emerald-400 truncate">{usdcBalance} USDC</p>
           </div>
         </div>
       </div>
@@ -3082,13 +3089,21 @@ export function ZeroClawTerminalView({
 
       {/* OVERVIEW CONTENT VIEW */}
       {activeTab === 'overview' && (
-        <div className="space-y-4">
+        <div id="zeroclaw-overview-top" className="space-y-4">
           {/* MINIMAL CENTRAL SWAP CONTROL BAR */}
           <div className="flex items-center justify-center p-2 rounded-xl bg-slate-100/70 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/50">
             <button
               type="button"
-              onClick={() => setIsOverviewSwapped(!isOverviewSwapped)}
-              className="px-4 py-1.5 rounded-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs shadow-xs hover:scale-105 transition-all cursor-pointer flex items-center gap-2 border border-slate-700 dark:border-slate-300"
+              onClick={() => {
+                const nextState = !isOverviewSwapped;
+                setIsOverviewSwapped(nextState);
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setTimeout(() => {
+                    document.getElementById('zeroclaw-overview-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 60);
+                }
+              }}
+              className="px-4 py-1.5 rounded-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-2 border border-slate-700 dark:border-slate-300 touch-manipulation select-none"
               title="Swap Column Positions (Agentic Payment ↔ Manual Mode)"
             >
               <ArrowLeftRight size={13} className="text-emerald-400 dark:text-emerald-600" />
@@ -3099,7 +3114,7 @@ export function ZeroClawTerminalView({
           {/* TOP SECTION: 2 EQUAL COLUMNS SIDE-BY-SIDE */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* SOLANA PAY INVOICE GENERATOR (MANUAL MODE) */}
-            <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-none transition-all duration-300 ${isOverviewSwapped ? 'lg:order-2' : 'lg:order-1'}`}>
+            <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-none transition-all duration-300 ${isOverviewSwapped ? 'order-2 lg:order-2' : 'order-1 lg:order-1'}`}>
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
@@ -3848,7 +3863,7 @@ export function ZeroClawTerminalView({
             </div>
 
             {/* RIGHT COLUMN: MULTI-LLM INTERACTIVE AGENT PIPELINE TERMINAL */}
-            <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-none transition-all duration-300 ${isOverviewSwapped ? 'lg:order-1' : 'lg:order-2'}`}>
+            <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4 shadow-none transition-all duration-300 ${isOverviewSwapped ? 'order-1 lg:order-1' : 'order-2 lg:order-2'}`}>
               {/* Header & Model Selector Bar */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
@@ -5028,85 +5043,59 @@ checkpoint = "human_approval_on_refund"`}
         </div>
       )}
 
-      {/* DEMO VIDEO MODAL DIALOG */}
-
+      {/* DEMO VIDEO MODAL DIALOG - ULTRA-PROFESSIONAL HTML5 CDN STREAM */}
       {showVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-4xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden text-slate-100 space-y-4 p-5">
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden text-slate-100 space-y-3.5 p-4 sm:p-5">
+            {/* Minimal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-xs">
                   <Video size={18} />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <span>ZeroClaw Terminal - Interactive Video Demo & Walkthrough</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] uppercase font-mono">Devnet Showcase</span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2 truncate">
+                    <span>ZeroClaw Engine Daemon — Official System Demo</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 text-[9.5px] uppercase font-mono font-bold shrink-0 hidden sm:inline-block">
+                      R2 CDN Stream
+                    </span>
                   </h3>
-                  <p className="text-xs text-slate-400">Watch full operational walkthrough: Multi-LLM failover, Solana Pay QR & OWASP guard</p>
+                  <p className="text-xs text-slate-400 truncate">Autonomous Multi-LLM Orchestration & Solana Pay Settlement Demonstration</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowVideoModal(false)}
-                className="p-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-colors shrink-0"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Video Showcase Player Frame */}
-            <div className="relative aspect-video rounded-xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center overflow-hidden group">
-              {/* Simulated High-Tech Video Player Screen */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent z-10 pointer-events-none" />
-              <img
-                src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')}
-                alt="ZeroClaw Terminal Demo Thumbnail"
-                className="absolute inset-0 size-full object-cover opacity-20 filter blur-xs group-hover:scale-105 transition-transform duration-700"
-              />
-
-              {/* Play Overlay Badge */}
-              <div className="z-20 text-center space-y-3 p-6 max-w-lg">
-                <div className="size-16 rounded-full bg-emerald-500/90 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30 hover:scale-110 transition-transform cursor-pointer">
-                  <Play size={28} className="fill-slate-950 translate-x-0.5" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-base text-white">SuperteamBR Solana Bounty Showcase Demo</h4>
-                  <p className="text-xs text-slate-300 font-mono">Duration: 02:45 | Resolution: 1080p 60fps</p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[10.5px] font-semibold text-slate-300">
-                  <span className="px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700">⚡ Groq & Gemini Failover</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700">💳 Solana Pay Invoicing</span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700">🔴 OWASP Injection Guard</span>
-                </div>
-              </div>
-
-              {/* Control Bar Overlay */}
-              <div className="absolute bottom-0 inset-x-0 p-3 z-20 flex items-center justify-between text-xs text-slate-400 bg-slate-950/80 border-t border-slate-800">
-                <div className="flex items-center gap-2">
-                  <button className="p-1 rounded hover:text-white"><Play size={14} /></button>
-                  <span className="font-mono text-[11px]">00:42 / 02:45</span>
-                </div>
-                <div className="flex-1 mx-4 h-1 rounded bg-slate-800 overflow-hidden">
-                  <div className="w-1/3 h-full bg-emerald-500 rounded" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400">1080p HD</span>
-              </div>
+            {/* Native HTML5 Video Stream Player */}
+            <div className="relative aspect-video rounded-xl bg-slate-950 border border-slate-800/90 overflow-hidden shadow-inner flex items-center justify-center">
+              <video
+                src={getR2CdnUrl('/assets/video/DEMO_ZEGA.webm')}
+                controls
+                autoPlay
+                loop
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-contain bg-slate-950"
+              >
+                Your browser does not support WebM video streaming.
+              </video>
             </div>
 
-            {/* Video Highlights Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 space-y-1">
-                <p className="font-bold text-emerald-400 text-[11.5px]">1. Solana Pay Invoicing</p>
-                <p className="text-slate-400 text-[10.5px]">Instant QR code generation & Tier 1 keyless custody reconciliation.</p>
+            {/* Minimal Footer Toolbar */}
+            <div className="flex items-center justify-between gap-2 pt-1 text-xs text-slate-400 font-mono flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-slate-300 font-sans text-xs font-semibold">Cloudflare R2 CDN Optimized (1080p WebM)</span>
               </div>
-              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 space-y-1">
-                <p className="font-bold text-purple-400 text-[11.5px]">2. Multi-LLM Swarm</p>
-                <p className="text-slate-400 text-[10.5px]">Auto failover between Groq, Gemini, Jatevo & 9Router Swarm.</p>
-              </div>
-              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 space-y-1">
-                <p className="font-bold text-rose-400 text-[11.5px]">3. OWASP Sentinel Guard</p>
-                <p className="text-slate-400 text-[10.5px]">Automatic prompt injection block & Tier 2 SOP Human Approval checkpoint.</p>
+              <div className="flex items-center gap-2 text-[10.5px] font-sans font-semibold">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-200">Solana Devnet</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-200">Multi-LLM Swarm</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-200">OWASP Guard</span>
               </div>
             </div>
           </div>
@@ -5314,52 +5303,62 @@ checkpoint = "human_approval_on_refund"`}
 
       {/* ZERO CLAW GATEWAY PAIRING CODE MODAL */}
       {showPairModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl text-slate-100 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 bg-white dark:bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl text-slate-900 dark:text-slate-100 space-y-4">
             <button
               onClick={() => setShowPairModal(false)}
-              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <X size={18} />
             </button>
 
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400">
                 <Lock size={20} />
               </div>
               <div>
-                <h3 className="font-bold text-base text-slate-100">Pair ZeroClaw v0.8.3 Gateway</h3>
-                <p className="text-xs text-slate-400">Hubungkan ZEGA Terminal ke daemon lokal http://127.0.0.1:4242</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Pair ZeroClaw v0.8.3 Gateway</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Connect ZEGA Terminal to local daemon at http://127.0.0.1:4242</p>
               </div>
             </div>
 
+            {/* Explanatory Box on Pairing Purpose */}
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 space-y-1 text-xs">
+              <span className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <span>💡 What is Gateway Pairing Verification?</span>
+              </span>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed font-medium">
+                Pairing securely connects this ZEGA Web Terminal to your local or cloud ZeroClaw CLI Daemon (<code className="font-mono text-amber-800 dark:text-amber-300 font-bold">zeroclaw daemon</code>) via HMAC encrypted tokens. This enables automated invoicing & SOP checkpoints without storing private keys in the browser.
+              </p>
+            </div>
+
             <div className="space-y-3">
-              <label className="block text-xs font-semibold text-slate-300">
-                Masukkan Kode Pairing Sekali Pakai (One-Time Code)
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Enter One-Time Pairing Code
               </label>
               <input
                 type="text"
                 value={pairingCodeInput}
                 onChange={(e) => setPairingCodeInput(e.target.value)}
-                placeholder="Contoh: 137170"
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-amber-300 font-mono text-center text-lg tracking-widest font-extrabold focus:outline-none focus:border-amber-500"
+                placeholder="e.g. 137170"
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-amber-600 dark:text-amber-300 font-mono text-center text-lg tracking-widest font-extrabold focus:outline-none focus:border-amber-500"
               />
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Kode pairing ditampilkan di log terminal saat menjalankan <code className="text-amber-400">zeroclaw daemon</code>.
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                The pairing code is displayed in your terminal logs when executing <code className="text-amber-600 dark:text-amber-400 font-bold">zeroclaw daemon</code>.
               </p>
             </div>
 
             <div className="flex items-center gap-2 pt-2">
               <button
                 onClick={() => setShowPairModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 font-bold text-xs text-slate-300"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
               >
-                Batal
+                Cancel
               </button>
               <button
                 onClick={async () => {
                   if (!pairingCodeInput.trim()) {
-                    onTriggerToast('⚠️ Harap masukkan kode pairing!');
+                    onTriggerToast('⚠️ Please enter a pairing code!');
                     return;
                   }
                   setPairingLoading(true);
