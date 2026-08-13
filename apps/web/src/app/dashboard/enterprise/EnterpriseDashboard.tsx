@@ -28,7 +28,7 @@ import { UsageBillingView } from './views/UsageBillingView';
 import { AiSafetyView } from './views/AiSafetyView';
 import { AuditLogsView } from './views/AuditLogsView';
 import { RbacSsoView } from './views/RbacSsoView';
-import { ZeroClawTerminalView } from './views/ZeroClawTerminalView';
+import { EnterpriseZeroClawTerminalView } from './views/EnterpriseZeroClawTerminalView';
 import { IntegrationsView } from './views/IntegrationsView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { CostIntelligenceView } from './views/CostIntelligenceView';
@@ -675,7 +675,7 @@ export function EnterpriseDashboardView({
           {activeTab === 'api_sdk' && <ApiSdkView onTriggerToast={triggerToast} />}
           {activeTab === 'webhooks' && <WebhooksView onTriggerToast={triggerToast} />}
           {activeTab === 'system_logs' && <DeveloperLogsView onTriggerToast={triggerToast} />}
-          {activeTab === 'zeroclaw_terminal' && <ZeroClawTerminalView onTriggerToast={triggerToast} isGuest={false} userEmail={userEmail} userName={userName} />}
+          {activeTab === 'zeroclaw_terminal' && <EnterpriseZeroClawTerminalView onTriggerToast={triggerToast} isGuest={false} userEmail={userEmail} userName={userName} />}
           {activeTab === 'crypto_wallets' && <CryptoWalletsView onTriggerToast={triggerToast} />}
           {(activeTab === 'usage_billing' || activeTab === 'cost_intelligence' || activeTab === 'cost-intelligence') && (
             <CostIntelligenceView onTriggerToast={triggerToast} />

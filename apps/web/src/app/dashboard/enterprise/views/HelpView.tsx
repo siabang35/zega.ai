@@ -161,17 +161,40 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     }
   };
 
+  // AI Language Preference helper
+  const getAiLang = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+    }
+    return 'en';
+  };
+
   const handleOpenLiveChat = (ticket?: any) => {
     setSelectedTicket(ticket || null);
     setIsLiveChatOpen(true);
+    const lang = getAiLang();
+    let seedMsg = '';
+    if (ticket) {
+      seedMsg = lang === 'en'
+        ? `Hello! I am ZEGA AI Specialist connected to real-time inference. I am monitoring ticket #${ticket.ticket_code} (${ticket.subject}). Is there any additional information you would like to share?`
+        : lang === 'zh'
+        ? `你好！我是连接实时推理的 ZEGA AI 专家。我正在监控工单 #${ticket.ticket_code} (${ticket.subject})。您有什么补充信息要提交吗？`
+        : `Halo! Saya AI Specialist ZEGA terhubung dengan model inference real-time. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?`;
+    } else {
+      seedMsg = lang === 'en'
+        ? 'Hello Enterprise Admin! Welcome to ZEGA Live Chat Direct. How can I assist your workflow, AI infrastructure, or APIs today?'
+        : lang === 'zh'
+        ? '您好，企业管理员！欢迎来到 ZEGA 实时在线客服。今天在工作流、AI 基础设施或 API 方面有什么可以帮您？'
+        : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow, infrastruktur AI, atau API Anda hari ini?';
+    }
+
     setChatMessages([
       {
         id: '1',
         sender_type: 'ai_specialist',
         sender_name: 'ZEGA AI Support Specialist',
-        message: ticket 
-          ? `Halo! Saya AI Specialist ZEGA terhubung dengan model inference real-time. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?` 
-          : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow, infrastruktur AI, atau API Anda hari ini?',
+        message: seedMsg,
         created_at: new Date().toISOString()
       }
     ]);
@@ -182,6 +205,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     if (!chatInput.trim() || isAiThinking) return;
 
     const userMsg = chatInput;
+    const currentAiLang = getAiLang();
     setChatInput('');
 
     const newMsg = {
@@ -204,7 +228,8 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         body: JSON.stringify({
           message: selectedTicket 
             ? `[Tiket #${selectedTicket.ticket_code} - ${selectedTicket.subject}] ${userMsg}`
-            : userMsg
+            : userMsg,
+          language: currentAiLang
         })
       });
 
@@ -215,7 +240,11 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
       }
 
       if (!aiReply) {
-        aiReply = `Terima kasih atas pesan Anda mengenai "${userMsg}". Permintaan Anda telah kami terima dan akan langsung diproses oleh AI Support Specialist.`;
+        aiReply = currentAiLang === 'en'
+          ? `Thank you for your message regarding "${userMsg}". Your request has been received and will be processed by an AI Support Specialist.`
+          : currentAiLang === 'zh'
+          ? `感谢您关于 "${userMsg}" 的消息。我们已收到您的请求，AI 支持专家将立即进行处理。`
+          : `Terima kasih atas pesan Anda mengenai "${userMsg}". Permintaan Anda telah kami terima dan akan langsung diproses oleh AI Support Specialist.`;
       }
 
       setChatMessages(prev => [
@@ -237,13 +266,19 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         message: userMsg
       });
     } catch (err) {
+      const lang = getAiLang();
+      const fallbackMsg = lang === 'en'
+        ? `Thank you! Information "${userMsg}" has been synced to the agent support queue.`
+        : lang === 'zh'
+        ? `感谢您！信息 "${userMsg}" 已同步到支持代理队列。`
+        : `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue.`;
       setChatMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender_type: 'ai_specialist',
           sender_name: 'ZEGA AI Support Specialist',
-          message: `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue.`,
+          message: fallbackMsg,
           created_at: new Date().toISOString()
         }
       ]);

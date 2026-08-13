@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, ShieldCheck, Mail, Trash2, CheckCircle2, UserPlus, X, Search, Phone, Edit3, RefreshCw, Key, Shield, UserCheck, Clock, TrendingUp, Award, Briefcase, Activity, FileText, PieChart as PieIcon, BarChart3, Filter } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface TeamTabProps {
   triggerToast: (msg: string) => void;
@@ -25,6 +26,7 @@ export interface TeamMember {
 }
 
 export function TeamTab({ triggerToast }: TeamTabProps) {
+  const { t } = useLanguage();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,7 +113,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         avatar_url: newMemberItem.avatar_url
       });
 
-      triggerToast(`✓ Undangan berhasil dikirim ke ${newEmail}!`);
+      triggerToast(`✓ ${t.settingsView?.teamTab?.toastInviteSuccess || 'Invitation successfully sent!'}`);
       setIsAddModalOpen(false);
       setNewName('');
       setNewEmail('');
@@ -175,7 +177,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
     try {
       setMembers(prev => prev.filter(m => m.id !== id));
       await SupabaseDashboardService.deleteUmkmTeamMember(id);
-      triggerToast(`✓ Anggota ${name} berhasil dihapus.`);
+      triggerToast(`✓ ${t.settingsView?.teamTab?.toastRemoveSuccess || 'Team member removed.'}`);
       fetchMembers();
     } catch (err) {
       triggerToast('✕ Gagal menghapus anggota');

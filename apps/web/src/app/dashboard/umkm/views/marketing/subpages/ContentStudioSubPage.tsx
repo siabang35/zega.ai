@@ -647,32 +647,32 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
       {/* AI Content & Video Generation Modal */}
       {isGenerateModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 space-y-5 my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="size-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
                   <Wand2 size={18} />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Studio Generasi Video & Konten AI</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">SeaDance AI, CapCut Pro Swarm, Veo 2, Luma Dream Machine & ZeroClaw Daemon.</p>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 tracking-tight">{m.studioTitle || 'Studio Generasi Video & Konten AI'}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">{m.studioSubtitle || 'Studio sintesis konten & video AI terintegrasi real-time.'}</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsGenerateModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Prompt Preset Quick Buttons */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Template Prompt Instan:</span>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{m.instantPromptTemplates || 'Template Prompt Instan:'}</span>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {[
                   {
-                    title: 'Unboxing Serum Niacinamide 10% (SeaDance AI)',
+                    title: m.preset1Title || 'Unboxing Serum Niacinamide 10%',
                     media: 'video' as const,
                     platform: 'TikTok',
                     type: 'TikTok Video',
@@ -680,7 +680,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                     prompt: 'Generasikan video 15 detik TikTok Reel unboxing skincare serum dengan SeaDance AI Engine & timeline CapCut Pro export.'
                   },
                   {
-                    title: 'Tutorial Night Routine 3 Langkah (CapCut Swarm)',
+                    title: m.preset2Title || 'Tutorial Night Routine 3 Langkah',
                     media: 'video' as const,
                     platform: 'Instagram',
                     type: 'Instagram Reel',
@@ -688,7 +688,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                     prompt: 'Video cinematic tutorial 30 detik langkah perawatan wajah malam hari via CapCut Pro AI Swarm.'
                   },
                   {
-                    title: 'Flyer Promo Skincare Gajian 35%',
+                    title: m.preset3Title || 'Flyer Promo Skincare Gajian 35%',
                     media: 'image' as const,
                     platform: 'Instagram',
                     type: 'Instagram Post',
@@ -700,9 +700,9 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                     key={idx}
                     type="button"
                     onClick={() => applyPresetPrompt(preset)}
-                    className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/50 hover:bg-orange-100 text-[10px] font-bold text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 whitespace-nowrap cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 dark:hover:bg-slate-700/80 text-[11px] font-semibold text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 whitespace-nowrap cursor-pointer transition-all"
                   >
-                    ⚡ {preset.title}
+                    {preset.title}
                   </button>
                 ))}
               </div>
@@ -710,21 +710,21 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
 
             <form onSubmit={handleGenerateContent} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Judul / Topik Kampanye Konten *</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.contentTitleTopicLabel || 'Judul / Topik Kampanye Konten *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Video Reel Unboxing Serum Glowing Niacinamide"
+                  placeholder={m.contentTitlePlaceholder || 'Contoh: Video Reel Unboxing Serum Glowing Niacinamide'}
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all placeholder:text-slate-400"
                 />
               </div>
 
               {/* Media Type & Platform Selection */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Format Media</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.mediaFormatLabel || 'Format Media'}</label>
                   <select
                     value={formMediaType}
                     onChange={(e: any) => {
@@ -732,16 +732,16 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                       if (e.target.value === 'video') setFormContentType('TikTok Video');
                       if (e.target.value === 'image') setFormContentType('Instagram Post');
                     }}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-extrabold focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer truncate"
                   >
-                    <option value="video">🎬 AI Video / Reel</option>
-                    <option value="image">🖼️ Gambar / Post</option>
-                    <option value="text">📝 Copywriting</option>
+                    <option value="video">{m.mediaFormatOptionVideo || 'AI Video / Reel'}</option>
+                    <option value="image">{m.mediaFormatOptionImage || 'Gambar / Post'}</option>
+                    <option value="text">{m.mediaFormatOptionText || 'Copywriting'}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Platform Pemasaran</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.marketingPlatformLabel || 'Platform Pemasaran'}</label>
                   <select
                     value={formPlatform}
                     onChange={(e) => {
@@ -751,7 +751,7 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                       if (e.target.value === 'WhatsApp') setFormContentType('WhatsApp Template');
                       if (e.target.value === 'Shopee') setFormContentType('Shopee Banner');
                     }}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer"
                   >
                     <option value="TikTok">TikTok</option>
                     <option value="Instagram">Instagram</option>
@@ -761,27 +761,27 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Ekspor Proyek</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.projectExportTargetLabel || 'Target Ekspor Proyek'}</label>
                   <select
                     value={formExportTarget}
                     onChange={(e) => setFormExportTarget(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-extrabold focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer truncate"
                   >
-                    <option value="CapCut Pro Export">CapCut Pro Export (.mp4 + timeline)</option>
-                    <option value="Adobe Premiere XML">Adobe Premiere Pro XML</option>
-                    <option value="Canva Sync">Canva Design Cloud Sync</option>
-                    <option value="Direct Platform Publish">Direct Social Media Publish</option>
+                    <option value="CapCut Pro Export">{m.exportCapCut || 'CapCut Pro Export'}</option>
+                    <option value="Adobe Premiere XML">{m.exportAdobe || 'Adobe Premiere XML'}</option>
+                    <option value="Canva Sync">{m.exportCanva || 'Canva Design Sync'}</option>
+                    <option value="Direct Platform Publish">{m.exportDirect || 'Direct Publish'}</option>
                   </select>
                 </div>
               </div>
 
               {/* Model Engine Selection */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Pilih Real AI Model Engine</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.selectAiEngineLabel || 'Pilih Real AI Model Engine'}</label>
                 <select
                   value={formModelEngine}
                   onChange={(e) => setFormModelEngine(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-extrabold focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer"
                 >
                   <option value="SeaDance AI Video Engine">SeaDance AI Video Engine (Cinematic E-Commerce Reels)</option>
                   <option value="CapCut Pro AI Swarm Exporter">CapCut Pro AI Swarm Exporter (Timeline & Audio Ready)</option>
@@ -799,31 +799,31 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
 
               {/* Video Specific Controls */}
               {formMediaType === 'video' && (
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60">
                   <div>
-                    <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">Durasi Video Reel</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.videoDurationLabel || 'Durasi Video Reel'}</label>
                     <select
                       value={formDuration}
                       onChange={(e) => setFormDuration(Number(e.target.value))}
-                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 font-bold"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer"
                     >
-                      <option value={15}>15 Detik (Short Reel)</option>
-                      <option value={30}>30 Detik (Standard Reel)</option>
-                      <option value={60}>60 Detik (In-depth Demo)</option>
+                      <option value={15}>{m.duration15s || '15 Detik (Short Reel)'}</option>
+                      <option value={30}>{m.duration30s || '30 Detik (Standard Reel)'}</option>
+                      <option value={60}>{m.duration60s || '60 Detik (In-depth Demo)'}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-bold text-amber-900 dark:text-amber-300 mb-1">Voiceover Engine (TTS)</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.voiceoverEngineLabel || 'Voiceover Engine (TTS)'}</label>
                     <select
                       value={formVoiceover}
                       onChange={(e) => setFormVoiceover(e.target.value)}
-                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 font-bold"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer"
                     >
-                      <option value="ZeroClaw TTS Edge">ZeroClaw TTS Edge (0ms Local)</option>
-                      <option value="ElevenLabs Indonesian">ElevenLabs Indonesian Voice</option>
-                      <option value="OpenAI Whisper TTS">OpenAI Whisper TTS</option>
-                      <option value="Tanpa Voiceover">Tanpa Voiceover</option>
+                      <option value="ZeroClaw TTS Edge">{m.voiceoverZeroClaw || 'ZeroClaw TTS Edge (0ms Local)'}</option>
+                      <option value="ElevenLabs Indonesian">{m.voiceoverElevenLabs || 'ElevenLabs Voice'}</option>
+                      <option value="OpenAI Whisper TTS">{m.voiceoverWhisper || 'OpenAI Whisper TTS'}</option>
+                      <option value="Tanpa Voiceover">{m.voiceoverNone || 'Tanpa Voiceover'}</option>
                     </select>
                   </div>
                 </div>
@@ -831,31 +831,31 @@ export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId =
 
               {/* Prompt Input */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Deskripsi / Prompt AI Studio</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">{m.aiStudioPromptLabel || 'Deskripsi / Prompt AI Studio'}</label>
                 <textarea
                   rows={3}
-                  placeholder="Masukkan prompt visual, urutan scrip video, promo potongan harga, atau pesan utama..."
+                  placeholder={m.aiStudioPromptPlaceholder || 'Masukkan prompt visual, urutan script video, promo potongan harga, atau pesan utama...'}
                   value={formPrompt}
                   onChange={(e) => setFormPrompt(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium focus:outline-none"
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all resize-none placeholder:text-slate-400"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsGenerateModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-center"
                 >
-                  Batal
+                  {m.cancelBtn || 'Batal'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Sparkles size={15} />
-                  <span>{isSubmitting ? 'Memproses Engine AI...' : 'Hasilkan Konten Realtime'}</span>
+                  <span>{isSubmitting ? (m.processingAiEngine || 'Memproses Engine AI...') : (m.generateAiContentBtn || 'Hasilkan Konten Realtime')}</span>
                 </button>
               </div>
             </form>

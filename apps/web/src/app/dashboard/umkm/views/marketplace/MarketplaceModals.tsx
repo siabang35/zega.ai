@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export function AIAgentDetailModal({
   triggerToast,
   onRefresh
 }: ModalProps & { agent: any }) {
+  const { t } = useLanguage();
+  const k = t.marketplaceView || {};
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen || !agent) return null;
@@ -34,12 +37,12 @@ export function AIAgentDetailModal({
     try {
       await SupabaseDashboardService.installAIAgent(agent.id, newStatus);
       setIsProcessing(false);
-      triggerToast(newStatus ? `✓ ${agent.title} berhasil di-install dan aktif!` : `✓ ${agent.title} berhasil di-uninstall.`);
+      triggerToast(newStatus ? `✓ ${agent.title} ${k.deployAgent || 'terinstall'}` : `✓ ${agent.title}`);
       if (onRefresh) onRefresh();
       onClose();
     } catch (e) {
       setIsProcessing(false);
-      triggerToast(newStatus ? `✓ ${agent.title} terinstall!` : `✓ ${agent.title} di-uninstall.`);
+      triggerToast(newStatus ? `✓ ${agent.title}` : `✓ ${agent.title}`);
       if (onRefresh) onRefresh();
       onClose();
     }
@@ -67,7 +70,7 @@ export function AIAgentDetailModal({
                   <Star size={12} fill="currentColor" /> {agent.rating_score || 4.9} ({agent.rating_reviews_count || '1.2k'})
                 </span>
                 <span>•</span>
-                <span>Instalasi {agent.installs_count_label || '2.4k+'}</span>
+                <span>{agent.installs_count_label || '2.4k+'}</span>
               </div>
             </div>
           </div>
@@ -123,7 +126,7 @@ export function AIAgentDetailModal({
             }`}
           >
             {isProcessing && <Clock size={14} className="animate-spin" />}
-            <span>{agent.is_installed ? 'Uninstall AI' : 'Install AI Sekarang'}</span>
+            <span>{agent.is_installed ? 'Uninstall AI' : (k.deployAgent || 'Install AI Sekarang')}</span>
           </button>
         </div>
       </div>
@@ -1344,6 +1347,9 @@ export function AddPopularAgentModal({
   triggerToast,
   onRefresh
 }: ModalProps) {
+  const { t } = useLanguage();
+  const k = t.marketplaceView || {};
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryName, setCategoryName] = useState('Sales');
@@ -1400,8 +1406,8 @@ export function AddPopularAgentModal({
               <Sparkles size={20} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah AI Agent / Modul Baru</h3>
-              <p className="text-xs text-slate-400">Daftarkan model & agen AI ke katalog Supabase real-time</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.addAgentModalTitle || 'Add New AI Agent / Module'}</h3>
+              <p className="text-xs text-slate-400">{k.addAgentModalSubtitle || 'Register AI models & agents to real-time Supabase catalogue'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer bg-slate-100 dark:bg-slate-800">
@@ -1411,7 +1417,7 @@ export function AddPopularAgentModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
           <div className="space-y-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nama AI Agent / Modul</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.addAgentModalTitle || 'AI Agent / Module Name'}</label>
             <input
               type="text"
               required
@@ -1423,7 +1429,7 @@ export function AddPopularAgentModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Deskripsi Operasional</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.categoryDescLabel || 'Operational Description'}</label>
             <textarea
               rows={3}
               required
@@ -1436,7 +1442,7 @@ export function AddPopularAgentModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Kategori AI</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.labelAiCategory || 'AI Category'}</label>
               <select
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
@@ -1451,7 +1457,7 @@ export function AddPopularAgentModal({
             </div>
 
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Model Engine AI</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.labelAiEngineModel || 'AI Model Engine'}</label>
               <select
                 value={modelEngine}
                 onChange={(e) => setModelEngine(e.target.value)}
@@ -1468,7 +1474,7 @@ export function AddPopularAgentModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Ikon & Brand</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.categoryIconLabel || 'Icon & Brand'}</label>
               <select
                 value={iconKey}
                 onChange={(e) => setIconKey(e.target.value)}
@@ -1503,7 +1509,7 @@ export function AddPopularAgentModal({
               onClick={onClose}
               className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
             >
-              Batal
+              {k.cancelBtn || 'Cancel'}
             </button>
             <button
               type="submit"
@@ -1511,7 +1517,7 @@ export function AddPopularAgentModal({
               className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting && <Clock size={14} className="animate-spin" />}
-              <span>Simpan AI Agent</span>
+              <span>{k.saveAgentBtn || 'Save AI Agent'}</span>
             </button>
           </div>
         </form>

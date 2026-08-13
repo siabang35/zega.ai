@@ -129,6 +129,16 @@ export function EnterpriseCopilot({
     let totalTokens = promptTokens + completionTokens;
     let latencyMs = 180;
 
+    // Read AI Language Preference
+    const getAiLang = () => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('zega_ai_default_language');
+        if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+      }
+      return 'en';
+    };
+    const currentAiLang = getAiLang();
+
     // Try calling backend real AI inference endpoint first with 25s timeout for DeepSeek R1 reasoning
     try {
       const apiHost = getApiBase();
@@ -138,7 +148,7 @@ export function EnterpriseCopilot({
       const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: textToSend.trim() }),
+        body: JSON.stringify({ message: textToSend.trim(), language: currentAiLang }),
         signal: controller.signal,
       });
 

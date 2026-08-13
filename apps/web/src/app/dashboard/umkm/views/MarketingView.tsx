@@ -27,7 +27,7 @@ import {
 import { CampaignSubPage } from './marketing/subpages/CampaignSubPage';
 import { PerformaByChannelSubPage } from './marketing/subpages/PerformaByChannelSubPage';
 import { MarketingReportsSubPage } from './marketing/subpages/MarketingReportsSubPage';
-import { AktivitasSubPage } from './marketing/subpages/AktivitasSubPage';
+import { ActivitiesSubPage } from './marketing/subpages/ActivitiesSubPage';
 import { ContentStudioSubPage } from './marketing/subpages/ContentStudioSubPage';
 
 ChartJS.register(
@@ -42,7 +42,7 @@ ChartJS.register(
   Filler
 );
 
-export type MarketingSubTab = 'overview' | 'campaign' | 'channel' | 'reports' | 'aktivitas' | 'konten';
+export type MarketingSubTab = 'overview' | 'campaign' | 'channel' | 'reports' | 'activities' | 'konten';
 
 interface MarketingViewProps {
   triggerToast?: (msg: string) => void;
@@ -60,7 +60,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
       if (sub === 'campaign' || sub === 'campaigns') return 'campaign';
       if (sub === 'channel' || sub === 'channels' || sub === 'performa_by_channel') return 'channel';
       if (sub === 'reports' || sub === 'report') return 'reports';
-      if (sub === 'aktivitas' || sub === 'activities' || sub === 'activity') return 'aktivitas';
+      if (sub === 'aktivitas' || sub === 'activities' || sub === 'activity') return 'activities';
       if (sub === 'konten' || sub === 'content' || sub === 'studio' || sub === 'content_studio') return 'konten';
     }
     return 'overview';
@@ -412,7 +412,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           { id: 'konten', label: m.kontenTab || 'AI Content Studio', icon: Sparkles },
           { id: 'channel', label: m.channelTab || 'Performa by Channel', icon: BarChart3 },
           { id: 'reports', label: m.reportsTab || 'Reports', icon: FileText },
-          { id: 'aktivitas', label: m.aktivitasTab || 'Aktivitas', icon: Activity },
+          { id: 'activities', label: m.activitiesTab || m.aktivitasTab || 'Activities', icon: Activity },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -464,9 +464,9 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         />
       )}
 
-      {/* SUBPAGE 4: AKTIVITAS */}
-      {activeSubTab === 'aktivitas' && (
-        <AktivitasSubPage 
+      {/* SUBPAGE 4: ACTIVITIES */}
+      {activeSubTab === 'activities' && (
+        <ActivitiesSubPage 
           activities={activities} 
           triggerToast={triggerToast} 
         />
@@ -992,7 +992,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{m.recentActivities || 'Aktivitas Terbaru'}</h3>
-              <button onClick={() => setActiveSubTab('aktivitas')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">{m.viewAll || 'Lihat Semua'} ↗</button>
+              <button onClick={() => setActiveSubTab('activities')} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-orange-500 cursor-pointer">{m.viewAll || 'Lihat Semua'} ↗</button>
             </div>
 
             <div className="space-y-2.5 text-xs">
@@ -1079,7 +1079,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                   className="size-9 object-contain rounded-xl bg-white p-1 border border-slate-200 dark:border-slate-700 shadow-xs"
                 />
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 leading-tight">Hasil Audit Model AI</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 leading-tight">{m.aiAuditResultTitle || 'Hasil Audit Model AI'}</h3>
                   <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">{selectedInsightResult.model_engine}</p>
                 </div>
               </div>
@@ -1093,7 +1093,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
               <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300">
-                STATUS DATABASE: {selectedInsightResult.status.toUpperCase()}
+                {m.dbStatusLabel || 'STATUS DATABASE'}: {selectedInsightResult.status.toUpperCase()}
               </span>
               <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs mt-1.5">{selectedInsightResult.title}</h4>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{selectedInsightResult.description}</p>
@@ -1101,15 +1101,15 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
-                <span className="text-[11px] font-bold text-slate-400 block">Gateway Eksekusi</span>
+                <span className="text-[11px] font-bold text-slate-400 block">{m.executionGatewayLabel || 'Gateway Eksekusi'}</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">{selectedInsightResult.execution_gateway}</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
-                <span className="text-[11px] font-bold text-slate-400 block">Kategori Optimasi</span>
+                <span className="text-[11px] font-bold text-slate-400 block">{m.optimizationCategoryLabel || 'Kategori Optimasi'}</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200">{selectedInsightResult.category}</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
-                <span className="text-[11px] font-bold text-slate-400 block">Estimasi Performa (ROAS)</span>
+                <span className="text-[11px] font-bold text-slate-400 block">{m.estimatedRoasLabel || 'Estimasi Performa (ROAS)'}</span>
                 <span className="font-extrabold text-emerald-600 dark:text-emerald-400">+18.4% Efficiency</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
@@ -1127,13 +1127,13 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
                 }}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-extrabold text-xs border border-rose-300 transition-colors cursor-pointer"
               >
-                ↩ Batalkan (Undo)
+                {m.undoActionBtn || '↩ Batalkan (Undo)'}
               </button>
               <button
                 onClick={() => setSelectedInsightResult(null)}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition-all cursor-pointer"
               >
-                Tutup Audit
+                {m.closeAuditBtn || 'Tutup Audit'}
               </button>
             </div>
           </div>

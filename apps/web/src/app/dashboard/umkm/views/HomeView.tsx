@@ -136,10 +136,26 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showSupportAssistantModal, setShowSupportAssistantModal] = useState(false);
   const [supportSearchQuery, setSupportSearchQuery] = useState('');
+  // AI Language Preference helper
+  const getAiLang = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+    }
+    return 'id';
+  };
+
+  const getSeedMessage = () => {
+    const lang = getAiLang();
+    if (lang === 'en') return 'Hello! I am **ZEGA Ops Specialist** 🛠️. I am your operational guide for onboarding, AI Swarm agent deployment, WhatsApp & Instagram API setup, and store workflow automation. How can I assist your system configuration today?';
+    if (lang === 'zh') return '你好！我是 **ZEGA Ops Specialist** 🛠️。我是您的系统运营与配置指南，专注于 AI Swarm 员工部署、WhatsApp/Instagram API 集成与店铺工作流自动化。今天有什么可以协助您？';
+    return 'Halo! Saya **ZEGA Ops Specialist** 🛠️. Saya adalah panduan operasional Anda untuk onboarding, alokasi AI Swarm agent, integrasi WhatsApp & Instagram API, dan otomatisasi alur kerja toko. Ada yang bisa saya bantu dengan konfigurasi sistem Anda hari ini?';
+  };
+
   const [supportChatMessages, setSupportChatMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; model?: string; inference_ms?: number; tokens?: number }>>([
     {
       sender: 'ai',
-      text: 'Halo! Saya ZEGA Copilot AI. Saya terhubung langsung dengan database Supabase & sistem alur kerja toko Anda. Ada yang ingin Anda tanyakan tentang otomasi bot, performa campaign, atau manajemen produk?',
+      text: getSeedMessage(),
       inference_ms: 120,
       tokens: 45
     }
@@ -156,10 +172,24 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [newTaskForm, setNewTaskForm] = useState({ title: '', agent: 'Customer Service AI', priority: 'normal' });
   const [aiTasksList, setAiTasksList] = useState<Array<{ id?: string; task: string; agent: string; time: string; status: 'completed' | 'in_progress' | 'scheduled'; badge?: string }>>([]);
 
+  // Dynamically update seed message whenever support modal opens
+  useEffect(() => {
+    if (showSupportAssistantModal) {
+      setSupportChatMessages([
+        {
+          sender: 'ai',
+          text: getSeedMessage(),
+          inference_ms: 120,
+          tokens: 45
+        }
+      ]);
+    }
+  }, [showSupportAssistantModal]);
+
   // Clean Markdown & Natural Text Formatting Hardening Helper
   const renderFormattedSupportMessage = (rawText: string) => {
     if (!rawText) return null;
-    
+
     // Clean raw debug artifacts, JSON brackets, model headers, emojis, or prompt leaks
     let text = rawText
       .replace(/^[\{\[\"]+|[\}\]\"]+$/g, '')
@@ -240,6 +270,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
     const textToSend = customText || supportInput;
     if (!textToSend.trim()) return;
 
+    const currentAiLang = getAiLang();
+
     setSupportChatMessages(prev => [
       ...prev,
       { sender: 'user', text: textToSend }
@@ -249,7 +281,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
     const envApi = import.meta.env.VITE_API_URL;
     const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
-    
+
     let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
       ? 'https://zega-ai.onrender.com'
       : (envApi || 'http://localhost:3001');
@@ -263,7 +295,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
         body: JSON.stringify({
           message: textToSend.trim(),
           storeId: '11111111-1111-1111-1111-111111111111',
-          userId: 'demo-owner'
+          userId: 'demo-owner',
+          language: currentAiLang,
+          agent_role: 'ZEGA Ops Specialist'
         })
       });
 
@@ -287,19 +321,37 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       console.warn('Real AI Model backend call note:', err);
     }
 
-    // Dynamic Real Model AI Inference Engine Fallback (Clean & Natural Enterprise Output)
+    // Dynamic Real Model AI Inference Engine Fallback (AI Language Responsive)
     const promptLower = textToSend.toLowerCase();
     let reply = '';
-    if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
-      reply = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
-    } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-      reply = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
-    } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
-      reply = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
-    } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
-      reply = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
+    if (currentAiLang === 'en') {
+      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('add')) {
+        reply = '**AI Employee Deployment Management:**\nTo add a new AI Employee to your team:\n1. Click **"+ Add New AI Employee"** in the dashboard header.\n2. Define the specialization role (Support, Growth, Finance, or Sales).\n3. Write System Instructions tailored to store operations.\n4. Click **Deploy AI Employee** to activate the agent automatically.';
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+        reply = '**WhatsApp API Bot Automation:**\nYour WhatsApp Business Bot is active and connected. The bot reads transaction history & product catalog from Supabase to automatically reply to price inquiries and order delivery status.';
+      } else {
+        reply = `**ZEGA AI Operational Support:**\nYour query regarding "${textToSend}" has been processed. All automation workflows and AI integrations can be monitored directly from this real-time dashboard.`;
+      }
+    } else if (currentAiLang === 'zh') {
+      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('添加')) {
+        reply = '**AI 员工部署管理：**\n在您的团队中添加新的 AI 员工：\n1. 点击仪表板顶部的 **"+ 添加新 AI 员工"** 按钮。\n2. 定义专业角色（支持、增长、财务或销售）。\n3. 编写符合店铺运营需求的系统指令。\n4. 点击 **部署 AI 员工** 自动激活该代理。';
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+        reply = '**WhatsApp API 机器人自动化：**\n您的 WhatsApp Business 机器人已激活并自动连接。机器人从 Supabase 读取交易记录和产品目录，自动回复价格查询及配送状态。';
+      } else {
+        reply = `**ZEGA AI 运营支持：**\n关于 "${textToSend}" 的提问已处理。您可以在此仪表板中实时监控所有自动化工作流与 AI 集成。`;
+      }
     } else {
-      reply = `**Bantuan Operasional ZEGA AI:**\nPertanyaan Anda mengenai "${textToSend}" telah diproses. Seluruh alur kerja otomatisasi dan integrasi AI dapat Anda pantau langsung dari dashboard ini secara real-time.`;
+      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
+        reply = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+        reply = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
+      } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
+        reply = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
+      } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
+        reply = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
+      } else {
+        reply = `**Bantuan Operasional ZEGA AI:**\nPertanyaan Anda mengenai "${textToSend}" telah diproses. Seluruh alur kerja otomatisasi dan integrasi AI dapat Anda pantau langsung dari dashboard ini secara real-time.`;
+      }
     }
 
     setSupportChatMessages(prev => [
@@ -655,6 +707,14 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             {u.overviewSubtitle || 'Berikut adalah ikhtisar terkini dan performa operasional bisnis Anda hari ini.'}
           </p>
         </div>
+
+        <button
+          onClick={() => setShowSupportAssistantModal(true)}
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer shrink-0 self-start sm:self-center"
+        >
+          <Bot size={18} className="animate-pulse" />
+          <span>{u.chatWithAi || 'Chat AI Assistant'}</span>
+        </button>
       </div>
 
       {/* ========================================================================= */}
@@ -1209,18 +1269,15 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 <span className="text-[9.5px] font-extrabold leading-tight">{u.manageStock || 'Kelola Stok'}</span>
               </button>
 
-              {/* 7. Broadcast */}
+              {/* 7. Chat AI Assistant */}
               <button
-                onClick={() => {
-                  setModalForm({ title: 'Promo Flash Sale 8.8 Diskon 50%', detail: 'All Active Customers', amount: 'WhatsApp & IG' });
-                  setActiveModal('broadcast');
-                }}
-                className="p-2.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 hover:bg-purple-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-purple-200/50 dark:border-purple-900/40 group"
+                onClick={() => setShowSupportAssistantModal(true)}
+                className="p-2.5 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 hover:bg-orange-100 text-slate-800 dark:text-slate-200 transition-all flex flex-col items-center gap-1.5 cursor-pointer border border-orange-200/50 dark:border-orange-900/40 group shadow-xs hover:border-orange-500"
               >
-                <div className="size-7 rounded-xl bg-purple-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
-                  <Send size={15} />
+                <div className="size-7 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                  <Bot size={15} />
                 </div>
-                <span className="text-[9.5px] font-extrabold leading-tight">{u.broadcast || 'Broadcast'}</span>
+                <span className="text-[9.5px] font-extrabold leading-tight">{u.chatWithAi || 'Chat AI Assistant'}</span>
               </button>
 
               {/* 8. Pengaturan */}
@@ -1239,19 +1296,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
       </div>
 
-      {/* ========================================================================= */}
-      {/* FOOTER */}
-      {/* ========================================================================= */}
-      <div className="pt-4 border-t border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 font-medium">
-        <div>
-          {u.footerRights || '© 2025 ZEGA AI. Semua hak dilindungi.'}
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.privacyPolicy || 'Kebijakan Privasi'}</span>
-          <span className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.termsConditions || 'Syarat & Ketentuan'}</span>
-          <span onClick={() => onNavigateTab('help')} className="hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">{u.help || 'Bantuan'}</span>
-        </div>
-      </div>
+
 
       {/* ========================================================================= */}
       {/* QUICK ACTION MODALS */}
@@ -1406,8 +1451,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   await loadDashboardData();
                 }}
                 className={`px-3 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-colors border ${selectedAgentModal.status === 'active'
-                    ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                    : 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                  ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                   }`}
               >
                 {selectedAgentModal.status === 'active' ? '• Status: Active' : '• Status: Paused'}
@@ -1611,11 +1656,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                                   setNewAgentForm({ ...newAgentForm, model_engine: model.id });
                                   setIsModelDropdownOpen(false);
                                 }}
-                                className={`w-full text-left p-2 rounded-xl transition-all flex items-center gap-2.5 ${
-                                  isSelected
+                                className={`w-full text-left p-2 rounded-xl transition-all flex items-center gap-2.5 ${isSelected
                                     ? 'bg-orange-50 dark:bg-orange-950/30 border border-orange-500/40 text-orange-700 dark:text-orange-300 font-bold'
                                     : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                                }`}
+                                  }`}
                               >
                                 <div className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
                                   <img src={model.logo} alt={model.name} className="w-5 h-5 object-contain" />
@@ -1840,10 +1884,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>Asisten AI Operasional</span>
+                    <span>ZEGA Ops Specialist</span>
                     <span className="px-2 py-0.2 rounded-full text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black">ONLINE</span>
                   </h3>
-                  <p className="text-[10px] text-slate-400">Bantuan Langsung &amp; Otomasi Alur Kerja Toko</p>
+                  <p className="text-[10px] text-slate-400">
+                    {getAiLang() === 'en' ? 'Operational Onboarding & System Setup Guide' : getAiLang() === 'zh' ? '运营入门与系统设置指南' : 'Bantuan Langsung & Otomasi Alur Kerja Toko'}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowSupportAssistantModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
@@ -1853,14 +1899,26 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
             {/* Quick FAQ Chips */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Pertanyaan Populer</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                {getAiLang() === 'en' ? 'Popular Topics' : getAiLang() === 'zh' ? '热门主题' : 'Pertanyaan Populer'}
+              </span>
               <div className="flex flex-wrap gap-1">
-                {[
+                {(getAiLang() === 'en' ? [
+                  'Deploy AI Swarm',
+                  'WhatsApp API Setup',
+                  'Quick Invoicing',
+                  'Supabase Integration'
+                ] : getAiLang() === 'zh' ? [
+                  '部署 AI 员工',
+                  '设置 WhatsApp Bot',
+                  '开具快速发票',
+                  'Supabase 数据库集成'
+                ] : [
                   'Cara Deploy AI Agent?',
                   'Setup WhatsApp API Bot',
                   'Kelola Invoice Penjualan',
                   'Integrasi CDN & Supabase'
-                ].map((faq, fqIdx) => (
+                ]).map((faq, fqIdx) => (
                   <button
                     key={fqIdx}
                     type="button"
@@ -1888,11 +1946,11 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         <div className="flex items-center gap-1.5">
                           <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black flex items-center gap-1">
                             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            ZEGA Copilot AI
+                            ZEGA Ops Specialist
                           </span>
-                          <span>• Respon {msg.inference_ms || 185}ms</span>
+                          <span>{getAiLang() === 'en' ? '• Response ' : getAiLang() === 'zh' ? '• 响应 ' : '• Respon '}{msg.inference_ms || 185}ms</span>
                         </div>
-                        <span className="text-slate-400 font-medium">Terverifikasi</span>
+                        <span className="text-slate-400 font-medium">{getAiLang() === 'en' ? 'Verified' : getAiLang() === 'zh' ? '已验证' : 'Terverifikasi'}</span>
                       </div>
                     )}
                   </div>
@@ -1912,7 +1970,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 type="text"
                 value={supportInput}
                 onChange={(e) => setSupportInput(e.target.value)}
-                placeholder="Tulis pertanyaan bantuan Anda..."
+                placeholder={getAiLang() === 'en' ? 'Type your operational query...' : getAiLang() === 'zh' ? '输入您的运营与系统设置提问...' : 'Tulis pertanyaan bantuan Anda...'}
                 className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
               />
               <button type="submit" className="p-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white cursor-pointer transition-colors shadow-xs">
@@ -1922,7 +1980,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
             {/* Link to Full Help Center */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <span className="text-[10px] text-slate-400">Butuh panduan dokumen lengkap?</span>
+              <span className="text-[10px] text-slate-400">
+                {getAiLang() === 'en' ? 'Need complete documentation guides?' : getAiLang() === 'zh' ? '需要完整的系统文档指南？' : 'Butuh panduan dokumen lengkap?'}
+              </span>
               <button
                 type="button"
                 onClick={() => {
@@ -1931,7 +1991,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 }}
                 className="text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <span>Pusat Bantuan Lengkap &gt;</span>
+                <span>{getAiLang() === 'en' ? 'Full Help Center >' : getAiLang() === 'zh' ? '完整帮助中心 >' : 'Pusat Bantuan Lengkap >'}</span>
               </button>
             </div>
           </div>
@@ -2062,7 +2122,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Live Toggle Switch */}
                     <button
                       type="button"
@@ -2074,11 +2134,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                           await loadDashboardData();
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                        item.status === 'paused'
+                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${item.status === 'paused'
                           ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
                           : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                      }`}
+                        }`}
                     >
                       {item.status === 'paused' ? 'Paused (Click to Start)' : '✓ Active (Click to Pause)'}
                     </button>
@@ -2185,7 +2244,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                         </span>
                       </div>
                     </div>
-                    
+
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9px] font-extrabold flex-shrink-0">
                       Active
                     </span>
@@ -2244,33 +2303,30 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               <button
                 type="button"
                 onClick={() => setActivityFilter('all')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activityFilter === 'all'
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'all'
                     ? 'bg-orange-500 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 Semua Aktivitas
               </button>
               <button
                 type="button"
                 onClick={() => setActivityFilter('transaction')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activityFilter === 'transaction'
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'transaction'
                     ? 'bg-orange-500 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 Transaksi & Penjualan
               </button>
               <button
                 type="button"
                 onClick={() => setActivityFilter('ai_task')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activityFilter === 'ai_task'
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'ai_task'
                     ? 'bg-orange-500 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 Aksi Otomatis AI
               </button>
@@ -2376,7 +2432,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                 if (!newTaskForm.title.trim()) return;
                 const taskTitle = newTaskForm.title;
                 const agentName = newTaskForm.agent;
-                
+
                 triggerToast(`Dispatching AI Task: "${taskTitle}"...`);
                 setNewTaskForm({ ...newTaskForm, title: '' });
 
@@ -2423,7 +2479,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
             <div className="space-y-2.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Stream Eksekusi Task Real-Time</span>
-                
+
                 {/* Agent Filter Tabs */}
                 <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none text-[10.5px]">
                   {['Semua AI Agent', 'Finance', 'Customer Service', 'Marketing', 'Inventory', 'Sales'].map((tabName) => (
@@ -2431,11 +2487,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                       type="button"
                       key={tabName}
                       onClick={() => setAiTaskFilterTab(tabName)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold whitespace-nowrap ${
-                        aiTaskFilterTab === tabName
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold whitespace-nowrap ${aiTaskFilterTab === tabName
                           ? 'bg-purple-600 text-white shadow-xs'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                      }`}
+                        }`}
                     >
                       {tabName}
                     </button>
@@ -2448,7 +2503,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
                   .filter((item) => {
                     if (aiTaskFilterTab === 'Semua AI Agent') return true;
                     return item.agent.toLowerCase().includes(aiTaskFilterTab.toLowerCase()) ||
-                           item.task.toLowerCase().includes(aiTaskFilterTab.toLowerCase());
+                      item.task.toLowerCase().includes(aiTaskFilterTab.toLowerCase());
                   })
                   .map((item, idx) => {
                     const getAiTaskRoute = () => {

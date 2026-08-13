@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle, Sparkles, RefreshCw, Wrench, Check } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface HealthDetailSubViewProps {
   healthScore: any;
@@ -18,6 +19,8 @@ export function HealthDetailSubView({
   onAutoFixItem,
   triggerToast
 }: HealthDetailSubViewProps) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView;
   const [filterSeverity, setFilterSeverity] = useState('All');
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -32,7 +35,7 @@ export function HealthDetailSubView({
   }, [audits]);
 
   const scorePct = healthScore?.health_score_pct ?? 0;
-  const label = healthScore?.health_label || (scorePct === 0 ? 'Zero State' : 'Belum Terbaca');
+  const label = healthScore?.health_label || (scorePct === 0 ? (k.zeroStateLabel || 'Zero State') : (k.unreadLabel || 'Belum Terbaca'));
 
   const filteredAudits = auditList.filter(a => {
     if (filterSeverity === 'All') return true;
@@ -78,10 +81,10 @@ export function HealthDetailSubView({
         <div>
           <h2 className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
             <ShieldCheck className="text-emerald-500 shrink-0" size={22} />
-            <span>Detail Audit Knowledge Health</span>
+            <span>{k.healthDetailTitle || 'Detail Audit Knowledge Health'}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Audit kesehatan otomatis kelengkapan SOP, integrasi dokumen R2 CDN, serta resolusi issue 1-click via ZeroClaw AI Agent.
+            {k.healthDetailSubtitle || 'Audit kesehatan otomatis kelengkapan SOP, integrasi dokumen R2 CDN, serta resolusi issue 1-click via ZeroClaw AI Agent.'}
           </p>
         </div>
 
@@ -91,7 +94,7 @@ export function HealthDetailSubView({
           className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-black text-xs rounded-2xl cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
         >
           <RefreshCw size={14} className={isScanning ? 'animate-spin' : ''} />
-          <span>{isScanning ? 'Memindai Ulang...' : 'Pindai Ulang Health'}</span>
+          <span>{isScanning ? (k.rescanningBtn || 'Memindai Ulang...') : (k.rescanHealthBtn || 'Pindai Ulang Health')}</span>
         </button>
       </div>
 
@@ -130,7 +133,7 @@ export function HealthDetailSubView({
             </div>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2 max-w-xs">
-            Skor dihitung dari kelengkapan SOP, tanggal pembaruan dokumen R2 CDN, dan link validitas.
+            {k.healthScoreCalcDesc || 'Skor dihitung dari kelengkapan SOP, tanggal pembaruan dokumen R2 CDN, dan link validitas.'}
           </p>
         </div>
 
@@ -141,7 +144,7 @@ export function HealthDetailSubView({
             <div className="flex items-baseline justify-between mt-3">
               <span className="text-3xl font-black text-orange-600">{healthScore?.missing_sop_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">
-                Butuh Dibuat
+                {k.needToCreate || 'Butuh Dibuat'}
               </span>
             </div>
           </div>
@@ -151,7 +154,7 @@ export function HealthDetailSubView({
             <div className="flex items-baseline justify-between mt-3">
               <span className="text-3xl font-black text-amber-600">{healthScore?.outdated_docs_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 uppercase">
-                Perlu Update
+                {k.needUpdate || 'Perlu Update'}
               </span>
             </div>
           </div>
@@ -161,7 +164,7 @@ export function HealthDetailSubView({
             <div className="flex items-baseline justify-between mt-3">
               <span className="text-3xl font-black text-emerald-600">{healthScore?.broken_links_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 uppercase">
-                Aman
+                {k.safeLabel || 'Aman'}
               </span>
             </div>
           </div>
@@ -171,7 +174,7 @@ export function HealthDetailSubView({
             <div className="flex items-baseline justify-between mt-3">
               <span className="text-3xl font-black text-purple-600">{healthScore?.duplicate_count ?? 0}</span>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 uppercase">
-                Gabungkan
+                {k.mergeLabel || 'Gabungkan'}
               </span>
             </div>
           </div>
@@ -183,7 +186,7 @@ export function HealthDetailSubView({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <AlertTriangle size={18} className="text-amber-500" />
-            <span>Daftar Issue & Rekomendasi Perbaikan AI Agent</span>
+            <span>{k.issuesListTitle || 'Daftar Issue & Rekomendasi Perbaikan AI Agent'}</span>
           </h3>
 
           <div className="flex items-center gap-1.5 text-xs">
@@ -206,9 +209,9 @@ export function HealthDetailSubView({
         {filteredAudits.length === 0 ? (
           <div className="py-12 text-center space-y-2">
             <CheckCircle size={36} className="mx-auto text-emerald-500" />
-            <h4 className="font-black text-sm text-slate-800 dark:text-slate-200">Semua Audit Health Sempurna!</h4>
+            <h4 className="font-black text-sm text-slate-800 dark:text-slate-200">{k.allAuditPerfectTitle || 'Semua Audit Health Sempurna!'}</h4>
             <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
-              Seluruh issue dalam kategori ini telah berhasil diperbaiki dan disinkronkan ke Supabase.
+              {k.allAuditPerfectSubtitle || 'Seluruh issue dalam kategori ini telah berhasil diperbaiki dan disinkronkan ke Supabase.'}
             </p>
           </div>
         ) : (
@@ -235,7 +238,7 @@ export function HealthDetailSubView({
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{item.description}</p>
                   <p className="text-[11.5px] text-emerald-600 dark:text-emerald-400 font-bold flex items-start sm:items-center gap-1.5 pt-0.5">
                     <Sparkles size={13} className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" /> 
-                    <span className="line-clamp-2 sm:line-clamp-none">Saran ZeroClaw AI: {item.recommended_action}</span>
+                    <span className="line-clamp-2 sm:line-clamp-none">{k.zeroClawAdvice || 'Saran ZeroClaw AI'}: {item.recommended_action}</span>
                   </p>
                 </div>
 
@@ -245,7 +248,7 @@ export function HealthDetailSubView({
                   className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black shrink-0 cursor-pointer transition-all shadow-md shadow-orange-500/20 flex items-center gap-2 active:scale-95 disabled:opacity-50"
                 >
                   <Wrench size={14} className={fixingId === item.id ? 'animate-spin' : ''} />
-                  <span>{fixingId === item.id ? 'Memperbaiki...' : 'Perbaiki via AI'}</span>
+                  <span>{fixingId === item.id ? (k.fixingBtn || 'Memperbaiki...') : (k.fixViaAiBtn || 'Perbaiki via AI')}</span>
                 </button>
               </div>
             ))}

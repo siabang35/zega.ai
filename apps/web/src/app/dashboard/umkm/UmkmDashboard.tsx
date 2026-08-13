@@ -89,10 +89,10 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
 
       {/* VIEW RENDERING */}
       {currentTab === 'overview' && (
-        <HomeView 
-          displayName={displayName} 
-          onNavigateTab={handleTabChange} 
-          triggerToast={triggerToast} 
+        <HomeView
+          displayName={displayName}
+          onNavigateTab={handleTabChange}
+          triggerToast={triggerToast}
         />
       )}
       {currentTab === 'my_agents' && <MyAgentsView triggerToast={triggerToast} />}
@@ -122,11 +122,11 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {/* FLOATING ZEGA COPILOT WIDGET (Appears ONLY on Home / Overview tab) */}
       {currentTab === 'overview' && (
         <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
-          <button 
+          <button
             onClick={() => {
               triggerToast('🚀 ZEGA Copilot AI Assistant Aktif!');
               handleTabChange('my_agents');
-            }} 
+            }}
             className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-xs shadow-md shadow-slate-900/10 dark:shadow-black/40 flex items-center gap-2 hover:scale-105 transition-all cursor-pointer border border-slate-700 dark:border-slate-200"
           >
             <Sparkles size={15} className="text-orange-400" />

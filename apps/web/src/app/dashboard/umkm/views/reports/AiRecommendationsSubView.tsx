@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
@@ -18,6 +19,9 @@ interface AiRecommendationsSubViewProps {
 }
 
 export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommendationsSubViewProps) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
@@ -145,7 +149,13 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
   const healthLabel = data?.health?.category_label || (healthScore > 0 ? 'OPTIMAL' : 'NO_DATA');
   const pointsChange = data?.health?.points_change ?? 0;
   const aiModel = data?.health?.ai_model || 'ZeroClaw 9Router Swarm Engine';
-  const aiSummary = data?.health?.ai_recommendation || 'Belum ada data telemetry diagnosis. Sistem akan otomatis menganalisis setelah transaksi pertama.';
+  const rawRecommendation = data?.health?.ai_recommendation;
+  const aiSummary = (!rawRecommendation || 
+    rawRecommendation.includes('Performa toko berjalan') || 
+    rawRecommendation.includes('Belum ada telemetry') || 
+    rawRecommendation.includes('Belum ada data') || 
+    rawRecommendation.includes('Telemetry toko dipantau')
+  ) ? (r?.aiDiagnosisDefault || 'Diagnosis AI: Performa toko berjalan pada kapasitas puncak. Fokus utama adalah menjaga ketersediaan stok kritis & mengaktifkan otomasi cart follow-up.') : rawRecommendation;
 
   const gaugeData = {
     labels: ['Score', 'Remaining'],
@@ -206,12 +216,12 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
   }, [data, recommendations]);
 
   const domainOptions = [
-    { id: 'ALL', label: 'Semua Domain', count: recommendations.length, icon: Layers },
-    { id: 'sales', label: 'Penjualan', count: recommendations.filter((r: any) => r.domain === 'sales').length, icon: BarChart3 },
-    { id: 'store', label: 'Stok & Store', count: recommendations.filter((r: any) => r.domain === 'store').length, icon: ShoppingBag },
-    { id: 'marketing', label: 'Pemasaran', count: recommendations.filter((r: any) => r.domain === 'marketing').length, icon: TrendingUp },
-    { id: 'customers', label: 'Pelanggan', count: recommendations.filter((r: any) => r.domain === 'customers').length, icon: Users },
-    { id: 'finance', label: 'Keuangan', count: recommendations.filter((r: any) => r.domain === 'finance').length, icon: DollarSign }
+    { id: 'ALL', label: r?.allDomains || 'Semua Domain', count: recommendations.length, icon: Layers },
+    { id: 'sales', label: r?.salesDomain || 'Penjualan', count: recommendations.filter((r: any) => r.domain === 'sales').length, icon: BarChart3 },
+    { id: 'store', label: r?.storeDomain || 'Stok & Store', count: recommendations.filter((r: any) => r.domain === 'store').length, icon: ShoppingBag },
+    { id: 'marketing', label: r?.marketingDomain || 'Pemasaran', count: recommendations.filter((r: any) => r.domain === 'marketing').length, icon: TrendingUp },
+    { id: 'customers', label: r?.customersDomain || 'Pelanggan', count: recommendations.filter((r: any) => r.domain === 'customers').length, icon: Users },
+    { id: 'finance', label: r?.financeDomain || 'Keuangan', count: recommendations.filter((r: any) => r.domain === 'finance').length, icon: DollarSign }
   ];
 
   // Filtering Logic
@@ -253,12 +263,12 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 <span>{aiModel}</span>
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Telemetry Realtime Synchronized
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> {r?.telemetrySynchronized || 'Telemetry Realtime Synchronized'}
               </span>
             </div>
 
             <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Diagnosis & Rekomendasi Kesehatan Toko
+              {r?.healthDiagnosisTitle || 'Diagnosis & Rekomendasi Kesehatan Toko'}
             </h2>
             
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-xl">
@@ -272,14 +282,14 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
               >
                 <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> 
-                {loading ? 'Menganalisis...' : 'Refresh AI Diagnosis'}
+                {loading ? (r?.analyzing || 'Menganalisis...') : (r?.refreshDiagnosis || 'Refresh AI Diagnosis')}
               </button>
 
               <button 
                 onClick={openCreateModal}
                 className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
-                <Plus size={12} /> Tambah Rekomendasi Kustom
+                <Plus size={12} /> {r?.addCustomRecommendation || 'Tambah Rekomendasi Kustom'}
               </button>
             </div>
           </div>
@@ -295,11 +305,11 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
             </div>
             <div className="space-y-0.5">
               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800">
-                <TrendingUp size={11} className="text-emerald-600 dark:text-emerald-400" /> {pointsChange >= 0 ? `+${pointsChange}` : pointsChange} poin vs last month
+                <TrendingUp size={11} className="text-emerald-600 dark:text-emerald-400" /> {pointsChange >= 0 ? `+${pointsChange}` : pointsChange} {r?.pointsVsLastMonth || 'poin vs bulan lalu'}
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{healthScore}/100 Health Score Index</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{healthScore}/100 {r?.healthScoreIndex || 'Health Score Index'}</p>
               <div className="pt-0.5 text-[9px] text-slate-500 dark:text-slate-400 font-mono">
-                Evaluasi Swarm: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{healthLabel}</span>
+                {r?.swarmEvaluation || 'Evaluasi Swarm:'} <span className="text-emerald-600 dark:text-emerald-400 font-bold">{healthLabel}</span>
               </div>
             </div>
           </div>
@@ -338,11 +348,11 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
             </span>
           </div>
           <div>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Inventory Security</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{r?.inventorySecurity || 'Inventory Security'}</span>
             <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
               {data?.health?.inventory_security !== undefined ? `${data.health.inventory_security}%` : '0%'}
             </div>
-            <span className="text-[11px] text-slate-400 font-normal block mt-1">{data?.health?.low_stock_alerts !== undefined ? `${data.health.low_stock_alerts} Alert Stok` : '0 Alert Stok'}</span>
+            <span className="text-[11px] text-slate-400 font-normal block mt-1">{data?.health?.low_stock_alerts !== undefined ? `${data.health.low_stock_alerts} ${r?.stockAlertsCount || 'Alert Stok'}` : `0 ${r?.stockAlertsCount || 'Alert Stok'}`}</span>
           </div>
         </div>
 
@@ -396,7 +406,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari rekomendasi AI..."
+              placeholder={r?.searchAiPlaceholder || 'Cari rekomendasi AI...'}
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {searchQuery && (
@@ -413,10 +423,10 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               onChange={(e) => setSelectedPriority(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
             >
-              <option value="ALL">Semua Prioritas</option>
-              <option value="HIGH">Prioritas High</option>
-              <option value="MEDIUM">Prioritas Medium</option>
-              <option value="LOW">Prioritas Low</option>
+              <option value="ALL">{r?.allPriorities || 'Semua Prioritas'}</option>
+              <option value="HIGH">{r?.highPriority || 'Prioritas High'}</option>
+              <option value="MEDIUM">{r?.mediumPriority || 'Prioritas Medium'}</option>
+              <option value="LOW">{r?.lowPriority || 'Prioritas Low'}</option>
             </select>
 
             {/* Layout View Mode Buttons */}
@@ -574,20 +584,20 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                     onClick={() => setInspectTelemetryRec(rec)}
                     className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                   >
-                    <Eye size={14} /> Lihat Telemetry AI
+                    <Eye size={14} /> {r?.viewAiTelemetry || 'Lihat Telemetry AI'}
                   </button>
 
                   <div>
                     {isApplied ? (
                       <span className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800">
-                        <CheckCircle2 size={16} /> Rekomendasi Berhasil Diterapkan
+                        <CheckCircle2 size={16} /> {r?.recommendationApplied || 'Rekomendasi Berhasil Diterapkan'}
                       </span>
                     ) : (
                       <button
                         onClick={() => handleApply(rec)}
                         className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                       >
-                        <span>Terapkan Rekomendasi</span>
+                        <span>{r?.applyRecommendation || 'Terapkan Rekomendasi'}</span>
                         <ArrowRight size={14} />
                       </button>
                     )}
@@ -760,7 +770,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
               </div>
               <div>
                 <h4 className="text-sm md:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                  Estimasi Potensi Tambahan Margin Toko
+                  {r?.estimatedMarginImpact || 'Estimasi Potensi Tambahan Margin Toko'}
                 </h4>
               </div>
             </div>
@@ -774,7 +784,7 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
                 className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                <span>Re-Evaluasi Telemetry</span>
+                <span>{r?.reEvaluateTelemetry || 'Re-Evaluasi Telemetry'}</span>
               </button>
 
               <button

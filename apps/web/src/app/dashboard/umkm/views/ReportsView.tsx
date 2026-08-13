@@ -94,6 +94,7 @@ interface ReportsViewProps {
 
 export function ReportsView({ triggerToast }: ReportsViewProps) {
   const { t } = useLanguage();
+  const r = t.reportsView;
 
   const getInitialSubTab = () => {
     if (typeof window !== 'undefined') {
@@ -395,20 +396,28 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
       {/* 2. Top Navigation Sub-Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-6 text-xs font-bold overflow-x-auto no-scrollbar">
-        {['Ringkasan Overview', 'Laporan Penjualan', 'Laporan Marketing', 'Laporan Store', 'Laporan Keuangan', 'Laporan Pelanggan', 'Rekomendasi AI'].map((t) => (
+        {[
+          { key: 'Ringkasan Overview', label: t.reportsView?.overviewTab || 'Ringkasan Overview' },
+          { key: 'Laporan Penjualan', label: t.reportsView?.salesTab || 'Laporan Penjualan' },
+          { key: 'Laporan Marketing', label: t.reportsView?.marketingTab || 'Laporan Marketing' },
+          { key: 'Laporan Store', label: t.reportsView?.storeTab || 'Laporan Store' },
+          { key: 'Laporan Keuangan', label: t.reportsView?.financeTab || 'Laporan Keuangan' },
+          { key: 'Laporan Pelanggan', label: t.reportsView?.customersTab || 'Laporan Pelanggan' },
+          { key: 'Rekomendasi AI', label: t.reportsView?.aiRecommendationsTab || 'Rekomendasi AI' },
+        ].map((tabObj) => (
           <button 
-            key={t}
+            key={tabObj.key}
             onClick={() => {
-              setSubTab(t);
-              triggerToast(`Focus Laporan: ${t}`);
+              setSubTab(tabObj.key);
+              triggerToast(`Focus Laporan: ${tabObj.label}`);
             }}
             className={`pb-3 transition-all cursor-pointer whitespace-nowrap ${
-              subTab === t 
+              subTab === tabObj.key 
                 ? 'border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold' 
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            {t}
+            {tabObj.label}
           </button>
         ))}
       </div>
@@ -595,7 +604,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             onClick={() => setSubTab('Laporan Penjualan')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Channel</span>
+            <span>{t.reportsView?.viewAllChannels || 'Lihat Semua Channel'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -616,10 +625,16 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
 
             <div className="text-center space-y-1">
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
-                <span>↑ {reportsData.healthScore?.points_change ?? 0} poin vs last month</span>
+                <span>↑ {reportsData.healthScore?.points_change ?? 0} {t.reportsView?.pointsVsLastMonth || 'points vs last month'}</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium leading-relaxed px-1">
-                {reportsData.healthScore?.ai_recommendation || 'Belum ada data telemetry diagnosis.'}
+                {(() => {
+                  const raw = reportsData.healthScore?.ai_recommendation;
+                  if (!raw || raw.includes('Performa toko berjalan') || raw.includes('Belum ada telemetry') || raw.includes('Belum ada data') || raw.includes('Telemetry toko dipantau')) {
+                    return t.reportsView?.aiDiagnosisDefault || 'Diagnosis AI: Performa toko berjalan pada kapasitas puncak. Fokus utama adalah menjaga ketersediaan stok kritis & mengaktifkan otomasi cart follow-up.';
+                  }
+                  return raw;
+                })()}
               </p>
             </div>
           </div>
@@ -628,7 +643,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             onClick={() => setSubTab('Rekomendasi AI')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
-            <span>Lihat Rekomendasi AI</span>
+            <span>{t.reportsView?.aiRecommendationsTab || 'Lihat Rekomendasi AI'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -638,17 +653,17 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Top Products Table (lg:col-span-5) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Products</h3>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r.topProductsTitle || 'Top Products'}</h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="py-2 px-1">#</th>
-                  <th className="py-2 px-2">PRODUK</th>
-                  <th className="py-2 px-2 text-center">TERJUAL</th>
-                  <th className="py-2 px-2 text-right">REVENUE</th>
-                  <th className="py-2 px-2 text-right">TREND</th>
+                  <th className="py-2 px-2">{r.colProductUpper || 'PRODUK'}</th>
+                  <th className="py-2 px-2 text-center">{r.colUnitsSold || 'TERJUAL'}</th>
+                  <th className="py-2 px-2 text-right">{r.colRevenueUpper || 'REVENUE'}</th>
+                  <th className="py-2 px-2 text-right">{r.colTrend || 'TREND'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -670,26 +685,26 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
           </div>
 
           <button 
-            onClick={() => setQuickAccessModalTitle('Laporan Top Produk')}
+            onClick={() => setQuickAccessModalTitle(r.topProductsReportTitle || 'Laporan Top Produk')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Produk</span>
+            <span>{r.viewAllProducts || 'Lihat Semua Produk'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
 
         {/* Top Customers Table (lg:col-span-4) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Customers</h3>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r.topCustomersTitle || 'Top Customers'}</h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-2 px-2">CUSTOMER</th>
-                  <th className="py-2 px-2 text-center">ORDERS</th>
-                  <th className="py-2 px-2 text-right">TOTAL SPEND</th>
-                  <th className="py-2 px-2 text-center">LAST ORDER</th>
+                  <th className="py-2 px-2">{r.colCustomerUpper || 'CUSTOMER'}</th>
+                  <th className="py-2 px-2 text-center">{r.colOrdersUpper || 'ORDERS'}</th>
+                  <th className="py-2 px-2 text-right">{r.colTotalSpend || 'TOTAL SPEND'}</th>
+                  <th className="py-2 px-2 text-center">{r.colLastOrderUpper || 'LAST ORDER'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -728,7 +743,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             onClick={() => setSubTab('Laporan Pelanggan')}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Pelanggan</span>
+            <span>{r.viewAllCustomers || 'Lihat Semua Pelanggan'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -736,31 +751,31 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         {/* Ringkasan Bulanan Card (lg:col-span-3) */}
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
           <div className="space-y-3.5">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Ringkasan Bulanan</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r.monthlySummaryTitle || 'Ringkasan Bulanan'}</h3>
 
             <div className="space-y-2.5 text-xs font-bold">
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 font-medium">Best Performing Day</span>
+                <span className="text-slate-500 font-medium">{r.bestPerformingDay || 'Best Performing Day'}</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.best_performing_day || '-'}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 font-medium">Total Transactions</span>
+                <span className="text-slate-500 font-medium">{r.totalTransactions || 'Total Transactions'}</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.total_transactions ?? 0}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 font-medium">Total Customers</span>
+                <span className="text-slate-500 font-medium">{r.totalCustomersLabel || 'Total Customers'}</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono">{reportsData.monthlySummary?.total_customers ?? 0}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 font-medium">Repeat Customer Rate</span>
+                <span className="text-slate-500 font-medium">{r.repeatCustomerRateLabel || 'Repeat Customer Rate'}</span>
                 <span className="text-emerald-600 font-mono font-black">{reportsData.monthlySummary?.repeat_customer_rate_pct ?? 0}%</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 font-medium">Returning Customer Value</span>
+                <span className="text-slate-500 font-medium">{r.returningCustomerValueLabel || 'Returning Customer Value'}</span>
                 <span className="text-slate-900 dark:text-slate-100 font-mono font-black">
                   Rp{(reportsData.monthlySummary?.returning_customer_value_idr ?? 0).toLocaleString('id-ID')}
                 </span>
@@ -772,7 +787,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             onClick={() => setIsExportModalOpen(true)}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
-            <span>Lihat Laporan Lengkap</span>
+            <span>{r.viewFullReport || 'Lihat Laporan Lengkap'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -782,16 +797,16 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Quick Access Grid (lg:col-span-8) */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Quick Access</h3>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r.quickAccessTitle || 'Quick Access'}</h3>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { title: 'Laporan Penjualan', desc: 'Analisis penjualan & order', tab: 'Laporan Penjualan', icon: BarChart3, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
-              { title: 'Laporan Marketing', desc: 'Evaluasi campaign & ROI', tab: 'Laporan Marketing', icon: TrendingUp, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
-              { title: 'Laporan Store', desc: 'Produk, stok & performa', tab: 'Laporan Store', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
-              { title: 'Laporan Keuangan', desc: 'Arus kas & profitabilitas', tab: 'Laporan Keuangan', icon: DollarSign, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
-              { title: 'Laporan Pelanggan', desc: 'Akuisisi & retensi', tab: 'Laporan Pelanggan', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/60' },
-              { title: 'Custom Report', desc: 'Buat laporan kustom AI', tab: 'Custom', icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/60' }
+              { title: r.quickAccessSalesTitle || 'Laporan Penjualan', desc: r.quickAccessSalesDesc || 'Analisis penjualan & order', tab: 'Laporan Penjualan', icon: BarChart3, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/60' },
+              { title: r.quickAccessMarketingTitle || 'Laporan Marketing', desc: r.quickAccessMarketingDesc || 'Evaluasi campaign & ROI', tab: 'Laporan Marketing', icon: TrendingUp, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/60' },
+              { title: r.quickAccessStoreTitle || 'Laporan Store', desc: r.quickAccessStoreDesc || 'Produk, stok & performa', tab: 'Laporan Store', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
+              { title: r.quickAccessFinanceTitle || 'Laporan Keuangan', desc: r.quickAccessFinanceDesc || 'Arus kas & profitabilitas', tab: 'Laporan Keuangan', icon: DollarSign, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
+              { title: r.quickAccessCustomerTitle || 'Laporan Pelanggan', desc: r.quickAccessCustomerDesc || 'Akuisisi & retensi', tab: 'Laporan Pelanggan', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-950/60' },
+              { title: r.quickAccessCustomTitle || 'Custom Report', desc: r.quickAccessCustomDesc || 'Buat laporan kustom AI', tab: 'Custom', icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/60' }
             ].map((item, i) => {
               const IconComp = item.icon;
               return (
@@ -822,7 +837,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
         {/* Jadwal Laporan Card (lg:col-span-4) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
           <div className="space-y-3">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Jadwal Laporan</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r.reportScheduleTitle || 'Jadwal Laporan'}</h3>
 
             <div className="space-y-2.5 text-xs font-semibold">
               {reportsData.schedules.map((s: any, i: number) => (
@@ -832,7 +847,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
                     <span className="text-[11px] text-slate-400 font-mono">{s.cron_description}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                    {s.is_active ? 'Aktif' : 'Non-aktif'}
+                    {s.is_active ? (r.activeStatus || 'Aktif') : (r.inactiveStatus || 'Non-aktif')}
                   </span>
                 </div>
               ))}
@@ -843,7 +858,7 @@ export function ReportsView({ triggerToast }: ReportsViewProps) {
             onClick={() => setIsScheduleModalOpen(true)}
             className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
-            <span>Kelola Jadwal</span>
+            <span>{r.manageScheduleBtn || 'Kelola Jadwal'}</span>
             <ArrowRight size={14} />
           </button>
         </div>

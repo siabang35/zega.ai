@@ -830,7 +830,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-100 dark:border-slate-800">
               <span>{s.colProduct || 'Produk'}</span>
-              <span>TERJUAL</span>
+              <span>{s.colSold || 'TERJUAL'}</span>
             </div>
 
             {storeData.topSelling.map((p: any, idx: number) => {
@@ -1017,7 +1017,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                   <th className="py-2.5 px-3">SKU</th>
                   <th className="py-2.5 px-3">{s.colCategory || 'KATEGORI'}</th>
                   <th className="py-2.5 px-3">{s.colStock || 'STOK'}</th>
-                  <th className="py-2.5 px-3">TERJUAL</th>
+                  <th className="py-2.5 px-3">{s.colSold || 'TERJUAL'}</th>
                   <th className="py-2.5 px-3">{s.colPrice || 'HARGA'}</th>
                   <th className="py-2.5 px-3">STATUS</th>
                   <th className="py-2.5 px-3 text-right">{s.colAction || 'AKSI'}</th>
@@ -1034,7 +1034,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     return (
                       <tr>
                         <td colSpan={8} className="py-8 text-center text-slate-400 font-semibold">
-                          Belum ada produk yang ditemukan di database. Klik <span className="font-bold text-orange-500">+ Tambah Produk</span> untuk menambahkan produk pertama Anda.
+                          {s.noProductsDB || 'Belum ada produk yang ditemukan di database. Klik'} <span className="font-bold text-orange-500">{s.addProduct || '+ Tambah Produk'}</span> {s.toAddFirstProduct || 'untuk menambahkan produk pertama Anda.'}
                         </td>
                       </tr>
                     );
@@ -1170,7 +1170,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           {/* Kategori Produk Card */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{s.category || 'Kategori Produk'}</h3>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{s.productCategories || 'Kategori Produk'}</h3>
               <button 
                 onClick={() => { setCategoryFilter('Semua Kategori'); setLowStockFilter(false); triggerToast('Semua kategori ditampilkan'); }} 
                 className="text-[10px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"

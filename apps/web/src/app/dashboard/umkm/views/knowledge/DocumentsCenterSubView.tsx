@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, FileText, Download, UploadCloud, Search, ExternalLink, FileSpreadsheet, FileCode, Image as ImageIcon } from 'lucide-react';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface DocumentsCenterSubViewProps {
   documents: any[];
@@ -14,6 +15,8 @@ export function DocumentsCenterSubView({
   onOpenUploadModal,
   triggerToast
 }: DocumentsCenterSubViewProps) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView;
   const [search, setSearch] = useState('');
   const [formatFilter, setFormatFilter] = useState('All');
 
@@ -47,9 +50,9 @@ export function DocumentsCenterSubView({
         <div>
           <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
             <FileText className="text-blue-500" size={20} />
-            <span>Pusat Dokumen & SOP File</span>
+            <span>{k.docCenterTitle || 'Pusat Dokumen & SOP File'}</span>
           </h2>
-          <p className="text-xs text-slate-400 font-medium">Semua berkas operasional tersimpan aman di Cloudflare R2 CDN dengan enkripsi SSL.</p>
+          <p className="text-xs text-slate-400 font-medium">{k.docCenterSubtitle || 'Semua berkas operasional tersimpan aman di Cloudflare R2 CDN dengan enkripsi SSL.'}</p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -59,7 +62,7 @@ export function DocumentsCenterSubView({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari dokumen..."
+              placeholder={k.searchDocsPlaceholder || 'Cari dokumen...'}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold focus:outline-none focus:border-orange-500"
             />
           </div>
@@ -67,7 +70,7 @@ export function DocumentsCenterSubView({
             onClick={onOpenUploadModal}
             className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-2xl cursor-pointer shadow-xs flex items-center gap-1.5 shrink-0"
           >
-            <UploadCloud size={14} /> <span>+ Unggah Dokumen</span>
+            <UploadCloud size={14} /> <span>+ {k.uploadDoc || 'Unggah Dokumen'}</span>
           </button>
         </div>
       </div>
@@ -84,7 +87,7 @@ export function DocumentsCenterSubView({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            {fmt === 'All' ? 'Semua Format' : fmt}
+            {fmt === 'All' ? (k.allFormats || 'Semua Format') : fmt}
           </button>
         ))}
       </div>
@@ -94,8 +97,8 @@ export function DocumentsCenterSubView({
         {filteredDocs.length === 0 ? (
           <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800">
             <FileText size={32} className="mx-auto mb-2 text-slate-300 dark:text-slate-700" />
-            <p className="text-xs font-bold">Belum ada dokumen tersimpan.</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Klik "+ Unggah Dokumen" untuk menyimpan berkas operasional ke Cloudflare R2 CDN.</p>
+            <p className="text-xs font-bold">{k.emptyDocsTitle || 'Belum ada dokumen tersimpan.'}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{k.emptyDocsSubtitle || 'Klik "+ Unggah Dokumen" untuk menyimpan berkas operasional ke Cloudflare R2 CDN.'}</p>
           </div>
         ) : (
           filteredDocs.map((doc, idx) => (
@@ -126,7 +129,7 @@ export function DocumentsCenterSubView({
                   onClick={() => handleDownload(doc)}
                   className="w-full py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/60 font-black text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
-                  <Download size={13} /> <span>Unduh via CDN</span>
+                  <Download size={13} /> <span>{k.downloadCdnBtn || 'Unduh via CDN'}</span>
                 </button>
               </div>
             </div>

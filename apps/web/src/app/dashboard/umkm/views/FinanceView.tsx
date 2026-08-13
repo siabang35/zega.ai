@@ -4,7 +4,7 @@ import {
   Calendar, Filter, CheckCircle2, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CreditCard,
   PieChart, RefreshCw, FileText, Plus, ShieldCheck, ChevronRight, Copy, Check, Bot, Settings
 } from 'lucide-react';
-import { ZeroClawTerminalView } from '../../enterprise/views/ZeroClawTerminalView';
+import { UmkmZeroClawTerminalView } from './UmkmZeroClawTerminalView';
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { PrivyWalletService } from '../../../services/privyWalletService';
 import { useLanguage } from '../../../../i18n/translations';
@@ -524,7 +524,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
 
       {/* Switch between Overview and ZeroClaw Terminal */}
       {activeFinanceTab === 'zeroclaw' ? (
-        <ZeroClawTerminalView onTriggerToast={triggerToast || (() => {})} isGuest={isGuest} userEmail={userEmail} userName={userName} />
+        <UmkmZeroClawTerminalView onTriggerToast={triggerToast || (() => {})} isGuest={isGuest} userEmail={userEmail} userName={userName} />
       ) : (
         <>
         {/* 5 ENTERPRISE KPI CARDS (Sleek, Clutter-Free) */}
@@ -739,7 +739,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
               onClick={() => setIsReportModalOpen(true)}
               className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer text-center"
             >
-              {f.viewFinancialReport || 'Lihat Laporan Keuangan →'}
+              {f.viewFinancialReport || 'View Financial Report →'}
             </button>
           </div>
         </div>

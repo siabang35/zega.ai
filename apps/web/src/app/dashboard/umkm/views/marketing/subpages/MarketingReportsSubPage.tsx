@@ -597,11 +597,11 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
       {/* ========================================================================= */}
       {selectedAuditReport && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
-                  Audit Detail: {selectedAuditReport.report_title}
+                  {m.reportAuditTitle || 'Audit Detail Laporan'}: {selectedAuditReport.report_title}
                 </h3>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">
                   Periode: {selectedAuditReport.period_range} • Status: {selectedAuditReport.status}
@@ -617,22 +617,22 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Pendapatan</span>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{m.totalRevenueLabel || 'Total Pendapatan'}</span>
                 <span className="font-extrabold text-emerald-600 text-sm">
                   Rp{(parseFloat(selectedAuditReport.revenue_num) || 0).toLocaleString('id-ID')}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Leads</span>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{m.totalLeadsLabel || 'Total Leads'}</span>
                 <span className="font-extrabold text-blue-600 text-sm">{selectedAuditReport.leads_count || 0}</span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">ROAS Return</span>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{m.roasReturnLabel || 'ROAS Return'}</span>
                 <span className="font-extrabold text-purple-600 text-sm">{selectedAuditReport.roas_val || '0.0'}x</span>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Cost Per Lead</span>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">{m.costPerLeadLabel || 'Cost Per Lead'}</span>
                 <span className="font-extrabold text-slate-800 dark:text-slate-200 text-sm">
                   Rp{(parseFloat(selectedAuditReport.cpl_idr) || 0).toLocaleString('id-ID')}
                 </span>
@@ -642,7 +642,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
             {/* Source Breakdown Table inside Audit Modal */}
             <div className="space-y-2">
               <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 block">
-                Breakdown Atribusi Pendapatan per Saluran
+                {m.revenueBreakdownByChannel || 'Breakdown Atribusi Pendapatan per Saluran'}
               </span>
 
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -675,16 +675,16 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleDownloadPdfReport(selectedAuditReport)}
-                  className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
                 >
                   <Download size={13} />
-                  <span>Unduh PDF</span>
+                  <span>{m.downloadPdfBtn || 'Unduh PDF'}</span>
                 </button>
                 <button
                   onClick={() => setSelectedAuditReport(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-all"
                 >
-                  Tutup
+                  {m.closeBtn || 'Tutup'}
                 </button>
               </div>
             </div>
@@ -699,65 +699,65 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <form
             onSubmit={handleGenerateReportSubmit}
-            className="bg-white dark:bg-slate-900 rounded-xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl"
+            className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800"
           >
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
-                  Generate Laporan Marketing Eksekutif Baru
+                  {m.generateExecutiveReportTitle || 'Generate Laporan Marketing Eksekutif Baru'}
                 </h3>
-                <p className="text-xs text-slate-400">Buat sintesis laporan terintegrasi real-time database Supabase</p>
+                <p className="text-xs text-slate-400">{m.generateExecutiveReportSubtitle || 'Buat sintesis laporan terintegrasi real-time database Supabase'}</p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(false)}
-                className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs flex items-center justify-center cursor-pointer"
+                className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Judul Laporan</label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">{m.reportTitleLabel || 'Judul Laporan'}</label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   required
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Periode Laporan</label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">{m.reportPeriodLabel || 'Periode Laporan'}</label>
                 <input
                   type="text"
                   value={newPeriod}
                   onChange={(e) => setNewPeriod(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   required
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Target Pendapatan (IDR)</label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">{m.targetRevenueIdrLabel || 'Target Pendapatan (IDR)'}</label>
                 <input
                   type="number"
                   value={newRevenue}
                   onChange={(e) => setNewRevenue(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   required
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Model Atribusi AI</label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">{m.aiAttributionModelLabel || 'Model Atribusi AI'}</label>
                 <select
                   value={newModel}
                   onChange={(e) => setNewModel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer"
                 >
                   <option value="DeepSeek R1 & 9Router Layer 5 Engine">DeepSeek R1 & 9Router Layer 5 Engine</option>
                   <option value="Qwen 2.5 Coder 32B & ZeroClaw Edge Swarm">Qwen 2.5 Coder 32B & ZeroClaw Edge Swarm</option>
@@ -767,21 +767,21 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-3">
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
               >
-                Batal
+                {m.cancelBtn || 'Batal'}
               </button>
 
               <button
                 type="submit"
                 disabled={generating}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold text-xs cursor-pointer transition-all"
+                className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer transition-all"
               >
-                {generating ? 'Membuat Laporan...' : 'Generate Laporan Database'}
+                {generating ? (m.generatingReportStatus || 'Membuat Laporan...') : (m.generateDatabaseReportBtn || 'Generate Laporan Database')}
               </button>
             </div>
           </form>

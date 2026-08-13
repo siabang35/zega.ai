@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
@@ -18,6 +19,9 @@ interface CustomersSubViewProps {
 }
 
 export function CustomersSubView({ triggerToast, dateRange, reportsData }: CustomersSubViewProps) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [growth, setGrowth] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -133,7 +137,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
     labels: growth.map((g: any) => g.period_label),
     datasets: [
       { 
-        label: 'Total Pelanggan', 
+        label: r?.total || 'Total Pelanggan', 
         data: growth.map((g: any) => g.total_customers), 
         borderColor: '#3b82f6', 
         backgroundColor: 'rgba(59,130,246,0.08)', 
@@ -143,7 +147,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
         pointRadius: 4 
       },
       { 
-        label: 'Pelanggan Baru / Bulan', 
+        label: r?.newPerMonth || 'Pelanggan Baru / Bulan', 
         data: growth.map((g: any) => g.new_customers), 
         borderColor: '#10b981', 
         backgroundColor: 'rgba(16,185,129,0.05)', 
@@ -196,10 +200,10 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
           </div>
           <div>
             <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
-              Laporan Intelijen Pelanggan
+              {r?.customerIntelligenceTitle || 'Laporan Intelijen Pelanggan'}
             </h2>
             <p className="text-xs text-slate-400 font-medium">
-              Analisis segmentasi RFM, nilai CLV pelanggan, dan otomatisasi retensi AI.
+              {r?.customerIntelligenceSubtitle || 'Analisis segmentasi RFM, nilai CLV pelanggan, dan otomatisasi retensi AI.'}
             </p>
           </div>
         </div>
@@ -210,14 +214,14 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
             className="px-3.5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Plus size={15} />
-            <span>Tambah Pelanggan</span>
+            <span>{r?.addCustomer || 'Tambah Pelanggan'}</span>
           </button>
           <button
             onClick={() => setIsVoucherModalOpen(true)}
             className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Sparkles size={15} />
-            <span>Kirim Voucher AI</span>
+            <span>{r?.sendAiVoucher || 'Kirim Voucher AI'}</span>
           </button>
         </div>
       </div>
@@ -225,10 +229,10 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
       {/* 2. Customer Diagnostic KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Pelanggan Aktif', val: totalCustomers.toLocaleString('id-ID'), growth: totalGrowthPct, icon: Users, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
-          { label: 'Pelanggan Baru Periode Ini', val: latestNew.toLocaleString('id-ID'), growth: newGrowthPct, icon: UserPlus, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
-          { label: 'Tingkat Repeat Order', val: `${repeatOrderPct}%`, growth: repeatGrowthPct, icon: UserCheck, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
-          { label: 'Rata-rata Customer Lifetime Value', val: `Rp${avgClvIdr.toLocaleString('id-ID')}`, growth: clvGrowthPct, icon: Heart, bg: 'bg-pink-50 dark:bg-pink-950/60', text: 'text-pink-600' },
+          { label: r?.totalActiveCustomers || 'Total Pelanggan Aktif', val: totalCustomers.toLocaleString('id-ID'), growth: totalGrowthPct, icon: Users, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
+          { label: r?.newCustomersThisPeriod || 'Pelanggan Baru Periode Ini', val: latestNew.toLocaleString('id-ID'), growth: newGrowthPct, icon: UserPlus, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
+          { label: r?.repeatOrderRate || 'Tingkat Repeat Order', val: `${repeatOrderPct}%`, growth: repeatGrowthPct, icon: UserCheck, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
+          { label: r?.avgCustomerLifetimeValue || 'Rata-rata Customer Lifetime Value', val: `Rp${avgClvIdr.toLocaleString('id-ID')}`, growth: clvGrowthPct, icon: Heart, bg: 'bg-pink-50 dark:bg-pink-950/60', text: 'text-pink-600' },
         ].map((kpi, i) => {
           const IconComp = kpi.icon;
           return (
@@ -239,7 +243,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpi.val}</div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold text-emerald-600">{kpi.growth} vs bulan lalu</span>
+                <span className="font-bold text-emerald-600">{kpi.growth} {r?.vsLastMonth || 'vs bulan lalu'}</span>
                 <span className="text-slate-400 font-mono">Live</span>
               </div>
             </div>
@@ -253,12 +257,12 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Tren Pertumbuhan Pelanggan</h3>
-              <p className="text-[11px] text-slate-400">Total basis akumulasi vs akuisisi bulanan</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r?.customerGrowthTrend || 'Tren Pertumbuhan Pelanggan'}</h3>
+              <p className="text-[11px] text-slate-400">{r?.accumulatedVsMonthlyAcquisition || 'Total basis akumulasi vs akuisisi bulanan'}</p>
             </div>
             <div className="flex items-center gap-3 text-[10px] font-bold">
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> Total</span>
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-emerald-500" /> Baru / Bulan</span>
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> {r?.total || 'Total'}</span>
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-emerald-500" /> {r?.newPerMonth || 'Baru / Bulan'}</span>
             </div>
           </div>
           <div className="h-60 w-full pt-1"><Line data={growthData} options={lineOpts} /></div>
@@ -268,15 +272,15 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">RFM Segmentasi Pelanggan</h3>
-              <p className="text-[11px] text-slate-400">Recency, Frequency & Monetary Value</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r?.rfmCustomerSegmentation || 'RFM Segmentasi Pelanggan'}</h3>
+              <p className="text-[11px] text-slate-400">{r?.rfmSubtitle || 'Recency, Frequency & Monetary Value'}</p>
             </div>
             <button
               onClick={() => setIsVoucherModalOpen(true)}
               className="px-2.5 py-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
             >
               <Sparkles size={12} />
-              <span>Swarm Campaign</span>
+              <span>{r?.swarmCampaign || 'Swarm Campaign'}</span>
             </button>
           </div>
 
@@ -284,7 +288,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
             <Doughnut data={segmentData} options={{ cutout: '74%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true }} }} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xl font-black text-slate-900 dark:text-slate-100">{totalSegments || totalCustomers}</span>
-              <span className="text-[10px] font-bold text-slate-400">Total Customer</span>
+              <span className="text-[10px] font-bold text-slate-400">{r?.totalCustomer || 'Total Customer'}</span>
             </div>
           </div>
 
@@ -309,24 +313,24 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin size={16} className="text-orange-500" />
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Distribusi Regional Pelanggan</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r?.regionalCustomerDistribution || 'Distribusi Regional Pelanggan'}</h3>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono">6 Wilayah Utama</span>
+            <span className="text-[10px] text-slate-400 font-mono">{r?.sixMainRegions || '6 Wilayah Utama'}</span>
           </div>
 
           <div className="space-y-3">
-            {regions.map((r: any, i: number) => (
+            {regions.map((reg: any, i: number) => (
               <div key={i} className="space-y-1.5 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-900 dark:text-slate-100">{r.region_name}</span>
+                  <span className="text-slate-900 dark:text-slate-100">{reg.region_name}</span>
                   <span className="font-mono text-slate-600 dark:text-slate-300">
-                    {r.customer_count} Pelanggan • <span className="font-black text-emerald-600">Rp{((r.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
+                    {reg.customer_count} {r?.customersUnit || 'Pelanggan'} • <span className="font-black text-emerald-600">Rp{((reg.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
                   </span>
                 </div>
                 <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-blue-500 rounded-full transition-all duration-700" 
-                    style={{ width: `${r.percentage}%` }} 
+                    style={{ width: `${reg.percentage}%` }} 
                   />
                 </div>
               </div>
@@ -340,7 +344,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Star size={16} className="text-amber-500" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Pelanggan (by Lifetime Value)</h3>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{r?.topCustomersByClv || 'Top Pelanggan (by Lifetime Value)'}</h3>
               </div>
 
               {/* Search Bar */}
@@ -348,7 +352,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari pelanggan..."
+                  placeholder={r?.searchCustomersPlaceholder || 'Cari pelanggan...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-7 pr-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-900 dark:text-slate-100 focus:outline-none w-36"
@@ -373,7 +377,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                       />
                       <div className="min-w-0">
                         <span className="text-xs font-black text-slate-900 dark:text-slate-100 block truncate">{c.customer_name}</span>
-                        <span className="text-[10px] text-slate-400 font-semibold">{c.orders_count} pesanan • Terakhir: {c.last_order_at}</span>
+                        <span className="text-[10px] text-slate-400 font-semibold">{c.orders_count} {r?.ordersUnit || 'pesanan'} • {r?.lastOrderLabel || 'Terakhir:'} {c.last_order_at}</span>
                       </div>
                     </div>
                     <div className="text-right whitespace-nowrap ml-2">
@@ -402,8 +406,8 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">ZeroClaw Swarm Voucher Campaign</h3>
-                  <p className="text-xs text-slate-400">Kirim voucher retensi otomatis via WhatsApp AI</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.swarmVoucherTitle || 'ZeroClaw Swarm Voucher Campaign'}</h3>
+                  <p className="text-xs text-slate-400">{r?.swarmVoucherSubtitle || 'Kirim voucher retensi otomatis via WhatsApp AI'}</p>
                 </div>
               </div>
               <button onClick={() => setIsVoucherModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -411,7 +415,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Target Segmen RFM</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.targetRfmSegment || 'Target Segmen RFM'}</label>
                 <select
                   value={selectedSegmentForVoucher}
                   onChange={(e) => setSelectedSegmentForVoucher(e.target.value)}
@@ -426,7 +430,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Nilai Diskon / Potongan Voucher</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.discountVoucherValue || 'Nilai Diskon / Potongan Voucher'}</label>
                 <select
                   value={voucherDiscount}
                   onChange={(e) => setVoucherDiscount(e.target.value)}
@@ -449,7 +453,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsVoucherModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {r?.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleDispatchVoucher}
@@ -457,7 +461,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                 className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isDispatchingVoucher ? <Clock size={14} className="animate-spin" /> : <Send size={14} />}
-                <span>{isDispatchingVoucher ? 'Dispatching Kampanye...' : 'Kirim Voucher Sekarang'}</span>
+                <span>{isDispatchingVoucher ? (r?.dispatchingCampaign || 'Dispatching Kampanye...') : (r?.sendVoucherNow || 'Kirim Voucher Sekarang')}</span>
               </button>
             </div>
           </div>
@@ -474,8 +478,8 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                   <UserPlus size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Pelanggan Baru</h3>
-                  <p className="text-xs text-slate-400">Simpan database pelanggan ke Supabase</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.addNewCustomerTitle || 'Tambah Pelanggan Baru'}</h3>
+                  <p className="text-xs text-slate-400">{r?.saveCustomerToDatabase || 'Simpan database pelanggan ke Supabase'}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setIsAddCustomerModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -483,11 +487,11 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Nama Pelanggan *</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.customerNameLabel || 'Nama Pelanggan *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Rina Wijaya"
+                  placeholder={r?.customerNamePlaceholder || 'Contoh: Rina Wijaya'}
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none"
@@ -496,7 +500,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Email</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.emailLabel || 'Email'}</label>
                   <input
                     type="email"
                     placeholder="rina@example.com"
@@ -506,7 +510,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">No. WhatsApp</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.phoneLabel || 'No. WhatsApp'}</label>
                   <input
                     type="text"
                     placeholder="08123456789"
@@ -519,7 +523,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Provinsi / Wilayah</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.regionLabel || 'Provinsi / Wilayah'}</label>
                   <select
                     value={newCustomerRegion}
                     onChange={(e) => setNewCustomerRegion(e.target.value)}
@@ -534,7 +538,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Total Transaksi awal (Rp)</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.initialSpendLabel || 'Total Transaksi awal (Rp)'}</label>
                   <input
                     type="number"
                     value={newCustomerSpend}
@@ -547,7 +551,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button type="button" onClick={() => setIsAddCustomerModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {r?.cancel || 'Batal'}
               </button>
               <button
                 type="submit"
@@ -555,7 +559,7 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
                 className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSavingCustomer ? <Clock size={14} className="animate-spin" /> : <Plus size={14} />}
-                <span>{isSavingCustomer ? 'Simpan...' : 'Simpan Pelanggan'}</span>
+                <span>{isSavingCustomer ? (r?.saving || 'Simpan...') : (r?.saveCustomerBtn || 'Simpan Pelanggan')}</span>
               </button>
             </div>
           </form>

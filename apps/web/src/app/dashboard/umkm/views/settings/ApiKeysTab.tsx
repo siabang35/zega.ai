@@ -5,16 +5,18 @@ import {
   Activity, AlertTriangle, Zap, Lock, Code, Terminal, Server, Globe
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ApiKeysTabProps {
   triggerToast: (msg: string) => void;
 }
 
 export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Semua Status');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Reveal & Modal states
   const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
@@ -69,11 +71,11 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
         zeroClawLatency: Math.floor(dbLat * 0.7),
         apiUptime: 99.98,
         cdnLatency: Math.floor(dbLat * 0.4),
-        lastChecked: new Date().toLocaleTimeString('id-ID')
+        lastChecked: new Date().toLocaleTimeString()
       });
-      triggerToast('✓ Health Check Gateway Server Selesai: Semua Sistem Operational (100%)');
+      triggerToast(t.settingsView?.apiKeysTab?.toastHealthCheckSuccess || '✓ Gateway Server Health Check Completed: All Systems Operational (100%)');
     } catch (e) {
-      triggerToast('✕ Health Check Error');
+      triggerToast(t.settingsView?.apiKeysTab?.toastHealthCheckError || '✕ Health Check Error');
     } finally {
       setGatewayPinging(false);
     }
@@ -138,7 +140,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
     const descMatch = (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const scopeMatch = (item.access_scope || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSearch = nameMatch || descMatch || scopeMatch;
-    const matchesStatus = statusFilter === 'Semua Status' || item.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -148,16 +150,16 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
 
   const handleCopyKey = (token: string) => {
     navigator.clipboard.writeText(token);
-    triggerToast('✓ Kredensial API Key disalin ke clipboard!');
+    triggerToast(`✓ ${t.settingsView?.apiKeysTab?.toastCopied || 'API Key credentials copied to clipboard!'}`);
   };
 
   const handleRevokeKey = async (id: string, name: string) => {
     try {
       await SupabaseDashboardService.updateUmkmApiKeyStatus(id, 'Dicabut');
       setApiKeys(prev => prev.map(k => k.id === id ? { ...k, status: 'Dicabut' } : k));
-      triggerToast(`✓ API Key "${name}" berhasil dicabut dari database.`);
+      triggerToast(`✓ ${t.settingsView?.apiKeysTab?.toastRevoked || 'API Key revoked successfully.'}`);
     } catch (e) {
-      triggerToast('✕ Gagal mencabut API Key.');
+      triggerToast(t.settingsView?.apiKeysTab?.toastRevokeError || '✕ Failed to revoke API Key.');
     } finally {
       setOpenKebabId(null);
     }
@@ -170,11 +172,11 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       const res = await SupabaseDashboardService.rotateUmkmApiKey(item.id);
       if (res && res.fullToken) {
         setRotatedTokenModal(res.fullToken);
-        triggerToast(`✓ Secret Key "${item.name}" berhasil di-rotasi!`);
+        triggerToast(`✓ ${t.settingsView?.apiKeysTab?.toastRotated || 'API Secret Key rotated successfully!'}`);
         loadApiKeys();
       }
     } catch (e) {
-      triggerToast('✕ Gagal merotasi API Key.');
+      triggerToast(t.settingsView?.apiKeysTab?.toastRotateError || '✕ Failed to rotate API Key.');
     }
   };
 
@@ -182,9 +184,9 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
     try {
       await SupabaseDashboardService.deleteUmkmApiKey(id);
       setApiKeys(prev => prev.filter(k => k.id !== id));
-      triggerToast(`✓ API Key "${name}" berhasil dihapus secara permanen.`);
+      triggerToast(`✓ ${t.settingsView?.apiKeysTab?.toastDeleteSuccess || 'API Key permanently deleted.'}`);
     } catch (e) {
-      triggerToast('✕ Gagal menghapus API Key.');
+      triggerToast(t.settingsView?.apiKeysTab?.toastDeleteError || '✕ Failed to delete API Key.');
     } finally {
       setOpenKebabId(null);
     }
@@ -217,18 +219,18 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
         ip_allowlist: ipArray
       });
 
-      triggerToast(`✓ Konfigurasi API Key "${editName}" berhasil disimpan!`);
+      triggerToast(t.settingsView?.apiKeysTab?.toastConfigSaved || '✓ API Key configuration saved successfully!');
       setEditKeyTarget(null);
       loadApiKeys();
     } catch (e) {
-      triggerToast('✕ Gagal menyimpan konfigurasi API Key.');
+      triggerToast(t.settingsView?.apiKeysTab?.toastConfigSaveError || '✕ Failed to save API Key configuration.');
     }
   };
 
   const handleCreateKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyName) {
-      triggerToast('✕ Harap isi nama API Key!');
+      triggerToast(t.settingsView?.apiKeysTab?.toastFillKeyName || '✕ Please fill in the API Key name!');
       return;
     }
 
@@ -242,10 +244,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
       if (res.record) {
         setApiKeys(prev => [res.record, ...prev]);
         setCreatedTokenModal(res.fullToken);
-        triggerToast('✓ API Key baru diterbitkan dan tersimpan di DB!');
+        triggerToast(t.settingsView?.apiKeysTab?.toastCreated || '✓ New API Key issued successfully!');
       }
     } catch (e) {
-      triggerToast('✕ Gagal membuat API Key baru.');
+      triggerToast(t.settingsView?.apiKeysTab?.toastCreateError || '✕ Failed to create new API Key.');
     }
   };
 
@@ -260,11 +262,11 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Belum pernah';
+    if (!dateStr) return t.settingsView?.apiKeysTab?.never || 'Never';
     if (dateStr.includes('WIB') || dateStr.includes('lalu') || dateStr.includes('Hari')) return dateStr;
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
     } catch (e) {
       return dateStr;
     }
@@ -272,59 +274,59 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header & Primary Action Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 1. Header & Primary Action Buttons */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <span>API Keys & Authentication</span>
-            <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/80 text-orange-600 dark:text-orange-400 text-[10px] font-black uppercase">
-              Production Gateway
-            </span>
+            <span>{t.settingsView?.apiKeysTab?.title || 'API Keys & Authentication'}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Kelola kredensial integrasi ZEGA AI, rotasi rahasia, dan pantau telemetry penggunaan API realtime secara aman.
+            {t.settingsView?.apiKeysTab?.subtitle || 'Manage ZEGA AI integration credentials, secret key rotation, and monitor real-time API telemetry.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => { setIsSdkModalOpen(true); setSdkTab('node'); }}
+            className="px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Code size={14} className="text-orange-500" />
+            <span>{t.settingsView?.apiKeysTab?.sdkGuideBtn || 'SDK & API Guide'}</span>
+          </button>
+
+          <button
+            onClick={() => { setIsUsageModalOpen(true); loadUsageLogs(); }}
+            className="px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Activity size={14} className="text-purple-500" />
+            <span>{t.settingsView?.apiKeysTab?.viewTelemetryBtn || 'Telemetry'}</span>
+          </button>
+
+          <button
+            onClick={() => { setIsGatewayStatusOpen(true); runGatewayHealthCheck(); }}
+            className="px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Server size={14} className="text-emerald-500" />
+            <span>{t.settingsView?.apiKeysTab?.gatewayStatus || 'Gateway Server Status'}</span>
+          </button>
+
           <button
             onClick={loadApiKeys}
             disabled={loading}
             className="p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-            title="Refresh Data API Keys"
+            title={t.settingsView?.apiKeysTab?.refreshTooltip || 'Refresh API Keys Data'}
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-xs"
           >
             <Plus size={16} />
-            <span>Buat API Key Baru</span>
+            <span>{t.settingsView?.apiKeysTab?.createKeyBtn || 'Create New API Key'}</span>
           </button>
         </div>
-      </div>
-
-      {/* 2. Top Info Notice Card */}
-      <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center font-bold shrink-0">
-            <Info size={16} />
-          </div>
-          <p className="text-blue-900 dark:text-blue-200 font-semibold leading-relaxed">
-            <strong>API Key mengizinkan aplikasi eksternal mengakses data UMKM ZEGA.</strong> Simpan rahasia di environment variable (<code>.env</code>). Lakukan rotasi berkala jika terindikasi kebocoran.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsSdkModalOpen(true)}
-          className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 font-extrabold text-xs hover:bg-blue-50 dark:hover:bg-blue-900/40 cursor-pointer shrink-0 flex items-center gap-1.5"
-        >
-          <Code size={13} />
-          <span>Panduan SDK & API</span>
-          <ExternalLink size={13} />
-        </button>
       </div>
 
       {/* 3. 4 Metric Cards Grid */}
@@ -335,9 +337,8 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <Key size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 block">Total API Keys</span>
+            <span className="text-[10px] font-bold text-slate-400 block">{t.settingsView?.apiKeysTab?.totalKeys || 'Total API Keys'}</span>
             <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalCount}</span>
-            <span className="text-[10px] text-slate-400 font-medium ml-1.5">Terdaftar di DB</span>
           </div>
         </div>
 
@@ -347,9 +348,8 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <ShieldCheck size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 block">API Keys Aktif</span>
+            <span className="text-[10px] font-bold text-slate-400 block">{t.settingsView?.apiKeysTab?.activeKeys || 'API Keys Aktif'}</span>
             <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{activeCount}</span>
-            <span className="text-[10px] text-slate-400 font-medium ml-1.5">Siap menerima request</span>
           </div>
         </div>
 
@@ -359,37 +359,39 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <Clock size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 block">API Keys Kedaluwarsa</span>
+            <span className="text-[10px] font-bold text-slate-400 block">{t.settingsView?.apiKeysTab?.expiredKeys || 'API Keys Kedaluwarsa'}</span>
             <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{expiredCount}</span>
-            <span className="text-[10px] text-slate-400 font-medium ml-1.5">Perlu diperbarui</span>
           </div>
         </div>
 
-        {/* Card 4: Total API Requests (Bulan Ini) */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-3">
-          <div className="size-11 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center shrink-0 font-bold">
-            <Activity size={20} />
+        {/* Card 4: Monthly Quota & Rate Limit */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center shrink-0 font-bold">
+              <Activity size={20} />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 block">{t.settingsView?.apiKeysTab?.monthlyUsage || 'Monthly API Usage'}</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalMonthlyUsage.toLocaleString('id-ID')}</span>
+                <span className="text-[10px] text-slate-400 font-medium">/ {usageLimit.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 block">Penggunaan API (Bulan Ini)</span>
-            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{totalMonthlyUsage.toLocaleString('id-ID')}</span>
-            <span className="text-[10px] text-slate-400 font-medium ml-1.5">Requests</span>
-          </div>
+          <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+            120 req/m
+          </span>
         </div>
       </div>
 
-      {/* 4. Split Main Content & Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main Table Area (3 Cols) */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
+      {/* 3. Main Full-Width Table Card */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             {/* Table Filters Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Daftar API Keys Registered
+                  {t.settingsView?.apiKeysTab?.tableTitle || 'Daftar API Keys Registered'}
                 </h3>
-                <p className="text-[11px] text-slate-400 font-medium">Realtime synchronize via Supabase PostgreSQL engine</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -398,10 +400,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   onChange={e => setStatusFilter(e.target.value)}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
                 >
-                  <option value="Semua Status">Semua Status</option>
-                  <option value="Aktif">Aktif</option>
-                  <option value="Kedaluwarsa">Kedaluwarsa</option>
-                  <option value="Dicabut">Dicabut</option>
+                  <option value="all">{t.settingsView?.apiKeysTab?.allStatus || 'All Statuses'}</option>
+                  <option value="Aktif">{t.settingsView?.apiKeysTab?.statusActive || 'Active'}</option>
+                  <option value="Kedaluwarsa">{t.settingsView?.apiKeysTab?.statusExpired || 'Expired'}</option>
+                  <option value="Dicabut">{t.settingsView?.apiKeysTab?.statusRevoked || 'Revoked'}</option>
                 </select>
 
                 <div className="relative">
@@ -410,7 +412,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Cari API Key..."
+                    placeholder={t.settingsView?.apiKeysTab?.searchPlaceholder || 'Cari API Key...'}
                     className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-orange-500 w-44"
                   />
                 </div>
@@ -422,20 +424,20 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="pb-3">NAMA / DESKRIPSI</th>
-                    <th className="pb-3">KEY TOKEN</th>
-                    <th className="pb-3">AKSES</th>
-                    <th className="pb-3">PENGGUNAAN</th>
-                    <th className="pb-3">TERAKHIR AKTIF</th>
-                    <th className="pb-3">STATUS</th>
-                    <th className="pb-3 text-right">AKSI</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colName || 'NAMA / DESKRIPSI'}</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colToken || 'KEY TOKEN'}</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colScope || 'AKSES'}</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colUsage || 'PENGGUNAAN'}</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colLastActive || 'TERAKHIR AKTIF'}</th>
+                    <th className="pb-3">{t.settingsView?.apiKeysTab?.colStatus || 'STATUS'}</th>
+                    <th className="pb-3 text-right">{t.settingsView?.apiKeysTab?.colActions || 'AKSI'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {filteredKeys.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-slate-400 font-bold text-xs">
-                        Belum ada API Key terdaftar.
+                        {t.settingsView?.apiKeysTab?.noKeys || 'Belum ada API Key terdaftar.'}
                       </td>
                     </tr>
                   ) : (
@@ -468,14 +470,14 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                               <button
                                 onClick={() => toggleRevealKey(item.id)}
                                 className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                                title={isRevealed ? 'Sembunyikan' : 'Tampilkan Key'}
+                                title={isRevealed ? 'Hide' : 'Show Key'}
                               >
                                 {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
                               </button>
                               <button
                                 onClick={() => handleCopyKey(fullKeyStr)}
                                 className="p-1 text-slate-400 hover:text-orange-500 cursor-pointer"
-                                title="Salin Key"
+                                title="Copy Key"
                               >
                                 <Copy size={13} />
                               </button>
@@ -502,13 +504,16 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                           {/* Status Badge */}
                           <td className="py-3.5 pr-2">
                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                              item.status === 'Aktif'
+                              item.status === 'Aktif' || item.status === 'Active'
                                 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                                : item.status === 'Kedaluwarsa'
+                                : item.status === 'Kedaluwarsa' || item.status === 'Expired'
                                 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
                                 : 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
                             }`}>
-                              {item.status}
+                              {item.status === 'Aktif' ? (t.settingsView?.apiKeysTab?.statusActive || 'Aktif')
+                                : item.status === 'Kedaluwarsa' ? (t.settingsView?.apiKeysTab?.statusExpired || 'Kedaluwarsa')
+                                : item.status === 'Dicabut' ? (t.settingsView?.apiKeysTab?.statusRevoked || 'Dicabut')
+                                : item.status}
                             </span>
                           </td>
 
@@ -518,14 +523,14 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                               <button
                                 onClick={() => openEditModal(item)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-                                title="Edit Pengaturan Key"
+                                title={t.settingsView?.apiKeysTab?.editConfigTitle || 'Edit Configuration'}
                               >
                                 <Edit size={13} />
                               </button>
                               <button
                                 onClick={() => handleRotateKey(item)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 cursor-pointer"
-                                title="Rotasi Kunci Rahasia"
+                                title={t.settingsView?.apiKeysTab?.rotateBtn || 'Rotate Secret Key'}
                               >
                                 <RefreshCw size={13} />
                               </button>
@@ -537,34 +542,34 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                               </button>
                             </div>
 
-                            {/* Kebab Dropdown */}
+                            {/* Kebab Dropdown without shadow */}
                             {openKebabId === item.id && (
-                              <div className="absolute right-0 top-10 z-20 w-44 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl text-left text-xs font-semibold">
+                              <div className="absolute right-0 top-10 z-20 w-44 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left text-xs font-semibold">
                                 <button
                                   onClick={() => { setOpenKebabId(null); openEditModal(item); }}
                                   className="w-full px-3 py-1.5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
-                                  <Edit size={13} /> Edit Konfigurasi
+                                  <Edit size={13} /> {t.settingsView?.apiKeysTab?.editConfigTitle || 'Edit Configuration'}
                                 </button>
                                 <button
                                   onClick={() => handleRotateKey(item)}
                                   className="w-full px-3 py-1.5 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                                 >
-                                  <RefreshCw size={13} /> Rotasi Secret Key
+                                  <RefreshCw size={13} /> {t.settingsView?.apiKeysTab?.rotateBtn || 'Rotate Secret Key'}
                                 </button>
-                                {item.status !== 'Dicabut' && (
+                                {item.status !== 'Dicabut' && item.status !== 'Revoked' && (
                                   <button
                                     onClick={() => handleRevokeKey(item.id, item.name)}
                                     className="w-full px-3 py-1.5 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 cursor-pointer"
                                   >
-                                    <Ban size={13} /> Cabut API Key
+                                    <Ban size={13} /> {t.settingsView?.apiKeysTab?.revokeBtn || 'Revoke API Key'}
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleDeleteKey(item.id, item.name)}
                                   className="w-full px-3 py-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer border-t border-slate-100 dark:border-slate-800"
                                 >
-                                  <Trash2 size={13} /> Hapus Key Permanen
+                                  <Trash2 size={13} /> {t.settingsView?.apiKeysTab?.deleteBtn || 'Delete Key Permanently'}
                                 </button>
                               </div>
                             )}
@@ -576,129 +581,23 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar Cards (1 Col) */}
-        <div className="space-y-6">
-          {/* 1. Tentang API Keys */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Lock size={14} className="text-orange-500" />
-              <span>Standard Keamanan API</span>
-            </h4>
-            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-              API Key mengizinkan aplikasi Anda berkomunikasi langsung dengan AI Agent & Engine ZEGA.
-            </p>
-            <ul className="space-y-2 text-xs font-semibold text-slate-700 dark:text-slate-300 pt-1">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-orange-500 shrink-0" />
-                <span>Prinsip Least Privilege Scope</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-orange-500 shrink-0" />
-                <span>Simpan rahasia di `.env.local`</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-orange-500 shrink-0" />
-                <span>Rotasi key tiap 90 hari</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-orange-500 shrink-0" />
-                <span>Pantau kuota rate limit</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* 2. Batasan Penggunaan (Quota & Rate Limit) */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Batasan Penggunaan</h4>
-              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded-full">
-                Plan Enterprise
-              </span>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1 text-[11px]">
-                  <span>API Calls / Bulan</span>
-                  <span className="font-mono text-orange-600 font-bold">{totalMonthlyUsage.toLocaleString('id-ID')} / {usageLimit.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${usagePercentage}%` }} />
-                </div>
-              </div>
-
-              <div className="flex justify-between text-xs pt-1">
-                <span className="text-slate-400 font-medium">Rate Limit Gateway</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">120 requests / menit</span>
-              </div>
-
-              <div className="flex justify-between text-xs border-t border-slate-100 dark:border-slate-800 pt-2">
-                <span className="text-slate-400 font-medium">API Keys Aktif</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{activeCount} dari {totalCount} key</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => { setIsUsageModalOpen(true); loadUsageLogs(); }}
-              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer transition-colors"
-            >
-              Lihat Detail Telemetry Penggunaan
-            </button>
-          </div>
-
-          {/* 3. Sumber Daya Documentation */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Sumber Daya & SDK</h4>
-            <div className="space-y-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <button
-                onClick={() => { setIsSdkModalOpen(true); setSdkTab('curl'); }}
-                className="w-full flex items-center justify-between hover:text-orange-500 transition-colors text-left cursor-pointer"
-              >
-                <span>Dokumentasi REST API</span>
-                <ExternalLink size={13} />
-              </button>
-              <button
-                onClick={() => { setIsSdkModalOpen(true); setSdkTab('node'); }}
-                className="w-full flex items-center justify-between hover:text-orange-500 transition-colors border-t border-slate-100 dark:border-slate-800 pt-2 text-left cursor-pointer"
-              >
-                <span>Panduan ZEGA Node/Python SDK</span>
-                <ExternalLink size={13} />
-              </button>
-              <button
-                onClick={() => { setIsSdkModalOpen(true); setSdkTab('zeroclaw'); }}
-                className="w-full flex items-center justify-between hover:text-orange-500 transition-colors border-t border-slate-100 dark:border-slate-800 pt-2 text-left cursor-pointer"
-              >
-                <span>ZeroClaw Agent Integration</span>
-                <ExternalLink size={13} />
-              </button>
-              <button
-                onClick={() => { setIsGatewayStatusOpen(true); runGatewayHealthCheck(); }}
-                className="w-full flex items-center justify-between hover:text-orange-500 transition-colors border-t border-slate-100 dark:border-slate-800 pt-2 text-left cursor-pointer"
-              >
-                <span>Status Gateway Server</span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>100% Operational</span>
-                  <ExternalLink size={12} />
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* 5. Bottom Security Footer Banner */}
-      <div className="p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-3">
-          <Shield size={16} className="text-orange-500" />
-          <p className="text-slate-700 dark:text-slate-300 font-semibold">
-            <strong>Keamanan Enkripsi End-to-End.</strong> Semua lalu lintas REST & WebSocket dienkripsi menggunakan TLS 1.3 dan RLS Supabase Policies.
+      {/* 4. Bottom Security Banner */}
+      <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2.5">
+          <Shield size={15} className="text-orange-500 shrink-0" />
+          <p className="text-slate-600 dark:text-slate-300 font-medium">
+            <strong>{t.settingsView?.apiKeysTab?.securityFooterTitle || 'End-to-End Encryption Security.'}</strong> {t.settingsView?.apiKeysTab?.securityFooterDesc || 'All REST & WebSocket traffic is encrypted using TLS 1.3 and Supabase RLS Policies.'}
           </p>
         </div>
-        <ExternalLink size={14} className="text-slate-400 cursor-pointer hover:text-orange-500" onClick={() => setIsSdkModalOpen(true)} />
+        <button
+          onClick={() => { setIsGatewayStatusOpen(true); runGatewayHealthCheck(); }}
+          className="text-slate-400 hover:text-orange-500 flex items-center gap-1 font-bold text-[11px] shrink-0 cursor-pointer"
+        >
+          <span>{t.settingsView?.apiKeysTab?.gatewayStatus || 'Gateway Status'}</span>
+          <ExternalLink size={12} />
+        </button>
       </div>
 
       {/* 6. "+ Buat API Key" Modal */}
@@ -706,7 +605,9 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Buat API Key Baru</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+                {t.settingsView?.apiKeysTab?.modalCreateTitle || 'Buat API Key Baru'}
+              </h3>
               <button onClick={closeCreateModal} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -715,10 +616,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
                   <h4 className="font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                     <CheckCircle2 size={16} />
-                    <span>API Key Berhasil Diterbitkan!</span>
+                    <span>{t.settingsView?.apiKeysTab?.modalCreatedTitle || 'API Key Berhasil Diterbitkan!'}</span>
                   </h4>
                   <p className="text-emerald-800 dark:text-emerald-200">
-                    Harap simpan kunci ini sekarang. Rahasia ini hanya akan ditampilkan sekali dan tidak dapat dipulihkan jika hilang.
+                    {t.settingsView?.apiKeysTab?.saveSecretWarning || 'Harap simpan kunci ini sekarang. Rahasia ini hanya akan ditampilkan sekali.'}
                   </p>
                   <div className="p-3 rounded-xl bg-white dark:bg-slate-900 font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between border border-emerald-300 dark:border-emerald-700">
                     <span className="truncate mr-2 text-xs">{createdTokenModal}</span>
@@ -726,7 +627,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                       onClick={() => handleCopyKey(createdTokenModal)}
                       className="px-3 py-1 rounded bg-orange-500 hover:bg-orange-600 text-white font-black text-[10px] shrink-0 cursor-pointer"
                     >
-                      Salin Secret
+                      {t.settingsView?.apiKeysTab?.copySecretBtn || 'Salin Secret'}
                     </button>
                   </div>
                 </div>
@@ -735,18 +636,18 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                     onClick={closeCreateModal}
                     className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer"
                   >
-                    Selesai
+                    {t.settingsView?.apiKeysTab?.doneBtn || 'Selesai'}
                   </button>
                 </div>
               </div>
             ) : (
               <form onSubmit={handleCreateKeySubmit} className="space-y-4 text-xs font-semibold">
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Nama API Key</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.keyNameLabel || 'Nama API Key'}</label>
                   <input
                     type="text"
                     required
-                    placeholder="cth. Integrasi Production Midtrans"
+                    placeholder={t.settingsView?.apiKeysTab?.keyNamePlaceholder || 'e.g. Production Payment Integration'}
                     value={newKeyName}
                     onChange={e => setNewKeyName(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-orange-500"
@@ -754,10 +655,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Deskripsi Singkat</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.keyDescLabel || 'Deskripsi Singkat'}</label>
                   <input
                     type="text"
-                    placeholder="cth. Digunakan untuk sinkronisasi webhook pembayaran & pesanan"
+                    placeholder={t.settingsView?.apiKeysTab?.keyDescPlaceholder || 'e.g. Used for order & payment sync'}
                     value={newKeyDesc}
                     onChange={e => setNewKeyDesc(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-orange-500"
@@ -765,18 +666,18 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Cakupan Akses (Permission Scope)</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.scopeLabel || 'Cakupan Akses (Permission Scope)'}</label>
                   <select
                     value={newKeyScope}
                     onChange={e => setNewKeyScope(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-orange-500 cursor-pointer"
                   >
-                    <option value="Full Access">Full Access (Administratif & Eksekusi Agent)</option>
+                    <option value="Full Access">Full Access</option>
                     <option value="Billing, Invoice">Billing & Invoice</option>
                     <option value="Store, Orders">Store & Orders</option>
-                    <option value="Reports">Reports & Analytics</option>
-                    <option value="Automation">Automation Trigger</option>
-                    <option value="Dashboard">Dashboard Partner Read-Only</option>
+                    <option value="Reports">Reports</option>
+                    <option value="Automation">Automation</option>
+                    <option value="Dashboard">Dashboard</option>
                   </select>
                 </div>
 
@@ -786,13 +687,13 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                     onClick={closeCreateModal}
                     className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold"
                   >
-                    Batal
+                    {t.settingsView?.apiKeysTab?.cancelBtn || 'Batal'}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer"
                   >
-                    Terbit Key Baru
+                    {t.settingsView?.apiKeysTab?.issueBtn || 'Terbit Key Baru'}
                   </button>
                 </div>
               </form>
@@ -808,14 +709,14 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Edit size={16} className="text-orange-500" />
-                <span>Edit Konfigurasi API Key</span>
+                <span>{t.settingsView?.apiKeysTab?.editConfigTitle || 'Edit Konfigurasi API Key'}</span>
               </h3>
               <button onClick={() => setEditKeyTarget(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             <form onSubmit={handleEditKeySubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Nama API Key</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.keyNameLabel || 'Nama API Key'}</label>
                 <input
                   type="text"
                   required
@@ -826,7 +727,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Deskripsi</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.keyDescLabel || 'Deskripsi'}</label>
                 <input
                   type="text"
                   value={editDesc}
@@ -836,7 +737,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Cakupan Akses (Scope)</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.scopeLabel || 'Cakupan Akses (Scope)'}</label>
                 <select
                   value={editScope}
                   onChange={e => setEditScope(e.target.value)}
@@ -853,7 +754,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Rate Limit (req/menit)</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.rateLimit || 'Rate Limit (req/menit)'}</label>
                   <input
                     type="number"
                     value={editRateLimit}
@@ -862,18 +763,21 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Status Kunci</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.colStatus || 'Status Kunci'}</label>
                   <span className="block px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
-                    {editKeyTarget.status}
+                    {editKeyTarget.status === 'Aktif' ? (t.settingsView?.apiKeysTab?.statusActive || 'Aktif')
+                      : editKeyTarget.status === 'Kedaluwarsa' ? (t.settingsView?.apiKeysTab?.statusExpired || 'Kedaluwarsa')
+                      : editKeyTarget.status === 'Dicabut' ? (t.settingsView?.apiKeysTab?.statusRevoked || 'Dicabut')
+                      : editKeyTarget.status}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">IP Allowlist (Pisahkan koma)</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.apiKeysTab?.ipAllowlistLabel || 'IP Allowlist (Pisahkan koma)'}</label>
                 <input
                   type="text"
-                  placeholder="cth. 103.252.12.1, 18.140.22.10"
+                  placeholder={t.settingsView?.apiKeysTab?.ipAllowlistPlaceholder || 'e.g. 103.252.12.1, 18.140.22.10'}
                   value={editIpAllowlist}
                   onChange={e => setEditIpAllowlist(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:border-orange-500 font-mono"
@@ -886,13 +790,13 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   onClick={() => setEditKeyTarget(null)}
                   className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold cursor-pointer"
                 >
-                  Batal
+                  {t.settingsView?.apiKeysTab?.cancelBtn || 'Batal'}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer"
                 >
-                  Simpan Perubahan
+                  {t.settingsView?.apiKeysTab?.saveChangesBtn || 'Simpan Perubahan'}
                 </button>
               </div>
             </form>
@@ -907,7 +811,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <RefreshCw size={16} className="text-orange-500 animate-spin" />
-                <span>Rotasi Secret API Key Berhasil</span>
+                <span>{t.settingsView?.apiKeysTab?.rotateSuccessTitle || 'Rotasi Secret API Key Berhasil'}</span>
               </h3>
               <button onClick={() => setRotatedTokenModal(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -915,10 +819,10 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="space-y-4 text-xs">
               <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 space-y-2">
                 <h4 className="font-black text-amber-700 dark:text-amber-300">
-                  Rahasia Baru Diterbitkan untuk "{rotateKeyTarget?.name}"
+                  {t.settingsView?.apiKeysTab?.newSecretIssued || 'Rahasia Baru Diterbitkan'} untuk "{rotateKeyTarget?.name}"
                 </h4>
                 <p className="text-amber-800 dark:text-amber-200">
-                  Kunci rahasia lama tidak berlaku lagi. Ganti variabel environment sistem Anda sekarang.
+                  {t.settingsView?.apiKeysTab?.secretEnvWarning || 'Kunci rahasia lama tidak berlaku lagi. Ganti variabel environment sistem Anda sekarang.'}
                 </p>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-900 font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between border border-amber-300 dark:border-amber-700">
                   <span className="truncate mr-2 text-xs">{rotatedTokenModal}</span>
@@ -926,7 +830,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                     onClick={() => handleCopyKey(rotatedTokenModal)}
                     className="px-3 py-1 rounded bg-orange-500 hover:bg-orange-600 text-white font-black text-[10px] shrink-0 cursor-pointer"
                   >
-                    Salin Rahasia
+                    {t.settingsView?.apiKeysTab?.copySecretBtn || 'Salin Rahasia'}
                   </button>
                 </div>
               </div>
@@ -935,7 +839,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   onClick={() => setRotatedTokenModal(null)}
                   className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer"
                 >
-                  Tutup & Terapkan
+                  {t.settingsView?.apiKeysTab?.closeApplyBtn || 'Tutup & Terapkan'}
                 </button>
               </div>
             </div>
@@ -950,7 +854,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Activity size={18} className="text-orange-500" />
-                <span>Detail Telemetry & Realtime API Usage Logs</span>
+                <span>{t.settingsView?.apiKeysTab?.telemetryTitle || 'Detail Telemetry & Realtime API Usage Logs'}</span>
               </h3>
               <button onClick={() => setIsUsageModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -958,24 +862,24 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="space-y-4 text-xs">
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <span className="text-slate-400 font-medium block text-[10px]">TOTAL CALLS</span>
+                  <span className="text-slate-400 font-medium block text-[10px]">{t.settingsView?.apiKeysTab?.totalCalls || 'TOTAL CALLS'}</span>
                   <span className="font-mono text-base text-orange-600 font-black">{totalMonthlyUsage.toLocaleString('id-ID')}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block text-[10px]">KUOTA BULANAN</span>
+                  <span className="text-slate-400 font-medium block text-[10px]">{t.settingsView?.apiKeysTab?.monthlyQuota || 'MONTHLY QUOTA'}</span>
                   <span className="font-mono text-slate-800 dark:text-slate-200 font-bold text-sm">{usageLimit.toLocaleString('id-ID')}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium block text-[10px]">AVG LATENCY</span>
+                  <span className="text-slate-400 font-medium block text-[10px]">{t.settingsView?.apiKeysTab?.avgLatency || 'AVG LATENCY'}</span>
                   <span className="font-mono text-emerald-600 font-bold text-sm">34 ms</span>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900 dark:text-slate-100">Live API Requests Logs (Supabase Realtime)</h4>
-                  <button onClick={loadUsageLogs} className="text-[10px] font-bold text-orange-600 hover:underline flex items-center gap-1">
-                    <RefreshCw size={11} className={loadingLogs ? 'animate-spin' : ''} /> Refresh Logs
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.apiKeysTab?.liveLogsTitle || 'Live API Requests Logs (Supabase Realtime)'}</h4>
+                  <button onClick={loadUsageLogs} className="text-[10px] font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer">
+                    <RefreshCw size={11} className={loadingLogs ? 'animate-spin' : ''} /> {t.settingsView?.apiKeysTab?.refreshLogsBtn || 'Refresh Logs'}
                   </button>
                 </div>
 
@@ -983,18 +887,18 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
                   <table className="w-full text-left text-[11px]">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase text-slate-400 bg-slate-100 dark:bg-slate-900">
-                        <th className="p-2">METHOD & ENDPOINT</th>
-                        <th className="p-2">STATUS</th>
-                        <th className="p-2">LATENCY</th>
-                        <th className="p-2">IP ADDRESS</th>
-                        <th className="p-2">WAKTU</th>
+                        <th className="p-2">{t.settingsView?.apiKeysTab?.colMethodEndpoint || 'METHOD & ENDPOINT'}</th>
+                        <th className="p-2">{t.settingsView?.apiKeysTab?.colStatus || 'STATUS'}</th>
+                        <th className="p-2">{t.settingsView?.apiKeysTab?.colLatency || 'LATENCY'}</th>
+                        <th className="p-2">{t.settingsView?.apiKeysTab?.colIpAddress || 'IP ADDRESS'}</th>
+                        <th className="p-2">{t.settingsView?.apiKeysTab?.colTime || 'TIME'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
                       {usageLogs.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="p-4 text-center text-slate-400 font-sans">
-                            Memuat log penggunaan API...
+                            {t.settingsView?.apiKeysTab?.loadingLogs || 'Loading API usage logs...'}
                           </td>
                         </tr>
                       ) : (
@@ -1023,9 +927,9 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
               <div className="flex justify-end pt-2">
                 <button
                   onClick={() => setIsUsageModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer text-xs"
                 >
-                  Tutup Telemetry
+                  {t.settingsView?.apiKeysTab?.closeTelemetryBtn || 'Close Telemetry'}
                 </button>
               </div>
             </div>
@@ -1040,7 +944,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Code size={18} className="text-orange-500" />
-                <span>Dokumentasi SDK & Integrasi API ZEGA</span>
+                <span>{t.settingsView?.apiKeysTab?.sdkDocTitle || 'Dokumentasi SDK & Integrasi API ZEGA'}</span>
               </h3>
               <button onClick={() => setIsSdkModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -1147,7 +1051,7 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
                 onClick={() => setIsSdkModalOpen(false)}
                 className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer text-xs"
               >
-                Selesai
+                {t.settingsView?.apiKeysTab?.doneBtn || 'Selesai'}
               </button>
             </div>
           </div>
@@ -1161,7 +1065,7 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Server size={18} className="text-emerald-500" />
-                <span>Status Health Check Gateway Server</span>
+                <span>{t.settingsView?.apiKeysTab?.gatewayHealthTitle || 'Status Health Check Gateway Server'}</span>
               </h3>
               <button onClick={() => setIsGatewayStatusOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -1173,8 +1077,8 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
                     ✓
                   </div>
                   <div>
-                    <h4 className="font-black text-emerald-800 dark:text-emerald-200 text-sm">Semua Layanan Normal (100% Operational)</h4>
-                    <p className="text-[11px] text-emerald-700 dark:text-emerald-300">Pengecekan terakhir: {gatewayMetrics.lastChecked}</p>
+                    <h4 className="font-black text-emerald-800 dark:text-emerald-200 text-sm">{t.settingsView?.apiKeysTab?.opStatus || '100% Operational'}</h4>
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{t.settingsView?.apiKeysTab?.lastCheckedLabel || 'Last checked:'} {gatewayMetrics.lastChecked}</p>
                   </div>
                 </div>
                 <button
@@ -1183,7 +1087,7 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
                   className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw size={12} className={gatewayPinging ? 'animate-spin' : ''} />
-                  <span>Ping Health</span>
+                  <span>{t.settingsView?.apiKeysTab?.pingHealthBtn || 'Ping Health'}</span>
                 </button>
               </div>
 
@@ -1237,9 +1141,9 @@ ZERO_CLAW_SOLANA_RPC=https://api.mainnet-beta.solana.com`}</pre>
               <div className="flex justify-end pt-2">
                 <button
                   onClick={() => setIsGatewayStatusOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer text-xs"
                 >
-                  Tutup Monitor
+                  {t.settingsView?.apiKeysTab?.closeMonitorBtn || 'Close Monitor'}
                 </button>
               </div>
             </div>

@@ -26,6 +26,7 @@ interface KnowledgeViewProps {
 
 export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProps) {
   const { t } = useLanguage();
+  const k = t.knowledgeView;
   const [selectedCategory, setSelectedCategory] = useState('Semua Kategori');
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Overview');
@@ -92,7 +93,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
   const categoryListWithCounts = React.useMemo(() => {
     const items = knowledgeData.items || [];
     const list = [
-      { name: 'Semua Kategori', count: items.length }
+      { name: k.allCategories || 'Semua Kategori', count: items.length }
     ];
 
     const catNamesSet = new Set<string>();
@@ -327,7 +328,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             onClick={() => setIsUploadDocModalOpen(true)}
             className="flex-1 sm:flex-none px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
           >
-            <FileText size={14} /> <span className="whitespace-nowrap">Upload Document</span>
+            <FileText size={14} /> <span className="whitespace-nowrap">{k.uploadDoc || 'Upload Document'}</span>
           </button>
 
           {/* Ask AI Action */}
@@ -335,7 +336,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             onClick={() => setIsAskAIModalOpen(true)}
             className="flex-1 sm:flex-none px-3.5 py-2 rounded-2xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/40 text-xs font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-100 cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
           >
-            <Bot size={14} className="text-purple-500" /> <span className="whitespace-nowrap">Ask AI</span>
+            <Bot size={14} className="text-purple-500" /> <span className="whitespace-nowrap">{k.askAi || 'Ask AI'}</span>
           </button>
 
           {/* Options Dropdown Popover */}
@@ -343,7 +344,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             <button 
               onClick={() => setShowMoreOptionsPopover(!showMoreOptionsPopover)}
               className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 cursor-pointer shadow-xs transition-colors flex items-center justify-center"
-              title="Opsi Enterprise Knowledge"
+              title={k.enterpriseQuickActions || 'Opsi Enterprise Knowledge'}
             >
               <MoreHorizontal size={18} />
             </button>
@@ -356,7 +357,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 />
                 <div className="absolute right-0 top-full mt-2 z-50 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 text-xs font-extrabold">
                   <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    Aksi Cepat Enterprise
+                    {k.enterpriseQuickActions || 'Aksi Cepat Enterprise'}
                   </div>
 
                   <button
@@ -367,7 +368,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="w-full text-left px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <ShieldCheck size={15} className="text-purple-500 shrink-0" />
-                    <span>Pengaturan & Matriks Akses</span>
+                    <span>{k.accessSettingsBtn || 'Pengaturan & Matriks Akses'}</span>
                   </button>
 
                   <button
@@ -394,7 +395,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="w-full text-left px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <Download size={15} className="text-blue-500 shrink-0" />
-                    <span>Ekspor Catalog SOP (JSON)</span>
+                    <span>{k.exportCatalogBtn || 'Ekspor Catalog SOP (JSON)'}</span>
                   </button>
 
                   <button
@@ -411,7 +412,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="w-full text-left px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <Activity size={15} className="text-emerald-500 shrink-0" />
-                    <span>Re-Sync Vector Store & CDN</span>
+                    <span>{k.resyncVectorBtn || 'Re-Sync Vector Store & CDN'}</span>
                   </button>
 
                   <button
@@ -429,7 +430,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="w-full text-left px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer"
                   >
                     <TrendingUp size={15} className="text-amber-500 shrink-0" />
-                    <span>Pembersihan Cache & Re-Audit</span>
+                    <span>{k.cachePurgeBtn || 'Pembersihan Cache & Re-Audit'}</span>
                   </button>
 
                   <button
@@ -440,7 +441,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="w-full text-left px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer border-t border-slate-100 dark:border-slate-800 pt-2"
                   >
                     <Layers size={15} className="text-orange-500 shrink-0" />
-                    <span>Log Audit Realtime Enterprise</span>
+                    <span>{k.auditLogBtn || 'Log Audit Realtime Enterprise'}</span>
                   </button>
                 </div>
               </>
@@ -453,17 +454,24 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 text-xs font-bold overflow-x-auto no-scrollbar pb-1 md:pb-0 -mx-1 px-1">
-          {['Overview', 'Kategori', 'Studio Copywriter', 'Knowledge Health', 'Document Center', 'Pengaturan Akses'].map((tab) => (
+          {[
+            { key: 'Overview', label: k.tabOverview || 'Overview' },
+            { key: 'Kategori', label: k.tabCategories || 'Kategori' },
+            { key: 'Studio Copywriter', label: k.tabStudio || 'Studio Copywriter' },
+            { key: 'Knowledge Health', label: k.tabHealth || 'Knowledge Health' },
+            { key: 'Document Center', label: k.tabDocuments || 'Document Center' },
+            { key: 'Pengaturan Akses', label: k.tabAccess || 'Pengaturan Akses' }
+          ].map((tabItem) => (
             <button
-              key={tab}
-              onClick={() => handleTabChange(tab)}
+              key={tabItem.key}
+              onClick={() => handleTabChange(tabItem.key)}
               className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap font-extrabold text-xs shrink-0 ${
-                activeTab === tab 
+                activeTab === tabItem.key 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              {tab}
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -481,7 +489,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Cari SOP, invoice, retur..." 
+                placeholder={k.searchPlaceholder || 'Cari SOP, invoice, retur...'} 
                 className="w-full pl-8 pr-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:border-orange-500 font-medium"
               />
             </div>
@@ -495,7 +503,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
-                <Filter size={14} /> <span>Filter</span>
+                <Filter size={14} /> <span>{k.filterBtn || 'Filter'}</span>
                 {(selectedBadgeFilter !== 'Semua' || showOnlyBookmarked) && (
                   <span className="size-1.5 rounded-full bg-orange-500 shadow-2xs" />
                 )}
@@ -506,9 +514,9 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-2.5 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="terbaru">Terbaru</option>
-                <option value="populer">Paling Populer</option>
-                <option value="rating">Rating Tertinggi</option>
+                <option value="terbaru">{k.sortByLatest || 'Terbaru'}</option>
+                <option value="populer">{k.sortByPopular || 'Paling Populer'}</option>
+                <option value="rating">{k.sortByRating || 'Rating Tertinggi'}</option>
               </select>
 
               {/* List/Grid View Toggle */}
@@ -537,7 +545,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 1: Articles */}
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 transition-all group">
             <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-              <span>Articles</span>
+              <span>{k.cardArticles || 'Articles'}</span>
               <div className="size-7 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-black">
                 <BookOpen size={14} />
               </div>
@@ -547,7 +555,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 {knowledgeData.metrics.articles_count}
               </div>
               <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md">
-                ↑ {knowledgeData.metrics.articles_growth_pct}% this month
+                ↑ {knowledgeData.metrics.articles_growth_pct}% {k.thisMonthLabel || 'this month'}
               </span>
             </div>
           </div>
@@ -555,7 +563,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 2: Documents */}
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-orange-500 transition-all group">
             <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-              <span>Documents</span>
+              <span>{k.cardDocuments || 'Documents'}</span>
               <div className="size-7 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-black">
                 <FileText size={14} />
               </div>
@@ -565,7 +573,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 {knowledgeData.metrics.documents_count}
               </div>
               <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md">
-                ↑ {knowledgeData.metrics.documents_growth_pct}% this month
+                ↑ {knowledgeData.metrics.documents_growth_pct}% {k.thisMonthLabel || 'this month'}
               </span>
             </div>
           </div>
@@ -573,7 +581,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 3: Templates */}
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-pink-500 transition-all group">
             <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-              <span>Templates</span>
+              <span>{k.cardTemplates || 'Templates'}</span>
               <div className="size-7 rounded-xl bg-pink-50 text-pink-600 dark:bg-pink-950/60 flex items-center justify-center font-black">
                 <LayoutList size={14} />
               </div>
@@ -583,7 +591,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 {knowledgeData.metrics.templates_count}
               </div>
               <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md">
-                ↑ {knowledgeData.metrics.templates_growth_pct}% this month
+                ↑ {knowledgeData.metrics.templates_growth_pct}% {k.thisMonthLabel || 'this month'}
               </span>
             </div>
           </div>
@@ -591,7 +599,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 4: AI Confidence */}
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-emerald-500 transition-all group">
             <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-              <span>AI Confidence</span>
+              <span>{k.cardAiConfidence || 'AI Confidence'}</span>
               <div className="size-7 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black">
                 <Cpu size={14} />
               </div>
@@ -609,7 +617,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 5: Last Updated */}
           <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1 hover:border-purple-500 transition-all group">
             <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-              <span>Last Updated</span>
+              <span>{k.cardLastUpdated || 'Last Updated'}</span>
               <div className="size-7 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-black">
                 <Clock size={14} />
               </div>
@@ -725,7 +733,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {/* Card 1: Categories */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
             <div className="flex items-center justify-between px-2">
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Kategori Pengetahuan</h3>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">{k.categoriesTitle || 'Kategori Pengetahuan'}</h3>
               <button 
                 onClick={() => setIsCreateCategoryModalOpen(true)} 
                 className="text-slate-400 hover:text-slate-600 font-black cursor-pointer p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -765,7 +773,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
               }}
               className="w-full text-center text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline pt-2 cursor-pointer flex items-center justify-center gap-1 border-t border-slate-100 dark:border-slate-800"
             >
-              <span>Lihat semua kategori →</span>
+              <span>{k.viewAllCategories || 'Lihat semua kategori →'}</span>
             </button>
           </div>
 
@@ -776,7 +784,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 <div className="size-7 rounded-xl bg-orange-500/10 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
                   <Sparkles size={14} />
                 </div>
-                <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">Rekomendasi AI</span>
+                <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">{k.aiRecTitle || 'Rekomendasi AI'}</span>
               </div>
               
               <button
@@ -785,7 +793,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-orange-100/50 dark:hover:bg-orange-900/40 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                 title={isAiRecExpanded ? 'Tutup Recommendations' : 'Buka Recommendations'}
               >
-                <span>{isAiRecExpanded ? 'Sembunyikan' : 'Buka'}</span>
+                <span>{isAiRecExpanded ? (k.hideBtn || 'Sembunyikan') : (k.openBtn || 'Buka')}</span>
                 {isAiRecExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
@@ -793,7 +801,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             {isAiRecExpanded && (
               <div className="space-y-3 pt-1 animate-in fade-in duration-150">
                 <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                  Pelanggan sering bertanya tentang retur &amp; ongkir. Rekomendasi FAQ terpadu.
+                  {k.aiRecDesc || 'Pelanggan sering bertanya tentang retur & ongkir. Rekomendasi FAQ terpadu.'}
                 </p>
 
                 <div className="flex items-center justify-end pt-2 border-t border-orange-200/60 dark:border-orange-900/40">
@@ -811,7 +819,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
                   >
                     <PlusCircle size={13} />
-                    <span>Generate FAQ</span>
+                    <span>{k.createFaqBtn || 'Buat FAQ'}</span>
                   </button>
                 </div>
               </div>
@@ -861,7 +869,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
               onClick={() => handleTabChange('Kategori')} 
               className="text-left text-[11px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer pt-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/60"
             >
-              <span>Lihat semua artikel</span>
+              <span>{k.viewAllArticles || 'Lihat semua artikel'}</span>
               <ArrowRight size={12} />
             </button>
           </div>
@@ -874,7 +882,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                   <span className="size-2 rounded-full bg-blue-500" />
                   <span>Recently Updated</span>
                 </h4>
-                <span className="text-[10px] font-mono text-slate-400">Terbaru</span>
+                <span className="text-[10px] font-mono text-slate-400">{k.sortByLatest || 'Terbaru'}</span>
               </div>
               <div className="space-y-1.5 text-xs font-semibold">
                 {knowledgeData.items.slice(0, 3).map((rec: any, i: number) => (
@@ -898,7 +906,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
               onClick={() => handleTabChange('Kategori')} 
               className="text-left text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer pt-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/60"
             >
-              <span>Lihat semua pembaruan</span>
+              <span>{k.viewAllUpdates || 'Lihat semua pembaruan'}</span>
               <ArrowRight size={12} />
             </button>
           </div>
@@ -909,8 +917,8 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           {paginatedItems.length === 0 ? (
             <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
               <BookOpen size={28} className="mx-auto text-slate-400" />
-              <h4 className="font-extrabold text-sm text-slate-700 dark:text-slate-300">Tidak ada artikel ditemukan</h4>
-              <p className="text-xs text-slate-400">Coba ubah kata kunci pencarian atau pilih kategori lain.</p>
+              <h4 className="font-extrabold text-sm text-slate-700 dark:text-slate-300">{k.noArticlesFound || 'Tidak ada artikel ditemukan'}</h4>
+              <p className="text-xs text-slate-400">{k.noArticlesFoundDesc || 'Coba ubah kata kunci pencarian atau pilih kategori lain.'}</p>
             </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'space-y-2.5'}>
@@ -1027,7 +1035,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400 font-medium">Menampilkan {paginatedItems.length} dari {filteredItems.length} artikel</span>
+              <span className="text-[11px] text-slate-400 font-medium">{k.showingArticles || 'Menampilkan'} {paginatedItems.length} {k.ofArticles || 'dari'} {filteredItems.length} {k.totalArticlesLabel || 'artikel'}</span>
               <select 
                 value={itemsPerPage}
                 onChange={(e) => {
@@ -1036,9 +1044,9 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 }}
                 className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
               >
-                <option value="5">5 / halaman</option>
-                <option value="10">10 / halaman</option>
-                <option value="20">20 / halaman</option>
+                <option value="5">5 / {k.perPage || 'halaman'}</option>
+                <option value="10">10 / {k.perPage || 'halaman'}</option>
+                <option value="20">20 / {k.perPage || 'halaman'}</option>
               </select>
             </div>
           </div>
@@ -1053,17 +1061,17 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 <Bot size={16} className="text-orange-500" />
                 <span>Knowledge Assistant</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">Pintar</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">{k.smartBadge || 'Pintar'}</span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">Tanyakan apa saja tentang bisnis Anda.</p>
+            <p className="text-[11px] text-slate-500 font-medium">{k.assistantSubtitle || 'Tanyakan apa saja tentang bisnis Anda.'}</p>
 
             {/* Quick Suggestion Chips */}
             <div className="space-y-1.5 text-[10px] font-semibold">
               {[
-                'Bagaimana cara membuat invoice otomatis?',
-                'Apa kebijakan retur produk?',
-                'Bagaimana alur pengiriman?',
-                'Template pesan untuk customer baru?'
+                k.chipInvoice || 'Bagaimana cara membuat invoice otomatis?',
+                k.chipReturnPolicy || 'Apa kebijakan retur produk?',
+                k.chipShippingFlow || 'Bagaimana alur pengiriman?',
+                k.chipCustomerMessage || 'Template pesan untuk customer baru?'
               ].map((chip, i) => (
                 <button 
                   key={i} 
@@ -1089,7 +1097,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                     setIsAskAIModalOpen(true);
                   }
                 }}
-                placeholder="Ketik pertanyaan Anda..." 
+                placeholder={k.assistantPlaceholder || 'Ketik pertanyaan Anda...'} 
                 className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-xs rounded-xl focus:outline-none focus:border-orange-500 font-bold"
               />
               <button 
@@ -1108,7 +1116,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
                 <ShieldCheck size={14} className="text-emerald-500" />
                 <span>Knowledge Health</span>
               </h3>
-              <button onClick={() => handleTabChange('Knowledge Health')} className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer">Lihat Detail →</button>
+              <button onClick={() => handleTabChange('Knowledge Health')} className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer">{k.viewDetails || 'Lihat Detail →'}</button>
             </div>
 
             <div className="flex items-center gap-4 pt-1">
@@ -1172,7 +1180,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Documents Center</h3>
-              <button onClick={() => handleTabChange('Document Center')} className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer">Lihat Semua →</button>
+              <button onClick={() => handleTabChange('Document Center')} className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer">{k.viewAll || 'Lihat Semua →'}</button>
             </div>
 
             <div className="space-y-2 text-xs">
@@ -1232,7 +1240,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
               onClick={() => handleTabChange('Studio Copywriter')} 
               className="text-left text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer pt-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/60"
             >
-              <span>Buka Studio Copywriter</span>
+              <span>{k.openCopywriterStudio || 'Buka Studio Copywriter'}</span>
               <ArrowRight size={12} />
             </button>
           </div>
@@ -1270,7 +1278,7 @@ export function KnowledgeView({ triggerToast, activeSubPage }: KnowledgeViewProp
               }} 
               className="text-left text-[11px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer pt-2 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/60"
             >
-              <span>Jelajahi AI Prompts</span>
+              <span>{k.exploreAiPrompts || 'Jelajahi AI Prompts'}</span>
               <ArrowRight size={12} />
             </button>
           </div>

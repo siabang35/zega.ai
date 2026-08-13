@@ -102,6 +102,8 @@ export function DateFilterModal({
   onSelectRange: (label: string) => void;
   triggerToast: (msg: string) => void
 }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const ranges = [
     { label: 'Hari Ini (Today)', val: '4 Agt 2026' },
     { label: '7 Hari Terakhir', val: '28 Jul - 4 Agt 2026' },
@@ -111,7 +113,7 @@ export function DateFilterModal({
   ];
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Pilih Rentang Waktu Penjualan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.dateFilterTitle || 'Pilih Rentang Waktu Penjualan'}>
       <div className="space-y-2 text-xs">
         {ranges.map((r, i) => (
           <button
@@ -142,6 +144,8 @@ export function FilterModal({
   onClose: () => void;
   triggerToast: (msg: string) => void
 }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const [selectedChannel, setSelectedChannel] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
 
@@ -151,7 +155,7 @@ export function FilterModal({
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Filter Penjualan Lanjutan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.filterModalTitle || 'Filter Penjualan Lanjutan'}>
       <div className="space-y-4 text-xs">
         <div>
           <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">Filter Channel Sales</label>
@@ -202,8 +206,10 @@ export function FilterModal({
 
 // 4. Help Info Modal
 export function HelpInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Panduan & Metrik Revenue Over Time">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.helpModalTitle || 'Panduan & Metrik Revenue Over Time'}>
       <div className="space-y-3 text-xs">
         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1.5">
           <h4 className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
@@ -231,6 +237,8 @@ export function HelpInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
 // 5. All Top Products Modal
 export function AllProductsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const products = [
     { rank: 1, name: 'Paket Skincare Basic', sold: 32, rev: 'Rp3.840.000', trend: '↑ 16%' },
     { rank: 2, name: 'Paket Skincare Premium', sold: 24, rev: 'Rp3.576.000', trend: '↑ 12%' },
@@ -242,7 +250,7 @@ export function AllProductsModal({ isOpen, onClose }: { isOpen: boolean; onClose
   ];
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Lengkap Produk Terlaris">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.allProductsModalTitle || 'Laporan Lengkap Produk Terlaris'}>
       <div className="space-y-3 text-xs">
         <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1 border-b border-slate-100 dark:border-slate-800">
           <span className="col-span-5">Produk</span>
@@ -270,6 +278,8 @@ export function AllProductsModal({ isOpen, onClose }: { isOpen: boolean; onClose
 
 // 6. All Channels Modal (Sub-View with Interactive SVG Donut Chart)
 export function AllChannelsModal({ isOpen, onClose, channelData = [] }: { isOpen: boolean; onClose: () => void; channelData?: any[] }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const defaultChannels = [
     { channel_name: 'WhatsApp Business API', total_revenue_idr: 6100000, orders_count: 52, percentage: 45.0, conversion_rate: 5.8, color_hex: '#10b981', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
     { channel_name: 'Shopee Seller Store', total_revenue_idr: 4100000, orders_count: 35, percentage: 30.0, conversion_rate: 4.2, color_hex: '#f97316', cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
@@ -281,7 +291,7 @@ export function AllChannelsModal({ isOpen, onClose, channelData = [] }: { isOpen
   const totalRev = channels.reduce((acc, c) => acc + (c.total_revenue_idr || c.amount || 0), 0);
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Rincian & Visualisasi Penjualan Per Channel">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.allChannelsModalTitle || 'Rincian & Visualisasi Penjualan Per Channel'}>
       <div className="space-y-5 text-xs font-sans">
         {/* Interactive Donut Chart Visualizer */}
         <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex flex-col md:flex-row items-center gap-6 justify-between">
@@ -373,6 +383,8 @@ export function AllChannelsModal({ isOpen, onClose, channelData = [] }: { isOpen
 
 // 6b. Sales By Source Modal
 export function SalesBySourceModal({ isOpen, onClose, sourceData = [] }: { isOpen: boolean; onClose: () => void; sourceData?: any[] }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const defaultSources = [
     { source_name: 'WhatsApp Direct', channel_category: 'Messaging', impressions: 12500, clicks: 3200, conversions: 52, revenue_idr: 6100000, growth_pct: 18.5, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/whatsapp-for-business.webp' },
     { source_name: 'Shopee Live & Search', channel_category: 'Marketplace', impressions: 24100, clicks: 4800, conversions: 35, revenue_idr: 4100000, growth_pct: 14.2, cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/shopee.png' },
@@ -383,7 +395,7 @@ export function SalesBySourceModal({ isOpen, onClose, sourceData = [] }: { isOpe
   const sources = sourceData.length ? sourceData : defaultSources;
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Sumber Trafik & Atribusi Penjualan">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.sourceAttributionModalTitle || 'Laporan Sumber Trafik & Atribusi Penjualan'}>
       <div className="space-y-4 text-xs font-sans">
         <p className="text-slate-500 dark:text-slate-400 font-medium">Analisa dari mana datangnya calon pembeli dan performa konversi per sumber iklan & organik.</p>
 
@@ -438,6 +450,8 @@ export function AiReportModal({
   insights?: any[];
   monthlyReport?: any;
 }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const rawReport = Array.isArray(monthlyReport) ? monthlyReport[0] : monthlyReport;
   const report = rawReport || {
     period_month: 'Juli 2026',
@@ -459,7 +473,7 @@ export function AiReportModal({
   const returningVal = Number(report.returning_customer_val_idr || 5670000);
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Laporan Eksekutif Bulanan & AI Intelligence">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.aiReportModalTitle || 'Laporan Eksekutif Bulanan & AI Intelligence'}>
       <div className="space-y-4 text-xs font-sans">
         {/* Executive Overview Cards */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -544,6 +558,8 @@ export function DeploySalesSwarmModal({
   onDeploySwarm: (modelPayload: any) => Promise<void>;
   triggerToast: (msg: string) => void;
 }) {
+  const { t } = useLanguage();
+  const u = (t.salesView || {}) as any;
   const [selectedEngine, setSelectedEngine] = useState('9Router-Auto-Cost-Optimizer');
   const [insightType, setInsightType] = useState('forecast');
   const [customHeadline, setCustomHeadline] = useState('');
@@ -616,14 +632,14 @@ export function DeploySalesSwarmModal({
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Deploy Real AI Sales Swarm & Model Engine">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.deploySwarmModalTitle || 'Deploy Real AI Sales Swarm & Model Engine'}>
       <div className="space-y-4 text-xs">
         <p className="text-slate-500 dark:text-slate-400 font-medium">
-          Pilih Real AI Model Engine yang terhubung langsung ke Supabase WebSockets & Cloudflare R2 CDN untuk menghasilkan prediksi sales real-time.
+          {u.deploySwarmModalDesc || 'Pilih Real AI Model Engine yang terhubung langsung ke Supabase WebSockets & Cloudflare R2 CDN untuk menghasilkan prediksi sales real-time.'}
         </p>
 
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">Pilih Real AI Model Engine:</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-2">{u.selectAiModelEngine || 'Pilih Real AI Model Engine:'}</label>
           <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-1">
             {realModels.map((m) => (
               <button
@@ -649,12 +665,12 @@ export function DeploySalesSwarmModal({
         </div>
 
         <div>
-          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">Judul Prediksi AI Custom (Opsional):</label>
+          <label className="font-extrabold text-slate-700 dark:text-slate-300 block mb-1">{u.customPredictionTitle || 'Judul Prediksi AI Custom (Opsional):'}</label>
           <input
             type="text"
             value={customHeadline}
             onChange={(e) => setCustomHeadline(e.target.value)}
-            placeholder="mis. Prediksi Kenaikan Omset Harian 25%"
+            placeholder={u.customPredictionPlaceholder || 'mis. Prediksi Kenaikan Omset Harian 25%'}
             className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:border-orange-500 text-xs"
           />
         </div>
@@ -665,7 +681,7 @@ export function DeploySalesSwarmModal({
           className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          <span>{isDeploying ? 'Deploying Model Swarm...' : 'Deploy Real AI Sales Swarm'}</span>
+          <span>{isDeploying ? (u.deployingModelSwarm || 'Deploying Model Swarm...') : (u.deployModelSwarmBtn || 'Deploy Real AI Sales Swarm')}</span>
         </button>
       </div>
     </ModalBase>

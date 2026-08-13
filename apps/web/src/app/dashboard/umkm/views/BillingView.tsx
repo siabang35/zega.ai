@@ -15,10 +15,13 @@ import {
 interface BillingViewProps {
   triggerToast: (msg: string) => void;
   activeSubPage?: string;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
-  const { t } = useLanguage();
+export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overview', onTabChange }: BillingViewProps) {
+  const { t, language } = useLanguage();
+  const k = t.billingView || {};
 
   const parseTabFromSubPage = (sub?: string) => {
     let s = (sub || '').toLowerCase();
@@ -405,28 +408,38 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
       {/* 1. Header & Page Subtitle */}
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-          {t.billingView?.title || 'Billing & Subscription'}
+          {k.title || 'Billing & Subscription'}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-          {t.billingView?.subtitle || 'Kelola langganan, penggunaan, dan metode pembayaran Anda.'}
+          {k.subtitle || 'Kelola langganan, penggunaan, dan metode pembayaran Anda.'}
         </p>
       </div>
 
       {/* 2. Sub-Navigation Tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
-        {['Overview', 'Invoice', 'Usage', 'Payment Methods', 'History', 'Settings'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => handleTabClick(tab)}
-            className={`px-4 py-2.5 cursor-pointer transition-colors relative border-b-2 ${
-              activeTab === tab
-                ? 'border-orange-500 text-slate-900 dark:text-slate-100 font-black'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+        {['Overview', 'Invoice', 'Usage', 'Payment Methods', 'History', 'Settings'].map((tab) => {
+          const tabLabelMap: Record<string, string> = {
+            Overview: k.tabOverview || 'Overview',
+            Invoice: k.tabInvoice || 'Invoice',
+            Usage: k.tabUsage || 'Usage',
+            'Payment Methods': k.tabPaymentMethods || 'Payment Methods',
+            History: k.tabHistory || 'History',
+            Settings: k.tabSettings || 'Settings',
+          };
+          return (
+            <button
+              key={tab}
+              onClick={() => handleTabClick(tab)}
+              className={`px-4 py-2.5 cursor-pointer transition-colors relative border-b-2 ${
+                activeTab === tab
+                  ? 'border-orange-500 text-slate-900 dark:text-slate-100 font-black'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              {tabLabelMap[tab] || tab}
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB CONTENT IMPLEMENTATION */}
@@ -438,9 +451,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Receipt className="size-5 text-orange-500" />
-                <span>Pusat Faktur Tagihan & e-Faktur Pajak (PPN 11%)</span>
+                <span>{k.invoiceCenterTitle || 'Pusat Faktur Tagihan & e-Faktur Pajak (PPN 11%)'}</span>
               </h3>
-              <p className="text-xs text-slate-400">Riwayat faktur pajak resmi, bukti settlement pembayaran, dan ekspor massal multi-format</p>
+              <p className="text-xs text-slate-400">{k.invoiceCenterSub || 'Riwayat faktur pajak resmi, bukti settlement pembayaran, dan ekspor massal multi-format'}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -453,7 +466,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={isInvoicesLoading ? 'animate-spin' : ''} /> 
-                <span>Refresh Data</span>
+                <span>{k.refreshDataBtn || 'Refresh Data'}</span>
               </button>
 
               {/* Multi-Format Bulk Export Dropdown */}
@@ -463,14 +476,14 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                   className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
                 >
                   <Download size={14} />
-                  <span>Ekspor Massal ({selectedInvoiceIds.length > 0 ? `${selectedInvoiceIds.length} Terpilih` : 'Semua'})</span>
+                  <span>{k.exportBulkBtn || 'Ekspor Massal'} ({selectedInvoiceIds.length > 0 ? `${selectedInvoiceIds.length} Terpilih` : (k.filterAll || 'Semua')})</span>
                   <ChevronDown size={14} className={`transition-transform duration-200 ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isExportDropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
-                      Pilih Format Ekspor Enterprise
+                      {k.exportOptionsTitle || 'Pilih Format Ekspor Enterprise'}
                     </div>
 
                     <button
@@ -486,7 +499,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     >
                       <div className="flex items-center gap-2">
                         <FileText size={14} className="text-orange-500" />
-                        <span>Cetak / Unduh PDF Faktur</span>
+                        <span>{k.exportFormatPdf || 'Cetak / Unduh PDF Faktur'}</span>
                       </div>
                       <span className="text-[10px] font-mono text-orange-600 font-black">.pdf</span>
                     </button>
@@ -504,7 +517,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     >
                       <div className="flex items-center gap-2">
                         <FileSpreadsheet size={14} className="text-emerald-500" />
-                        <span>Spreadsheet CSV</span>
+                        <span>{k.exportFormatCsv || 'Spreadsheet CSV'}</span>
                       </div>
                       <span className="text-[10px] font-mono text-slate-400">.csv</span>
                     </button>
@@ -522,7 +535,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     >
                       <div className="flex items-center gap-2">
                         <FileJson size={14} className="text-blue-500" />
-                        <span>Raw Telemetry Data</span>
+                        <span>{k.exportFormatJson || 'Raw Telemetry Data'}</span>
                       </div>
                       <span className="text-[10px] font-mono text-slate-400">.json</span>
                     </button>
@@ -535,44 +548,44 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
           {/* 2. Top Summary KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Invoiced Volume</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{k.totalInvoicedVolume || 'Total Invoiced Volume'}</span>
               <h4 className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
                 Rp{(invoicesOverviewData.total_invoiced_idr || 0).toLocaleString('id-ID')}
               </h4>
-              <p className="text-[10.5px] text-slate-400 font-bold">Termasuk PPN 11% & e-Faktur</p>
+              <p className="text-[10.5px] text-slate-400 font-bold">{k.vatIncludedNote || 'Termasuk PPN 11% & e-Faktur'}</p>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Faktur Lunas Terverifikasi</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{k.paidInvoicesCount || 'Faktur Lunas Terverifikasi'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
                   {invoicesOverviewData.paid_count || invoicesOverviewData.invoices.length} Faktur
                 </h4>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold">
-                  Terverifikasi
+                  {k.verifiedBadge || 'Terverifikasi'}
                 </span>
               </div>
               <p className="text-[10.5px] text-slate-400 font-bold">Ringkasan faktur backend</p>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Nomor e-Faktur Pajak</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{k.eTaxInvoiceNo || 'Nomor e-Faktur Pajak'}</span>
               <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono truncate">
                 {invoicesOverviewData.invoices?.[0]?.e_faktur_no || '-'}
               </h4>
               <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                <CheckCircle2 size={12} /> Integrasi Dirjen Pajak
+                <CheckCircle2 size={12} /> {k.taxIntegrationBadge || 'Integrasi Dirjen Pajak'}
               </p>
             </div>
 
             <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Opsi Format Ekspor</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{k.exportOptionsTitle || 'Opsi Format Ekspor'}</span>
               <div className="flex items-center gap-1.5 pt-1">
                 <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-mono font-extrabold">CSV</span>
                 <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 text-[10px] font-mono font-extrabold">JSON</span>
                 <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-mono font-extrabold">TXT</span>
               </div>
-              <p className="text-[10.5px] text-slate-400 font-bold pt-0.5">Mendukung ekspor massal</p>
+              <p className="text-[10.5px] text-slate-400 font-bold pt-0.5">{k.bulkExportSupported || 'Mendukung ekspor massal'}</p>
             </div>
           </div>
 
@@ -582,7 +595,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari nomor invoice (contoh: INV-2026-0721) atau periode..."
+                placeholder={k.searchInvoicesPlaceholder || "Cari nomor invoice (contoh: INV-2026-0721) atau periode..."}
                 value={invoiceSearch}
                 onChange={(e) => {
                   setInvoiceSearch(e.target.value);
@@ -594,22 +607,30 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
 
             {/* Filter Pills */}
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold">
-              {['Semua', 'Lunas', 'Pending', 'Overdue'].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => {
-                    setInvoiceStatusFilter(st);
-                    loadInvoicesOverview(invoiceSearch, st);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    invoiceStatusFilter === st
-                      ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
+              {['Semua', 'Lunas', 'Pending', 'Overdue'].map((st) => {
+                const statusMap: Record<string, string> = {
+                  Semua: k.filterAll || 'Semua',
+                  Lunas: k.filterPaid || 'Lunas',
+                  Pending: k.filterPending || 'Pending',
+                  Overdue: k.filterOverdue || 'Jatuh Tempo',
+                };
+                return (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      setInvoiceStatusFilter(st);
+                      loadInvoicesOverview(invoiceSearch, st);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                      invoiceStatusFilter === st
+                        ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    {statusMap[st] || st}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -635,12 +656,12 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                       className="rounded accent-orange-500 cursor-pointer"
                     />
                   </th>
-                  <th className="py-3 px-4">INVOICE & E-FAKTUR</th>
-                  <th className="py-3 px-4">PERIODE LANGGANAN</th>
-                  <th className="py-3 px-4">SUBTOTAL & PPN 11%</th>
-                  <th className="py-3 px-4">TOTAL TAGIHAN</th>
-                  <th className="py-3 px-4">STATUS</th>
-                  <th className="py-3 px-4 text-right">AKSI</th>
+                  <th className="py-3 px-4">{k.colInvoiceNumber || 'INVOICE & E-FAKTUR'}</th>
+                  <th className="py-3 px-4">{k.colPeriod || 'PERIODE LANGGANAN'}</th>
+                  <th className="py-3 px-4">{k.colSubtotalTax || 'SUBTOTAL & PPN 11%'}</th>
+                  <th className="py-3 px-4">{k.colTotalAmount || 'TOTAL TAGIHAN'}</th>
+                  <th className="py-3 px-4">{k.colStatus || 'STATUS'}</th>
+                  <th className="py-3 px-4 text-right">{k.colActions || 'AKSI'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
@@ -648,8 +669,8 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500">
                       <Receipt size={32} className="mx-auto mb-2 opacity-50 stroke-[1.5]" />
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum Ada Faktur / Invoice Tagihan</p>
-                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">Faktur pembayaran langganan Anda akan muncul di sini secara otomatis.</p>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{k.noInvoicesTitle || 'Belum Ada Faktur / Invoice Tagihan'}</p>
+                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">{k.noInvoicesSub || 'Faktur pembayaran langganan Anda akan muncul di sini secara otomatis.'}</p>
                     </td>
                   </tr>
                 ) : (
@@ -747,44 +768,48 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <CreditCard className="size-5 text-orange-500" />
-                <span>Metode Pembayaran Tersimpan</span>
+                <span>{k.paymentMethodsTitle || 'Metode Pembayaran Tersimpan'}</span>
               </h3>
-              <p className="text-xs text-slate-400">Kelola kartu kredit, QRIS, e-wallet, dan wallet crypto x402 Solana untuk perpanjangan otomatis</p>
+              <p className="text-xs text-slate-400">{k.paymentMethodsSub || 'Kelola kartu kredit, QRIS, e-wallet, dan wallet crypto x402 Solana untuk perpanjangan otomatis'}</p>
             </div>
-            <button 
-              onClick={() => setIsAddPaymentModalOpen(true)}
-              className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all hover:scale-102"
-            >
-              <Plus size={14} /> <span>Tambah Metode Baru</span>
-            </button>
+            {billingData.paymentMethods.length > 0 && (
+              <button 
+                onClick={() => setIsAddPaymentModalOpen(true)}
+                className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all hover:scale-102"
+              >
+                <Plus size={14} /> <span>{k.addPaymentMethodBtn || 'Tambah Metode Baru'}</span>
+              </button>
+            )}
           </div>
 
           {/* Top Telemetry Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kanal Pembayaran Aktif</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.activePaymentChannels || 'Kanal Pembayaran Aktif'}</span>
               <div className="flex items-baseline justify-between">
-                <h4 className="text-xl font-black text-slate-900 dark:text-slate-100">{billingData.paymentMethods.length} Kanal</h4>
+                <h4 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                  {billingData.paymentMethods.length} {language === 'en' ? 'Channels' : language === 'zh' ? '渠道' : 'Kanal'}
+                </h4>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold">
-                  Terverifikasi
+                  {k.verifiedBadge || 'Terverifikasi'}
                 </span>
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Metode Utama Auto-Renewal</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.primaryAutoRenewal || 'Metode Utama Auto-Renewal'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate max-w-[170px]">
-                  {billingData.paymentMethods.find((p: any) => p.is_primary)?.method_name || 'Belum Ada'}
+                  {billingData.paymentMethods.find((p: any) => p.is_primary)?.method_name || (k.noneYet || 'Belum Ada')}
                 </h4>
                 <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 text-[10px] font-extrabold">
-                  Utama
+                  {k.primaryBadge || 'Utama'}
                 </span>
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Keamanan & Enkripsi</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.securityEncryption || 'Keamanan & Enkripsi'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">PCI-DSS Level 1</h4>
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 text-[9px] font-extrabold">
@@ -794,90 +819,159 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             </div>
           </div>
 
-          {/* Payment Methods Cards Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {billingData.paymentMethods.map((pm: any) => (
-              <div 
-                key={pm.id} 
-                className={`p-5 rounded-3xl border transition-all space-y-4 flex flex-col justify-between relative overflow-hidden ${
-                  pm.is_primary
-                    ? 'border-orange-500/50 bg-gradient-to-b from-orange-50/40 via-white to-orange-50/10 dark:from-orange-950/20 dark:via-slate-900 dark:to-slate-950 shadow-md ring-1 ring-orange-500/20'
-                    : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
-                }`}
+          {/* Payment Methods Cards Grid or Professional Empty State */}
+          {billingData.paymentMethods.length === 0 ? (
+            <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-b from-slate-50/80 via-white to-orange-50/20 dark:from-slate-800/40 dark:via-slate-900 dark:to-slate-950 border border-dashed border-slate-300 dark:border-slate-700 text-center flex flex-col items-center justify-center space-y-4 my-1 shadow-2xs">
+              <div className="size-16 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 ring-4 ring-orange-500/10">
+                <CreditCard size={30} />
+              </div>
+              <div className="max-w-md space-y-1.5">
+                <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
+                  {k.noPaymentMethodsTitle || 'Belum Ada Metode Pembayaran Tersimpan'}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                  {k.noPaymentMethodsSub || 'Hubungkan kartu kredit, Virtual Account, QRIS, e-wallet, atau wallet crypto x402 Solana untuk perpanjangan otomatis dan akses tanpa jeda.'}
+                </p>
+              </div>
+
+              {/* Enterprise Feature Highlights */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] font-extrabold text-slate-600 dark:text-slate-300">
+                <span className="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs">
+                  <Sparkles size={13} className="text-amber-500" /> {k.benefitAutoRenewal || 'Auto-Renewal Tanpa Jeda'}
+                </span>
+                <span className="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs">
+                  <ShieldCheck size={13} className="text-emerald-500" /> {k.benefitEncrypted || 'Enkripsi PCI-DSS Level 1'}
+                </span>
+                <span className="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs">
+                  <Globe size={13} className="text-blue-500" /> {k.benefitMultiCurrency || 'FIAT & x402 Web3 Ready'}
+                </span>
+              </div>
+
+              <button 
+                onClick={() => setIsAddPaymentModalOpen(true)}
+                className="mt-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 cursor-pointer flex items-center gap-2 transition-all hover:scale-103 active:scale-97"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="size-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shadow-xs shrink-0">
-                      <PaymentBrandLogo iconKey={pm.icon_key || pm.method_name} className="h-6 w-auto object-contain" />
+                <Plus size={16} /> <span>{k.addFirstPaymentMethodBtn || 'Tambah Metode Pembayaran Utama'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {billingData.paymentMethods.map((pm: any) => (
+                <div 
+                  key={pm.id} 
+                  className={`p-5 rounded-3xl border transition-all space-y-4 flex flex-col justify-between relative overflow-hidden ${
+                    pm.is_primary
+                      ? 'border-orange-500/50 bg-gradient-to-b from-orange-50/40 via-white to-orange-50/10 dark:from-orange-950/20 dark:via-slate-900 dark:to-slate-950 shadow-md ring-1 ring-orange-500/20'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="size-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shadow-xs shrink-0">
+                        <PaymentBrandLogo iconKey={pm.icon_key || pm.method_name} className="h-6 w-auto object-contain" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{pm.method_name}</h4>
+                        <p className="text-[10.5px] text-slate-400 font-semibold">{pm.card_holder_name || pm.method_type}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{pm.method_name}</h4>
-                      <p className="text-[10.5px] text-slate-400 font-semibold">{pm.card_holder_name || pm.method_type}</p>
-                    </div>
+                    {pm.is_primary && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold shrink-0">
+                        {k.primaryBadge || 'Utama'}
+                      </span>
+                    )}
                   </div>
-                  {pm.is_primary && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold shrink-0">
-                      Utama
-                    </span>
+
+                  {/* Optional Physical Card Photo / Proof */}
+                  {pm.card_photo_url && (
+                    <div className="relative h-20 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 group">
+                      <img 
+                        src={pm.card_photo_url} 
+                        alt="Foto Kartu Fisik" 
+                        onError={(e) => {
+                          (e.target as HTMLElement).parentElement!.style.display = 'none';
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      />
+                      <div className="absolute inset-0 bg-slate-950/70 flex items-end p-2">
+                        <span className="text-[9px] font-bold text-white uppercase tracking-wider bg-slate-900/80 px-2 py-0.5 rounded-lg backdrop-blur-xs">
+                          {k.cardPhotoCdnVerified || 'Kartu Terverifikasi CDN'}
+                        </span>
+                      </div>
+                    </div>
                   )}
-                </div>
 
-
-
-                {/* Optional Physical Card Photo / Proof */}
-                {pm.card_photo_url && (
-                  <div className="relative h-20 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 group">
-                    <img 
-                      src={pm.card_photo_url} 
-                      alt="Foto Kartu Fisik" 
-                      onError={(e) => {
-                        (e.target as HTMLElement).parentElement!.style.display = 'none';
-                      }}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                    />
-                    <div className="absolute inset-0 bg-slate-950/70 flex items-end p-2">
-                      <span className="text-[9px] font-bold text-white uppercase tracking-wider bg-slate-900/80 px-2 py-0.5 rounded-lg backdrop-blur-xs">
-                        Kartu Terverifikasi CDN
+                  <div className="space-y-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
+                    <div className="flex justify-between">
+                      <span>{k.expiryDateLabel || 'Masa Berlaku:'}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {pm.exp_date === 'Permanen' || pm.exp_date === 'Permanent' ? (k.permanent || 'Permanen') : (pm.exp_date || (k.permanent || 'Permanen'))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{k.channelStatusLabel || 'Status Channel:'}</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {pm.status === 'Aktif' || pm.status === 'Active' ? (k.active || 'Aktif') : (pm.status || (k.active || 'Aktif'))}
                       </span>
                     </div>
                   </div>
-                )}
 
-                <div className="space-y-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
-                  <div className="flex justify-between">
-                    <span>Masa Berlaku:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{pm.exp_date || 'Permanen'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Status Channel:</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{pm.status || 'Aktif'}</span>
+                  <div className="flex items-center justify-between gap-2 text-xs pt-1">
+                    {!pm.is_primary ? (
+                      <>
+                        <button 
+                          onClick={() => handleSetPrimaryPaymentMethod(pm.id, pm.method_name)}
+                          className="px-3.5 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
+                        >
+                          {k.setPrimaryBtn || 'Atur Utama'}
+                        </button>
+                        <button 
+                          onClick={() => setPaymentMethodToDelete(pm)}
+                          className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                        >
+                          {k.manageDeleteBtn || 'Kelola / Hapus'}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-bold italic">
+                        {k.primaryMethodNote || 'Metode utama auto-renewal toko'}
+                      </span>
+                    )}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
 
-                <div className="flex items-center justify-between gap-2 text-xs pt-1">
-                  {!pm.is_primary ? (
-                    <>
-                      <button 
-                        onClick={() => handleSetPrimaryPaymentMethod(pm.id, pm.method_name)}
-                        className="px-3.5 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
-                      >
-                        Atur Utama
-                      </button>
-                      <button 
-                        onClick={() => setPaymentMethodToDelete(pm)}
-                        className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                      >
-                        Kelola / Hapus
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-[10px] text-slate-400 font-bold italic">
-                      Metode utama auto-renewal toko
-                    </span>
-                  )}
-                </div>
+          {/* Supported Payment Gateway & Brand Logos Ribbon */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold text-slate-500 shadow-2xs mt-4">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold text-xs">
+              <ShieldCheck size={18} className="text-emerald-500 shrink-0" />
+              <span>PCI-DSS Encrypted Gateways:</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="stripe" className="h-5 sm:h-6 w-auto object-contain" />
               </div>
-            ))}
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="midtrans" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="qris" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="gopay" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="dana" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="ovo" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+              <div className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:scale-105 transition-transform flex items-center justify-center">
+                <PaymentBrandLogo iconKey="usdc" className="h-5 sm:h-6 w-auto object-contain" />
+              </div>
+            </div>
           </div>
         </div>
       ) : activeTab === 'History' ? (
@@ -888,9 +982,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <History className="size-5 text-orange-500" />
-                <span>Riwayat Transaksi Settlement (x402 & FIAT)</span>
+                <span>{k.historyTitle || 'Riwayat Transaksi Settlement (x402 & FIAT)'}</span>
               </h3>
-              <p className="text-xs text-slate-400">Log lengkap transaksi mesin-ke-mesin, wallet crypto Solana x402, dan gateway FIAT</p>
+              <p className="text-xs text-slate-400">{k.historySub || 'Log lengkap transaksi mesin-ke-mesin, wallet crypto Solana x402, dan gateway FIAT'}</p>
             </div>
             <button 
               onClick={() => {
@@ -901,36 +995,36 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               <RefreshCw size={14} className={isHistoryLoading ? 'animate-spin' : ''} /> 
-              <span>Refresh Log</span>
+              <span>{k.refreshLogBtn || 'Refresh Log'}</span>
             </button>
           </div>
 
           {/* Top 3 Summary Telemetry Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Transaksi Log</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.totalLogTitle || 'Total Transaksi Log'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-xl font-black text-slate-900 dark:text-slate-100">{historyMetrics.total_transactions || (historyTransactions.length || billingData.transactions.length)}</h4>
-                <span className="text-[11px] font-bold text-slate-500">Record Logs</span>
+                <span className="text-[11px] font-bold text-slate-500">{k.recordLogsBadge || 'Record Logs'}</span>
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tingkat Keberhasilan Settlement</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.successRateTitle || 'Tingkat Keberhasilan Settlement'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-xl font-black text-emerald-600 dark:text-emerald-400">{historyMetrics.success_rate_pct || 100}%</h4>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold">
-                  {historyMetrics.success_count || historyTransactions.length} Sukses
+                  {historyMetrics.success_count || historyTransactions.length} {k.successCountBadge || 'Sukses'}
                 </span>
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Metode Aktif & Protocol</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{k.activeMethodsTitle || 'Metode Aktif & Protocol'}</span>
               <div className="flex items-baseline justify-between">
                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">x402 Solana & FIAT Gateway</h4>
                 <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 text-[9px] font-extrabold">
-                  Dual Settlement
+                  {k.dualSettlementBadge || 'Dual Settlement'}
                 </span>
               </div>
             </div>
@@ -990,15 +1084,15 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                   <div>
                     <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <BarChart3 className="size-4 text-orange-500" />
-                      <span>Telemetri Distributions & Settlement Analytics</span>
+                      <span>{k.telemetryDistributionsTitle || 'Telemetri Distributions & Settlement Analytics'}</span>
                     </h4>
-                    <p className="text-[10.5px] text-slate-400 font-medium">Analisis visual proporsi transaksi real-time terintegrasi backend database Migration 78</p>
+                    <p className="text-[10.5px] text-slate-400 font-medium">{k.telemetryDistributionsSub || 'Analisis visual proporsi transaksi real-time terintegrasi backend database Migration 78'}</p>
                   </div>
 
                   {/* Unified Live Health Badge Strip */}
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/60 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300">
                     <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Settlement Health: 100% (11 Sukses)</span>
+                    <span>{k.settlementHealthBadge || 'Settlement Health'}: 100% ({historyMetrics.success_count || list.length} {k.successCountBadge || 'Sukses'})</span>
                   </div>
                 </div>
 
@@ -1094,12 +1188,12 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                                 </>
                               ) : (
                                 <>
-                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">SETTLEMENT VOLUME</span>
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{k.settlementVolumeLabel || 'SETTLEMENT VOLUME'}</span>
                                   <span className="text-base font-black text-slate-900 dark:text-slate-100 font-mono leading-tight mt-0.5">
                                     Rp{totalFiat.toLocaleString('id-ID')}
                                   </span>
                                   <span className="px-2 py-0.5 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9.5px] font-extrabold group-hover:bg-orange-100 group-hover:text-orange-600 transition-colors">
-                                    {list.length} Log Transaksi
+                                    {list.length} {k.logCountLabel || 'Log Transaksi'}
                                   </span>
                                 </>
                               )}
@@ -1108,7 +1202,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                         })()}
                       </div>
                       <p className="text-[9.5px] text-slate-400 font-semibold mt-1.5 flex items-center gap-1">
-                        <span>💡 Klik slice atau brand card untuk melihat detail kanal & filter tabel</span>
+                        <span>{k.clickSliceTip || '💡 Klik slice atau brand card untuk melihat detail kanal & filter tabel'}</span>
                       </p>
                     </div>
 
@@ -1151,7 +1245,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                               </div>
                               <div className="min-w-0">
                                 <h5 className="text-[11px] font-black text-slate-900 dark:text-slate-100 truncate">{method}</h5>
-                                <p className="text-[10px] text-slate-400 font-semibold">{data.count} Transaksi</p>
+                                <p className="text-[10px] text-slate-400 font-semibold">{data.count} {k.transactionCountLabel || 'Transaksi'}</p>
                               </div>
                             </div>
 
@@ -1191,7 +1285,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                           </div>
                           <div className="min-w-0">
                             <h5 className="text-[11px] font-black text-slate-900 dark:text-slate-100 truncate">{method}</h5>
-                            <p className="text-[10px] text-slate-400 font-bold">{data.count} Transaksi</p>
+                            <p className="text-[10px] text-slate-400 font-bold">{data.count} {k.transactionCountLabel || 'Transaksi'}</p>
                           </div>
                         </div>
                       );
@@ -1205,8 +1299,8 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                       <div className="flex items-center gap-2.5 text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 size={18} />
                         <div>
-                          <h5 className="font-black text-xs">Settlement Berhasil</h5>
-                          <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-normal">Transaksi terverifikasi di blockchain / gateway</p>
+                          <h5 className="font-black text-xs">{k.settlementSuccessTitle || 'Settlement Berhasil'}</h5>
+                          <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-normal">{k.settlementSuccessSub || 'Transaksi terverifikasi di blockchain / gateway'}</p>
                         </div>
                       </div>
                       <span className="text-lg font-black text-emerald-700 dark:text-emerald-400 font-mono">
@@ -1218,8 +1312,8 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                       <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-400">
                         <AlertTriangle size={18} />
                         <div>
-                          <h5 className="font-black text-xs">Gagal / Pending</h5>
-                          <p className="text-[10px] text-slate-500 font-normal">Belum ada transaksi terkendala</p>
+                          <h5 className="font-black text-xs">{k.settlementFailedTitle || 'Gagal / Pending'}</h5>
+                          <p className="text-[10px] text-slate-500 font-normal">{k.settlementFailedSub || 'Belum ada transaksi terkendala'}</p>
                         </div>
                       </div>
                       <span className="text-lg font-black text-slate-600 dark:text-slate-400 font-mono">
@@ -1238,7 +1332,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari transaksi hash, metode, atau tipe..."
+                placeholder={k.historySearchPlaceholder || 'Cari transaksi hash, metode, atau tipe...'}
                 value={historySearch}
                 onChange={(e) => {
                   setHistorySearch(e.target.value);
@@ -1250,20 +1344,24 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
 
             {/* Filter Pills */}
             <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold">
-              {['Semua', 'Berhasil', 'Gagal'].map((st) => (
+              {[
+                { id: 'Semua', label: k.historyFilterAll || 'Semua' },
+                { id: 'Berhasil', label: k.historyFilterSuccess || 'Berhasil' },
+                { id: 'Gagal', label: k.historyFilterFailed || 'Gagal' }
+              ].map((st) => (
                 <button
-                  key={st}
+                  key={st.id}
                   onClick={() => {
-                    setHistoryStatusFilter(st);
-                    loadBillingHistory(historySearch, st);
+                    setHistoryStatusFilter(st.id);
+                    loadBillingHistory(historySearch, st.id);
                   }}
                   className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                    historyStatusFilter === st
+                    historyStatusFilter === st.id
                       ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
                       : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
-                  {st}
+                  {st.label}
                 </button>
               ))}
             </div>
@@ -1274,13 +1372,13 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div className="flex items-center justify-between px-4 py-2 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 text-xs font-bold text-orange-700 dark:text-orange-300">
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
-                <span>Menampilkan Filter Kanal: <strong>{selectedChannelFilter}</strong></span>
+                <span>{k.showingChannelFilter || 'Menampilkan Filter Kanal:'} <strong>{selectedChannelFilter}</strong></span>
               </div>
               <button
                 onClick={() => setSelectedChannelFilter(null)}
                 className="px-2 py-0.5 rounded-lg bg-orange-200/60 dark:bg-orange-900/80 text-[11px] font-black text-orange-800 dark:text-orange-200 hover:bg-orange-300 cursor-pointer transition-colors"
               >
-                Riset Filter ✕
+                {k.resetFilterBtn || 'Riset Filter ✕'}
               </button>
             </div>
           )}
@@ -1290,12 +1388,12 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
-                  <th className="py-3 px-4">TRANSAKSI HASH & TIPE</th>
-                  <th className="py-3 px-4">TANGGAL & WAKTU</th>
-                  <th className="py-3 px-4">METODE PEMBAYARAN</th>
-                  <th className="py-3 px-4">NOMINAL (CRYPTO & FIAT)</th>
-                  <th className="py-3 px-4">STATUS</th>
-                  <th className="py-3 px-4 text-right">AKSI</th>
+                  <th className="py-3 px-4">{k.colTxnHashType || 'TRANSAKSI HASH & TIPE'}</th>
+                  <th className="py-3 px-4">{k.colDateTime || 'TANGGAL & WAKTU'}</th>
+                  <th className="py-3 px-4">{k.colPaymentMethod || 'METODE PEMBAYARAN'}</th>
+                  <th className="py-3 px-4">{k.colAmount || 'NOMINAL (CRYPTO & FIAT)'}</th>
+                  <th className="py-3 px-4">{k.colStatusHistory || 'STATUS'}</th>
+                  <th className="py-3 px-4 text-right">{k.colAction || 'AKSI'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
@@ -1332,7 +1430,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                           </a>
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium">{tx.txn_type || 'Perpanjangan Subscription'}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{tx.txn_type || k.defaultTxnType || 'Perpanjangan Subscription'}</p>
                     </td>
 
                     <td className="py-3 px-4 text-slate-500 font-medium">{tx.txn_date_label}</td>
@@ -1361,7 +1459,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
                           : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400'
                       }`}>
-                        {tx.status}
+                        {tx.status === 'Berhasil' ? (k.statusSuccess || 'Berhasil') : (k.statusFailed || 'Gagal')}
                       </span>
                     </td>
 
@@ -1370,7 +1468,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                         onClick={() => setSelectedTxnForDetail(tx)}
                         className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all"
                       >
-                        Detail
+                        {k.detailBtn || 'Detail'}
                       </button>
                     </td>
                   </tr>
@@ -1387,9 +1485,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <BarChart3 className="size-5 text-orange-500" />
-                <span>Pantau Pemakaian Kuota & Analytics Resource</span>
+                <span>{k.usageAnalyticsTitle || 'Pantau Pemakaian Kuota & Analytics Resource'}</span>
               </h3>
-              <p className="text-xs text-slate-400">Analisis penggunaan AI Credits, AI Workforce, Otomasi Workflow, dan Cloud Storage secara real-time</p>
+              <p className="text-xs text-slate-400">{k.usageAnalyticsSub || 'Analisis penggunaan AI Credits, AI Workforce, Otomasi Workflow, dan Cloud Storage secara real-time'}</p>
             </div>
             <div className="flex items-center gap-2">
               <button 
@@ -1401,14 +1499,14 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={isUsageLoading ? 'animate-spin' : ''} /> 
-                <span>Refresh Telemetri</span>
+                <span>{k.refreshTelemetryBtn || 'Refresh Telemetri'}</span>
               </button>
               <button 
                 onClick={() => setIsTopupQuotaModalOpen(true)}
                 className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
               >
                 <Plus size={14} />
-                <span>Tambah Kuota / Upgrade</span>
+                <span>{k.addQuotaUpgradeBtn || 'Tambah Kuota / Upgrade'}</span>
               </button>
             </div>
           </div>
@@ -1416,7 +1514,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
           {/* 2. Quota Health KPI Cards Grid */}
           {usageTelemetryData.metrics.length === 0 ? (
             <div className="p-6 text-center rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-400 text-xs font-semibold">
-              Belum ada metrik pemakaian kuota yang tercatat di backend.
+              {k.noMetricsBackend || 'Belum ada metrik pemakaian kuota yang tercatat di backend.'}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1465,9 +1563,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <div>
                 <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <BarChart2 className="size-4 text-orange-500" />
-                  <span>Tren Penggunaan Kuota (Visualisasi BarChart Interaktif)</span>
+                  <span>{k.usageTrendBarChartTitle || 'Tren Penggunaan Kuota (Visualisasi BarChart Interaktif)'}</span>
                 </h4>
-                <p className="text-[10.5px] text-slate-400 font-medium">Grafik histori konsumsi harian vs batas kuota langganan UMKM</p>
+                <p className="text-[10.5px] text-slate-400 font-medium">{k.usageTrendBarChartSub || 'Grafik histori konsumsi harian vs batas kuota langganan UMKM'}</p>
               </div>
 
               {/* Timeframe & Metric Switchers & Collapsible Toggle */}
@@ -1475,9 +1573,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 {/* Metric Switcher */}
                 <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold">
                   {[
-                    { id: 'credits', label: 'AI Credits' },
-                    { id: 'automations', label: 'Automations' },
-                    { id: 'storage', label: 'Storage' }
+                    { id: 'credits', label: k.metricCredits || 'AI Credits' },
+                    { id: 'automations', label: k.metricAutomations || 'Automations' },
+                    { id: 'storage', label: k.metricStorage || 'Storage' }
                   ].map((btn) => (
                     <button
                       key={btn.id}
@@ -1496,9 +1594,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 {/* Timeframe Switcher */}
                 <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold">
                   {[
-                    { id: '7d', label: '7 Hari' },
-                    { id: '30d', label: '30 Hari' },
-                    { id: '12m', label: '12 Bulan' }
+                    { id: '7d', label: k.timeframe7d || '7 Hari' },
+                    { id: '30d', label: k.timeframe30d || '30 Hari' },
+                    { id: '12m', label: k.timeframe12m || '12 Bulan' }
                   ].map((tf) => (
                     <button
                       key={tf.id}
@@ -1519,7 +1617,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                   onClick={() => setIsUsageTrendExpanded(!isUsageTrendExpanded)}
                   className="p-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1 text-[11px] font-extrabold cursor-pointer"
                 >
-                  <span>{isUsageTrendExpanded ? 'Sembunyikan' : 'Buka Tren'}</span>
+                  <span>{isUsageTrendExpanded ? (k.hideTrendBtn || 'Sembunyikan') : (k.showTrendBtn || 'Buka Tren')}</span>
                   {isUsageTrendExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
               </div>
@@ -1532,7 +1630,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 if (rawTrends.length === 0) {
                   return (
                     <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                      Belum ada data histori tren penggunaan kuota yang tercatat.
+                      {k.noTrendData || 'Belum ada data histori tren penggunaan kuota yang tercatat.'}
                     </div>
                   );
                 }
@@ -1591,9 +1689,9 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <span className="flex items-center gap-1.5">
                         <span className="size-2 rounded-full bg-orange-500" />
-                        <span>Metrik Aktif: <strong>{usageChartMetric.toUpperCase()}</strong></span>
+                        <span>{k.activeMetricLabel || 'Metrik Aktif:'} <strong>{usageChartMetric.toUpperCase()}</strong></span>
                       </span>
-                      <span className="font-mono">Puncak Konsumsi: {maxVal} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Executions' : 'Credits'}</span>
+                      <span className="font-mono">{k.peakConsumptionLabel || 'Puncak Konsumsi:'} {maxVal} {usageChartMetric === 'storage' ? 'GB' : usageChartMetric === 'automations' ? 'Executions' : 'Credits'}</span>
                     </div>
                   </div>
                 );
@@ -1605,15 +1703,15 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
           <div className="space-y-4 pt-2">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Rincian Penggunaan Berdasarkan Fitur</h4>
-                <p className="text-[10.5px] text-slate-400">Daftar konsumsi AI credits per modul dan layanan sistem</p>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.featureBreakdownTitle || 'Rincian Penggunaan Berdasarkan Fitur'}</h4>
+                <p className="text-[10.5px] text-slate-400">{k.featureBreakdownSub || 'Daftar konsumsi AI credits per modul dan layanan sistem'}</p>
               </div>
 
               <button
                 onClick={() => setIsUsageBreakdownExpanded(!isUsageBreakdownExpanded)}
                 className="p-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-1 text-xs font-extrabold cursor-pointer shadow-2xs self-start sm:self-auto"
               >
-                <span>{isUsageBreakdownExpanded ? 'Sembunyikan' : 'Buka Rincian'}</span>
+                <span>{isUsageBreakdownExpanded ? (k.hideBreakdownBtn || 'Sembunyikan') : (k.showBreakdownBtn || 'Buka Rincian')}</span>
                 {isUsageBreakdownExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
@@ -1626,7 +1724,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Cari fitur..."
+                      placeholder={k.searchFeaturesPlaceholder || "Cari fitur..."}
                       value={usageSearchQuery}
                       onChange={(e) => setUsageSearchQuery(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
@@ -1644,7 +1742,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                         }`}
                       >
-                        {cat}
+                        {cat === 'Semua' ? (k.categoryFilterAll || 'Semua') : cat}
                       </button>
                     ))}
                   </div>
@@ -1655,18 +1753,18 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="py-3 px-4">FITUR / MODUL</th>
-                        <th className="py-3 px-4">KATEGORI</th>
-                        <th className="py-3 px-4">TOTAL AKTIVITAS</th>
-                        <th className="py-3 px-4">BIAYA CREDITS</th>
-                        <th className="py-3 px-4 text-right">TERAKHIR DIGUNAKAN</th>
+                        <th className="py-3 px-4">{k.colFeatureModule || 'FITUR / MODUL'}</th>
+                        <th className="py-3 px-4">{k.colCategory || 'KATEGORI'}</th>
+                        <th className="py-3 px-4">{k.colTotalActivity || 'TOTAL AKTIVITAS'}</th>
+                        <th className="py-3 px-4">{k.colCreditsCost || 'BIAYA CREDITS'}</th>
+                        <th className="py-3 px-4 text-right">{k.colLastUsed || 'TERAKHIR DIGUNAKAN'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
                       {usageTelemetryData.breakdown.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
-                            Belum ada catatan rincian penggunaan fitur.
+                            {k.noBreakdownData || 'Belum ada catatan rincian penggunaan fitur.'}
                           </td>
                         </tr>
                       ) : (
@@ -1699,252 +1797,332 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
         </div>
       ) : activeTab === 'Settings' ? (
         /* Enterprise Settings Tab View */
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Pengaturan Tagihan & Faktur Pajak</h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-extrabold">
-                  Realtime DB Sync
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-8">
+          
+          {/* Header & Save Action Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800/80">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                  {k.billingSettingsTitle || 'Pengaturan Tagihan & Faktur Pajak'}
+                </h3>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[11px] font-bold border border-orange-200/60 dark:border-orange-900/50 shadow-2xs">
+                  <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
+                  {k.realtimeDbSyncBadge || 'Realtime DB Sync'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium pt-0.5">
-                Kelola identitas badan usaha, NPWP, alamat e-Faktur, preferensi pembayaran otomatis, dan saluran notifikasi tagihan.
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium max-w-2xl leading-relaxed">
+                {k.billingSettingsSub || 'Kelola identitas badan usaha, NPWP, alamat e-Faktur, preferensi pembayaran otomatis, dan saluran notifikasi tagihan.'}
               </p>
             </div>
+
             <button 
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
-              className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="self-start md:self-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <RefreshCw size={14} className={isSavingSettings ? 'animate-spin' : ''} />
-              {isSavingSettings ? 'Menyimpan...' : 'Simpan Perubahan'}
+              <RefreshCw size={15} className={isSavingSettings ? 'animate-spin' : ''} />
+              {isSavingSettings ? (k.savingChangesBtn || 'Menyimpan...') : (k.saveChangesBtn || 'Simpan Perubahan')}
             </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Section 1: Profil Badan Usaha & Tax ID */}
-            <div className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-4">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="size-9 rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-bold text-xs shadow-xs">
-                  <Building2 size={18} />
+            {/* Section 1: Profil Toko & Entitas Tagihan */}
+            <div className="p-6 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all shadow-2xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="size-10 rounded-2xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 flex items-center justify-center font-bold shadow-2xs">
+                  <Building2 size={20} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Profil Toko & Entitas Tagihan</h4>
-                  <p className="text-[10px] text-slate-400">Identitas resmi yang dicantumkan pada Invoice & e-Faktur</p>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                    {k.sectionBusinessProfileHeading || 'Profil Toko & Entitas Tagihan'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {k.sectionBusinessProfileSub || 'Identitas resmi yang dicantumkan pada Invoice & e-Faktur'}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-3.5 text-xs">
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold flex items-center justify-between">
-                    <span>Nama Badan Usaha / Toko</span>
-                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold">Wajib</span>
+              <div className="space-y-4 text-xs">
+                {/* Store Name Input */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold flex items-center justify-between">
+                    <span>{k.businessNameLabel || 'Nama Badan Usaha / Toko'}</span>
+                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-extrabold px-2 py-0.5 bg-orange-100/60 dark:bg-orange-950/60 rounded-full border border-orange-200/50 dark:border-orange-900/40">
+                      {k.requiredBadge || 'Wajib'}
+                    </span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={settingsData.business_name || ''} 
-                    onChange={(e) => setSettingsData({ ...settingsData, business_name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors"
-                  />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={settingsData.business_name || ''} 
+                      onChange={(e) => setSettingsData({ ...settingsData, business_name: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-2xs"
+                    />
+                    <Building2 size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold flex items-center justify-between">
-                    <span>Nomor NPWP / Tax ID</span>
-                    <span className="text-[10px] text-slate-400">Opsional e-Faktur</span>
+                {/* Tax ID / NPWP Input */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold flex items-center justify-between">
+                    <span>{k.taxIdLabel || 'Nomor NPWP / Tax ID'}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 bg-slate-200/60 dark:bg-slate-800 rounded-full">
+                      {k.optionalTaxBadge || 'Opsional e-Faktur'}
+                    </span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={settingsData.tax_id || ''} 
-                    onChange={(e) => setSettingsData({ ...settingsData, tax_id: e.target.value })}
-                    placeholder="00.000.000.0-000.000"
-                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors"
-                  />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={settingsData.tax_id || ''} 
+                      onChange={(e) => setSettingsData({ ...settingsData, tax_id: e.target.value })}
+                      placeholder="00.000.000.0-000.000"
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-2xs"
+                    />
+                    <FileText size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold">Telepon Penanggung Jawab Billing</label>
+                {/* Billing Contact Phone */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold">
+                    {k.billingPhoneLabel || 'Telepon Penanggung Jawab Billing'}
+                  </label>
                   <div className="relative">
                     <input 
                       type="text" 
                       value={settingsData.billing_phone || ''} 
                       onChange={(e) => setSettingsData({ ...settingsData, billing_phone: e.target.value })}
                       placeholder="+62 812-3456-7890"
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-2xs"
                     />
-                    <Phone size={14} className="absolute left-3 top-3 text-slate-400" />
+                    <Phone size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Alamat Penerbitan Faktur */}
-            <div className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-4">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="size-9 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold text-xs shadow-xs">
-                  <MapPin size={18} />
+            {/* Section 2: Kontak & Alamat Pengiriman Faktur */}
+            <div className="p-6 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all shadow-2xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="size-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold shadow-2xs">
+                  <MapPin size={20} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Kontak & Alamat Pengiriman Faktur</h4>
-                  <p className="text-[10px] text-slate-400">Email dan alamat fisik penerbitan dokumen faktur</p>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                    {k.sectionContactAddressHeading || 'Kontak & Alamat Pengiriman Faktur'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {k.sectionContactAddressSub || 'Email dan alamat fisik penerbitan dokumen faktur'}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-3.5 text-xs">
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold flex items-center justify-between">
-                    <span>Email Utama Faktur & Invoice</span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Terverifikasi</span>
+              <div className="space-y-4 text-xs">
+                {/* Billing Email Input */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold flex items-center justify-between">
+                    <span>{k.billingEmailLabel || 'Email Utama Faktur & Invoice'}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold px-2 py-0.5 bg-emerald-100/60 dark:bg-emerald-950/60 rounded-full border border-emerald-200/50 dark:border-emerald-900/40">
+                      <ShieldCheck size={12} />
+                      {k.verifiedEmailBadge || 'Terverifikasi'}
+                    </span>
                   </label>
                   <div className="relative">
                     <input 
                       type="email" 
                       value={settingsData.billing_email || ''} 
                       onChange={(e) => setSettingsData({ ...settingsData, billing_email: e.target.value })}
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all shadow-2xs"
                     />
-                    <Mail size={14} className="absolute left-3 top-3 text-slate-400" />
+                    <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold">Alamat Lengkap Penerbitan Invoice</label>
-                  <textarea 
-                    rows={3}
-                    value={settingsData.billing_address || ''} 
-                    onChange={(e) => setSettingsData({ ...settingsData, billing_address: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors resize-none"
-                  />
+                {/* Address Textarea */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold">
+                    {k.billingAddressLabel || 'Alamat Lengkap Penerbitan Invoice'}
+                  </label>
+                  <div className="relative">
+                    <textarea 
+                      rows={3}
+                      value={settingsData.billing_address || ''} 
+                      onChange={(e) => setSettingsData({ ...settingsData, billing_address: e.target.value })}
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all resize-none shadow-2xs"
+                    />
+                    <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Section 3: Konfigurasi Pembayaran & Mata Uang */}
-            <div className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-4">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="size-9 rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold text-xs shadow-xs">
-                  <Globe size={18} />
+            {/* Section 3: Preferensi Pembayaran & Otomatisasi */}
+            <div className="p-6 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all shadow-2xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="size-10 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 flex items-center justify-center font-bold shadow-2xs">
+                  <Globe size={20} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Preferensi Pembayaran & Otomatisasi</h4>
-                  <p className="text-[10px] text-slate-400">Atur perpanjangan otomatis dan mata uang billing</p>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                    {k.sectionPaymentPrefHeading || 'Preferensi Pembayaran & Otomatisasi'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {k.sectionPaymentPrefSub || 'Atur perpanjangan otomatis dan mata uang billing'}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-3.5 text-xs">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                  <div>
-                    <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Perpanjangan Otomatis (Auto-Renew)</h5>
-                    <p className="text-[10px] text-slate-400">Perpanjang paket aktif otomatis saat tanggal kedaluwarsa</p>
+              <div className="space-y-4 text-xs">
+                {/* Auto Renew Switch */}
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700">
+                  <div className="pr-4">
+                    <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                      {k.autoRenewTitle || 'Perpanjangan Otomatis (Auto-Renew)'}
+                    </h5>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium pt-0.5">
+                      {k.autoRenewSub || 'Perpanjang paket aktif otomatis saat tanggal kedaluwarsa'}
+                    </p>
                   </div>
                   <button 
                     type="button"
                     onClick={() => setSettingsData({ ...settingsData, auto_renew: !settingsData.auto_renew })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${settingsData.auto_renew ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${settingsData.auto_renew ? 'bg-emerald-500 shadow-xs shadow-emerald-500/30' : 'bg-slate-300 dark:bg-slate-700'}`}
                   >
-                    <span className={`inline-block size-4 transform rounded-full bg-white transition-transform ${settingsData.auto_renew ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block size-5 transform rounded-full bg-white shadow-md transition-transform ${settingsData.auto_renew ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-slate-700 dark:text-slate-300 font-extrabold">Mata Uang Utama Faktur</label>
-                  <select 
-                    value={settingsData.preferred_currency || 'IDR'} 
-                    onChange={(e) => setSettingsData({ ...settingsData, preferred_currency: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 transition-colors"
-                  >
-                    <option value="IDR">Rupiah Indonesia (IDR - Rp)</option>
-                    <option value="USD">Dolar Amerika (USD - $)</option>
-                    <option value="USDC">USDC Stablecoin Solana (x402 Network)</option>
-                  </select>
+                {/* Primary Currency */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-800 dark:text-slate-200 font-extrabold">
+                    {k.currencyLabel || 'Mata Uang Utama Faktur'}
+                  </label>
+                  <div className="relative">
+                    <select 
+                      value={settingsData.preferred_currency || 'IDR'} 
+                      onChange={(e) => setSettingsData({ ...settingsData, preferred_currency: e.target.value })}
+                      className="w-full pl-10 pr-10 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all appearance-none cursor-pointer shadow-2xs"
+                    >
+                      <option value="IDR">{k.currencyIdr || 'Rupiah Indonesia (IDR - Rp)'}</option>
+                      <option value="USD">{k.currencyUsd || 'Dolar Amerika (USD - $)'}</option>
+                      <option value="USDC">{k.currencyUsdc || 'USDC Stablecoin Solana (x402 Network)'}</option>
+                    </select>
+                    <CreditCard size={16} className="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                    <ChevronDown size={16} className="absolute right-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Section 4: Saluran Notifikasi Tagihan */}
-            <div className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-4">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="size-9 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-bold text-xs shadow-xs">
-                  <BellRing size={18} />
+            {/* Section 4: Kanal Notifikasi & Peringatan Kuota */}
+            <div className="p-6 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-slate-700/80 transition-all shadow-2xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="size-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center font-bold shadow-2xs">
+                  <BellRing size={20} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Kanal Notifikasi & Peringatan Kuota</h4>
-                  <p className="text-[10px] text-slate-400">Pilih media pengiriman pengingat tagihan & penggunaan kuota</p>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                    {k.sectionNotificationsHeading || 'Kanal Notifikasi & Peringatan Kuota'}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {k.sectionNotificationsSub || 'Pilih media pengiriman pengingat tagihan & penggunaan kuota'}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-2.5 text-xs">
-                {/* Channel 1: Email */}
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="space-y-3 text-xs">
+                {/* Channel 1: Email Toggle */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700">
                   <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
-                      <Mail size={16} />
+                    <div className="size-9 rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 flex items-center justify-center font-bold">
+                      <Mail size={18} />
                     </div>
                     <div>
-                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Pengingat Email</h5>
-                      <p className="text-[10px] text-slate-400">Kirim invoice & kuota kritis via email</p>
+                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                        {k.notifyEmailTitle || 'Pengingat Email'}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {k.notifyEmailSub || 'Kirim invoice & kuota kritis via email'}
+                      </p>
                     </div>
                   </div>
-                  <input 
-                    type="checkbox" 
-                    checked={settingsData.notify_email ?? true} 
-                    onChange={(e) => setSettingsData({ ...settingsData, notify_email: e.target.checked })}
-                    className="size-4 text-orange-500 rounded border-slate-300 focus:ring-orange-500 cursor-pointer"
-                  />
+                  <button 
+                    type="button"
+                    onClick={() => setSettingsData({ ...settingsData, notify_email: !(settingsData.notify_email ?? true) })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${(settingsData.notify_email ?? true) ? 'bg-orange-500 shadow-xs shadow-orange-500/30' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <span className={`inline-block size-4 transform rounded-full bg-white shadow-md transition-transform ${(settingsData.notify_email ?? true) ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
 
-                {/* Channel 2: WhatsApp */}
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                {/* Channel 2: WhatsApp Toggle */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700">
                   <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                      <MessageSquare size={16} />
+                    <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <MessageSquare size={18} />
                     </div>
                     <div>
-                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Notifikasi WhatsApp</h5>
-                      <p className="text-[10px] text-slate-400">Kirim ringkasan transaksi & pengingat perpanjangan</p>
+                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                        {k.notifyWhatsappTitle || 'Notifikasi WhatsApp'}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {k.notifyWhatsappSub || 'Kirim ringkasan transaksi & pengingat perpanjangan'}
+                      </p>
                     </div>
                   </div>
-                  <input 
-                    type="checkbox" 
-                    checked={settingsData.notify_whatsapp ?? true} 
-                    onChange={(e) => setSettingsData({ ...settingsData, notify_whatsapp: e.target.checked })}
-                    className="size-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                  />
+                  <button 
+                    type="button"
+                    onClick={() => setSettingsData({ ...settingsData, notify_whatsapp: !(settingsData.notify_whatsapp ?? true) })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${(settingsData.notify_whatsapp ?? true) ? 'bg-emerald-500 shadow-xs shadow-emerald-500/30' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <span className={`inline-block size-4 transform rounded-full bg-white shadow-md transition-transform ${(settingsData.notify_whatsapp ?? true) ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
 
-                {/* Channel 3: Push Notification */}
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                {/* Channel 3: Push Notification Toggle */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700">
                   <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                      <BellRing size={16} />
+                    <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 flex items-center justify-center font-bold">
+                      <BellRing size={18} />
                     </div>
                     <div>
-                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">In-App Push Notification</h5>
-                      <p className="text-[10px] text-slate-400">Tampilkan alert pada header dashboard user</p>
+                      <h5 className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                        {k.notifyPushTitle || 'In-App Push Notification'}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {k.notifyPushSub || 'Tampilkan alert pada header dashboard user'}
+                      </p>
                     </div>
                   </div>
-                  <input 
-                    type="checkbox" 
-                    checked={settingsData.notify_push ?? false} 
-                    onChange={(e) => setSettingsData({ ...settingsData, notify_push: e.target.checked })}
-                    className="size-4 text-purple-500 rounded border-slate-300 focus:ring-purple-500 cursor-pointer"
-                  />
+                  <button 
+                    type="button"
+                    onClick={() => setSettingsData({ ...settingsData, notify_push: !settingsData.notify_push })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none ${settingsData.notify_push ? 'bg-purple-500 shadow-xs shadow-purple-500/30' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <span className={`inline-block size-4 transform rounded-full bg-white shadow-md transition-transform ${settingsData.notify_push ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
               </div>
             </div>
 
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          {/* Footer Save Action Bar */}
+          <div className="flex items-center justify-between pt-5 border-t border-slate-100 dark:border-slate-800">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <ShieldCheck size={16} className="text-emerald-500" />
+              <span>Data tersimpan terenkripsi secara otomatis</span>
+            </div>
+
             <button 
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <RefreshCw size={14} className={isSavingSettings ? 'animate-spin' : ''} />
-              {isSavingSettings ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan'}
+              <RefreshCw size={15} className={isSavingSettings ? 'animate-spin' : ''} />
+              {isSavingSettings ? (k.savingChangesBtn || 'Menyimpan Pengaturan...') : (k.saveAllSettingsBtn || 'Simpan Semua Pengaturan')}
             </button>
           </div>
         </div>
@@ -1957,46 +2135,46 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             {/* Card 1: Paket Aktif */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400">Paket Aktif</span>
+                <span className="text-[10px] font-bold text-slate-400">{k.overviewActivePlan || 'Paket Aktif'}</span>
                 <div className="flex items-center gap-2 pt-0.5">
                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">{billingData.plan.plan_name}</h2>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[9px] font-extrabold">
-                    {billingData.plan.status}
+                    {billingData.plan.status === 'Aktif' || billingData.plan.status === 'Active' ? (k.active || 'Aktif') : billingData.plan.status}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 font-medium">
-                  {billingData.plan.expires_at ? `Berakhir pada ${new Date(billingData.plan.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Tidak ada paket aktif'}
+                  {billingData.plan.expires_at ? `${k.overviewExpiresOn || 'Berakhir pada'} ${new Date(billingData.plan.expires_at).toLocaleDateString(language === 'en' ? 'en-US' : language === 'zh' ? 'zh-CN' : 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : (k.overviewNoActivePlan || 'Tidak ada paket aktif')}
                 </p>
               </div>
               <button 
                 onClick={() => setIsUpgradeModalOpen(true)}
                 className="w-full py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer shadow-xs transition-all"
               >
-                Kelola Paket
+                {k.overviewManagePlanBtn || 'Kelola Paket'}
               </button>
             </div>
 
             {/* Card 2: Total Tagihan Bulan Ini */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400">Total Tagihan Bulan Ini</span>
+                <span className="text-[10px] font-bold text-slate-400">{k.overviewTotalMonthlyBill || 'Total Tagihan Bulan Ini'}</span>
                 <div className="pt-0.5">
                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    Rp{Number(billingData.plan.monthly_price_idr || 0).toLocaleString('id-ID')}
+                    {language === 'en' ? '$' + Math.round(Number(billingData.plan.monthly_price_idr || 0) / 15000) : `Rp${Number(billingData.plan.monthly_price_idr || 0).toLocaleString('id-ID')}`}
                   </h2>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">Termasuk PPN {billingData.plan.tax_pct || 11}%</p>
+                <p className="text-[10px] text-slate-400 font-medium">{k.overviewVatIncluded || 'Termasuk PPN'} {billingData.plan.tax_pct || 11}%</p>
               </div>
               <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
                 <ArrowDownRight size={12} />
-                <span>{billingData.plan.monthly_price_idr > 0 ? `${billingData.plan.growth_pct || 0}% dari bulan lalu` : 'Belum ada tagihan'}</span>
+                <span>{billingData.plan.monthly_price_idr > 0 ? `${billingData.plan.growth_pct || 0}% ${k.overviewFromLastMonth || 'dari bulan lalu'}` : (k.overviewNoBillYet || 'Belum ada tagihan')}</span>
               </div>
             </div>
 
             {/* Card 3: AI Credits Tersisa */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400">AI Credits Tersisa</span>
+                <span className="text-[10px] font-bold text-slate-400">{k.overviewRemainingCredits || 'AI Credits Tersisa'}</span>
                 <div className="pt-0.5">
                   <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
                     {(billingData.plan.credits_remaining || 0).toLocaleString('id-ID')} / {(billingData.plan.credits_limit || 0).toLocaleString('id-ID')}
@@ -2010,14 +2188,14 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 onClick={() => setIsUsageModalOpen(true)}
                 className="text-left text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
-                Lihat Detail Usage
+                {k.overviewViewUsageDetail || 'Lihat Detail Usage'}
               </button>
             </div>
 
             {/* Card 4: Metode Pembayaran Utama */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400">Metode Pembayaran Utama</span>
+                <span className="text-[10px] font-bold text-slate-400">{k.overviewPrimaryPaymentMethod || 'Metode Pembayaran Utama'}</span>
                 {(() => {
                   const primary = billingData.paymentMethods.find((p: any) => p.is_primary) || billingData.paymentMethods[0];
                   if (primary) {
@@ -2026,19 +2204,19 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                         <div className="flex items-center gap-2 pt-0.5">
                           <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 font-mono truncate">{primary.method_name}</h2>
                           <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 text-[9px] font-extrabold">
-                            {primary.status || 'Utama'}
+                            {primary.status === 'Utama' || primary.status === 'Primary' ? (k.primaryBadge || 'Utama') : primary.status}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-medium">Masa berlaku: {primary.exp_date || 'Permanen'}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{k.expiryDateLabel || 'Masa berlaku:'} {primary.exp_date === 'Permanen' || primary.exp_date === 'Permanent' ? (k.permanent || 'Permanen') : primary.exp_date}</p>
                       </>
                     );
                   }
                   return (
                     <>
                       <div className="flex items-center gap-2 pt-0.5">
-                        <h2 className="text-sm font-black text-slate-400 font-mono">Belum Ada Kanal</h2>
+                        <h2 className="text-sm font-black text-slate-400 font-mono">{k.overviewNoChannel || 'Belum Ada Kanal'}</h2>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium">Tambahkan metode baru</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{k.overviewAddNewMethod || 'Tambahkan metode baru'}</p>
                     </>
                   );
                 })()}
@@ -2047,25 +2225,25 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 onClick={() => setIsAddPaymentModalOpen(true)}
                 className="text-left text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
-                Kelola Pembayaran
+                {k.overviewManagePayments || 'Kelola Pembayaran'}
               </button>
             </div>
 
             {/* Card 5: Status Pembayaran */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-3">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400">Status Pembayaran</span>
+                <span className="text-[10px] font-bold text-slate-400">{k.overviewPaymentStatus || 'Status Pembayaran'}</span>
                 <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black text-base pt-0.5">
                   <CheckCircle2 size={18} />
-                  <span>Aman</span>
+                  <span>{k.overviewStatusSafe || 'Aman'}</span>
                 </div>
-                <p className="text-[10px] text-slate-400 font-medium">Semua pembayaran terbaru</p>
+                <p className="text-[10px] text-slate-400 font-medium">{k.overviewAllRecentPayments || 'Semua pembayaran terbaru'}</p>
               </div>
               <button 
                 onClick={() => setActiveTab('History')}
                 className="text-left text-[11px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
-                Lihat Riwayat
+                {k.overviewViewHistory || 'Lihat Riwayat'}
               </button>
             </div>
 
@@ -2078,24 +2256,32 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Ringkasan Penggunaan</h3>
-                  <span className="text-[9px] text-slate-400 font-medium">1 - 30 Juli 2026</span>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewUsageSummary || 'Ringkasan Penggunaan'}</h3>
+                  <span className="text-[9px] text-slate-400 font-medium">1 - 30 {language === 'en' ? 'July' : language === 'zh' ? '七月' : 'Juli'} 2026</span>
                 </div>
 
                 <div className="space-y-3.5">
-                  {billingData.usage.map((u: any, i: number) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">{u.metric_label}</span>
-                        <span className="font-mono text-[10px] text-slate-500 font-bold">
-                          {u.current_value_label} / {u.limit_value_label} {u.percentage ? `(${u.percentage}%)` : ''}
-                        </span>
+                  {billingData.usage.map((u: any, i: number) => {
+                    const localizedLabel = 
+                      u.metric_key === 'credits' ? (k.metricCredits || 'AI Credits') :
+                      u.metric_key === 'employees' ? (k.metricEmployees || 'AI Employees') :
+                      u.metric_key === 'automation' ? (k.metricAutomations || 'Automation') :
+                      u.metric_key === 'storage' ? (k.metricStorage || 'Storage') : u.metric_label;
+
+                    return (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">{localizedLabel}</span>
+                          <span className="font-mono text-[10px] text-slate-500 font-bold">
+                            {u.current_value_label} / {u.limit_value_label} {u.percentage ? `(${u.percentage}%)` : ''}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className="h-full bg-orange-500 rounded-full" style={{ width: `${u.percentage || 40}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full" style={{ width: `${u.percentage || 40}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2103,7 +2289,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 onClick={() => setIsUsageModalOpen(true)}
                 className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer pt-2"
               >
-                <span>Lihat Semua Usage</span>
+                <span>{k.overviewViewAllUsage || 'Lihat Semua Usage'}</span>
                 <ArrowRight size={12} />
               </button>
             </div>
@@ -2112,23 +2298,23 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between shadow-xs space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Trend Penggunaan Telemetri</h3>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewTelemetryTrend || 'Trend Penggunaan Telemetri'}</h3>
                   <select 
                     value={trendRange}
                     onChange={(e) => setTrendRange(e.target.value)}
                     className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
                   >
-                    <option value="30 Hari Terakhir">30 Hari Terakhir</option>
-                    <option value="7 Hari Terakhir">7 Hari Terakhir</option>
-                    <option value="90 Hari Terakhir">90 Hari Terakhir</option>
+                    <option value="30 Hari Terakhir">{k.overview30Days || '30 Hari Terakhir'}</option>
+                    <option value="7 Hari Terakhir">{k.overview7Days || '7 Hari Terakhir'}</option>
+                    <option value="90 Hari Terakhir">{k.overview90Days || '90 Hari Terakhir'}</option>
                   </select>
                 </div>
 
                 {/* Legend */}
                 <div className="flex items-center gap-3 text-[10px] font-extrabold text-slate-600 dark:text-slate-400 mb-4">
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-orange-500" /> AI Credits</span>
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> AI Employees</span>
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-emerald-500" /> Automation</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-orange-500" /> {k.metricCredits || 'AI Credits'}</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-blue-500" /> {k.metricEmployees || 'AI Employees'}</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-emerald-500" /> {k.metricAutomations || 'Automation'}</span>
                 </div>
 
                 {/* Dynamic Interactive SVG Chart */}
@@ -2165,7 +2351,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                     <div className="h-44 w-full relative flex items-end pt-4 pb-6">
                       {/* Y Axis Grid Lines */}
                       <div className="absolute inset-0 flex flex-col justify-between text-[9px] font-mono text-slate-300 pointer-events-none">
-                        <div className="border-b border-slate-100 dark:border-slate-800/80 w-full flex justify-between"><span>100% Kuota</span></div>
+                        <div className="border-b border-slate-100 dark:border-slate-800/80 w-full flex justify-between"><span>100% {k.overviewQuota || 'Kuota'}</span></div>
                         <div className="border-b border-slate-100 dark:border-slate-800/80 w-full flex justify-between"><span>75%</span></div>
                         <div className="border-b border-slate-100 dark:border-slate-800/80 w-full flex justify-between"><span>50%</span></div>
                         <div className="border-b border-slate-100 dark:border-slate-800/80 w-full flex justify-between"><span>25%</span></div>
@@ -2239,35 +2425,35 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               <div className="flex items-center justify-between z-10 w-full mb-2">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-orange-500" />
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Rekomendasi Upgrade Paket</h3>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.overviewUpgradeRecommend || 'Rekomendasi Upgrade Paket'}</h3>
                 </div>
               </div>
 
               <div className="flex items-center justify-between relative z-10 w-full pt-1">
                 <div className="space-y-3 max-w-[62%]">
                   <div>
-                    <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Tingkatkan Performa UMKM Anda</h4>
+                    <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewBoostUmkm || 'Tingkatkan Performa UMKM Anda'}</h4>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 leading-relaxed">
-                      Dapatkan lebih banyak AI Credits, AI Employees tanpa batas, dan Priority Support 24/7.
+                      {k.overviewUpgradeBannerSub || 'Dapatkan lebih banyak AI Credits, AI Employees tanpa batas, dan Priority Support 24/7.'}
                     </p>
                   </div>
 
                   <ul className="space-y-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Lebih banyak AI Credits</span></li>
-                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>AI Employees tanpa batas</span></li>
-                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>Automation tanpa batas</span></li>
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>{k.overviewMoreCredits || 'Lebih banyak AI Credits'}</span></li>
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>{k.overviewUnlimitedEmployees || 'AI Employees tanpa batas'}</span></li>
+                    <li className="flex items-center gap-1.5"><Check size={12} className="text-emerald-500 flex-shrink-0" /> <span>{k.overviewUnlimitedAutomation || 'Automation tanpa batas'}</span></li>
                   </ul>
 
                   <button
                     onClick={() => setIsUpgradeModalOpen(true)}
                     className="mt-2 px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
                   >
-                    <span>Upgrade Sekarang</span>
+                    <span>{k.overviewUpgradeNowBtn || 'Upgrade Sekarang'}</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
 
-                <div className="w-[42%] flex items-center justify-center cursor-pointer select-none overflow-visible" onClick={handleRocketLaunch} title="Klik untuk Meluncurkan Rocket Upgrade!">
+                <div className="w-[42%] flex items-center justify-center cursor-pointer select-none overflow-visible" onClick={handleRocketLaunch} title={k.overviewRocketTooltip || "Klik untuk Meluncurkan Rocket Upgrade!"}>
                   <img 
                     src={rocketSrc} 
                     onError={() => setRocketSrc('/design/dashboard_umkm/billing/rocket.png')}
@@ -2290,12 +2476,12 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             {/* Left Column: Riwayat Tagihan (col-span-6) */}
             <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Riwayat Tagihan</h3>
+                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewBillingHistory || 'Riwayat Tagihan'}</h3>
                 <button 
                   onClick={() => setActiveTab('Invoice')}
                   className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
-                  Lihat Semua
+                  {k.overviewViewAll || 'Lihat Semua'}
                 </button>
               </div>
 
@@ -2303,18 +2489,18 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="pb-2">INVOICE</th>
-                      <th className="pb-2">PERIODE</th>
-                      <th className="pb-2">TOTAL</th>
-                      <th className="pb-2">STATUS</th>
-                      <th className="pb-2 text-right">AKSI</th>
+                      <th className="pb-2">{k.overviewColInvoice || 'INVOICE'}</th>
+                      <th className="pb-2">{k.overviewColPeriod || 'PERIODE'}</th>
+                      <th className="pb-2">{k.overviewColTotal || 'TOTAL'}</th>
+                      <th className="pb-2">{k.overviewColStatus || 'STATUS'}</th>
+                      <th className="pb-2 text-right">{k.overviewColAction || 'AKSI'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
                     {billingData.invoices.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
-                          Belum ada riwayat tagihan invoice.
+                          {k.overviewNoInvoiceHistory || 'Belum ada riwayat tagihan invoice.'}
                         </td>
                       </tr>
                     ) : (
@@ -2323,11 +2509,11 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                         <td className="py-2.5 font-bold text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
                         <td className="py-2.5 text-slate-500">{inv.period_label}</td>
                         <td className="py-2.5 font-extrabold text-slate-900 dark:text-slate-100">
-                          Rp{Number(inv.total_amount_idr || 299000).toLocaleString('id-ID')}
+                          {language === 'en' ? '$' + Math.round(Number(inv.total_amount_idr || 299000) / 15000) : `Rp${Number(inv.total_amount_idr || 299000).toLocaleString('id-ID')}`}
                         </td>
                         <td className="py-2.5">
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
-                            {inv.status}
+                            {inv.status === 'Lunas' || inv.status === 'Paid' ? (k.filterPaid || 'Lunas') : inv.status}
                           </span>
                         </td>
                         <td className="py-2.5 text-right">
@@ -2348,12 +2534,12 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
             {/* Right Column: Transaksi Terakhir (col-span-6) */}
             <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Transaksi Terakhir</h3>
+                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewRecentTransactions || 'Transaksi Terakhir'}</h3>
                 <button 
                   onClick={() => setActiveTab('History')}
                   className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
-                  Lihat Semua
+                  {k.overviewViewAll || 'Lihat Semua'}
                 </button>
               </div>
 
@@ -2361,18 +2547,18 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="pb-2">TRANSAKSI</th>
-                      <th className="pb-2">TANGGAL</th>
-                      <th className="pb-2">METODE</th>
-                      <th className="pb-2">JUMLAH</th>
-                      <th className="pb-2 text-right">STATUS</th>
+                      <th className="pb-2">{k.overviewColTransaction || 'TRANSAKSI'}</th>
+                      <th className="pb-2">{k.overviewColDate || 'TANGGAL'}</th>
+                      <th className="pb-2">{k.overviewColMethod || 'METODE'}</th>
+                      <th className="pb-2">{k.overviewColAmount || 'JUMLAH'}</th>
+                      <th className="pb-2 text-right">{k.overviewColStatus || 'STATUS'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
                     {billingData.transactions.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-slate-400 text-[11px] font-medium">
-                          Belum ada catatan transaksi.
+                          {k.overviewNoTransactions || 'Belum ada catatan transaksi.'}
                         </td>
                       </tr>
                     ) : (
@@ -2389,7 +2575,7 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
                           <td className="py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{tx.amount_crypto}</td>
                           <td className="py-2.5 text-right">
                             <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 text-[10px] font-extrabold">
-                              {tx.status}
+                              {tx.status === 'Berhasil' || tx.status === 'Success' ? (k.filterPaid || 'Success') : tx.status}
                             </span>
                           </td>
                         </tr>
@@ -2400,123 +2586,6 @@ export function BillingView({ triggerToast, activeSubPage }: BillingViewProps) {
               </div>
             </div>
 
-          </div>
-
-          {/* 6. Bottom Row: Aksi Cepat (5 Action Cards) */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Aksi Cepat</h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              
-              {/* Action 1: Download Invoice */}
-              <div 
-                onClick={() => {
-                  if (billingData.invoices?.length > 0) {
-                    SupabaseDashboardService.downloadSingleInvoicePDF(billingData.invoices[0]);
-                  }
-                  handleTabClick('Invoice');
-                  triggerToast('✓ Unduh invoice terbaru diproses...');
-                }}
-                className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/60 cursor-pointer shadow-xs transition-all flex items-center gap-3 group"
-              >
-                <div className="size-9 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center flex-shrink-0 font-black">
-                  <Download size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                    Download Invoice
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Unduh invoice terbaru</p>
-                </div>
-              </div>
-
-              {/* Action 2: Ubah Paket */}
-              <div 
-                onClick={() => setIsUpgradeModalOpen(true)}
-                className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/60 cursor-pointer shadow-xs transition-all flex items-center gap-3 group"
-              >
-                <div className="size-9 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center flex-shrink-0 font-black">
-                  <RefreshCw size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                    Ubah Paket
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Pilih paket yang sesuai</p>
-                </div>
-              </div>
-
-              {/* Action 3: Tambah Metode */}
-              <div 
-                onClick={() => {
-                  setIsAddPaymentModalOpen(true);
-                  handleTabClick('Payment Methods');
-                }}
-                className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/60 cursor-pointer shadow-xs transition-all flex items-center gap-3 group"
-              >
-                <div className="size-9 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center flex-shrink-0 font-black">
-                  <CreditCard size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                    Tambah Metode
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Kartu, e-wallet, atau VA</p>
-                </div>
-              </div>
-
-              {/* Action 4: Lihat Usage Detail */}
-              <div 
-                onClick={() => handleTabClick('Usage')}
-                className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/60 cursor-pointer shadow-xs transition-all flex items-center gap-3 group"
-              >
-                <div className="size-9 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center flex-shrink-0 font-black">
-                  <BarChart2 size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                    Lihat Usage Detail
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Pantau penggunaan</p>
-                </div>
-              </div>
-
-              {/* Action 5: Hubungi Support */}
-              <div 
-                onClick={() => setIsSupportModalOpen(true)}
-                className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/60 cursor-pointer shadow-xs transition-all flex items-center gap-3 group"
-              >
-                <div className="size-9 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center flex-shrink-0 font-black">
-                  <Headset size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                    Hubungi Support
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Butuh bantuan?</p>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer Payment Gateway Logos Ribbon */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold text-slate-500 shadow-xs">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-emerald-500 flex-shrink-0" />
-                <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                  Semua pembayaran diproses secara aman melalui Stripe, Midtrans, QRIS, GoPay, DANA, OVO, atau x402 Network.
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <PaymentBrandLogo iconKey="stripe" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="midtrans" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="qris" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="gopay" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="dana" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="ovo" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-                <PaymentBrandLogo iconKey="usdc" className="h-4 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-              </div>
-            </div>
           </div>
         </>
       )}

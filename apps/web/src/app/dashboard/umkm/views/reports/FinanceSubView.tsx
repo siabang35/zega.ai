@@ -177,49 +177,49 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
   const cashFlowData = {
     labels: cashflow.map((c: any) => c.period_label || 'Period'),
     datasets: [
-      { label: 'Pemasukan', data: cashflow.map((c: any) => c.income_idr || 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false },
-      { label: 'Pengeluaran', data: cashflow.map((c: any) => c.expense_idr || 0), backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 8, borderSkipped: false },
+      { label: f.income || 'Pemasukan', data: cashflow.map((c: any) => c.income_idr || 0), backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 8, borderSkipped: false },
+      { label: f.expense || 'Pengeluaran', data: cashflow.map((c: any) => c.expense_idr || 0), backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 8, borderSkipped: false },
     ]
   };
 
   const stackedBarOpts: any = {
-    responsive: true, 
+    responsive: true,
     maintainAspectRatio: false,
-    plugins: { 
-      legend: { display: false }, 
-      tooltip: { 
-        backgroundColor: 'rgba(15,23,42,0.95)', 
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.95)',
         cornerRadius: 10,
         callbacks: { label: (ctx: any) => ` ${ctx.dataset.label}: Rp${ctx.parsed.y?.toLocaleString('id-ID') || 0}` }
       }
     },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' }},
-      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 9 }, color: '#94a3b8', callback: (v: any) => `${(v/1000000).toFixed(1)}M` }}
+      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' } },
+      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 9 }, color: '#94a3b8', callback: (v: any) => `${(v / 1000000).toFixed(1)}M` } }
     }
   };
 
   const marginData = {
     labels: marginTrend.map((m: any) => m.period_label || 'Period'),
-    datasets: [{ 
-      label: 'Net Profit Margin %', 
-      data: marginTrend.map((m: any) => m.margin_pct || 0), 
-      borderColor: '#10b981', 
-      backgroundColor: 'rgba(16,185,129,0.08)', 
-      fill: true, 
-      tension: 0.4, 
-      borderWidth: 3, 
-      pointRadius: 5, 
-      pointBackgroundColor: '#10b981' 
+    datasets: [{
+      label: 'Net Profit Margin %',
+      data: marginTrend.map((m: any) => m.margin_pct || 0),
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16,185,129,0.08)',
+      fill: true,
+      tension: 0.4,
+      borderWidth: 3,
+      pointRadius: 5,
+      pointBackgroundColor: '#10b981'
     }]
   };
 
   const lineOpts: any = {
-    responsive: true, 
+    responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 10 }},
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 10 } },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' }},
+      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' } },
       y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 10 }, color: '#94a3b8', callback: (v: any) => `${v}%` }, min: 0, max: 100 }
     }
   };
@@ -236,7 +236,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
             <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <span>{f.subpageTitle || 'Intelijen Keuangan & Automation Money Reports'}</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
-                <Sparkles size={11} /> ZeroClaw Automation Active
+                <Sparkles size={11} /> {f.zeroClawAutomationActive || 'ZeroClaw Automation Active'}
               </span>
             </h2>
             <p className="text-xs text-slate-400 font-medium">
@@ -273,10 +273,10 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
       {/* 2. Finance KPI Diagnostic Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: f.grossRevenue || 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `Gross Margin ${pnl.gross_margin_pct || 0}%` },
-          { label: f.netProfit || 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `Net Margin ${pnl.profit_margin_pct || 0}%` },
-          { label: f.totalExpense || 'Total Pengeluaran (Expense)', val: `Rp${((pnl.cogs_idr || 0) + (pnl.opex_idr || 0)).toLocaleString('id-ID')}`, icon: CreditCard, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600', sub: 'COGS + Operasional' },
-          { label: f.netMarginGrowth || 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 0}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: 'Performa sehat' },
+          { label: f.grossRevenue || 'Gross Revenue', val: `Rp${(pnl.gross_revenue_idr || 0).toLocaleString('id-ID')}`, icon: DollarSign, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600', sub: `${f.grossMargin || 'Gross Margin'} ${pnl.gross_margin_pct || 0}%` },
+          { label: f.netProfit || 'Net Profit (Bersih)', val: `Rp${(pnl.net_profit_idr || 0).toLocaleString('id-ID')}`, icon: PiggyBank, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600', sub: `${f.netMargin || 'Net Margin'} ${pnl.profit_margin_pct || 0}%` },
+          { label: f.totalExpense || 'Total Pengeluaran (Expense)', val: `Rp${((pnl.cogs_idr || 0) + (pnl.opex_idr || 0)).toLocaleString('id-ID')}`, icon: CreditCard, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600', sub: f.cogsOperational || 'COGS + Operasional' },
+          { label: f.netMarginGrowth || 'Pertumbuhan Net Margin', val: `+${pnl.profit_margin_pct || 0}%`, icon: TrendingUp, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600', sub: f.healthyPerformance || 'Performa sehat' },
         ].map((card, i) => {
           const IconComp = card.icon;
           return (
@@ -288,7 +288,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{card.val}</div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="font-bold text-emerald-600">{card.sub}</span>
-                <span className="text-slate-400 font-mono">Live DB</span>
+                <span className="text-slate-400 font-mono">{f.liveDb || 'Live DB'}</span>
               </div>
             </div>
           );
@@ -372,9 +372,9 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${e.percentage}%`, backgroundColor: e.color_hex || '#3b82f6' }} 
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${e.percentage}%`, backgroundColor: e.color_hex || '#3b82f6' }}
                     />
                   </div>
                 </div>
@@ -426,7 +426,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                             onClick={() => setPreviewAttachmentUrl(tx.receipt_url)}
                             className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 text-[9px] font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
                           >
-                            <Paperclip size={10} /> CDN Receipt
+                            <Paperclip size={10} /> {f.cdnReceipt || 'CDN Receipt'}
                           </button>
                         )}
                       </div>
@@ -453,8 +453,8 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Automation Create Money Report</h3>
-                  <p className="text-xs text-slate-400">Generate laporan keuangan resmi berbasis AI</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalCreateReportTitle || 'Automation Create Money Report'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalCreateReportSub || 'Generate laporan keuangan resmi berbasis AI'}</p>
                 </div>
               </div>
               <button onClick={() => setIsCreateReportModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -462,41 +462,41 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Jenis Laporan Keuangan</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.reportTypeLabel || 'Jenis Laporan Keuangan'}</label>
                 <select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="P&L_Statement">Laporan Laba Rugi (P&L Statement)</option>
-                  <option value="Cashflow_Statement">Laporan Arus Kas (Cash Flow)</option>
-                  <option value="Executive_Balance_Sheet">Executive Financial Summary & Balance Sheet</option>
+                  <option value="P&L_Statement">{f.optionPnl || 'Laporan Laba Rugi (P&L Statement)'}</option>
+                  <option value="Cashflow_Statement">{f.optionCashflow || 'Laporan Arus Kas (Cash Flow)'}</option>
+                  <option value="Executive_Balance_Sheet">{f.optionBalanceSheet || 'Executive Financial Summary & Balance Sheet'}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Format File Export</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.exportFormatLabel || 'Format File Export'}</label>
                 <select
                   value={reportFormat}
                   onChange={(e) => setReportFormat(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="PDF">Dokumen PDF Resmi (.pdf)</option>
-                  <option value="CSV">Microsoft Excel / CSV (.csv)</option>
+                  <option value="PDF">{f.optionPdf || 'Dokumen PDF Resmi (.pdf)'}</option>
+                  <option value="CSV">{f.optionCsv || 'Microsoft Excel / CSV (.csv)'}</option>
                 </select>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> Swarm Financial Audit Logged</span>
+                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {f.swarmAuditLog || 'Swarm Financial Audit Logged'}</span>
                 <p className="leading-relaxed">
-                  Laporan akan secara otomatis dicatat pada audit log Supabase dan di-generate dalam hitungan detik.
+                  {f.swarmAuditLogDesc || 'Laporan akan secara otomatis dicatat pada audit log Supabase dan di-generate dalam hitungan detik.'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsCreateReportModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleGenerateMoneyReport}
@@ -504,7 +504,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                 className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isGeneratingReport ? <Clock size={14} className="animate-spin" /> : <Download size={14} />}
-                <span>{isGeneratingReport ? 'Generating Report...' : 'Generate & Download'}</span>
+                <span>{isGeneratingReport ? (f.generating || 'Generating Report...') : (f.generateAndDownload || 'Generate & Download')}</span>
               </button>
             </div>
           </div>
@@ -521,8 +521,8 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                   <Plus size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Catat Transaksi Keuangan</h3>
-                  <p className="text-xs text-slate-400">Input transaksi baru & unggah bukti invoice / receipt</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalAddTxTitle || 'Catat Transaksi Keuangan'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalAddTxSub || 'Input transaksi baru & unggah bukti invoice / receipt'}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setIsAddTransactionModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -530,11 +530,11 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Deskripsi Transaksi *</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.txDescLabel || 'Deskripsi Transaksi *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Pembayaran Order #1848"
+                  placeholder={f.txDescPlaceholder || 'Contoh: Pembayaran Order #1848'}
                   value={txDescription}
                   onChange={(e) => setTxDescription(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none"
@@ -543,7 +543,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Tipe Transaksi</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.txTypeLabel || 'Tipe Transaksi'}</label>
                   <select
                     value={txType}
                     onChange={(e) => {
@@ -554,13 +554,13 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                     }}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                   >
-                    <option value="income">Pemasukan (Income)</option>
-                    <option value="expense">Pengeluaran (Expense)</option>
+                    <option value="income">{f.optionIncome || 'Pemasukan (Income)'}</option>
+                    <option value="expense">{f.optionExpense || 'Pengeluaran (Expense)'}</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Jumlah (Rp) *</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.txAmountLabel || 'Jumlah (Rp) *'}</label>
                   <input
                     type="number"
                     required
@@ -573,7 +573,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kategori</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.categoryLabel || 'Kategori'}</label>
                   <select
                     value={txCategory}
                     onChange={(e) => setTxCategory(e.target.value)}
@@ -581,42 +581,42 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                   >
                     {txType === 'income' ? (
                       <>
-                        <option value="Sales Income">Penjualan Produk</option>
-                        <option value="Service Income">Jasa / Konsultasi</option>
-                        <option value="Other Income">Pendapatan Lain-lain</option>
+                        <option value="Sales Income">{f.catSalesIncome || 'Penjualan Produk'}</option>
+                        <option value="Service Income">{f.catServiceIncome || 'Jasa / Konsultasi'}</option>
+                        <option value="Other Income">{f.catOtherIncome || 'Pendapatan Lain-lain'}</option>
                       </>
                     ) : (
                       <>
-                        <option value="Cost of Goods Sold">Cost of Goods Sold (HPP)</option>
-                        <option value="Marketing & Ads">Marketing & Ads</option>
-                        <option value="Platform Fees">Platform Fees (Shopee/Tokped)</option>
-                        <option value="Packaging & Shipping">Packaging & Shipping</option>
-                        <option value="AI Tools & Subscription">AI Tools & Subscription</option>
-                        <option value="Lain-lain">Lain-lain</option>
+                        <option value="Cost of Goods Sold">{f.catCogs || 'Cost of Goods Sold (HPP)'}</option>
+                        <option value="Marketing & Ads">{f.catMarketing || 'Marketing & Ads'}</option>
+                        <option value="Platform Fees">{f.catPlatformFees || 'Platform Fees (Shopee/Tokped)'}</option>
+                        <option value="Packaging & Shipping">{f.catPackaging || 'Packaging & Shipping'}</option>
+                        <option value="AI Tools & Subscription">{f.catAiTools || 'AI Tools & Subscription'}</option>
+                        <option value="Lain-lain">{f.catOther || 'Lain-lain'}</option>
                       </>
                     )}
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Metode Pembayaran</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.paymentMethodLabel || 'Metode Pembayaran'}</label>
                   <select
                     value={txPaymentMethod}
                     onChange={(e) => setTxPaymentMethod(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                   >
-                    <option value="Transfer Bank">Transfer Bank</option>
-                    <option value="QRIS">QRIS</option>
-                    <option value="Kartu Kredit">Kartu Kredit</option>
-                    <option value="E-Wallet">E-Wallet (GoPay/OVO/DANA)</option>
-                    <option value="Tunai">Tunai / Cash</option>
+                    <option value="Transfer Bank">{f.pmBankTransfer || 'Transfer Bank'}</option>
+                    <option value="QRIS">{f.pmQris || 'QRIS'}</option>
+                    <option value="Kartu Kredit">{f.pmCreditCard || 'Kartu Kredit'}</option>
+                    <option value="E-Wallet">{f.pmEWallet || 'E-Wallet (GoPay/OVO/DANA)'}</option>
+                    <option value="Tunai">{f.pmCash || 'Tunai / Cash'}</option>
                   </select>
                 </div>
               </div>
 
               {/* Receipt File Upload Field */}
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Unggah Bukti Struk / Invoice (CDN R2)</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.uploadReceiptLabel || 'Unggah Bukti Struk / Invoice (CDN R2)'}</label>
                 <div className="p-3 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer hover:border-blue-500 transition-colors">
                   <input
                     type="file"
@@ -630,9 +630,9 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                   <label htmlFor="singleReceiptUpload" className="cursor-pointer flex flex-col items-center">
                     <Paperclip size={18} className="text-blue-500" />
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-1">
-                      {txReceiptFile ? txReceiptFile.name : 'Pilih Foto Receipt atau PDF Invoice'}
+                      {txReceiptFile ? txReceiptFile.name : (f.uploadReceiptSelect || 'Pilih Foto Receipt atau PDF Invoice')}
                     </span>
-                    <span className="text-[9px] text-slate-400">JPG, PNG, PDF (Maks. 10MB)</span>
+                    <span className="text-[9px] text-slate-400">{f.uploadReceiptFormats || 'JPG, PNG, PDF (Maks. 10MB)'}</span>
                   </label>
                 </div>
               </div>
@@ -640,7 +640,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button type="button" onClick={() => setIsAddTransactionModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 type="submit"
@@ -648,7 +648,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                 className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSavingTx ? <Clock size={14} className="animate-spin" /> : <Plus size={14} />}
-                <span>{isSavingTx ? 'Simpan...' : 'Simpan Transaksi'}</span>
+                <span>{isSavingTx ? (f.saving || 'Simpan...') : (f.saveTx || 'Simpan Transaksi')}</span>
               </button>
             </div>
           </form>
@@ -665,8 +665,8 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                   <UploadCloud size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Bulk Upload Invoice & Receipt (AI OCR)</h3>
-                  <p className="text-xs text-slate-400">Unggah banyak struk/invoice sekaligus untuk diekstrak otomatis oleh AI</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalBulkTitle || 'Bulk Upload Invoice & Receipt (AI OCR)'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalBulkSub || 'Unggah banyak struk/invoice sekaligus untuk diekstrak otomatis oleh AI'}</p>
                 </div>
               </div>
               <button onClick={() => setIsBulkUploadModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -678,8 +678,8 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                 <UploadCloud size={24} />
               </div>
               <div>
-                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Tarik & Lepas File Invoice / Receipt di Sini</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5">Mendukung format JPG, PNG, WEBP, dan PDF (Bisa Pilih Banyak File)</p>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{f.dropzoneTitle || 'Tarik & Lepas File Invoice / Receipt di Sini'}</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">{f.dropzoneSub || 'Mendukung format JPG, PNG, WEBP, dan PDF (Bisa Pilih Banyak File)'}</p>
               </div>
               <input
                 type="file"
@@ -697,7 +697,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                 htmlFor="bulkFileInput"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs cursor-pointer transition-all shadow-xs"
               >
-                <Plus size={14} /> Pilih File dari Komputer
+                <Plus size={14} /> {f.selectFiles || 'Pilih File dari Komputer'}
               </label>
             </div>
 
@@ -705,8 +705,8 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
             {bulkFiles.length > 0 && (
               <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
                 <span className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                  <span>File Terpilih ({bulkFiles.length} item)</span>
-                  <button onClick={() => setBulkFiles([])} className="text-[10px] text-red-500 font-bold hover:underline">Hapus Semua</button>
+                  <span>{f.selectedFiles || 'File Terpilih'} ({bulkFiles.length} item)</span>
+                  <button onClick={() => setBulkFiles([])} className="text-[10px] text-red-500 font-bold hover:underline">{f.removeAll || 'Hapus Semua'}</button>
                 </span>
                 <div className="space-y-1.5">
                   {bulkFiles.map((file, i) => (
@@ -723,15 +723,15 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
             )}
 
             <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 text-[11px] text-indigo-800 dark:text-indigo-300 space-y-1">
-              <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> Swarm AI OCR Multi-Extraction</span>
+              <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {f.ocrNoticeTitle || 'Swarm AI OCR Multi-Extraction'}</span>
               <p className="leading-relaxed">
-                ZeroClaw Swarm AI akan secara otomatis mengekstrak nominal, tanggal, vendor, dan metode pembayaran dari setiap file struk.
+                {f.ocrNoticeDesc || 'ZeroClaw Swarm AI akan secara otomatis mengekstrak nominal, tanggal, vendor, dan metode pembayaran dari setiap file struk.'}
               </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsBulkUploadModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleBulkUploadSubmit}
@@ -739,7 +739,7 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
                 className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isProcessingBulk ? <Clock size={14} className="animate-spin" /> : <UploadCloud size={14} />}
-                <span>{isProcessingBulk ? 'Processing AI OCR...' : `Proses ${bulkFiles.length} File ke CDN`}</span>
+                <span>{isProcessingBulk ? (f.processingOcr || 'Processing AI OCR...') : (f.processFilesToCdn || 'Proses {count} File ke CDN').replace('{count}', String(bulkFiles.length))}</span>
               </button>
             </div>
           </div>
@@ -752,18 +752,18 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2 font-black text-sm text-slate-900 dark:text-slate-100">
-                <Eye size={16} /> Pratinjau Bukti Receipt / Invoice (CDN R2)
+                <Eye size={16} /> {f.previewTitle || 'Pratinjau Bukti Receipt / Invoice (CDN R2)'}
               </div>
               <button onClick={() => setPreviewAttachmentUrl(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
               <FileCode size={36} className="text-blue-500" />
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 break-all">{previewAttachmentUrl}</span>
-              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full">Cloudflare R2 Encrypted CDN Storage</span>
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full">{f.previewStorageBadge || 'Cloudflare R2 Encrypted CDN Storage'}</span>
             </div>
             <div className="flex justify-end pt-2">
               <button onClick={() => setPreviewAttachmentUrl(null)} className="px-5 py-2 rounded-2xl bg-blue-600 text-white font-extrabold text-xs">
-                Tutup Pratinjau
+                {f.closePreview || 'Tutup Pratinjau'}
               </button>
             </div>
           </div>

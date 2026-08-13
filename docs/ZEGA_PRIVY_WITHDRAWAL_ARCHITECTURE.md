@@ -182,4 +182,22 @@ The backend server (`apps/api/src/routes/v1/zeroclaw.routes.ts`) serves as the s
 - **UI Alert Scoping**: Solved double-execution race conditions with `withdrawalExecutionInFlightRef` and scoped `withdrawModalAlert` to non-success steps.
 - **History Persistence**: Restored proper PostgREST parameter building and client-side `localStorage` caching so history persists seamlessly across page refreshes.
 
+---
+
+## 9. 3-Tier Zero-Loss Withdrawal History Persistence Architecture
+
+To guarantee zero record loss across client browser refreshes, network latency, and API server cold starts, `ZeroClawTerminalView.tsx` implements a bulletproof 3-Tier persistence layer:
+
+### Tier 1: Synchronous LocalStorage Scanner & Real-Time Sync
+- **Mount Scanner**: `useState` initializer synchronously scans all `localStorage` keys (`zeroclaw_withdraw_history_v2` and `zeroclaw_withdraw_history_${userEmail}`) on component mount before any network request occurs.
+- **Real-Time Sync**: A dedicated `useEffect` listener auto-saves every state update of `withdrawHistory` into `localStorage`.
+
+### Tier 2: Direct Client-Side Supabase DB Failsafe Insertion
+- Upon successful transaction execution in `handleExecuteWithdrawal`, the frontend directly inserts the record into Supabase Master DB table `public.zeroclaw_withdrawals` with a unique `anti_replay_hash` (`hash_${Date.now()}_${random}`).
+- Ensures database durability even if the node backend process (`/v1/zeroclaw/withdraw`) is delayed or fails to write to DB.
+
+### Tier 3: Map-Based Deduplicated State Merging
+- `fetchWithdrawalHistory()` retrieves records from API gateway `/v1/zeroclaw/withdraw/list` with direct Supabase failover.
+- Uses `Map<string, WithdrawalRecord>` keyed by `reference_key || tx_signature || id` to merge React State + LocalStorage Cache + DB rows without deleting un-synced local records or introducing duplicates.
+
 

@@ -97,15 +97,30 @@ export const HelpView: React.FC = () => {
     );
   };
 
+  // AI Language Preference (independent from UI language)
+  const getAiLang = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+    }
+    return 'id';
+  };
+
   const handleOpenLiveChat = () => {
     setIsLiveChatOpen(true);
     if (chatMessages.length === 0) {
+      const lang = getAiLang();
+      const seedMsg = lang === 'en'
+        ? 'Hello! Welcome to the ZEGA UMKM Support Center. How can I help you today regarding WhatsApp API, Auto POS, or AI Employees?'
+        : lang === 'zh'
+        ? '你好！欢迎来到 ZEGA UMKM 支持中心。关于 WhatsApp API、自动收银台或 AI 员工，有什么可以帮您的？'
+        : 'Halo! Selamat datang di Pusat Bantuan UMKM ZEGA. Ada yang bisa saya bantu terkait WhatsApp API, Kasir Otomatis, atau AI Employees?';
       setChatMessages([
         {
           id: '1',
           sender_type: 'ai_specialist',
           sender_name: 'ZEGA UMKM Support Assistant',
-          message: 'Halo! Selamat datang di Pusat Bantuan UMKM ZEGA. Ada yang bisa saya bantu terkait WhatsApp API, Kasir Otomatis, atau AI Employees?',
+          message: seedMsg,
           created_at: new Date().toISOString()
         }
       ]);
@@ -117,12 +132,13 @@ export const HelpView: React.FC = () => {
     if (!chatInput.trim() || isAiThinking) return;
 
     const userMsg = chatInput;
+    const currentAiLang = getAiLang();
     setChatInput('');
 
     const newMsg = {
       id: Date.now().toString(),
       sender_type: 'user',
-      sender_name: 'Pengguna UMKM',
+      sender_name: currentAiLang === 'en' ? 'UMKM User' : currentAiLang === 'zh' ? 'UMKM 用户' : 'Pengguna UMKM',
       message: userMsg,
       created_at: new Date().toISOString()
     };
@@ -135,7 +151,7 @@ export const HelpView: React.FC = () => {
       const res = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: userMsg, language: currentAiLang })
       });
 
       let aiReply = '';
@@ -145,7 +161,11 @@ export const HelpView: React.FC = () => {
       }
 
       if (!aiReply) {
-        aiReply = `Terima kasih atas pertanyaan Anda tentang "${userMsg}". Tim support ZEGA siap membantu bisnis Anda secara maksimal.`;
+        aiReply = currentAiLang === 'en'
+          ? `Thank you for your question about "${userMsg}". The ZEGA support team is ready to assist your business to the fullest.`
+          : currentAiLang === 'zh'
+          ? `感谢您关于 "${userMsg}" 的提问。ZEGA 支持团队已准备好全力协助您的业务。`
+          : `Terima kasih atas pertanyaan Anda tentang "${userMsg}". Tim support ZEGA siap membantu bisnis Anda secara maksimal.`;
       }
 
       setChatMessages(prev => [
@@ -159,13 +179,19 @@ export const HelpView: React.FC = () => {
         }
       ]);
     } catch (err) {
+      const currentLang = getAiLang();
+      const fallback = currentLang === 'en'
+        ? `Thank you! Your message "${userMsg}" has been synced to the UMKM support queue.`
+        : currentLang === 'zh'
+        ? `感谢您！您的消息 "${userMsg}" 已同步到 UMKM 支持队列。`
+        : `Terima kasih! Pesan Anda "${userMsg}" telah disinkronkan ke antrean support UMKM.`;
       setChatMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender_type: 'ai_specialist',
           sender_name: 'ZEGA UMKM Support Assistant',
-          message: `Terima kasih! Pesan Anda "${userMsg}" telah disinkronkan ke antrean support UMKM.`,
+          message: fallback,
           created_at: new Date().toISOString()
         }
       ]);

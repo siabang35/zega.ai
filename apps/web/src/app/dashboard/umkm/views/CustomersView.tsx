@@ -55,6 +55,7 @@ const REGIONAL_LOCATIONS = [
 ];
 
 function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTriggerBroadcast: (targetRegion?: string) => void; triggerToast: (msg: string) => void }) {
+  const { t } = useLanguage();
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
   const [dbRegions, setDbRegions] = React.useState<typeof REGIONAL_LOCATIONS>(REGIONAL_LOCATIONS);
@@ -124,10 +125,10 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
         <div style="padding: 6px; text-align: left; font-family: sans-serif; min-width: 140px;">
           <div style="font-size: 13px; font-weight: 900; color: #0f172a;">${loc.region}</div>
           <div style="font-size: 11px; color: ${color}; font-weight: 800; margin-top: 2px;">
-            ${loc.count} Pelanggan (${loc.pct}%)
+            ${loc.count} ${t.crmView?.customers || 'Pelanggan'} (${loc.pct}%)
           </div>
           <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
-            Omset: Rp${(loc.revenue).toLocaleString('id-ID')}
+            ${t.crmView?.revenueLabel || 'Omset'}: Rp${(loc.revenue).toLocaleString('id-ID')}
           </div>
           <div style="font-size: 10px; color: #f97316; font-weight: 700; margin-top: 2px;">
             Top: ${loc.topCat}
@@ -166,16 +167,16 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Globe className="text-orange-500" size={20} />
-            <span>Distribusi Wilayah & Demografi (Leaflet Live Mapping)</span>
+            <span>{t.crmView?.regionalTitle || 'Distribusi Wilayah & Demografi (Leaflet Live Mapping)'}</span>
           </h2>
-          <p className="text-xs text-slate-500 font-medium">Pemetaan geografis pelanggan interaktif & analisis pendapatan per provinsi.</p>
+          <p className="text-xs text-slate-500 font-medium">{t.crmView?.regionalSubtitle || 'Pemetaan geografis pelanggan interaktif & analisis pendapatan per provinsi.'}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => triggerToast('Laporan Distribusi Wilayah di-export ke CSV')} className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
-            <Upload size={14} /> <span>Export Laporan Wilayah</span>
+            <Upload size={14} /> <span>{t.crmView?.exportRegionalReport || 'Export Laporan Wilayah'}</span>
           </button>
           <button onClick={() => onTriggerBroadcast('Semua Wilayah Provinsi Indonesia')} className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer">
-            <Sparkles size={16} /> <span>Luncurkan AI Swarm Regional</span>
+            <Sparkles size={16} /> <span>{t.crmView?.launchRegionalSwarm || 'Luncurkan AI Swarm Regional'}</span>
           </button>
         </div>
       </div>
@@ -188,12 +189,12 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Globe size={16} className="text-orange-500" />
-                <span>Peta Sebaran Pelanggan Indonesia</span>
+                <span>{t.crmView?.mapTitle || 'Peta Sebaran Pelanggan Indonesia'}</span>
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium">Klik pada titik marker atau nama wilayah untuk fokus pemetaan.</p>
+              <p className="text-[11px] text-slate-400 font-medium">{t.crmView?.mapSub || 'Klik pada titik marker atau nama wilayah untuk fokus pemetaan.'}</p>
             </div>
             <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
-              Pemetaan Real-time
+              {t.crmView?.realtimeMapping || 'Pemetaan Real-time'}
             </span>
           </div>
 
@@ -219,14 +220,14 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
               <div className="flex items-center justify-between gap-3">
                 <span className="font-black text-orange-400">{selectedRegion.region}</span>
                 <span className="text-[10px] font-mono bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/40">
-                  {selectedRegion.pct}% Kontribusi
+                  {selectedRegion.pct}% {t.crmView?.colContributionPct || 'Kontribusi'}
                 </span>
               </div>
               <div className="text-base font-black text-slate-100">
-                {selectedRegion.count} Pelanggan Aktif
+                {selectedRegion.count} {t.crmView?.activeCustomers || 'Pelanggan Aktif'}
               </div>
               <div className="text-[11px] text-slate-300 flex items-center justify-between pt-1 border-t border-slate-800">
-                <span>Omset: <strong className="text-emerald-400 font-mono">Rp{(selectedRegion.revenue).toLocaleString('id-ID')}</strong></span>
+                <span>{t.crmView?.revenueLabel || 'Omset'}: <strong className="text-emerald-400 font-mono">Rp{(selectedRegion.revenue).toLocaleString('id-ID')}</strong></span>
               </div>
             </div>
           </div>
@@ -236,9 +237,9 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
         <div className="lg:col-span-4 space-y-3">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Wilayah Teratas ({REGIONAL_LOCATIONS.length})
+              {t.crmView?.topRegions || 'Wilayah Teratas'} ({REGIONAL_LOCATIONS.length})
             </h3>
-            <span className="text-[10px] font-bold text-slate-400">Pilih untuk zoom</span>
+            <span className="text-[10px] font-bold text-slate-400">{t.crmView?.selectToZoom || 'Pilih untuk zoom'}</span>
           </div>
 
           <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
@@ -270,7 +271,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
 
                   <div className="flex items-baseline justify-between">
                     <span className="text-xl font-black text-slate-900 dark:text-slate-100">
-                      {loc.count} <span className="text-xs text-slate-400 font-normal">Pelanggan</span>
+                      {loc.count} <span className="text-xs text-slate-400 font-normal">{t.crmView?.customers || 'Pelanggan'}</span>
                     </span>
                     <span className="text-[10px] font-mono text-slate-500">
                       Rp{(loc.revenue).toLocaleString('id-ID')}
@@ -278,7 +279,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
                   </div>
 
                   <div className="text-[10px] font-bold text-orange-500 truncate pt-1 border-t border-slate-100 dark:border-slate-800">
-                    Kategori Terlaris: {loc.topCat}
+                    {t.crmView?.bestCategory || 'Kategori Terlaris:'} {loc.topCat}
                   </div>
                 </button>
               );
@@ -293,10 +294,10 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
           <div>
             <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Sparkles size={18} className="text-orange-500" />
-              <span>Detail Performa Wilayah Provinsi</span>
+              <span>{t.crmView?.provinceDetailTitle || 'Detail Performa Wilayah Provinsi'}</span>
             </h3>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Analisis pendapatan, tingkat Churn Risk, serta preferensi kategori produk per daerah.
+              {t.crmView?.provinceDetailSub || 'Analisis pendapatan, tingkat Churn Risk, serta preferensi kategori produk per daerah.'}
             </p>
           </div>
 
@@ -307,7 +308,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
                 type="text"
                 value={regionSearch}
                 onChange={(e) => setRegionSearch(e.target.value)}
-                placeholder="Cari provinsi / kategori..."
+                placeholder={t.crmView?.searchProvince || 'Cari provinsi / kategori...'}
                 className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-52"
               />
             </div>
@@ -328,13 +329,13 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-3">PROVINSI / WILAYAH</th>
-                  <th className="py-3 px-3 text-center">JUMLAH PELANGGAN</th>
-                  <th className="py-3 px-3 text-center">KONTRIBUSI %</th>
-                  <th className="py-3 px-3 text-right">TOTAL OMSET (IDR)</th>
-                  <th className="py-3 px-3 text-center">KATEGORI TERLARIS</th>
-                  <th className="py-3 px-3 text-center">CHURN RISK</th>
-                  <th className="py-3 px-3 text-right">AKSI KAMPANYE</th>
+                  <th className="py-3 px-3">{t.crmView?.colProvince || 'PROVINSI / WILAYAH'}</th>
+                  <th className="py-3 px-3 text-center">{t.crmView?.colCustomerCount || 'JUMLAH PELANGGAN'}</th>
+                  <th className="py-3 px-3 text-center">{t.crmView?.colContributionPct || 'KONTRIBUSI %'}</th>
+                  <th className="py-3 px-3 text-right">{t.crmView?.colTotalRevenue || 'TOTAL OMSET (IDR)'}</th>
+                  <th className="py-3 px-3 text-center">{t.crmView?.colTopCategory || 'KATEGORI TERLARIS'}</th>
+                  <th className="py-3 px-3 text-center">{t.crmView?.colChurnRisk || 'CHURN RISK'}</th>
+                  <th className="py-3 px-3 text-right">{t.crmView?.colCampaignAction || 'AKSI KAMPANYE'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
@@ -356,7 +357,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
                     </td>
 
                     <td className="py-3.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
-                      {row.count} Pelanggan
+                      {row.count} {t.crmView?.customers || 'Pelanggan'}
                     </td>
 
                     <td className="py-3.5 px-3 text-center font-mono font-black text-emerald-600 dark:text-emerald-400">
@@ -388,7 +389,7 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
                         onClick={() => onTriggerBroadcast(`Wilayah ${row.region}`)}
                         className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
                       >
-                        Target AI Broadcast
+                        {t.crmView?.targetAiBroadcast || 'Target AI Broadcast'}
                       </button>
                     </td>
                   </tr>
@@ -741,11 +742,11 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
       {/* Sub-Page Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 dark:border-slate-800">
         {[
-          { id: 'customers', label: 'Ringkasan CRM', icon: Users },
-          { id: 'list_customers', label: 'Daftar Pelanggan', icon: UserPlus },
-          { id: 'customer_segment', label: 'Segmentasi RFM', icon: Heart },
-          { id: 'customer_distributions', label: 'Distribusi Wilayah', icon: ShoppingBag },
-          { id: 'customer_activity_stream', label: 'Activity Stream', icon: MessageSquare }
+          { id: 'customers', label: t.crmView?.overview || 'Ringkasan CRM', icon: Users },
+          { id: 'list_customers', label: t.crmView?.listCustomers || 'Daftar Pelanggan', icon: UserPlus },
+          { id: 'customer_segment', label: t.crmView?.rfmSegmentation || 'Segmentasi RFM', icon: Heart },
+          { id: 'customer_distributions', label: t.crmView?.regionalDistribution || 'Distribusi Wilayah', icon: ShoppingBag },
+          { id: 'customer_activity_stream', label: t.crmView?.activityStream || 'Activity Stream', icon: MessageSquare }
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = currentSubTab === tab.id || (currentSubTab === 'overview' && tab.id === 'customers');
@@ -771,18 +772,18 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           {/* 1. Header Banner */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div>
-              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">Daftar Pelanggan Lengkap</h2>
-              <p className="text-xs text-slate-500 font-medium">Direktori pelanggan aktif dengan telemetri & AI churn risk analysis.</p>
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">{t.crmView?.fullCustomerDirectory || 'Daftar Pelanggan Lengkap'}</h2>
+              <p className="text-xs text-slate-500 font-medium">{t.crmView?.activeDirectorySub || 'Direktori pelanggan aktif dengan telemetri & AI churn risk analysis.'}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setIsImportModalOpen(true)} className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
-                <Download size={14} /> <span>Import</span>
+                <Download size={14} /> <span>{t.crmView?.import || 'Import'}</span>
               </button>
               <button onClick={() => setIsExportModalOpen(true)} className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
-                <Upload size={14} /> <span>Export CSV</span>
+                <Upload size={14} /> <span>{t.crmView?.exportCsv || 'Export CSV'}</span>
               </button>
               <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer">
-                <Plus size={16} /> <span>Tambah Customer</span>
+                <Plus size={16} /> <span>{t.crmView?.addCustomer || 'Tambah Customer'}</span>
               </button>
             </div>
           </div>
@@ -791,7 +792,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { 
-                label: 'Semua Pelanggan', 
+                label: t.crmView?.allCustomers || 'Semua Pelanggan', 
                 count: customerData.customers.length, 
                 seg: 'Semua Segment', 
                 icon: Users,
@@ -800,7 +801,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 activeBorder: 'border-slate-400 ring-2 ring-slate-400/20 bg-slate-50/50 dark:bg-slate-800/40'
               },
               { 
-                label: 'Segment VIP', 
+                label: `${t.crmView?.colSegment || 'Segment'} VIP`, 
                 count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, 
                 seg: 'VIP', 
                 icon: Sparkles,
@@ -809,7 +810,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 activeBorder: 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/40 dark:bg-orange-950/30'
               },
               { 
-                label: 'Segment Loyal', 
+                label: `${t.crmView?.colSegment || 'Segment'} Loyal`, 
                 count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, 
                 seg: 'Loyal', 
                 icon: Heart,
@@ -818,7 +819,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 activeBorder: 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/40 dark:bg-blue-950/30'
               },
               { 
-                label: 'Segment Repeat', 
+                label: `${t.crmView?.colSegment || 'Segment'} Repeat`, 
                 count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, 
                 seg: 'Repeat', 
                 icon: RefreshCw,
@@ -827,7 +828,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 activeBorder: 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/40 dark:bg-purple-950/30'
               },
               { 
-                label: 'Pelanggan Baru', 
+                label: t.crmView?.newCustomers || 'Pelanggan Baru', 
                 count: customerData.customers.filter((c: any) => c.segment === 'New').length, 
                 seg: 'New', 
                 icon: UserPlus,
@@ -890,11 +891,11 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <Sparkles size={16} className="text-orange-500" />
-                    <span>Distribusi Segmentasi</span>
+                    <span>{t.crmView?.segmentDistribution || 'Distribusi Segmentasi'}</span>
                   </h3>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">Realtime</span>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{t.crmView?.realtime || 'Realtime'}</span>
                 </div>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Proporsi kelompok pelanggan berdasarkan model RFM.</p>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">{t.crmView?.rfmPropSub || 'Proporsi kelompok pelanggan berdasarkan model RFM.'}</p>
               </div>
 
               {/* Donut Canvas */}
@@ -930,7 +931,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-2xl font-black text-slate-900 dark:text-slate-100">{customerData.customers.length}</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Customer</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.crmView?.total || 'Total'} {t.crmView?.customers || 'Customer'}</span>
                 </div>
               </div>
 
@@ -966,7 +967,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                  Direktori Pelanggan ({filteredCustomers.length})
+                  {t.crmView?.fullCustomerDirectory || 'Direktori Pelanggan'} ({filteredCustomers.length})
                 </h3>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -977,7 +978,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Cari nama, email, phone..."
+                      placeholder={t.crmView?.searchPlaceholder || 'Cari nama, email, phone...'}
                       className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-44"
                     />
                   </div>
@@ -988,7 +989,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     onChange={(e) => setSegmentFilter(e.target.value)}
                     className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none cursor-pointer"
                   >
-                    <option value="Semua Segment">Semua Segment</option>
+                    <option value="Semua Segment">{t.crmView?.allSegments || 'Semua Segment'}</option>
                     <option value="VIP">VIP</option>
                     <option value="Loyal">Loyal</option>
                     <option value="Repeat">Repeat</option>
@@ -1005,7 +1006,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     }`}
                   >
                     <Filter size={13} className="text-orange-500" />
-                    <span>Filter Advanced</span>
+                    <span>{t.crmView?.advancedFilter || 'Filter Advanced'}</span>
                     {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
                       <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
                     )}
@@ -1016,35 +1017,35 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               {/* Active Filter Chips Bar */}
               {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0 || searchQuery !== '' || segmentFilter !== 'Semua Segment') && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
-                  <span className="text-slate-400 mr-1 font-semibold">Filter Aktif:</span>
+                  <span className="text-slate-400 mr-1 font-semibold">{t.crmView?.activeFilters || 'Filter Aktif:'}</span>
                   {searchQuery && (
                     <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
-                      Pencarian: "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
+                      {t.crmView?.searchPrefix || 'Pencarian:'} "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
                     </span>
                   )}
                   {crmFilters.segment !== 'all' && (
                     <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
-                      Segmen: {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
+                      {t.crmView?.segmentPrefix || 'Segmen:'} {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
                     </span>
                   )}
                   {crmFilters.status !== 'all' && (
                     <span className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 flex items-center gap-1">
-                      Status: {crmFilters.status} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, status: 'all' })} />
+                      {t.crmView?.statusPrefix || 'Status:'} {crmFilters.status} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, status: 'all' })} />
                     </span>
                   )}
                   {crmFilters.cityRegion !== 'all' && (
                     <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-900 flex items-center gap-1">
-                      Wilayah: {crmFilters.cityRegion} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, cityRegion: 'all' })} />
+                      {t.crmView?.regionPrefix || 'Wilayah:'} {crmFilters.cityRegion} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, cityRegion: 'all' })} />
                     </span>
                   )}
                   {crmFilters.minOrders > 0 && (
                     <span className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 flex items-center gap-1">
-                      Orders: ≥ {crmFilters.minOrders} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minOrders: 0 })} />
+                      {t.crmView?.ordersPrefix || 'Orders:'} ≥ {crmFilters.minOrders} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minOrders: 0 })} />
                     </span>
                   )}
                   {crmFilters.minSpend > 0 && (
                     <span className="px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center gap-1">
-                      Spend: ≥ Rp{crmFilters.minSpend.toLocaleString('id-ID')} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minSpend: 0 })} />
+                      {t.crmView?.spendPrefix || 'Spend:'} ≥ Rp{crmFilters.minSpend.toLocaleString('id-ID')} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, minSpend: 0 })} />
                     </span>
                   )}
                   <button
@@ -1067,7 +1068,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     }}
                     className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline ml-2 cursor-pointer"
                   >
-                    Reset Semua
+                    {t.crmView?.resetAllFilters || 'Reset Semua'}
                   </button>
                 </div>
               )}
@@ -1076,10 +1077,10 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             {filteredCustomers.length === 0 ? (
               <div className="p-10 text-center space-y-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                 <Users size={32} className="mx-auto text-slate-400" />
-                <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300">Tidak ada pelanggan ditemukan</h4>
-                <p className="text-xs text-slate-400">Coba ubah kata kunci pencarian atau bersihkan filter segmentasi.</p>
-                <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 rounded-xl bg-orange-500 text-white font-bold text-xs">
-                  + Tambah Customer Baru
+                <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300">{t.crmView?.noCustomersFound || 'Tidak ada pelanggan ditemukan'}</h4>
+                <p className="text-xs text-slate-400">{t.crmView?.noCustomersSub || 'Coba ubah kata kunci pencarian atau bersihkan filter segmentasi.'}</p>
+                <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 rounded-xl bg-orange-500 text-white font-bold text-xs cursor-pointer hover:bg-orange-600 transition-all">
+                  {t.crmView?.addCustomerBtn || '+ Tambah Customer Baru'}
                 </button>
               </div>
             ) : (
@@ -1087,13 +1088,13 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 <table className="w-full text-left text-xs font-medium border-collapse">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">PELANGGAN</th>
-                      <th className="py-2.5 px-3 text-center">SEGMENT</th>
-                      <th className="py-2.5 px-3 text-center">TOTAL ORDER</th>
-                      <th className="py-2.5 px-3 text-right">TOTAL SPEND</th>
-                      <th className="py-2.5 px-3 text-center">LAST ORDER</th>
-                      <th className="py-2.5 px-3 text-center">STATUS</th>
-                      <th className="py-2.5 px-3 text-right">AKSI</th>
+                      <th className="py-2.5 px-3">{t.crmView?.colCustomer || 'PELANGGAN'}</th>
+                      <th className="py-2.5 px-3 text-center">{t.crmView?.colSegment || 'SEGMENT'}</th>
+                      <th className="py-2.5 px-3 text-center">{t.crmView?.colTotalOrders || 'TOTAL ORDER'}</th>
+                      <th className="py-2.5 px-3 text-right">{t.crmView?.colTotalSpend || 'TOTAL SPEND'}</th>
+                      <th className="py-2.5 px-3 text-center">{t.crmView?.colLastOrder || 'LAST ORDER'}</th>
+                      <th className="py-2.5 px-3 text-center">{t.crmView?.colStatus || 'STATUS'}</th>
+                      <th className="py-2.5 px-3 text-right">{t.crmView?.colAction || 'AKSI'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1214,12 +1215,12 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Heart className="text-orange-500" size={20} />
-                <span>Segmentasi & Matrix RFM</span>
+                <span>{t.crmView?.rfmTitle || 'Segmentasi & Matrix RFM'}</span>
               </h2>
-              <p className="text-xs text-slate-500 font-medium">Pengelompokan Recency, Frequency, & Monetary untuk kampanye retensi presisi.</p>
+              <p className="text-xs text-slate-500 font-medium">{t.crmView?.rfmSubtitle || 'Pengelompokan Recency, Frequency, & Monetary untuk kampanye retensi presisi.'}</p>
             </div>
             <button onClick={() => handleOpenAiCampaign('segmentation', 'RFM Cohort Segmentasi Pelanggan')} className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all">
-              <Sparkles size={16} /> <span>Luncurkan AI Swarm Broadcast</span>
+              <Sparkles size={16} /> <span>{t.crmView?.launchAiSwarm || 'Luncurkan AI Swarm Broadcast'}</span>
             </button>
           </div>
 
@@ -1229,10 +1230,10 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               <div>
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Heart size={18} className="text-orange-500" />
-                  <span>Distribusi Segmen RFM & Cohort Matrix</span>
+                  <span>{t.crmView?.rfmDistributionMatrix || 'Distribusi Segmen RFM & Cohort Matrix'}</span>
                 </h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Klik pada segmen grafik atau kartu cohort untuk memfilter data anggota secara real-time.
+                  {t.crmView?.rfmChartSub || 'Klik pada segmen grafik atau kartu cohort untuk memfilter data anggota secara real-time.'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1244,11 +1245,11 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     }}
                     className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
                   >
-                    Reset Filter ({segmentFilter})
+                    {t.crmView?.resetFilter || 'Reset Filter'} ({segmentFilter})
                   </button>
                 )}
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-                  Analisis Real-time
+                  {t.crmView?.realtimeAnalysis || 'Analisis Real-time'}
                 </span>
               </div>
             </div>
@@ -1295,7 +1296,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
                       {customerData.customers.length || 0}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400">Total Pelanggan</span>
+                    <span className="text-[10px] font-bold text-slate-400">{t.crmView?.totalCustomers || 'Total Pelanggan'}</span>
                   </div>
                 </div>
 
@@ -1318,7 +1319,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
                     dotColor: 'bg-orange-500',
                     rfm: 'Recency: ≤3h | Freq: ≥10x | Spend: ≥Rp3M', 
-                    action: 'Kirim sampel baru & akses VIP WA eksklusif' 
+                    action: t.crmView?.vipAction || 'Kirim sampel baru & akses VIP WA eksklusif' 
                   },
                   { 
                     name: 'Loyal Cohort', 
@@ -1328,7 +1329,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
                     dotColor: 'bg-blue-500',
                     rfm: 'Recency: ≤7h | Freq: 5–9x | Spend: Rp1.5M–3M', 
-                    action: 'Tawarkan poin reward 2x lipat & diskon' 
+                    action: t.crmView?.loyalAction || 'Tawarkan poin reward 2x lipat & diskon' 
                   },
                   { 
                     name: 'Repeat Cohort', 
@@ -1338,7 +1339,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
                     dotColor: 'bg-purple-500',
                     rfm: 'Recency: ≤14h | Freq: 2–4x | Spend: Rp500K–1.5M', 
-                    action: 'Kirim voucher repeat order 10% via AI' 
+                    action: t.crmView?.repeatAction || 'Kirim voucher repeat order 10% via AI' 
                   },
                   { 
                     name: 'New Cohort', 
@@ -1348,7 +1349,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     badgeBg: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700',
                     dotColor: 'bg-emerald-500',
                     rfm: 'Recency: ≤30h | Freq: 1x | Spend: ≤Rp500K', 
-                    action: 'Kirim onboarding & voucher belanja pertama' 
+                    action: t.crmView?.newAction || 'Kirim onboarding & voucher belanja pertama' 
                   }
                 ].map((cohort, i) => {
                   const isSelected = segmentFilter === cohort.seg;
@@ -1378,12 +1379,12 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                       </div>
                       <div className="flex items-baseline justify-between">
                         <div className="text-xl font-black text-slate-900 dark:text-slate-100">
-                          {cohort.count} <span className="text-xs font-semibold text-slate-500">Pelanggan</span>
+                          {cohort.count} <span className="text-xs font-semibold text-slate-500">{t.crmView?.customers || 'Pelanggan'}</span>
                         </div>
                       </div>
                       <div className="text-[10px] font-mono text-slate-400">{cohort.rfm}</div>
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
-                        <span className="text-orange-500">AI Strategy:</span> {cohort.action}
+                        <span className="text-orange-500">{t.crmView?.aiStrategy || 'AI Strategy'}:</span> {cohort.action}
                       </div>
                     </div>
                   );
@@ -1398,14 +1399,14 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               <div>
                 <h3 className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Sparkles size={18} className="text-orange-500" />
-                  <span>Matriks Segmentasi & AI Churn Risk</span>
+                  <span>{t.crmView?.matrixTitle || 'Matriks Segmentasi & AI Churn Risk'}</span>
                 </h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
-                  Rekomendasi tindakan otomatis AI Swarm untuk mempertahankan retensi & meminimalisir risiko kehilangan pelanggan.
+                  {t.crmView?.matrixSubtitle || 'Rekomendasi tindakan otomatis AI Swarm untuk mempertahankan retensi & meminimalisir risiko kehilangan pelanggan.'}
                 </p>
               </div>
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
-                Analisis Real-time
+                {t.crmView?.realtimeAnalysis || 'Analisis Real-time'}
               </span>
             </div>
 
@@ -1414,20 +1415,20 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               <table className="w-full text-left text-xs font-medium border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-3 px-3">SEGMEN COHORT</th>
-                    <th className="py-3 px-3 text-center">SKOR RFM</th>
-                    <th className="py-3 px-3 text-center">KONTRIBUSI</th>
-                    <th className="py-3 px-3 text-center">CHURN RISK</th>
-                    <th className="py-3 px-3">AI SWARM STRATEGY RECOMMENDATION</th>
-                    <th className="py-3 px-3 text-right">AKSI KAMPANYE</th>
+                    <th className="py-3 px-3">{t.crmView?.colCohortSegment || 'SEGMEN COHORT'}</th>
+                    <th className="py-3 px-3 text-center">{t.crmView?.colRfmScore || 'SKOR RFM'}</th>
+                    <th className="py-3 px-3 text-center">{t.crmView?.colContribution || 'KONTRIBUSI'}</th>
+                    <th className="py-3 px-3 text-center">{t.crmView?.colChurnRisk || 'CHURN RISK'}</th>
+                    <th className="py-3 px-3">{t.crmView?.colAiStrategy || 'AI SWARM STRATEGY RECOMMENDATION'}</th>
+                    <th className="py-3 px-3 text-right">{t.crmView?.colCampaignAction || 'AKSI KAMPANYE'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
                   {[
-                    { seg: 'VIP', score: '555', count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, riskLevel: 'Rendah', riskBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', strategy: 'Prioritaskan fast-track CS 24/7, kirim bingkisan apresiasi tahunan & voucher exclusive preview produk baru.' },
-                    { seg: 'Loyal', score: '444', count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, riskLevel: 'Sedang', riskBg: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', strategy: 'Berikan double reward points untuk pembelian berikutnya dan rekomendasi bundel hemat berbasis histori.' },
-                    { seg: 'Repeat', score: '333', count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, riskLevel: 'Menengah', riskBg: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300', strategy: 'Kirim pengingat restock barang via WhatsApp otomatis beserta kupon potongan harga Rp25.000.' },
-                    { seg: 'New', score: '111', count: customerData.customers.filter((c: any) => c.segment === 'New').length, riskLevel: 'Tinggi', riskBg: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300', strategy: 'Kirim rangkaian pesan onboarding pengenalan brand, ulasan bintang 5, dan garansi jaminan kualitas 100%.' }
+                    { seg: 'VIP', score: '555', count: customerData.customers.filter((c: any) => c.segment === 'VIP').length, riskLevel: t.crmView?.riskLow || 'Rendah', riskBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300', strategy: t.crmView?.vipStrategy || 'Prioritaskan fast-track CS 24/7, kirim bingkisan apresiasi tahunan & voucher exclusive preview produk baru.' },
+                    { seg: 'Loyal', score: '444', count: customerData.customers.filter((c: any) => c.segment === 'Loyal').length, riskLevel: t.crmView?.riskMedium || 'Sedang', riskBg: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', strategy: t.crmView?.loyalStrategy || 'Berikan double reward points untuk pembelian berikutnya dan rekomendasi bundel hemat berbasis histori.' },
+                    { seg: 'Repeat', score: '333', count: customerData.customers.filter((c: any) => c.segment === 'Repeat').length, riskLevel: t.crmView?.riskModerate || 'Menengah', riskBg: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300', strategy: t.crmView?.repeatStrategy || 'Kirim pengingat restock barang via WhatsApp otomatis beserta kupon potongan harga Rp25.000.' },
+                    { seg: 'New', score: '111', count: customerData.customers.filter((c: any) => c.segment === 'New').length, riskLevel: t.crmView?.riskHigh || 'Tinggi', riskBg: 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300', strategy: t.crmView?.newStrategy || 'Kirim rangkaian pesan onboarding pengenalan brand, ulasan bintang 5, dan garansi jaminan kualitas 100%.' }
                   ].map((row, idx) => {
                     const totalCusts = customerData.customers.length || 0;
                     const pctShare = totalCusts > 0 ? Math.round((row.count / totalCusts) * 100) : 0;
@@ -1447,7 +1448,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                           {row.count > 0 ? row.score : '-'}
                         </td>
                         <td className="py-3.5 px-3 text-center font-extrabold text-slate-900 dark:text-slate-100">
-                          {row.count} Pelanggan ({pctShare}%)
+                          {row.count} {t.crmView?.customers || 'Pelanggan'} ({pctShare}%)
                         </td>
                         <td className="py-3.5 px-3 text-center">
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${row.riskBg}`}>
@@ -1462,7 +1463,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                             onClick={() => setIsAIRetentionModalOpen(true)}
                             className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs cursor-pointer whitespace-nowrap"
                           >
-                            Kirim Broadcast
+                            {t.crmView?.sendBroadcast || 'Kirim Broadcast'}
                           </button>
                         </td>
                       </tr>
@@ -1478,9 +1479,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                  Daftar Anggota Segmen: {segmentFilter} ({filteredCustomers.length})
+                  {t.crmView?.cohortMemberList || 'Daftar Anggota Segmen:'} {segmentFilter} ({filteredCustomers.length})
                 </h3>
-                <p className="text-xs text-slate-400 font-medium">Klik pada kartu di atas untuk memfilter daftar anggota segmen.</p>
+                <p className="text-xs text-slate-400 font-medium">{t.crmView?.rfmChartSub || 'Klik pada kartu di atas untuk memfilter daftar anggota segmen.'}</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1490,7 +1491,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari pelanggan segmen..."
+                    placeholder={t.crmView?.searchPlaceholder || 'Cari pelanggan segmen...'}
                     className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-48"
                   />
                 </div>
@@ -1501,13 +1502,13 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               <table className="w-full text-left text-xs font-medium border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-2.5 px-3">PELANGGAN</th>
-                    <th className="py-2.5 px-3 text-center">SEGMENT</th>
-                    <th className="py-2.5 px-3 text-center">TOTAL ORDER</th>
-                    <th className="py-2.5 px-3 text-right">TOTAL SPEND</th>
-                    <th className="py-2.5 px-3 text-center">LAST ORDER</th>
-                    <th className="py-2.5 px-3 text-center">STATUS</th>
-                    <th className="py-2.5 px-3 text-right">AKSI</th>
+                    <th className="py-2.5 px-3">{t.crmView?.colCustomer || 'PELANGGAN'}</th>
+                    <th className="py-2.5 px-3 text-center">{t.crmView?.colSegment || 'SEGMENT'}</th>
+                    <th className="py-2.5 px-3 text-center">{t.crmView?.colTotalOrders || 'TOTAL ORDER'}</th>
+                    <th className="py-2.5 px-3 text-right">{t.crmView?.colTotalSpend || 'TOTAL SPEND'}</th>
+                    <th className="py-2.5 px-3 text-center">{t.crmView?.colLastOrder || 'LAST ORDER'}</th>
+                    <th className="py-2.5 px-3 text-center">{t.crmView?.colStatus || 'STATUS'}</th>
+                    <th className="py-2.5 px-3 text-right">{t.crmView?.colAction || 'AKSI'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1640,10 +1641,10 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-            {t.customersView?.title || 'Customers'}
+            {t.crmView?.title || 'Customer Relationship (CRM)'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            {t.customersView?.subtitle || 'Kelola pelanggan, pahami perilaku mereka, dan tingkatkan loyalitas.'}
+            {t.crmView?.subtitle || 'Track customer profiles, purchase history, and AI sentiment analysis.'}
           </p>
         </div>
 
@@ -1671,7 +1672,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             }`}
           >
             <Filter size={14} className="text-orange-500" />
-            <span>Filter Advanced</span>
+            <span>{t.crmView?.advancedFilter || 'Filter Advanced'}</span>
             {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
               <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
             )}
@@ -1681,21 +1682,21 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             onClick={() => setIsImportModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs transition-all"
           >
-            <Download size={14} /> <span>Import Customers</span>
+            <Download size={14} /> <span>{t.crmView?.importCustomers || 'Import Customers'}</span>
           </button>
 
           <button 
             onClick={() => setIsExportModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs transition-all"
           >
-            <Upload size={14} /> <span>Export Data</span>
+            <Upload size={14} /> <span>{t.crmView?.exportData || 'Export Data'}</span>
           </button>
 
           <button 
             onClick={() => setIsAddModalOpen(true)}
             className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
-            <Plus size={16} /> <span>Tambah Customer</span>
+            <Plus size={16} /> <span>{t.crmView?.addCustomer || 'Tambah Customer'}</span>
           </button>
         </div>
       </div>
@@ -1708,7 +1709,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-orange-500 cursor-pointer transition-all"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Total Customers</span>
+            <span>{t.crmView?.totalCustomers || 'Total Customers'}</span>
             <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center">
               <Users size={16} />
             </div>
@@ -1717,7 +1718,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {customerData.customers.length.toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{customerData.customers.length > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{customerData.customers.length > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
@@ -1727,14 +1728,14 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 cursor-pointer transition-all"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>New Customers</span>
+            <span>{t.crmView?.newCustomers || 'New Customers'}</span>
             <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center">
               <UserPlus size={16} />
             </div>
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{newCount}</div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
@@ -1744,14 +1745,14 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-purple-500 cursor-pointer transition-all"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Repeat Customers</span>
+            <span>{t.crmView?.repeatCustomers || 'Repeat Customers'}</span>
             <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 flex items-center justify-center">
               <RefreshCw size={16} />
             </div>
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{repeatCount}</div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
@@ -1761,7 +1762,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-pink-500 cursor-pointer transition-all"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Retention Rate</span>
+            <span>{t.crmView?.retentionRate || 'Retention Rate'}</span>
             <div className="size-8 rounded-xl bg-pink-50 text-pink-600 dark:bg-pink-950/60 dark:text-pink-400 flex items-center justify-center">
               <Heart size={16} />
             </div>
@@ -1770,14 +1771,14 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {totalCusts > 0 ? Math.round(((vipCount + loyalCount + repeatCount) / totalCusts) * 100) : 0}%
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
         {/* Card 5: Avg. Order Value */}
         <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
-            <span>Avg. Order Value</span>
+            <span>{t.crmView?.avgOrderValue || 'Avg. Order Value'}</span>
             <div className="size-8 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 flex items-center justify-center">
               <DollarSign size={16} />
             </div>
@@ -1786,7 +1787,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="text-xl font-black text-slate-900 dark:text-slate-100">
               Rp{(totalCusts > 0 ? Math.round(customerData.customers.reduce((acc: number, c: any) => acc + Number(c.total_spend_idr || 0), 0) / totalCusts) : 0).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : 'Zero-State'}</div>
+            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
       </div>
@@ -1795,7 +1796,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
       <div className="grid lg:grid-cols-12 gap-5">
         {/* Col 1: Customer Segment Donut (lg:col-span-4) */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Customer Segment</h3>
+          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{t.crmView?.customerSegment || 'Customer Segment'}</h3>
 
           {/* Donut Canvas */}
           <div className="relative size-40 mx-auto">
@@ -1865,7 +1866,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             onClick={() => handleTabSwitch('customer_segment')}
             className="w-full text-center text-xs font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 cursor-pointer pt-1 flex items-center justify-center gap-1"
           >
-            <span>Lihat Semua Segmentasi</span>
+            <span>{t.crmView?.viewAllSegmentation || 'Lihat Semua Segmentasi'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -1899,7 +1900,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
         {/* Col 3: Distribusi Pelanggan Progress Bars (lg:col-span-3) */}
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs flex flex-col justify-between">
           <div className="space-y-4">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Distribusi Pelanggan</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{t.crmView?.segmentDistribution || 'Distribusi Pelanggan'}</h3>
 
             <div className="space-y-3.5 text-xs font-bold">
               {customerData.regionalDistribution.map((item: any, i: number) => (
@@ -1923,7 +1924,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             onClick={() => handleTabSwitch('customer_distributions')}
             className="w-full text-center text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 cursor-pointer pt-2 flex items-center justify-center gap-1"
           >
-            <span>Lihat Selengkapnya</span>
+            <span>{t.crmView?.viewMore || 'Lihat Selengkapnya'}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -1934,7 +1935,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
         {/* Main Customer Table (lg:col-span-8) */}
         <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Daftar Pelanggan</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{t.crmView?.listCustomers || 'Daftar Pelanggan'}</h3>
 
             <div className="flex flex-wrap items-center gap-2">
               {/* Search Bar */}
@@ -1944,7 +1945,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari pelanggan..."
+                  placeholder={t.crmView?.searchPlaceholder || 'Cari pelanggan...'}
                   className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-44"
                 />
               </div>
@@ -1955,7 +1956,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 onChange={(e) => setSegmentFilter(e.target.value)}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none cursor-pointer"
               >
-                <option value="Semua Segment">Semua Segment</option>
+                <option value="Semua Segment">{t.crmView?.allSegments || 'Semua Segment'}</option>
                 <option value="VIP">VIP</option>
                 <option value="Loyal">Loyal</option>
                 <option value="Repeat">Repeat</option>
@@ -1968,9 +1969,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none cursor-pointer"
               >
-                <option value="Semua Status">Semua Status</option>
-                <option value="Aktif">Aktif</option>
-                <option value="Tidak Aktif">Tidak Aktif</option>
+                <option value="Semua Status">{t.crmView?.allStatuses || 'Semua Status'}</option>
+                <option value="Aktif">{t.crmView?.active || 'Aktif'}</option>
+                <option value="Tidak Aktif">{t.crmView?.inactive || 'Tidak Aktif'}</option>
               </select>
 
               {/* Filter Button */}
@@ -1983,7 +1984,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 }`}
               >
                 <Filter size={12} className="text-orange-500" />
-                <span>Filter Advanced</span>
+                <span>{t.crmView?.advancedFilter || 'Filter Advanced'}</span>
                 {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
                   <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
                 )}
@@ -1994,15 +1995,15 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           {/* Active Filter Chips Bar for Main Overview Table */}
           {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0 || searchQuery !== '' || segmentFilter !== 'Semua Segment') && (
             <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
-              <span className="text-slate-400 mr-1 font-semibold">Filter Aktif:</span>
+              <span className="text-slate-400 mr-1 font-semibold">{t.crmView?.activeFilters || 'Filter Aktif:'}</span>
               {searchQuery && (
                 <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
-                  Pencarian: "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
+                  {t.crmView?.searchPrefix || 'Pencarian:'} "{searchQuery}" <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setSearchQuery('')} />
                 </span>
               )}
               {crmFilters.segment !== 'all' && (
                 <span className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-900 flex items-center gap-1">
-                  Segmen: {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
+                  {t.crmView?.segmentPrefix || 'Segmen:'} {crmFilters.segment} <X size={12} className="cursor-pointer hover:opacity-80" onClick={() => setCrmFilters({ ...crmFilters, segment: 'all' })} />
                 </span>
               )}
               {crmFilters.status !== 'all' && (
@@ -2187,8 +2188,12 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-slate-800">
             <span>
               {filteredCustomers.length === 0 
-                ? 'Menampilkan 0 dari 0 pelanggan'
-                : `Menampilkan ${Math.min((currentPage - 1) * 5 + 1, filteredCustomers.length)} - ${Math.min(currentPage * 5, filteredCustomers.length)} dari ${filteredCustomers.length.toLocaleString('id-ID')} pelanggan`}
+                ? (t.crmView?.showingCount ? t.crmView.showingCount.replace('{from}', '0').replace('{total}', '0') : 'Menampilkan 0 dari 0 pelanggan')
+                : (t.crmView?.showingCount 
+                    ? t.crmView.showingCount
+                        .replace('{from}', `${Math.min((currentPage - 1) * 5 + 1, filteredCustomers.length)} - ${Math.min(currentPage * 5, filteredCustomers.length)}`)
+                        .replace('{total}', filteredCustomers.length.toLocaleString('id-ID'))
+                    : `Menampilkan ${Math.min((currentPage - 1) * 5 + 1, filteredCustomers.length)} - ${Math.min(currentPage * 5, filteredCustomers.length)} dari ${filteredCustomers.length.toLocaleString('id-ID')} pelanggan`)}
             </span>
             <div className="flex items-center gap-1">
               <button 
@@ -2252,7 +2257,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Customer Activity Stream</h3>
               <button onClick={() => handleTabSwitch('customer_activity_stream')} className="text-[10px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 cursor-pointer">
-                Lihat Semua
+                {t.crmView?.viewAll || 'Lihat Semua'}
               </button>
             </div>
 
@@ -2305,14 +2310,16 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             {isAiInsightOpen && (
               <div className="space-y-3 animate-in fade-in duration-150">
                 <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">
-                  {customerData.customers.filter((c: any) => c.segment === 'New' || c.status !== 'Aktif').length} pelanggan belum repeat order lebih dari 30 hari. Potensi revenue hilang: <span className="font-black text-slate-900 dark:text-slate-100">Rp{(customerData.customers.reduce((acc: number, c: any) => acc + (Number(c.total_spend_idr) || 0), 0)).toLocaleString('id-ID')}</span>
+                  {(t.crmView?.aiInsightDesc || '{count} pelanggan belum repeat order lebih dari 30 hari. Potensi revenue hilang: {amount}')
+                    .replace('{count}', String(customerData.customers.filter((c: any) => c.segment === 'New' || c.status !== 'Aktif').length))
+                    .replace('{amount}', `Rp${(customerData.customers.reduce((acc: number, c: any) => acc + (Number(c.total_spend_idr) || 0), 0)).toLocaleString('id-ID')}`)}
                 </p>
                 <button 
                   onClick={() => setIsAIRetentionModalOpen(true)}
                   className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
                 >
                   <Sparkles size={14} className="text-orange-500" />
-                  <span>Lihat Rekomendasi AI</span>
+                  <span>{t.crmView?.viewAiRecommendation || 'Lihat Rekomendasi AI'}</span>
                 </button>
               </div>
             )}

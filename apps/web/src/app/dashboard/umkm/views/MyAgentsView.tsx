@@ -605,9 +605,11 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
             <Bot size={32} />
           </div>
           <div className="max-w-md mx-auto space-y-1">
-            <h3 className="font-black text-base text-slate-900 dark:text-slate-100">Zero State — Belum ada AI Employee Aktif</h3>
+            <h3 className="font-black text-base text-slate-900 dark:text-slate-100">
+              {m.noActiveEmployees || 'Belum Ada AI Employee Aktif'}
+            </h3>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">
-              Tidak ada data AI workforce di database untuk tenant ini. Klik tombol <strong className="text-orange-500">Deploy AI Employee</strong> atau pilih dari <strong className="text-orange-500">Templates Gallery</strong> untuk mulai menyebar agen otonom real-time.
+              {m.noActiveEmployeesDesc || 'Tidak ada data tenaga kerja AI di database untuk toko ini. Klik tombol Deploy AI Employee atau pilih dari Galeri Template untuk mulai menyebar agen otonom real-time.'}
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -616,14 +618,14 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
               className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
             >
               <Layers size={14} className="text-orange-500" />
-              <span>Templates Gallery</span>
+              <span>{m.templates}</span>
             </button>
             <button
               onClick={() => setActiveModal('deploy')}
               className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Plus size={14} />
-              <span>Deploy AI Employee</span>
+              <span>{m.addEmployee}</span>
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface BillingTabProps {
   triggerToast: (msg: string) => void;
@@ -13,13 +14,14 @@ interface BillingTabProps {
 }
 
 export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Database States
   const [billingOverview, setBillingOverview] = useState<any>({
     plan_name: 'Free',
-    plan_status: 'Inaktif',
+    plan_status: 'Inactive',
     expires_at: null,
     ai_credits_used: 0,
     ai_credits_total: 0,
@@ -29,8 +31,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     automation_total: 0,
     storage_used_gb: 0,
     storage_total_gb: 0,
-    primary_payment_brand: 'Belum Ada',
-    primary_payment_card: 'Belum ada kartu terhubung',
+    primary_payment_brand: 'Stripe',
+    primary_payment_card: 'No card connected',
     primary_payment_expiry: '-'
   });
 
@@ -228,7 +230,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
     setTimeout(() => {
       setDownloadingId(null);
-      triggerToast(`✓ Invoice & e-Faktur ${targetInv.invoice_number} (PDF) berhasil diunduh!`);
+      triggerToast(`✓ ${t.settingsView?.billingTab?.toastDownloaded || 'Invoice PDF & e-Faktur download started!'}`);
     }, 600);
   };
 
@@ -240,7 +242,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         ai_employees_total: employees,
         storage_total_gb: storage
       });
-      triggerToast(`✓ Paket subskripsi berhasil diperbarui ke ${planName}!`);
+      triggerToast(`✓ ${t.settingsView?.billingTab?.toastPlanUpdated || 'Subscription plan successfully updated!'}`);
       setIsPlanModalOpen(false);
       loadBillingData();
     } catch (e) {
@@ -384,24 +386,21 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <span>Billing & Subskripsi</span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-              Realtime Synchronized
-            </span>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <span>{t.settingsView?.billingTab?.title || 'Billing & Subskripsi'}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Kelola paket langganan ZEGA AI, metode pembayaran, ringkasan penggunaan kuota, dan unduh e-Faktur resmi.
+            {t.settingsView?.billingTab?.subtitle || 'Kelola paket langganan ZEGA AI, metode pembayaran, ringkasan penggunaan kuota, dan unduh e-Faktur resmi.'}
           </p>
         </div>
 
         <button
           onClick={loadBillingData}
           disabled={loading}
-          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Data</span>
+          <span>{t.settingsView?.billingTab?.refreshBtn || 'Refresh Data'}</span>
         </button>
       </div>
 
@@ -410,31 +409,37 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         {/* 1. Paket Aktif */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Paket Aktif</h4>
+            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t.settingsView?.billingTab?.activePlanTitle || 'Paket Aktif'}</h4>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{billingOverview.plan_name}</h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                {billingOverview.plan_status}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                billingOverview.plan_status === 'Aktif' || billingOverview.plan_status === 'Active'
+                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+              }`}>
+                {billingOverview.plan_status === 'Aktif' || billingOverview.plan_status === 'Active'
+                  ? (t.settingsView?.billingTab?.activeBadge || 'Active')
+                  : (t.settingsView?.billingTab?.inactiveBadge || 'Inactive')}
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-medium">Berakhir pada {formatDate(billingOverview.expires_at)}</p>
+            <p className="text-[10px] text-slate-400 font-medium">{t.settingsView?.billingTab?.expiresOn || 'Berakhir pada'} {formatDate(billingOverview.expires_at)}</p>
 
             <ul className="space-y-1.5 pt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <li className="flex items-center gap-2">
                 <Check size={14} className="text-orange-500 shrink-0" />
-                <span>{billingOverview.ai_employees_total} AI Employees</span>
+                <span>{billingOverview.ai_employees_total} {t.settingsView?.billingTab?.aiEmployees || 'AI Employees'}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check size={14} className="text-orange-500 shrink-0" />
-                <span>{(billingOverview.ai_credits_total || 5000).toLocaleString('id-ID')} AI Credits / bulan</span>
+                <span>{(billingOverview.ai_credits_total || 5000).toLocaleString('id-ID')} {t.settingsView?.billingTab?.creditsPerMonth || 'AI Credits / bulan'}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check size={14} className="text-orange-500 shrink-0" />
-                <span>Unlimited Automation Engine</span>
+                <span>{t.settingsView?.billingTab?.unlimitedAutomation || 'Unlimited Automation Engine'}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check size={14} className="text-orange-500 shrink-0" />
-                <span>Priority Support 24/7 & e-Faktur</span>
+                <span>{t.settingsView?.billingTab?.prioritySupport || 'Priority Support 24/7 & e-Faktur'}</span>
               </li>
             </ul>
           </div>
@@ -443,21 +448,21 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             onClick={() => setIsPlanModalOpen(true)}
             className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
           >
-            Kelola Paket
+            {t.settingsView?.billingTab?.managePlanBtn || 'Kelola Paket'}
           </button>
         </div>
 
         {/* 2. Ringkasan Penggunaan */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Ringkasan Penggunaan (Periode Berjalan)</h4>
+            <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t.settingsView?.billingTab?.usageSummaryTitle || 'Ringkasan Penggunaan (Periode Berjalan)'}</h4>
             
             <div className="space-y-3.5 pt-1 text-xs">
               {/* AI Credits */}
               <div>
                 <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">
-                  <span className="flex items-center gap-1.5"><Zap size={12} className="text-orange-500" /> AI Credits</span>
-                  <span className="font-mono">{billingOverview.ai_credits_used} / {billingOverview.ai_credits_total} ({Math.round((billingOverview.ai_credits_used / (billingOverview.ai_credits_total || 5000)) * 100)}%)</span>
+                  <span className="flex items-center gap-1.5"><Zap size={12} className="text-orange-500" /> {t.settingsView?.billingTab?.aiCredits || 'AI Credits'}</span>
+                  <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">{billingOverview.ai_credits_used} / {billingOverview.ai_credits_total} ({Math.round((billingOverview.ai_credits_used / (billingOverview.ai_credits_total || 5000)) * 100)}%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
@@ -470,8 +475,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               {/* AI Employees */}
               <div>
                 <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">
-                  <span className="flex items-center gap-1.5"><Sparkles size={12} className="text-purple-500" /> AI Employees</span>
-                  <span className="font-mono">{billingOverview.ai_employees_used} / {billingOverview.ai_employees_total} ({Math.round((billingOverview.ai_employees_used / (billingOverview.ai_employees_total || 20)) * 100)}%)</span>
+                  <span className="flex items-center gap-1.5"><Sparkles size={12} className="text-purple-500" /> {t.settingsView?.billingTab?.aiEmployees || 'AI Employees'}</span>
+                  <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">{billingOverview.ai_employees_used} / {billingOverview.ai_employees_total} ({Math.round((billingOverview.ai_employees_used / (billingOverview.ai_employees_total || 20)) * 100)}%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
@@ -484,8 +489,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               {/* Automation */}
               <div>
                 <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">
-                  <span className="flex items-center gap-1.5"><Shield size={12} className="text-emerald-500" /> Automation Engine</span>
-                  <span className="font-mono">{billingOverview.automation_used} / Unlimited</span>
+                  <span className="flex items-center gap-1.5"><Shield size={12} className="text-emerald-500" /> {t.settingsView?.billingTab?.automationEngine || 'Automation Engine'}</span>
+                  <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">{billingOverview.automation_used} / Unlimited</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full w-full" />
@@ -495,8 +500,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               {/* Storage */}
               <div>
                 <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-[11px]">
-                  <span className="flex items-center gap-1.5"><ExternalLink size={12} className="text-blue-500" /> R2 Storage</span>
-                  <span className="font-mono">{billingOverview.storage_used_gb} GB / {billingOverview.storage_total_gb} GB ({Math.round((billingOverview.storage_used_gb / (billingOverview.storage_total_gb || 50)) * 100)}%)</span>
+                  <span className="flex items-center gap-1.5"><ExternalLink size={12} className="text-blue-500" /> {t.settingsView?.billingTab?.r2Storage || 'R2 Storage'}</span>
+                  <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300">{billingOverview.storage_used_gb} GB / {billingOverview.storage_total_gb} GB ({Math.round((billingOverview.storage_used_gb / (billingOverview.storage_total_gb || 50)) * 100)}%)</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
@@ -517,9 +522,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               if (onNavigateTab) onNavigateTab('usage');
               setIsUsageModalOpen(true);
             }}
-            className="text-xs font-extrabold text-orange-500 hover:underline cursor-pointer text-left flex items-center gap-1"
+            className="text-xs font-bold text-orange-500 hover:underline cursor-pointer text-left flex items-center gap-1"
           >
-            <span>Lihat Detail Usage (Billing & Plan)</span>
+            <span>{t.settingsView?.billingTab?.viewUsageDetail || 'Lihat Detail Usage (Billing & Plan)'}</span>
             <ArrowRight size={12} />
           </button>
         </div>
@@ -528,7 +533,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Metode Pembayaran Utama</h4>
+              <h4 className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">{t.settingsView?.billingTab?.primaryPaymentTitle || 'Metode Pembayaran Utama'}</h4>
             </div>
             
             <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between">
@@ -540,13 +545,19 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                   className="size-8 object-contain rounded-lg"
                 />
                 <div>
-                  <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100">{billingOverview.primary_payment_card}</h5>
-                  <p className="text-[10px] text-slate-400 font-medium">{billingOverview.primary_payment_expiry}</p>
+                  <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {billingOverview.primary_payment_card === 'Belum ada kartu terhubung' || billingOverview.primary_payment_card === 'No card connected' || !billingOverview.primary_payment_card
+                      ? (t.settingsView?.billingTab?.noCardConnected || 'No card connected')
+                      : billingOverview.primary_payment_card}
+                  </h5>
+                  <p className="text-[10px] text-slate-400 font-medium">{billingOverview.primary_payment_expiry || '-'}</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                Utama
-              </span>
+              {billingOverview.primary_payment_card && billingOverview.primary_payment_card !== 'Belum ada kartu terhubung' && billingOverview.primary_payment_card !== 'No card connected' && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                  {t.settingsView?.billingTab?.primaryBadge || 'Utama'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -560,9 +571,9 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                 if (onNavigateTab) onNavigateTab('payment-methods');
                 setIsManagePaymentModalOpen(true);
               }}
-              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer text-center"
+              className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer text-center"
             >
-              Kelola Pembayaran
+              {t.settingsView?.billingTab?.managePaymentBtn || 'Kelola Pembayaran'}
             </button>
           </div>
         </div>
@@ -573,14 +584,14 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         {/* Top Header & Unified Toggle Button */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Riwayat Tagihan & Transaksi</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Daftar rekapan invoice tagihan dan riwayat transaksi pembayaran bisnis Anda.</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.historyTitle || 'Riwayat Tagihan & Transaksi'}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">{t.settingsView?.billingTab?.historySubtitle || 'Daftar rekapan invoice tagihan dan riwayat transaksi pembayaran bisnis Anda.'}</p>
           </div>
           <button
             onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-            className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 self-start sm:self-auto"
+            className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-all cursor-pointer active:scale-95 shrink-0 self-start sm:self-auto"
           >
-            <span>{isHistoryExpanded ? 'Tutup Riwayat' : `Buka Riwayat (${invoices.length + transactions.length})`}</span>
+            <span>{isHistoryExpanded ? (t.settingsView?.billingTab?.closeHistory || 'Tutup Riwayat') : `${t.settingsView?.billingTab?.openHistory || 'Buka Riwayat'} (${invoices.length + transactions.length})`}</span>
             <ChevronDown size={15} className={`transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180 text-orange-500' : 'text-slate-500'}`} />
           </button>
         </div>
@@ -589,37 +600,37 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
           {/* 4. Riwayat Invoice */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">Riwayat Invoice</h3>
-              <span className="text-[10px] text-slate-400 font-medium">{invoices.length} Invoice</span>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.invoiceTabTitle || 'Riwayat Invoice'}</h3>
+              <span className="text-[10px] text-slate-400 font-medium">{invoices.length} {t.settingsView?.billingTab?.invoiceUnit || 'Invoice'}</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="pb-2">Invoice</th>
-                    <th className="pb-2">Periode</th>
-                    <th className="pb-2">Total</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2 text-right">Aksi</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colInvoice || 'Invoice'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colPeriod || 'Periode'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colTotal || 'Total'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colStatus || 'Status'}</th>
+                    <th className="pb-2 text-right">{t.settingsView?.billingTab?.colAction || 'Aksi'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {invoices.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
-                        Belum ada riwayat invoice.
+                        {t.settingsView?.billingTab?.noInvoices || 'Belum ada riwayat invoice.'}
                       </td>
                     </tr>
                   ) : (
                     (isHistoryExpanded ? invoices : invoices.slice(0, 3)).map((inv, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40 transition-colors">
-                        <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
+                        <td className="py-2.5 font-bold text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
                         <td className="py-2.5 text-slate-500">{inv.period}</td>
                         <td className="py-2.5 text-slate-900 dark:text-slate-100 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
                         <td className="py-2.5">
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                            {inv.status}
+                            {inv.status === 'Lunas' ? (t.settingsView?.billingTab?.statusPaid || 'Lunas') : inv.status}
                           </span>
                         </td>
                         <td className="py-2.5 text-right">
@@ -627,7 +638,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                             onClick={() => handleDownloadInvoice(inv.invoice_number)}
                             disabled={downloadingId === inv.invoice_number}
                             className="p-1 rounded-lg text-slate-400 hover:text-orange-500 cursor-pointer"
-                            title="Unduh Invoice PDF & e-Faktur"
+                            title={t.settingsView?.billingTab?.downloadTooltip || 'Unduh Invoice PDF & e-Faktur'}
                           >
                             <Download size={14} className={downloadingId === inv.invoice_number ? 'animate-bounce' : ''} />
                           </button>
@@ -643,26 +654,26 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
           {/* 5. Riwayat Transaksi */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">Riwayat Transaksi</h3>
-              <span className="text-[10px] text-slate-400 font-medium">{transactions.length} Transaksi</span>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.txTabTitle || 'Riwayat Transaksi'}</h3>
+              <span className="text-[10px] text-slate-400 font-medium">{transactions.length} {t.settingsView?.billingTab?.txUnit || 'Transaksi'}</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="pb-2">Tanggal</th>
-                    <th className="pb-2">Deskripsi</th>
-                    <th className="pb-2">Metode</th>
-                    <th className="pb-2">Jumlah</th>
-                    <th className="pb-2 text-right">Status</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colDate || 'Tanggal'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colDesc || 'Deskripsi'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colMethod || 'Metode'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colAmount || 'Jumlah'}</th>
+                    <th className="pb-2 text-right">{t.settingsView?.billingTab?.colStatus || 'Status'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {transactions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
-                        Belum ada riwayat transaksi.
+                        {t.settingsView?.billingTab?.noTx || 'Belum ada riwayat transaksi.'}
                       </td>
                     </tr>
                   ) : (
@@ -694,8 +705,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="flex items-center gap-3">
           <HelpCircle size={18} className="text-slate-400" />
           <div>
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Butuh bantuan dengan billing?</h4>
-            <p className="text-[10px] text-slate-400">Kunjungi Pusat Bantuan kami atau hubungi tim support finansial 24/7.</p>
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">{t.settingsView?.billingTab?.helpBannerTitle || 'Butuh bantuan dengan billing?'}</h4>
+            <p className="text-[10px] text-slate-400">{t.settingsView?.billingTab?.helpBannerDesc || 'Kunjungi Pusat Bantuan kami atau hubungi tim support finansial 24/7.'}</p>
           </div>
         </div>
 
@@ -710,7 +721,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
           }}
           className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
         >
-          <span>Pusat Bantuan & Support</span>
+          <span>{t.settingsView?.billingTab?.helpCenterBtn || 'Pusat Bantuan & Support'}</span>
           <ArrowRight size={12} />
         </button>
       </div>
@@ -724,7 +735,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Sparkles size={18} className="text-orange-500" />
-                <span>Pilih Paket Langganan ZEGA AI</span>
+                <span>{t.settingsView?.billingTab?.modalPlanTitle || 'Pilih Paket Langganan ZEGA AI'}</span>
               </h3>
               <button onClick={() => setIsPlanModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
@@ -746,12 +757,12 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                     }`}>
                       {isStarterActive && (
                         <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black uppercase">
-                          Aktif Saat Ini
+                          {t.settingsView?.billingTab?.activeTag || 'Aktif Saat Ini'}
                         </span>
                       )}
                       <div>
-                        <h4 className="font-black text-slate-900 dark:text-slate-100">Starter</h4>
-                        <p className="text-[10px] text-slate-400">Untuk UMKM Pemula</p>
+                        <h4 className="font-black text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.starterPlan || 'Starter'}</h4>
+                        <p className="text-[10px] text-slate-400">{t.settingsView?.billingTab?.forStarters || 'Untuk UMKM Pemula'}</p>
                         <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 99.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
                         <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                           <li>✓ 1.500 AI Credits</li>
@@ -761,14 +772,14 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                       </div>
                       {isStarterActive ? (
                         <button disabled className="w-full py-2 rounded-xl bg-emerald-500 text-white font-extrabold text-xs opacity-80 cursor-default">
-                          Paket Aktif
+                          {t.settingsView?.billingTab?.activeTag || 'Paket Aktif'}
                         </button>
                       ) : (
                         <button
                           onClick={() => handleSelectPlan('Starter', 1500, 3, 10)}
                           className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-extrabold text-xs cursor-pointer transition-colors"
                         >
-                          Pilih Starter
+                          {t.settingsView?.billingTab?.selectPlanBtn || 'Pilih Starter'}
                         </button>
                       )}
                     </div>
@@ -781,16 +792,16 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                     }`}>
                       {isGrowthActive ? (
                         <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black uppercase">
-                          Aktif Saat Ini
+                          {t.settingsView?.billingTab?.activeTag || 'Aktif Saat Ini'}
                         </span>
                       ) : (
                         <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[9px] font-black uppercase border border-orange-200 dark:border-orange-800">
-                          Paling Populer
+                          {t.settingsView?.billingTab?.popularTag || 'Paling Populer'}
                         </span>
                       )}
                       <div>
-                        <h4 className="font-black text-slate-900 dark:text-slate-100">Growth</h4>
-                        <p className="text-[10px] text-slate-400">Paling Populer untuk UMKM</p>
+                        <h4 className="font-black text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.growthPlan || 'Growth'}</h4>
+                        <p className="text-[10px] text-slate-400">{t.settingsView?.billingTab?.mostPopular || 'Paling Populer untuk UMKM'}</p>
                         <div className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">Rp 299.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
                         <ul className="mt-3 space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold">
                           <li>✓ 5.000 AI Credits</li>
@@ -801,14 +812,14 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                       </div>
                       {isGrowthActive ? (
                         <button disabled className="w-full py-2 rounded-xl bg-orange-500 text-white font-extrabold text-xs opacity-80 cursor-default">
-                          Paket Aktif
+                          {t.settingsView?.billingTab?.activeTag || 'Paket Aktif'}
                         </button>
                       ) : (
                         <button
                           onClick={() => handleSelectPlan('Growth', 5000, 20, 50)}
                           className="w-full py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer transition-colors"
                         >
-                          Upgrade ke Growth
+                          {t.settingsView?.billingTab?.selectPlanBtn || 'Upgrade ke Growth'}
                         </button>
                       )}
                     </div>
@@ -821,12 +832,12 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                     }`}>
                       {isProActive && (
                         <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[9px] font-black uppercase">
-                          Aktif Saat Ini
+                          {t.settingsView?.billingTab?.activeTag || 'Aktif Saat Ini'}
                         </span>
                       )}
                       <div>
-                        <h4 className="font-black text-purple-900 dark:text-purple-100">Pro Enterprise</h4>
-                        <p className="text-[10px] text-slate-400">Skala Besar & Multi-cabang</p>
+                        <h4 className="font-black text-purple-900 dark:text-purple-100">{t.settingsView?.billingTab?.proPlan || 'Pro Enterprise'}</h4>
+                        <p className="text-[10px] text-slate-400">{t.settingsView?.billingTab?.forLargeScale || 'Skala Besar & Multi-cabang'}</p>
                         <div className="mt-2 text-lg font-black text-purple-900 dark:text-purple-100">Rp 899.000 <span className="text-[10px] font-normal text-slate-400">/bln</span></div>
                         <ul className="mt-3 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                           <li>✓ 25.000 AI Credits</li>
@@ -837,14 +848,14 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                       </div>
                       {isProActive ? (
                         <button disabled className="w-full py-2 rounded-xl bg-purple-600 text-white font-extrabold text-xs opacity-80 cursor-default">
-                          Paket Aktif
+                          {t.settingsView?.billingTab?.activeTag || 'Paket Aktif'}
                         </button>
                       ) : (
                         <button
                           onClick={() => handleSelectPlan('Pro Enterprise', 25000, 50, 250)}
                           className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs cursor-pointer transition-colors"
                         >
-                          Upgrade ke Enterprise
+                          {t.settingsView?.billingTab?.selectPlanBtn || 'Upgrade ke Enterprise'}
                         </button>
                       )}
                     </div>
@@ -861,7 +872,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Analisis Detail Penggunaan Kuota</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.usageModalTitle || 'Analisis Detail Penggunaan Kuota'}</h3>
               <button onClick={() => setIsUsageModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -897,7 +908,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
               <div className="flex justify-end pt-2">
                 <button onClick={() => setIsUsageModalOpen(false)} className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer">
-                  Tutup
+                  {t.settingsView?.billingTab?.closeBtn || 'Tutup'}
                 </button>
               </div>
             </div>
@@ -913,16 +924,16 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <CreditCard size={18} className="text-orange-500" />
-                  <span>Metode Pembayaran Tersimpan</span>
+                  <span>{t.settingsView?.billingTab?.savedPaymentMethods || 'Metode Pembayaran Tersimpan'}</span>
                 </h3>
-                <p className="text-[11px] text-slate-400">Kelola kartu kredit/debit terhubung untuk tagihan otomatis ZEGA AI</p>
+                <p className="text-[11px] text-slate-400">{t.settingsView?.billingTab?.savedPaymentSubtitle || 'Kelola kartu kredit/debit terhubung untuk tagihan otomatis ZEGA AI'}</p>
               </div>
               <button onClick={() => setIsManagePaymentModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             <div className="space-y-3 text-xs font-semibold max-h-[60vh] overflow-y-auto pr-1">
               {paymentMethods.length === 0 ? (
-                <div className="p-4 text-center text-slate-400 font-medium">Belum ada metode pembayaran tersimpan.</div>
+                <div className="p-4 text-center text-slate-400 font-medium">{t.settingsView?.billingTab?.noPaymentMethods || 'Belum ada metode pembayaran tersimpan.'}</div>
               ) : (
                 paymentMethods.map((pm) => (
                   <div key={pm.id} className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2">
@@ -933,16 +944,16 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                         </div>
                         <div>
                           <h5 className="font-bold text-slate-900 dark:text-slate-100">{pm.card_type || pm.brand || 'Visa'} •••• {pm.card_last4}</h5>
-                          <p className="text-[10px] text-slate-400">Kedaluwarsa {pm.exp_month}/{pm.exp_year}</p>
+                          <p className="text-[10px] text-slate-400">{t.settingsView?.billingTab?.expiresLabel || 'Kedaluwarsa'} {pm.exp_month}/{pm.exp_year}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {pm.is_default ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                            <CheckCircle2 size={10} /> Utama
+                            <CheckCircle2 size={10} /> {t.settingsView?.billingTab?.primaryBadge || 'Utama'}
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px]">Opsional</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px]">{t.settingsView?.billingTab?.optionalBadge || 'Opsional'}</span>
                         )}
                       </div>
                     </div>
@@ -951,7 +962,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                     {editingPaymentId === pm.id ? (
                       <form onSubmit={handleSaveEditPayment} className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 grid grid-cols-3 gap-2 items-end">
                         <div>
-                          <label className="text-[9px] text-slate-400 font-bold uppercase">Tipe</label>
+                          <label className="text-[9px] text-slate-400 font-bold uppercase">{t.settingsView?.billingTab?.typeLabel || 'Tipe'}</label>
                           <select
                             value={editCardType}
                             onChange={(e) => setEditCardType(e.target.value)}
@@ -964,7 +975,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                           </select>
                         </div>
                         <div>
-                          <label className="text-[9px] text-slate-400 font-bold uppercase">Bulan / Tahun</label>
+                          <label className="text-[9px] text-slate-400 font-bold uppercase">{t.settingsView?.billingTab?.monthYearLabel || 'Bulan / Tahun'}</label>
                           <div className="flex gap-1">
                             <input
                               type="number"
@@ -985,8 +996,8 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                           </div>
                         </div>
                         <div className="flex gap-1 justify-end">
-                          <button type="submit" className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold">Simpan</button>
-                          <button type="button" onClick={() => setEditingPaymentId(null)} className="px-2 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px]">Batal</button>
+                          <button type="submit" className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold">{t.settingsView?.billingTab?.saveBtn || 'Simpan'}</button>
+                          <button type="button" onClick={() => setEditingPaymentId(null)} className="px-2 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px]">{t.settingsView?.billingTab?.cancelBtn || 'Batal'}</button>
                         </div>
                       </form>
                     ) : (
@@ -997,20 +1008,20 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                             onClick={() => handleSetPrimaryPayment(pm)}
                             className="text-orange-500 hover:text-orange-600 font-bold flex items-center gap-1 hover:underline cursor-pointer"
                           >
-                            <Star size={12} /> Set Utama
+                            <Star size={12} /> {t.settingsView?.billingTab?.setPrimary || 'Set Utama'}
                           </button>
                         )}
                         <button
                           onClick={() => handleStartEditPayment(pm)}
                           className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium flex items-center gap-1 cursor-pointer"
                         >
-                          <Edit2 size={12} /> Ubah
+                          <Edit2 size={12} /> {t.settingsView?.billingTab?.editBtn || 'Ubah'}
                         </button>
                         <button
                           onClick={() => handleDeletePayment(pm.id, pm.is_default)}
                           className="text-red-500 hover:text-red-600 font-medium flex items-center gap-1 cursor-pointer"
                         >
-                          <Trash2 size={12} /> Hapus
+                          <Trash2 size={12} /> {t.settingsView?.billingTab?.deleteBtn || 'Hapus'}
                         </button>
                       </div>
                     )}
@@ -1020,10 +1031,10 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
               <div className="flex justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button onClick={() => setIsAddPaymentModalOpen(true)} className="text-orange-500 font-extrabold flex items-center gap-1 cursor-pointer">
-                  <Plus size={14} /> Tambah Kartu Baru
+                  <Plus size={14} /> {t.settingsView?.billingTab?.addCardBtn || 'Tambah Kartu Baru'}
                 </button>
                 <button onClick={() => setIsManagePaymentModalOpen(false)} className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold cursor-pointer">
-                  Selesai
+                  {t.settingsView?.billingTab?.doneBtn || 'Selesai'}
                 </button>
               </div>
             </div>
@@ -1036,13 +1047,13 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Metode Pembayaran</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.addPaymentModalTitle || 'Tambah Metode Pembayaran'}</h3>
               <button onClick={() => setIsAddPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             <form onSubmit={handleAddPaymentSubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Penyedia Pembayaran</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.providerLabel || 'Penyedia Pembayaran'}</label>
                 <select
                   value={newCardBrand}
                   onChange={e => setNewCardBrand(e.target.value)}
@@ -1054,7 +1065,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">4 Digit Terakhir Kartu Kredit / Debit</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.last4DigitsLabel || '4 Digit Terakhir Kartu Kredit / Debit'}</label>
                 <input
                   type="text"
                   maxLength={4}
@@ -1068,7 +1079,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Bulan Exp</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.expMonthLabel || 'Bulan Exp'}</label>
                   <input
                     type="number"
                     min={1}
@@ -1079,7 +1090,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 dark:text-slate-400 mb-1">Tahun Exp</label>
+                  <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.expYearLabel || 'Tahun Exp'}</label>
                   <input
                     type="number"
                     min={2026}
@@ -1093,10 +1104,10 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddPaymentModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold">
-                  Batal
+                  {t.settingsView?.billingTab?.cancelBtn || 'Batal'}
                 </button>
                 <button type="submit" className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer">
-                  Simpan Kartu
+                  {t.settingsView?.billingTab?.saveCardBtn || 'Simpan Kartu'}
                 </button>
               </div>
             </form>
@@ -1109,7 +1120,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Daftar Lengkap Riwayat Invoice</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.allInvoicesModalTitle || 'Daftar Lengkap Riwayat Invoice'}</h3>
               <button onClick={() => setIsAllInvoicesModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -1117,7 +1128,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <Search size={14} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari nomor invoice / periode..."
+                placeholder={t.settingsView?.billingTab?.searchInvoicePlaceholder || 'Cari nomor invoice / periode...'}
                 value={searchInvoice}
                 onChange={e => setSearchInvoice(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
@@ -1128,27 +1139,27 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="pb-2">Invoice</th>
-                    <th className="pb-2">Periode</th>
-                    <th className="pb-2">Total IDR</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colInvoice || 'Invoice'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colPeriod || 'Periode'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colTotalIdr || 'Total IDR'}</th>
                     <th className="pb-2">e-Faktur</th>
-                    <th className="pb-2 text-right">Aksi</th>
+                    <th className="pb-2 text-right">{t.settingsView?.billingTab?.colAction || 'Aksi'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredInvoices.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
-                        Belum ada data invoice.
+                        {t.settingsView?.billingTab?.noInvoices || 'Belum ada data invoice.'}
                       </td>
                     </tr>
                   ) : (
                     filteredInvoices.map((inv, i) => (
                       <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
-                        <td className="py-2.5 font-bold font-mono text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
+                        <td className="py-2.5 font-bold text-slate-900 dark:text-slate-100">{inv.invoice_number}</td>
                         <td className="py-2.5 text-slate-500">{inv.period}</td>
                         <td className="py-2.5 font-semibold">Rp {Number(inv.total_amount_idr).toLocaleString('id-ID')}</td>
-                        <td className="py-2.5 font-mono text-[10px] text-slate-400">{inv.e_faktur_no || '-'}</td>
+                        <td className="py-2.5 text-[10px] text-slate-400 font-medium tabular-nums">{inv.e_faktur_no || '-'}</td>
                         <td className="py-2.5 text-right">
                           <button onClick={() => handleDownloadInvoice(inv.invoice_number)} className="p-1 text-slate-400 hover:text-orange-500">
                             <Download size={14} />
@@ -1163,7 +1174,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
             <div className="flex justify-end pt-2">
               <button onClick={() => setIsAllInvoicesModalOpen(false)} className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer">
-                Tutup
+                {t.settingsView?.billingTab?.closeBtn || 'Tutup'}
               </button>
             </div>
           </div>
@@ -1175,7 +1186,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-3xl p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Daftar Lengkap Log Transaksi</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.billingTab?.allTxModalTitle || 'Daftar Lengkap Log Transaksi'}</h3>
               <button onClick={() => setIsAllTransactionsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
@@ -1183,7 +1194,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <Search size={14} className="absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Cari transaksi..."
+                placeholder={t.settingsView?.billingTab?.searchTxPlaceholder || 'Cari transaksi...'}
                 value={searchTx}
                 onChange={e => setSearchTx(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
@@ -1194,24 +1205,24 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="pb-2">Tanggal</th>
-                    <th className="pb-2">Deskripsi</th>
-                    <th className="pb-2">Metode</th>
-                    <th className="pb-2">Jumlah USD</th>
-                    <th className="pb-2 text-right">Status</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colDate || 'Tanggal'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colDesc || 'Deskripsi'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colMethod || 'Metode'}</th>
+                    <th className="pb-2">{t.settingsView?.billingTab?.colAmountUsd || 'Jumlah USD'}</th>
+                    <th className="pb-2 text-right">{t.settingsView?.billingTab?.colStatus || 'Status'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredTransactions.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
-                        Belum ada log transaksi.
+                        {t.settingsView?.billingTab?.noTx || 'Belum ada log transaksi.'}
                       </td>
                     </tr>
                   ) : (
                     filteredTransactions.map((tx, i) => (
                       <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-950">
-                        <td className="py-2.5 text-slate-400 font-mono text-[11px]">
+                        <td className="py-2.5 text-slate-400 tabular-nums text-[11px] font-medium">
                           {tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString('id-ID') : '-'}
                         </td>
                         <td className="py-2.5 font-semibold text-slate-900 dark:text-slate-100">{tx.description}</td>
@@ -1227,7 +1238,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
             <div className="flex justify-end pt-2">
               <button onClick={() => setIsAllTransactionsModalOpen(false)} className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold cursor-pointer">
-                Tutup
+                {t.settingsView?.billingTab?.closeBtn || 'Tutup'}
               </button>
             </div>
           </div>
@@ -1241,18 +1252,18 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <MessageSquare size={18} className="text-orange-500" />
-                <span>Kirim Tiket Bantuan Billing</span>
+                <span>{t.settingsView?.billingTab?.supportModalTitle || 'Kirim Tiket Bantuan Billing'}</span>
               </h3>
               <button onClick={() => setIsSupportModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
 
             <form onSubmit={handleSupportSubmit} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Subjek Pertanyaan</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.subjectLabel || 'Subjek Pertanyaan'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="cth. Kendala Pembayaran Invoice atau e-Faktur PPN"
+                  placeholder={t.settingsView?.billingTab?.subjectPlaceholder || 'cth. Kendala Pembayaran Invoice atau e-Faktur PPN'}
                   value={supportSubject}
                   onChange={e => setSupportSubject(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
@@ -1260,24 +1271,24 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Prioritas Tiket</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.priorityLabel || 'Prioritas Tiket'}</label>
                 <select
                   value={supportPriority}
                   onChange={e => setSupportPriority(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
                 >
-                  <option value="Normal">Normal (Respon &lt; 2 Jam)</option>
-                  <option value="Tinggi">Tinggi (Respon &lt; 15 Menit)</option>
-                  <option value="Mendesak">Mendesak (VIP Instant Handler)</option>
+                  <option value="Normal">{t.settingsView?.billingTab?.priorityNormal || 'Normal (Respon < 2 Jam)'}</option>
+                  <option value="Tinggi">{t.settingsView?.billingTab?.priorityHigh || 'Tinggi (Respon < 15 Menit)'}</option>
+                  <option value="Mendesak">{t.settingsView?.billingTab?.priorityUrgent || 'Mendesak (VIP Instant Handler)'}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-slate-600 dark:text-slate-400 mb-1">Detail Pesan Bantuan</label>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1">{t.settingsView?.billingTab?.messageLabel || 'Detail Pesan Bantuan'}</label>
                 <textarea
                   rows={4}
                   required
-                  placeholder="Tuliskan kendala faktur atau pertanyaan billing Anda di sini..."
+                  placeholder={t.settingsView?.billingTab?.messagePlaceholder || 'Tuliskan kendala faktur atau pertanyaan billing Anda di sini...'}
                   value={supportMessage}
                   onChange={e => setSupportMessage(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
@@ -1286,10 +1297,10 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsSupportModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold">
-                  Batal
+                  {t.settingsView?.billingTab?.cancelBtn || 'Batal'}
                 </button>
                 <button type="submit" className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer flex items-center gap-1.5">
-                  <Send size={14} /> Kirim Tiket
+                  <Send size={14} /> {t.settingsView?.billingTab?.sendTicketBtn || 'Kirim Tiket'}
                 </button>
               </div>
             </form>

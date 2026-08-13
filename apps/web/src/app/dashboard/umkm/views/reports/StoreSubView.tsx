@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Package, AlertTriangle, Box, Truck, RefreshCw, Plus, FileText, 
+  Package, AlertTriangle, Box, Truck, RefreshCw, Plus, FileText,
   Sparkles, Download, ShoppingBag, Send, ShieldCheck, Clock, CheckCircle, X, Search, ChevronRight,
   Camera, UploadCloud, Image as ImageIcon
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
@@ -19,6 +20,9 @@ interface StoreSubViewProps {
 }
 
 export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubViewProps) {
+  const { t } = useLanguage();
+  const f = (t.storeView || {}) as any;
+
   const [inventoryKpi, setInventoryKpi] = useState<any>({ total_sku: 0, low_stock_count: 0, out_of_stock_count: 0, avg_inventory_days: 0 });
   const [categories, setCategories] = useState<any[]>([]);
   const [turnover, setTurnover] = useState<any[]>([]);
@@ -261,12 +265,15 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
   const barOpts: any = {
     indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 10,
-      callbacks: { label: (ctx: any) => ` Rp${ctx.parsed.x?.toLocaleString('id-ID') || 0}` }
-    }},
+    plugins: {
+      legend: { display: false }, tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 10,
+        callbacks: { label: (ctx: any) => ` Rp${ctx.parsed.x?.toLocaleString('id-ID') || 0}` }
+      }
+    },
     scales: {
-      x: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 9 }, color: '#94a3b8', callback: (v: any) => `${(v/1000000).toFixed(1)}M` }},
-      y: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#64748b' }}
+      x: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 9 }, color: '#94a3b8', callback: (v: any) => `${(v / 1000000).toFixed(1)}M` } },
+      y: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#64748b' } }
     }
   };
 
@@ -277,10 +284,10 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
   const totalTurnover = turnover.reduce((s: number, t: any) => s + (t.product_count || 0), 0);
 
   const invStats = [
-    { label: 'Total SKU', val: String(inventoryKpi.total_sku), icon: Package, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
-    { label: 'Stok Rendah', val: String(inventoryKpi.low_stock_count), icon: AlertTriangle, bg: 'bg-orange-50 dark:bg-orange-950/60', text: 'text-orange-600' },
-    { label: 'Stok Habis', val: String(inventoryKpi.out_of_stock_count), icon: Box, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600' },
-    { label: 'Avg Inventory Days', val: `${inventoryKpi.avg_inventory_days} hari`, icon: Truck, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
+    { label: f.totalSkuKpi || 'Total SKU', val: String(inventoryKpi.total_sku), icon: Package, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
+    { label: f.lowStockKpi || 'Stok Rendah', val: String(inventoryKpi.low_stock_count), icon: AlertTriangle, bg: 'bg-orange-50 dark:bg-orange-950/60', text: 'text-orange-600' },
+    { label: f.outOfStockKpi || 'Stok Habis', val: String(inventoryKpi.out_of_stock_count), icon: Box, bg: 'bg-red-50 dark:bg-red-950/60', text: 'text-red-600' },
+    { label: f.avgInventoryDaysKpi || 'Avg Inventory Days', val: `${inventoryKpi.avg_inventory_days} ${f.daysUnit || 'hari'}`, icon: Truck, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
   ];
 
   return (
@@ -293,13 +300,13 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           </div>
           <div>
             <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>Intelijen Inventaris Toko & Store Automation</span>
+              <span>{f.storeSubViewTitle || 'Intelijen Inventaris Toko & Store Automation'}</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
-                <Sparkles size={11} /> ZeroClaw Automation Active
+                <Sparkles size={11} /> {f.zeroClawActive || 'ZeroClaw Automation Active'}
               </span>
             </h2>
             <p className="text-xs text-slate-400 font-medium">
-              Analisis velositas stok, estimasi kehabisan barang, dan penerbitan PO otomatis.
+              {f.storeSubViewDesc || 'Analisis velositas stok, estimasi kehabisan barang, dan penerbitan PO otomatis.'}
             </p>
           </div>
         </div>
@@ -310,28 +317,28 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
             className="px-3.5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Plus size={15} />
-            <span>Tambah Produk SKU</span>
+            <span>{f.addSkuBtn || 'Tambah Produk SKU'}</span>
           </button>
           <button
             onClick={() => setIsBulkScanModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Camera size={15} />
-            <span>Bulk Scan SKU (AI Swarm)</span>
+            <span>{f.bulkScanBtn || 'Bulk Scan SKU (AI Swarm)'}</span>
           </button>
           <button
             onClick={() => setIsPoModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Send size={15} />
-            <span>Buat PO Otomatis</span>
+            <span>{f.autoPoBtn || 'Buat PO Otomatis'}</span>
           </button>
           <button
             onClick={() => setIsCreateReportModalOpen(true)}
             className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <FileText size={15} />
-            <span>Create Store Report</span>
+            <span>{f.createReportBtn || 'Create Store Report'}</span>
           </button>
         </div>
       </div>
@@ -348,8 +355,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{s.val}</div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold text-emerald-600">Terbaca Live</span>
-                <span className="text-slate-400 font-mono">DB Supabase</span>
+                <span className="font-bold text-emerald-600">{f.liveRead || 'Terbaca Live'}</span>
+                <span className="text-slate-400 font-mono">{f.supabaseDb || 'DB Supabase'}</span>
               </div>
             </div>
           );
@@ -361,8 +368,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Revenue per Kategori Produk</h3>
-              <p className="text-[11px] text-slate-400">Kontribusi omset berdasarkan kategori inventaris</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.revenuePerCategory || 'Revenue per Kategori Produk'}</h3>
+              <p className="text-[11px] text-slate-400">{f.revenuePerCategoryDesc || 'Kontribusi omset berdasarkan kategori inventaris'}</p>
             </div>
           </div>
           <div className="h-56"><Bar data={categoryData} options={barOpts} /></div>
@@ -378,14 +385,14 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Stock Turnover (Velositas Penjualan)</h3>
-            <p className="text-[11px] text-slate-400">Segmentasi produk fast vs slow moving</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.stockTurnoverTitle || 'Stock Turnover (Velositas Penjualan)'}</h3>
+            <p className="text-[11px] text-slate-400">{f.stockTurnoverDesc || 'Segmentasi produk fast vs slow moving'}</p>
           </div>
           <div className="relative size-36 mx-auto">
-            <Doughnut data={turnoverData} options={{ cutout: '72%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true }} }} />
+            <Doughnut data={turnoverData} options={{ cutout: '72%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true } } }} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-lg font-black text-slate-900 dark:text-slate-100">{totalTurnover}</span>
-              <span className="text-[10px] font-bold text-slate-400">Products</span>
+              <span className="text-[10px] font-bold text-slate-400">{f.productsCount || 'Products'}</span>
             </div>
           </div>
           <div className="space-y-1.5 text-xs">
@@ -408,15 +415,15 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="text-orange-500" />
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Peringatan Stok Rendah (Low Stock Intelligence)</h3>
-              <p className="text-[11px] text-slate-400">Produk yang memerlukan pengadaan ulang darurat</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.lowStockIntelTitle || 'Peringatan Stok Rendah (Low Stock Intelligence)'}</h3>
+              <p className="text-[11px] text-slate-400">{f.lowStockIntelDesc || 'Produk yang memerlukan pengadaan ulang darurat'}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setIsPoModalOpen(true)}
             className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
           >
-            <Send size={12} /> Buat PO Otomatis
+            <Send size={12} /> {f.autoPoBtn || 'Buat PO Otomatis'}
           </button>
         </div>
 
@@ -424,12 +431,12 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <table className="w-full text-left text-xs font-medium">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-2.5 px-3">PRODUK</th>
-                <th className="py-2.5 px-3 text-center">SISA STOK</th>
-                <th className="py-2.5 px-3 text-center">AVG TERJUAL / BULAN</th>
-                <th className="py-2.5 px-3 text-center">ESTIMASI HABIS</th>
-                <th className="py-2.5 px-3 text-center">URGENCY</th>
-                <th className="py-2.5 px-3 text-right">AKSI AI</th>
+                <th className="py-2.5 px-3">{f.colProductItem || 'PRODUK'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colRemainingStock || 'SISA STOK'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colAvgMonthlySold || 'AVG TERJUAL / BULAN'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colEstEmpty || 'ESTIMASI HABIS'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colUrgency || 'URGENCY'}</th>
+                <th className="py-2.5 px-3 text-right">{f.colAiAction || 'AKSI AI'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -443,9 +450,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                   <td className="py-3 px-3 text-center font-mono">{item.avg_sold_monthly} unit</td>
                   <td className="py-3 px-3 text-center font-mono font-bold text-orange-600">{item.days_until_empty} hari</td>
                   <td className="py-3 px-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      item.urgency === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : item.urgency === 'WARNING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
-                    }`}>{item.urgency}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${item.urgency === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : item.urgency === 'WARNING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                      }`}>{item.urgency}</span>
                   </td>
                   <td className="py-3 px-3 text-right">
                     <button
@@ -456,7 +462,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                       }}
                       className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-500 hover:text-white text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer transition-colors"
                     >
-                      Issue PO
+                      {f.issuePoBtn || 'Issue PO'}
                     </button>
                   </td>
                 </tr>
@@ -472,14 +478,14 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <div className="flex items-center gap-2">
             <Package size={16} className="text-blue-600 dark:text-blue-400" />
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Katalog Produk & Data Barcode SKU</h3>
-              <p className="text-[11px] text-slate-400">Database inventaris real-time terhubung Supabase & R2 CDN</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.productCatalogTitle || 'Katalog Produk & Data Barcode SKU'}</h3>
+              <p className="text-[11px] text-slate-400">{f.productCatalogDesc || 'Database inventaris real-time terhubung Supabase & R2 CDN'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Cari SKU / Barcode / Nama..."
+              placeholder={f.searchCatalogPlaceholder || 'Cari SKU / Barcode / Nama...'}
               value={searchCatalogQuery}
               onChange={(e) => setSearchCatalogQuery(e.target.value)}
               className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none text-slate-900 dark:text-slate-100 w-48"
@@ -488,7 +494,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               onClick={() => setIsAddProductModalOpen(true)}
               className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
             >
-              <Plus size={13} /> Tambah SKU
+              <Plus size={13} /> {f.addSkuTableBtn || 'Tambah SKU'}
             </button>
           </div>
         </div>
@@ -497,19 +503,19 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <table className="w-full text-left text-xs font-medium">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-2.5 px-3">PRODUK & GAMBAR</th>
-                <th className="py-2.5 px-3">SKU & BARCODE</th>
-                <th className="py-2.5 px-3">KATEGORI</th>
-                <th className="py-2.5 px-3 text-center">STOK SAAT INI</th>
-                <th className="py-2.5 px-3 text-right">HARGA (RP)</th>
-                <th className="py-2.5 px-3 text-right">TANGGAL TAMBAH</th>
+                <th className="py-2.5 px-3">{f.colProductImg || 'PRODUK & GAMBAR'}</th>
+                <th className="py-2.5 px-3">{f.colSkuBarcode || 'SKU & BARCODE'}</th>
+                <th className="py-2.5 px-3">{f.colCategoryHeader || 'KATEGORI'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colCurrentStock || 'STOK SAAT INI'}</th>
+                <th className="py-2.5 px-3 text-right">{f.colPriceIdr || 'HARGA (RP)'}</th>
+                <th className="py-2.5 px-3 text-right">{f.colDateAdded || 'TANGGAL TAMBAH'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {inventoryList.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-slate-400 text-xs font-medium">
-                    Belum ada produk di database Supabase. Klik "Tambah Produk SKU" atau "Bulk Scan SKU" untuk menambahkan item baru.
+                    {f.noProductsCatalog || 'Belum ada produk di database Supabase. Klik "Tambah Produk SKU" atau "Bulk Scan SKU" untuk menambahkan item baru.'}
                   </td>
                 </tr>
               ) : (
@@ -546,9 +552,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                           </span>
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                            item.current_stock <= 5 ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : item.current_stock <= 15 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${item.current_stock <= 5 ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : item.current_stock <= 15 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                            }`}>
                             {item.current_stock} unit
                           </span>
                         </td>
@@ -556,7 +561,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                           Rp{item.unit_price_idr?.toLocaleString('id-ID')}
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-[10px] text-slate-400">
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : 'Live DB'}
+                          {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : (f.liveRead || 'Terbaca Live')}
                         </td>
                       </tr>
                     );
@@ -573,8 +578,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <div className="flex items-center gap-2">
             <Truck size={16} className="text-orange-500" />
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Riwayat Purchase Order (PO) Supplier</h3>
-              <p className="text-[11px] text-slate-400">Otomasi pengadaan ulang barang terbitan ZeroClaw Automation</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{f.poHistoryTitle || 'Riwayat Purchase Order (PO) Supplier'}</h3>
+              <p className="text-[11px] text-slate-400">{f.poHistoryDesc || 'Otomasi pengadaan ulang barang terbitan ZeroClaw Automation'}</p>
             </div>
           </div>
         </div>
@@ -583,19 +588,19 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           <table className="w-full text-left text-xs font-medium">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-2.5 px-3">NOMOR PO</th>
-                <th className="py-2.5 px-3">SUPPLIER / VENDOR</th>
-                <th className="py-2.5 px-3 text-center">TOTAL SKU</th>
-                <th className="py-2.5 px-3 text-right">NILAI PO (RP)</th>
-                <th className="py-2.5 px-3 text-center">STATUS</th>
-                <th className="py-2.5 px-3 text-right">TANGGAL PO</th>
+                <th className="py-2.5 px-3">{f.colPoNum || 'NOMOR PO'}</th>
+                <th className="py-2.5 px-3">{f.colSupplier || 'SUPPLIER / VENDOR'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colTotalSku || 'TOTAL SKU'}</th>
+                <th className="py-2.5 px-3 text-right">{f.colPoAmount || 'NILAI PO (RP)'}</th>
+                <th className="py-2.5 px-3 text-center">{f.colPoStatus || 'STATUS'}</th>
+                <th className="py-2.5 px-3 text-right">{f.colPoDate || 'TANGGAL PO'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {poList.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-slate-400 text-xs font-medium">
-                    Belum ada Purchase Order yang diterbitkan. Gunakan "Buat PO Otomatis" untuk menerbitkan PO baru.
+                    {f.noPoIssued || 'Belum ada Purchase Order yang diterbitkan. Gunakan "Buat PO Otomatis" untuk menerbitkan PO baru.'}
                   </td>
                 </tr>
               ) : (
@@ -619,7 +624,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right font-mono text-[10px] text-slate-400">
-                      {po.created_at ? new Date(po.created_at).toLocaleDateString('id-ID') : 'Live DB'}
+                      {po.created_at ? new Date(po.created_at).toLocaleDateString('id-ID') : (f.liveRead || 'Terbaca Live')}
                     </td>
                   </tr>
                 ))
@@ -639,8 +644,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Automation Create Store Reports</h3>
-                  <p className="text-xs text-slate-400">Generate laporan inventaris & velositas produk</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalCreateStoreReportTitle || 'Automation Create Store Reports'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalCreateStoreReportSub || 'Generate laporan inventaris & velositas produk'}</p>
                 </div>
               </div>
               <button onClick={() => setIsCreateReportModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -648,41 +653,41 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Jenis Laporan Store</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.reportTypeStoreLabel || 'Jenis Laporan Store'}</label>
                 <select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="Inventory_Valuation">Laporan Valuasi & Total SKU Inventaris</option>
-                  <option value="Stock_Turnover_Analysis">Analisis Stock Velocity (Fast vs Slow Moving)</option>
-                  <option value="Low_Stock_Audit">Audit Stok Rendah & Laporan Reorder PO</option>
+                  <option value="Inventory_Valuation">{f.optValuation || 'Laporan Valuasi & Total SKU Inventaris'}</option>
+                  <option value="Stock_Turnover_Analysis">{f.optVelocity || 'Analisis Stock Velocity (Fast vs Slow Moving)'}</option>
+                  <option value="Low_Stock_Audit">{f.optReorderAudit || 'Audit Stok Rendah & Laporan Reorder PO'}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Format File Export</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.exportFormatLabel || 'Format File Export'}</label>
                 <select
                   value={reportFormat}
                   onChange={(e) => setReportFormat(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="PDF">Dokumen PDF Resmi (.pdf)</option>
-                  <option value="CSV">Microsoft Excel / CSV (.csv)</option>
+                  <option value="PDF">{f.optPdf || 'Dokumen PDF Resmi (.pdf)'}</option>
+                  <option value="CSV">{f.optCsv || 'Microsoft Excel / CSV (.csv)'}</option>
                 </select>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> Swarm Store Audit Active</span>
+                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {f.swarmStoreAuditActive || 'Swarm Store Audit Active'}</span>
                 <p className="leading-relaxed">
-                  Laporan akan secara otomatis menghitung nilai total stok & batas rekomendasi pengadaan ulang.
+                  {f.swarmStoreAuditDesc || 'Laporan akan secara otomatis menghitung nilai total stok & batas rekomendasi pengadaan ulang.'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsCreateReportModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleGenerateStoreReport}
@@ -690,7 +695,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isGeneratingReport ? <Clock size={14} className="animate-spin" /> : <Download size={14} />}
-                <span>{isGeneratingReport ? 'Generating Report...' : 'Generate & Download'}</span>
+                <span>{isGeneratingReport ? (f.generatingReport || 'Generating Report...') : (f.generateAndDownload || 'Generate & Download')}</span>
               </button>
             </div>
           </div>
@@ -707,8 +712,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                   <Plus size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Produk / SKU Baru</h3>
-                  <p className="text-xs text-slate-400">Input inventaris baru ke database Supabase</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalAddProductTitle || 'Tambah Produk / SKU Baru'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalAddProductSub || 'Input inventaris baru ke database Supabase'}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setIsAddProductModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -718,8 +723,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               {/* Barcode & AI OCR Dropzone */}
               <div className="space-y-1">
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>AI OCR & Barcode Label Scanner</span>
-                  <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1"><Sparkles size={11} /> Auto Extract</span>
+                  <span>{f.ocrLabel || 'AI OCR & Barcode Label Scanner'}</span>
+                  <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1"><Sparkles size={11} /> {f.autoExtract || 'Auto Extract'}</span>
                 </label>
 
                 <div className="relative border-2 border-dashed border-blue-200 dark:border-blue-900/60 rounded-2xl p-3 bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50 transition-colors text-center space-y-1.5">
@@ -735,13 +740,13 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                   />
                   <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
                     <Camera size={18} />
-                    <span className="font-bold text-xs">Upload Foto Label / Barcode Produk</span>
+                    <span className="font-bold text-xs">{f.uploadOcrPrompt || 'Upload Foto Label / Barcode Produk'}</span>
                   </div>
-                  <p className="text-[10px] text-slate-400">Format JPG, PNG. AI akan otomatis mengekstrak Nama & Barcode.</p>
+                  <p className="text-[10px] text-slate-400">{f.uploadOcrSub || 'Format JPG, PNG. AI akan otomatis mengekstrak Nama & Barcode.'}</p>
 
                   {isProcessingOcr && (
                     <div className="flex items-center justify-center gap-1.5 text-blue-600 text-[11px] font-extrabold pt-1">
-                      <Clock size={13} className="animate-spin" /> Ekstraksi AI OCR & Barcode...
+                      <Clock size={13} className="animate-spin" /> {f.extractingOcr || 'Ekstraksi AI OCR & Barcode...'}
                     </div>
                   )}
 
@@ -752,7 +757,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                         <span className="truncate">{productOcrFile.name}</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-700 font-black shrink-0">
-                        ✓ {ocrConfidence || 99.2}% Match
+                        ✓ {ocrConfidence || 99.2}% {f.match || 'Match'}
                       </span>
                     </div>
                   )}
@@ -760,11 +765,11 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Nama Produk *</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.productNameLabel || 'Nama Produk *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Kemeja Linen Casual (L)"
+                  placeholder={f.productNamePlaceholder || 'Contoh: Kemeja Linen Casual (L)'}
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none"
@@ -773,10 +778,10 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kode Barcode / EAN-13</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.barcodeLabel || 'Kode Barcode / EAN-13'}</label>
                   <input
                     type="text"
-                    placeholder="Contoh: 899123456789"
+                    placeholder={f.barcodePlaceholder || 'Contoh: 899123456789'}
                     value={newProductBarcode}
                     onChange={(e) => setNewProductBarcode(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none font-mono"
@@ -784,10 +789,10 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kode SKU</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.skuLabel || 'Kode SKU'}</label>
                   <input
                     type="text"
-                    placeholder="Auto Generate"
+                    placeholder={f.skuPlaceholder || 'Auto Generate'}
                     value={newProductSku}
                     onChange={(e) => setNewProductSku(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none font-mono"
@@ -797,7 +802,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kategori</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.productCategoryLabel || 'Kategori'}</label>
                   <select
                     value={newProductCategory}
                     onChange={(e) => setNewProductCategory(e.target.value)}
@@ -812,7 +817,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Jumlah Stok Awal *</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.initialStockLabel || 'Jumlah Stok Awal *'}</label>
                   <input
                     type="number"
                     required
@@ -824,7 +829,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Harga Jual (Rp) *</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.sellingPriceLabel || 'Harga Jual (Rp) *'}</label>
                 <input
                   type="number"
                   required
@@ -837,7 +842,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button type="button" onClick={() => setIsAddProductModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 type="submit"
@@ -845,7 +850,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSavingProduct ? <Clock size={14} className="animate-spin" /> : <Plus size={14} />}
-                <span>{isSavingProduct ? 'Simpan...' : 'Simpan Produk SKU'}</span>
+                <span>{isSavingProduct ? (f.savingProduct || 'Simpan...') : (f.saveProductSkuBtn || 'Simpan Produk SKU')}</span>
               </button>
             </div>
           </form>
@@ -862,8 +867,8 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                   <Send size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">ZeroClaw Auto Purchase Order</h3>
-                  <p className="text-xs text-slate-400">Penerbitan PO pengadaan ulang ke supplier</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{f.modalPoTitle || 'ZeroClaw Auto Purchase Order'}</h3>
+                  <p className="text-xs text-slate-400">{f.modalPoSub || 'Penerbitan PO pengadaan ulang ke supplier'}</p>
                 </div>
               </div>
               <button onClick={() => setIsPoModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -871,23 +876,23 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Pilih Supplier / Vendor Hub</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.selectSupplierLabel || 'Pilih Supplier / Vendor Hub'}</label>
                 <select
                   value={selectedPoSupplier}
                   onChange={(e) => setSelectedPoSupplier(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="Supplier Utama Store Hub">Supplier Utama Store Hub (Koneksi Langsung)</option>
+                  <option value="Supplier Utama Store Hub">{f.supplierOptionMain || 'Supplier Utama Store Hub (Koneksi Langsung)'}</option>
                   <option value="PT Tekstil Garment Indonesia">PT Tekstil Garment Indonesia</option>
                   <option value="Distributor Accessories Global">Distributor Accessories Global</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Catatan / Instruksi Pengadaan</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{f.poNotesLabel || 'Catatan / Instruksi Pengadaan'}</label>
                 <textarea
                   rows={2}
-                  placeholder="Catatan tambahan untuk supplier..."
+                  placeholder={f.poNotesPlaceholder || 'Catatan tambahan untuk supplier...'}
                   value={poNotes}
                   onChange={(e) => setPoNotes(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none"
@@ -895,16 +900,16 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               </div>
 
               <div className="p-3.5 rounded-2xl bg-orange-50/50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 text-[11px] text-orange-800 dark:text-orange-300 space-y-1">
-                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> Auto-PO Calculation Active</span>
+                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {f.autoPoActive || 'Auto-PO Calculation Active'}</span>
                 <p className="leading-relaxed">
-                  Jumlah re-stock dihitung otomatis dari velositas penjualan 30 hari terakhir untuk mencegah stockout.
+                  {f.autoPoDesc || 'Jumlah re-stock dihitung otomatis dari velositas penjualan 30 hari terakhir untuk mencegah stockout.'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsPoModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleDispatchAutoPo}
@@ -912,7 +917,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSendingPo ? <Clock size={14} className="animate-spin" /> : <Send size={14} />}
-                <span>{isSendingPo ? 'Menerbitkan PO...' : 'Terbitkan & Kirim PO'}</span>
+                <span>{isSendingPo ? (f.dispatchingPo || 'Menerbitkan PO...') : (f.dispatchPoBtn || 'Terbitkan & Kirim PO')}</span>
               </button>
             </div>
           </div>
@@ -930,10 +935,10 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <span>Bulk Add SKU via AI Photo & Barcode</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-700 font-extrabold">Swarm OCR Parallel</span>
+                    <span>{f.modalBulkScanTitle || 'Bulk Add SKU via AI Photo & Barcode'}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-700 font-extrabold">{f.swarmOcrBadge || 'Swarm OCR Parallel'}</span>
                   </h3>
-                  <p className="text-xs text-slate-400">Upload batch foto label / barcode produk sekaligus untuk input otomatis</p>
+                  <p className="text-xs text-slate-400">{f.modalBulkScanSub || 'Upload batch foto label / barcode produk sekaligus untuk input otomatis'}</p>
                 </div>
               </div>
               <button onClick={() => setIsBulkScanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -956,16 +961,16 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 <UploadCloud size={20} />
               </div>
               <div className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
-                Pilih atau Drag & Drop Banyak Foto Label / Barcode Produk
+                {f.dropzoneBulkTitle || 'Pilih atau Drag & Drop Banyak Foto Label / Barcode Produk'}
               </div>
-              <p className="text-xs text-slate-400">Mendukung format PNG, JPG, WEBP. ZeroClaw Swarm Engine mengurai 10+ item/detik.</p>
+              <p className="text-xs text-slate-400">{f.dropzoneBulkSub || 'Mendukung format PNG, JPG, WEBP. ZeroClaw Swarm Engine mengurai 10+ item/detik.'}</p>
             </div>
 
             {/* Processing Indicator */}
             {isProcessingBulk && (
               <div className="p-4 rounded-2xl bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 text-xs font-bold flex items-center justify-center gap-2">
                 <Clock size={16} className="animate-spin" />
-                <span>ZeroClaw AI Swarm sedang mengekstrak barcode & label dari {bulkFiles.length} foto...</span>
+                <span>{f.processingBulk || `ZeroClaw AI Swarm sedang mengekstrak barcode & label dari ${bulkFiles.length} foto...`}</span>
               </div>
             )}
 
@@ -974,20 +979,20 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <CheckCircle size={14} className="text-emerald-500" /> Total {extractedBulkItems.length} Produk SKU Terurai:
+                    <CheckCircle size={14} className="text-emerald-500" /> {f.extractedItemsTotal || 'Total Produk SKU Terurai:'} {extractedBulkItems.length}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-mono">Auto R2 CDN Attached</span>
+                  <span className="text-[11px] text-slate-400 font-mono">{f.autoCdnAttached || 'Auto R2 CDN Attached'}</span>
                 </div>
 
                 <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl max-h-56">
                   <table className="w-full text-left text-xs font-medium">
                     <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0 border-b border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-500 uppercase">
                       <tr>
-                        <th className="py-2 px-3">FOTO FILE</th>
-                        <th className="py-2 px-3">BARCODE / SKU</th>
-                        <th className="py-2 px-3">NAMA PRODUK</th>
-                        <th className="py-2 px-3">KATEGORI</th>
-                        <th className="py-2 px-3 text-right">HARGA (RP)</th>
+                        <th className="py-2 px-3">{f.tableColFile || 'FOTO FILE'}</th>
+                        <th className="py-2 px-3">{f.colSkuBarcode || 'BARCODE / SKU'}</th>
+                        <th className="py-2 px-3">{f.colProductItem || 'NAMA PRODUK'}</th>
+                        <th className="py-2 px-3">{f.colCategoryHeader || 'KATEGORI'}</th>
+                        <th className="py-2 px-3 text-right">{f.colPriceIdr || 'HARGA (RP)'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1019,7 +1024,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsBulkScanModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {f.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleSaveBulkItems}
@@ -1027,7 +1032,7 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
                 className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSavingBulk ? <Clock size={14} className="animate-spin" /> : <UploadCloud size={14} />}
-                <span>{isSavingBulk ? 'Menyimpan Batch...' : `Simpan ${extractedBulkItems.length} SKU ke Database`}</span>
+                <span>{isSavingBulk ? (f.savingBatch || 'Menyimpan Batch...') : (f.saveBatchBtn || 'Simpan SKU ke Database')}</span>
               </button>
             </div>
           </div>

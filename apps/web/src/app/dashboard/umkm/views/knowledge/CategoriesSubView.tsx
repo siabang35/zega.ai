@@ -5,6 +5,7 @@ import {
   LayoutGrid, List, SortAsc, SortDesc, Tag, ChevronDown
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface CategoriesSubViewProps {
   categories: any[];
@@ -33,6 +34,9 @@ export function CategoriesSubView({
   onNavigateBack,
   onOpenCreateCategoryModal
 }: CategoriesSubViewProps) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView || {};
+
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'compact'>('grid');
   const [sortBy, setSortBy] = useState<'sort_order' | 'name' | 'count'>('sort_order');
@@ -45,7 +49,7 @@ export function CategoriesSubView({
   // ─────────────── TOP LEVEL HOOK (ALL CATEGORIES FILTER & SORT) ───────────────
   const filteredCategories = useMemo(() => {
     let list = catList.filter(c =>
-      c.name !== 'Semua Kategori' && (
+      c.name !== 'Semua Kategori' && c.name !== (k.allCategories || 'All Categories') && (
         c.name?.toLowerCase().includes(search.toLowerCase()) ||
         (c.description && c.description.toLowerCase().includes(search.toLowerCase()))
       )
@@ -65,13 +69,13 @@ export function CategoriesSubView({
     });
 
     return list;
-  }, [catList, itemList, search, sortBy, sortDir]);
+  }, [catList, itemList, search, sortBy, sortDir, k.allCategories]);
 
   // ─────────────── CATEGORY DETAIL VIEW ───────────────
-  if (selectedCategoryName && selectedCategoryName !== 'Semua Kategori') {
+  if (selectedCategoryName && selectedCategoryName !== 'Semua Kategori' && selectedCategoryName !== (k.allCategories || 'All Categories')) {
     const selectedCatObj = catList.find(c => c.name === selectedCategoryName) || {
       name: selectedCategoryName,
-      description: 'Kategori dokumentasi operasional dan panduan kerja toko UMKM.',
+      description: k.defaultCategoryDesc || 'Kategori dokumentasi operasional dan panduan kerja toko UMKM.',
       icon_name: 'Folder'
     };
 
@@ -95,12 +99,12 @@ export function CategoriesSubView({
                 className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all flex items-center gap-1 text-xs font-extrabold"
               >
                 <ArrowLeft size={16} />
-                <span>Semua Kategori</span>
+                <span>{k.allCategories || 'Semua Kategori'}</span>
               </button>
               <div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
                   <Folder className="text-orange-500" size={22} />
-                  <span>Kategori: {selectedCatObj.name}</span>
+                  <span>{k.categoryLabel || 'Kategori:'} {selectedCatObj.name}</span>
                 </h2>
                 <p className="text-xs text-slate-400 font-medium">{selectedCatObj.description}</p>
               </div>
@@ -132,9 +136,9 @@ export function CategoriesSubView({
 
           {/* Quick Stats Bar */}
           <div className="flex items-center gap-4 text-xs font-bold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-            <span className="flex items-center gap-1.5"><FileText size={13} className="text-blue-500" /> {categoryArticles.length} Artikel</span>
-            <span className="flex items-center gap-1.5"><Eye size={13} className="text-emerald-500" /> {categoryArticles.reduce((s: number, a: any) => s + (a.views_count || 0), 0)} Total Views</span>
-            <span className="flex items-center gap-1.5"><Star size={13} className="text-amber-500" /> {(categoryArticles.reduce((s: number, a: any) => s + (a.rating_score || 0), 0) / Math.max(1, categoryArticles.length)).toFixed(1)} Avg Rating</span>
+            <span className="flex items-center gap-1.5"><FileText size={13} className="text-blue-500" /> {categoryArticles.length} {k.totalArticlesLabel || 'Artikel'}</span>
+            <span className="flex items-center gap-1.5"><Eye size={13} className="text-emerald-500" /> {categoryArticles.reduce((s: number, a: any) => s + (a.views_count || 0), 0)} {k.totalViewsLabel || 'Total Views'}</span>
+            <span className="flex items-center gap-1.5"><Star size={13} className="text-amber-500" /> {(categoryArticles.reduce((s: number, a: any) => s + (a.rating_score || 0), 0) / Math.max(1, categoryArticles.length)).toFixed(1)} {k.avgRatingLabel || 'Avg Rating'}</span>
           </div>
         </div>
 
@@ -176,7 +180,7 @@ export function CategoriesSubView({
                         <span className="truncate max-w-[100px]">{art.author_name || 'Tim UMKM'}</span>
                       </div>
                       <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-extrabold">
-                        <span>Baca</span>
+                        <span>{k.readBtn || 'Baca'}</span>
                         <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
@@ -223,8 +227,8 @@ export function CategoriesSubView({
         ) : (
           <div className="p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-3">
             <BookOpen size={36} className="mx-auto text-slate-300" />
-            <h3 className="text-base font-black text-slate-800 dark:text-slate-200">Belum ada artikel di kategori {selectedCatObj.name}</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">Gunakan Studio Copywriter untuk menambahkan artikel baru di kategori ini.</p>
+            <h3 className="text-base font-black text-slate-800 dark:text-slate-200">{k.noArticlesFound || 'Belum ada artikel di kategori'} {selectedCatObj.name}</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">{k.noArticlesFoundDesc || 'Gunakan Studio Copywriter untuk menambahkan artikel baru di kategori ini.'}</p>
           </div>
         )}
       </div>
@@ -242,10 +246,10 @@ export function CategoriesSubView({
           <div>
             <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
               <Folder className="text-orange-500" size={20} />
-              <span>Semua Kategori Pengetahuan</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">{filteredCategories.length} Kategori</span>
+              <span>{k.categoriesSubTitle || 'Semua Kategori Pengetahuan'}</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">{filteredCategories.length} {k.categoriesLabel || 'Kategori'}</span>
             </h2>
-            <p className="text-xs text-slate-400 font-medium">Kelola dan jelajahi seluruh kategori SOP, logistik, sales, dan perpajakan toko.</p>
+            <p className="text-xs text-slate-400 font-medium">{k.categoriesSubDesc || 'Kelola dan jelajahi seluruh kategori SOP, logistik, sales, dan perpajakan toko.'}</p>
           </div>
 
           {onOpenCreateCategoryModal && (
@@ -253,7 +257,7 @@ export function CategoriesSubView({
               onClick={onOpenCreateCategoryModal}
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-2xl cursor-pointer shadow-xs flex items-center gap-1.5 shrink-0 transition-all"
             >
-              <Plus size={14} /> <span>Kategori Baru</span>
+              <Plus size={14} /> <span>{k.newCategoryBtn || 'Kategori Baru'}</span>
             </button>
           )}
         </div>
@@ -284,15 +288,15 @@ export function CategoriesSubView({
               className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-orange-400 cursor-pointer flex items-center gap-1.5"
             >
               {sortDir === 'asc' ? <SortAsc size={14} /> : <SortDesc size={14} />}
-              <span>{sortBy === 'name' ? 'Nama A-Z' : sortBy === 'count' ? 'Jumlah Artikel' : 'Urutan Default'}</span>
+              <span>{sortBy === 'name' ? (k.sortNameAZ || 'Nama A-Z') : sortBy === 'count' ? (k.sortArticleCount || 'Jumlah Artikel') : (k.defaultSort || 'Urutan Default')}</span>
               <ChevronDown size={12} />
             </button>
             {showSortPopover && (
               <div className="absolute top-full left-0 mt-1 z-20 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-100">
                 {([
-                  { key: 'sort_order', label: '📋 Urutan Default' },
-                  { key: 'name', label: '🔤 Nama Kategori A-Z' },
-                  { key: 'count', label: '📊 Jumlah Artikel' }
+                  { key: 'sort_order', label: `📋 ${k.defaultSort || 'Urutan Default'}` },
+                  { key: 'name', label: `🔤 ${k.sortNameAZ || 'Nama Kategori A-Z'}` },
+                  { key: 'count', label: `📊 ${k.sortArticleCount || 'Jumlah Artikel'}` }
                 ] as const).map(opt => (
                   <button
                     key={opt.key}
@@ -308,7 +312,7 @@ export function CategoriesSubView({
                     className="w-full text-left px-3 py-2 rounded-xl font-bold cursor-pointer text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5"
                   >
                     {sortDir === 'asc' ? <SortAsc size={13} /> : <SortDesc size={13} />}
-                    <span>{sortDir === 'asc' ? 'Ascending ↑' : 'Descending ↓'}</span>
+                    <span>{sortDir === 'asc' ? (k.sortAsc || 'Ascending ↑') : (k.sortDesc || 'Descending ↓')}</span>
                   </button>
                 </div>
               </div>
@@ -322,16 +326,16 @@ export function CategoriesSubView({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari kategori..."
+              placeholder={k.searchCategoriesPlaceholder || 'Cari kategori...'}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold focus:outline-none focus:border-orange-500"
             />
           </div>
 
           {/* Quick Stats */}
           <div className="flex items-center gap-3 text-[11px] font-bold text-slate-400 ml-auto">
-            <span>{totalArticles} artikel total</span>
+            <span>{totalArticles} {k.totalArticlesLabel || 'artikel total'}</span>
             <span>•</span>
-            <span>{filteredCategories.length} kategori</span>
+            <span>{filteredCategories.length} {k.categoriesLabel || 'kategori'}</span>
           </div>
         </div>
       </div>
@@ -356,7 +360,7 @@ export function CategoriesSubView({
                       <BookOpen size={20} />
                     </div>
                     <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[11px]">
-                      {artCount} Artikel SOP
+                      {artCount} {k.totalArticlesLabel || 'Artikel SOP'}
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 mt-3 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
@@ -367,7 +371,7 @@ export function CategoriesSubView({
                   </p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-extrabold text-orange-600 dark:text-orange-400">
-                  <span>Jelajahi Kategori</span>
+                  <span>{k.exploreCategoryBtn || 'Jelajahi Kategori'}</span>
                   <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -381,10 +385,10 @@ export function CategoriesSubView({
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs">
           {/* Table Header */}
           <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center text-[10px] font-black uppercase tracking-wider text-slate-400">
-            <span className="flex-1">Nama Kategori</span>
-            <span className="w-28 text-center hidden sm:block">Jumlah Artikel</span>
-            <span className="w-24 text-center hidden md:block">Ikon</span>
-            <span className="w-20 text-center">Aksi</span>
+            <span className="flex-1">{k.colCategoryName || 'Nama Kategori'}</span>
+            <span className="w-28 text-center hidden sm:block">{k.colArticleCount || 'Jumlah Artikel'}</span>
+            <span className="w-24 text-center hidden md:block">{k.colIcon || 'Ikon'}</span>
+            <span className="w-20 text-center">{k.colAction || 'Aksi'}</span>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {filteredCategories.map((cat, idx) => {
@@ -414,7 +418,7 @@ export function CategoriesSubView({
 
                   <div className="w-28 text-center hidden sm:block">
                     <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold text-xs">
-                      {artCount} Artikel
+                      {artCount} {k.totalArticlesLabel || 'Artikel'}
                     </span>
                   </div>
 
@@ -437,7 +441,7 @@ export function CategoriesSubView({
       {/* ─── COMPACT / CHIP VIEW ─── */}
       {viewMode === 'compact' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Akses Cepat Kategori</h3>
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">{k.quickAccessTitle || 'Akses Cepat Kategori'}</h3>
           <div className="flex flex-wrap gap-2.5">
             {filteredCategories.map((cat, idx) => {
               const categoryItems = itemList.filter(i => i.category_name === cat.name || (i.category_id && cat.id && i.category_id === cat.id));
@@ -455,7 +459,7 @@ export function CategoriesSubView({
                   </div>
                   <div className="text-left">
                     <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 transition-colors">{cat.name}</h4>
-                    <span className="text-[10px] font-mono font-bold text-slate-400">{artCount} Artikel</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">{artCount} {k.totalArticlesLabel || 'Artikel'}</span>
                   </div>
                   <ChevronRight size={14} className="text-slate-300 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all ml-1" />
                 </button>
@@ -469,8 +473,8 @@ export function CategoriesSubView({
       {filteredCategories.length === 0 && (
         <div className="p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-3">
           <Folder size={36} className="mx-auto text-slate-300" />
-          <h3 className="text-base font-black text-slate-800 dark:text-slate-200">Tidak ada kategori ditemukan</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">Coba ubah kata kunci pencarian atau buat kategori baru.</p>
+          <h3 className="text-base font-black text-slate-800 dark:text-slate-200">{k.noCategoriesFound || 'Tidak ada kategori ditemukan'}</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">{k.noCategoriesFoundDesc || 'Coba ubah kata kunci pencarian atau buat kategori baru.'}</p>
         </div>
       )}
     </div>

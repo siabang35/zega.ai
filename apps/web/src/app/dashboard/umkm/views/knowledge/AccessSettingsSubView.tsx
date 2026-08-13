@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Key, Shield, UserCheck, Bot, Check, Save, Lock, Globe, Copy, RefreshCw, AlertCircle, Clock, Plus } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface AccessSettingsSubViewProps {
   accessPolicies: any[];
@@ -13,6 +14,8 @@ export function AccessSettingsSubView({
   onNavigateBack,
   triggerToast
 }: AccessSettingsSubViewProps) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView;
   const initialList = Array.isArray(accessPolicies) ? accessPolicies : [];
 
   const [policies, setPolicies] = useState(initialList);
@@ -78,10 +81,10 @@ export function AccessSettingsSubView({
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
             <Key className="text-purple-500" size={22} />
-            <span>Pengaturan Akses Pengetahuan & Perizinan Enterprise</span>
+            <span>{k.accessTitle || 'Pengaturan Akses Pengetahuan & Perizinan Enterprise'}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-            Kelola matriks perizinan role peran tim toko, hak hapus/buat SOP, serta autentikasi API Key RAG Agent ZeroClaw AI Swarm.
+            {k.accessSubtitle || 'Kelola matriks perizinan role peran tim toko, hak hapus/buat SOP, serta autentikasi API Key RAG Agent ZeroClaw AI Swarm.'}
           </p>
         </div>
 
@@ -91,7 +94,7 @@ export function AccessSettingsSubView({
           className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-2xl cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
         >
           {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
-          <span>Simpan Perizinan</span>
+          <span>{k.savePermissionsBtn || 'Simpan Perizinan'}</span>
         </button>
       </div>
 
@@ -104,8 +107,8 @@ export function AccessSettingsSubView({
               <Globe size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Akses Publik Tanpa Login</h3>
-              <p className="text-xs text-slate-400 font-medium">Izinkan pelanggan membaca FAQ & SOP via link publik tanpa login.</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.publicAccessTitle || 'Akses Publik Tanpa Login'}</h3>
+              <p className="text-xs text-slate-400 font-medium">{k.publicAccessDesc || 'Izinkan pelanggan membaca FAQ & SOP via link publik tanpa login.'}</p>
             </div>
           </div>
           <button
@@ -128,8 +131,8 @@ export function AccessSettingsSubView({
               <Bot size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">ZeroClaw RAG Swarm Agent</h3>
-              <p className="text-xs text-slate-400 font-medium">Izinkan AI Agent membaca Knowledge Hub 24/7 secara autonomous.</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.aiSwarmAgentTitle || 'ZeroClaw RAG Swarm Agent'}</h3>
+              <p className="text-xs text-slate-400 font-medium">{k.aiSwarmAgentDesc || 'Izinkan AI Agent membaca Knowledge Hub 24/7 secara autonomous.'}</p>
             </div>
           </div>
           <button
@@ -153,11 +156,11 @@ export function AccessSettingsSubView({
             <div className="flex items-center gap-2">
               <Key size={16} className="text-purple-400" />
               <h4 className="text-xs font-black uppercase tracking-wider text-purple-300">
-                ZeroClaw AI RAG Swarm Authentication Token
+                {k.authTokenTitle || 'ZeroClaw AI RAG Swarm Authentication Token'}
               </h4>
             </div>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black border border-emerald-500/30 uppercase">
-              Active Session
+              {k.activeSession || 'Active Session'}
             </span>
           </div>
 
@@ -168,7 +171,7 @@ export function AccessSettingsSubView({
               className="px-3 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
             >
               {copiedToken ? <Check size={13} /> : <Copy size={13} />}
-              <span>{copiedToken ? 'Tersalin' : 'Salin'}</span>
+              <span>{copiedToken ? (k.copiedBtn || 'Tersalin') : (k.copyBtn || 'Salin')}</span>
             </button>
             <button
               onClick={handleRegenerateToken}
@@ -186,10 +189,10 @@ export function AccessSettingsSubView({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Shield size={18} className="text-purple-500" />
-            <span>Matriks Perizinan Role Peran Perusahaan</span>
+            <span>{k.roleMatrixTitle || 'Matriks Perizinan Role Peran Perusahaan'}</span>
           </h3>
           <span className="text-xs text-slate-400 font-medium">
-            {policies.length} Role Terdaftar
+            {policies.length} {k.rolesRegistered || 'Role Terdaftar'}
           </span>
         </div>
 
@@ -197,12 +200,12 @@ export function AccessSettingsSubView({
           <table className="w-full text-xs text-left min-w-[640px]">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-400 font-bold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
               <tr>
-                <th className="p-3.5">Role Peran</th>
-                <th className="p-3.5">Level Akses</th>
-                <th className="p-3.5 text-center">Buat SOP & Artikel</th>
-                <th className="p-3.5 text-center">Upload Dokumen CDN</th>
-                <th className="p-3.5 text-center">Hapus Artikel</th>
-                <th className="p-3.5 text-center">Kelola Akses</th>
+                <th className="p-3.5">{k.colRole || 'Role Peran'}</th>
+                <th className="p-3.5">{k.colAccessLevel || 'Level Akses'}</th>
+                <th className="p-3.5 text-center">{k.colCreateSop || 'Buat SOP & Artikel'}</th>
+                <th className="p-3.5 text-center">{k.colUploadCdn || 'Upload Dokumen CDN'}</th>
+                <th className="p-3.5 text-center">{k.colDeleteArticles || 'Hapus Artikel'}</th>
+                <th className="p-3.5 text-center">{k.colManageAccess || 'Kelola Akses'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -273,9 +276,9 @@ export function AccessSettingsSubView({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Clock size={18} className="text-amber-500" />
-            <span>Audit Log Keamanan & Akses Terakhir</span>
+            <span>{k.auditLogTitle || 'Audit Log Keamanan & Akses Terakhir'}</span>
           </h3>
-          <span className="text-xs font-bold text-slate-400">Live Telemetry</span>
+          <span className="text-xs font-bold text-slate-400">{k.liveTelemetry || 'Live Telemetry'}</span>
         </div>
 
         <div className="space-y-2 text-xs">
@@ -285,7 +288,7 @@ export function AccessSettingsSubView({
               <span className="font-bold text-slate-800 dark:text-slate-200">ZeroClaw AI RAG Swarm Verified</span>
               <span className="text-slate-400">• Authenticated query to Knowledge Base</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono shrink-0">10 menit lalu</span>
+            <span className="text-[11px] text-slate-400 font-mono shrink-0">{k.time10m || '10 menit lalu'}</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border border-slate-100 dark:border-slate-800">
@@ -294,7 +297,7 @@ export function AccessSettingsSubView({
               <span className="font-bold text-slate-800 dark:text-slate-200">Owner Updated Role Matrix</span>
               <span className="text-slate-400">• Permissions updated for Store Manager</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono shrink-0">1 jam lalu</span>
+            <span className="text-[11px] text-slate-400 font-mono shrink-0">{k.time1h || '1 jam lalu'}</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border border-slate-100 dark:border-slate-800">
@@ -303,7 +306,7 @@ export function AccessSettingsSubView({
               <span className="font-bold text-slate-800 dark:text-slate-200">Autonomous RAG Indexing</span>
               <span className="text-slate-400">• Indexed 54 documents into vector store</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono shrink-0">2 jam lalu</span>
+            <span className="text-[11px] text-slate-400 font-mono shrink-0">{k.time2h || '2 jam lalu'}</span>
           </div>
         </div>
       </div>

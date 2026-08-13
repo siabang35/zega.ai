@@ -231,9 +231,19 @@ function ArticleThumbnail({ src, title }: { src?: string; title: string }) {
 }
 
 // Deduplicate and Normalize Category Catalog
-function getDeduplicatedCategories(cats: any[]) {
+function getDeduplicatedCategories(cats: any[], allGuidesLabel: string = 'Semua Panduan', k?: any) {
   const seen = new Set<string>();
-  const result: { id: string; label: string }[] = [{ id: 'Semua', label: 'Semua Panduan' }];
+  const result: { id: string; label: string }[] = [{ id: 'Semua', label: allGuidesLabel }];
+
+  const categoryMap: Record<string, string> = {
+    'proseduroperasional': k?.knowCatOps || 'Prosedur Operasional',
+    'marketingpromosi': k?.knowCatMarketing || 'Marketing & Promosi',
+    'invoiceperpajakan': k?.knowCatTax || 'Invoice & Perpajakan',
+    'produkqualitycontrol': k?.knowCatQc || 'Produk & Quality Control',
+    'saleskasirpos': k?.knowCatPos || 'Sales & Kasir POS',
+    'shippinglogistik': k?.knowCatLogistics || 'Shipping & Logistik',
+    'teknikal9router': k?.knowCatTechnical || 'Teknikal & 9Router'
+  };
 
   const curatedOrder = [
     'Prosedur Operasional',
@@ -255,13 +265,14 @@ function getDeduplicatedCategories(cats: any[]) {
     const trimmed = raw.trim();
     const normalizedKey = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    if (!normalizedKey || ['semuakategori', 'semua', 'faq', 'prosedur', 'tatacara', 'invoice', 'sales'].includes(normalizedKey)) {
+    if (!normalizedKey || ['semuakategori', 'semua', 'faq'].includes(normalizedKey)) {
       continue;
     }
 
     if (!seen.has(normalizedKey)) {
       seen.add(normalizedKey);
-      result.push({ id: trimmed, label: trimmed });
+      const displayLabel = categoryMap[normalizedKey] || trimmed;
+      result.push({ id: trimmed, label: displayLabel });
     }
   }
 
@@ -788,6 +799,8 @@ interface AddCustomIntegrationModalProps {
 
 function AddCustomIntegrationModal({ isOpen, onClose, onAdd }: AddCustomIntegrationModalProps) {
   if (!isOpen) return null;
+  const { t } = useLanguage();
+  const k = t.marketplaceView || {};
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -836,8 +849,8 @@ function AddCustomIntegrationModal({ isOpen, onClose, onAdd }: AddCustomIntegrat
               <Plus size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Tambah Integrasi & Tool Baru</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Daftarkan API gateway, webhook, atau AI LLM kustom ke Supabase Realtime</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.addIntegrationModalTitle || 'Add New Integration & Tool'}</h3>
+              <p className="text-[11px] text-slate-400 font-medium">{k.addIntegrationModalSubtitle || 'Register API gateways, webhooks, or custom AI LLMs to Supabase Realtime'}</p>
             </div>
           </div>
           <button
@@ -967,6 +980,8 @@ interface AddCategoryModalProps {
 
 function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
   if (!isOpen) return null;
+  const { t } = useLanguage();
+  const k = t.marketplaceView || {};
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -1024,8 +1039,8 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
               <Plus size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Tambah Kategori AI Baru</h3>
-              <p className="text-[11px] text-slate-400 font-medium">Daftarkan kategori AI & ekosistem bisnis baru ke Supabase Realtime DB</p>
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.addCategoryModalTitle || 'Add New AI Category'}</h3>
+              <p className="text-[11px] text-slate-400 font-medium">{k.addCategoryModalSubtitle || 'Configure category name, description, and status'}</p>
             </div>
           </div>
           <button
@@ -1038,7 +1053,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">Nama Kategori AI *</label>
+            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">{k.categoryNameLabel || 'AI Category Name'} *</label>
             <input
               type="text"
               required
@@ -1050,7 +1065,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">Deskripsi Kategori *</label>
+            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">{k.categoryDescLabel || 'Category Description'} *</label>
             <textarea
               required
               rows={3}
@@ -1063,7 +1078,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">Icon Kategori</label>
+              <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">{k.categoryIconLabel || 'Category Icon'}</label>
               <select
                 value={iconKey}
                 onChange={(e) => setIconKey(e.target.value)}
@@ -1079,7 +1094,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">Target Industri</label>
+              <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">{k.targetIndustryLabel || 'Target Industry'}</label>
               <input
                 type="text"
                 placeholder="Contoh: F&B, Retail, Clinic"
@@ -1091,7 +1106,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">Engine Model AI Terintegrasi *</label>
+            <label className="text-[11px] font-black text-slate-700 dark:text-slate-300">{k.integratedEngineModelsLabel || 'Integrated AI Model Engines *'}</label>
             <div className="flex flex-wrap gap-2">
               {availableModels.map((m) => {
                 const isSelected = selectedModels.includes(m);
@@ -1119,7 +1134,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
             >
-              Batal
+              {k.cancelBtn || 'Cancel'}
             </button>
             <button
               type="submit"
@@ -1127,11 +1142,11 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSubmitting ? (
-                <span>Menyimpan...</span>
+                <span>{k.savingBtn || 'Saving...'}</span>
               ) : (
                 <>
                   <Plus size={15} />
-                  <span>Daftarkan Kategori</span>
+                  <span>{k.registerCategoryBtn || 'Register Category'}</span>
                 </>
               )}
             </button>
@@ -1144,6 +1159,7 @@ function AddCategoryModal({ isOpen, onClose, onAdd }: AddCategoryModalProps) {
 
 export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceViewProps) {
   const { t } = useLanguage();
+  const k = t.marketplaceView || {};
   const [activeSubPage, setActiveSubPage] = useState<MarketplaceSubPage>('overview');
   const [selectedCategoryPill, setSelectedCategoryPill] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1682,9 +1698,9 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="size-6 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center">
                   <Settings size={14} />
                 </div>
-                <span>Request Custom AI</span>
+                <span>{k.requestCustomAi || 'Request Custom AI'}</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">Buat AI sesuai kebutuhan bisnis Anda.</p>
+              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">{k.requestCustomAiSub || 'Create AI tailored to your business needs.'}</p>
             </div>
 
             <div 
@@ -1698,9 +1714,9 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="size-6 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center">
                   <UserCheck size={14} />
                 </div>
-                <span>AI Saya</span>
+                <span>{k.myAi || 'My AI'}</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">Kelola AI yang sudah Anda instal.</p>
+              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">{k.myAiSub || 'Manage your installed AI agents.'}</p>
             </div>
 
             <div 
@@ -1711,9 +1727,9 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="size-6 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center">
                   <Layers size={14} />
                 </div>
-                <span>Integrasi Saya</span>
+                <span>{k.myIntegrations || 'My Integrations'}</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">Kelola semua integrasi dan koneksi.</p>
+              <p className="text-[10px] text-slate-400 font-medium line-clamp-1">{k.myIntegrationsSub || 'Manage all integrations and connections.'}</p>
             </div>
           </div>
         )}
@@ -1729,7 +1745,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>Overview</span>
+          <span>{k.tabOverview || 'Overview'}</span>
         </button>
 
         <button
@@ -1740,7 +1756,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>AI Populer</span>
+          <span>{k.tabPopularAgents || 'Popular AI'}</span>
         </button>
 
         <button
@@ -1751,7 +1767,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>AI Kategori</span>
+          <span>{k.tabCategories || 'Category AI'}</span>
         </button>
 
         <button
@@ -1762,7 +1778,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>Integrasi</span>
+          <span>{k.tabIntegrations || 'Integrations'}</span>
         </button>
 
         <button
@@ -1773,7 +1789,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>Artikel & Panduan</span>
+          <span>{k.tabArticles || 'Articles & Guides'}</span>
         </button>
 
         <button
@@ -1784,7 +1800,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>AI Terbaru</span>
+          <span>{k.tabNewAgents || 'Newest AI'}</span>
         </button>
 
         <button
@@ -1795,7 +1811,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
           }`}
         >
-          <span>Paling Banyak Digunakan</span>
+          <span>{k.tabTopUsed || 'Most Used'}</span>
         </button>
       </div>
 
@@ -1808,13 +1824,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Flame size={16} className="text-orange-500" />
-                  <h2 className="text-base font-black text-slate-900 dark:text-slate-100">AI Agents Populer</h2>
+                  <h2 className="text-base font-black text-slate-900 dark:text-slate-100">{k.popularEmployees || 'Popular AI Employees'}</h2>
                   <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-bold border border-orange-200/60 dark:border-orange-500/30">
-                    {popularAgentsList.length} Agent
+                    {popularAgentsList.length} {k.agentCountUnit || 'Agent'}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  Katalog agen AI berkinerja tinggi yang digunakan UMKM untuk otomatisasi operasional.
+                  {k.popularHeaderSubtitle || 'Catalog of high-performance AI agents used by MSMEs for operational automation.'}
                 </p>
               </div>
               <button
@@ -1822,7 +1838,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 hover:opacity-90 active:scale-95"
               >
                 <Plus size={14} />
-                <span>Tambah Agent</span>
+                <span>{k.addAgent || 'Add Agent'}</span>
               </button>
             </div>
           )}
@@ -1836,7 +1852,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari AI Agent, Kategori, atau Model Engine..."
+                placeholder={k.searchPlaceholderDetailed || 'Search AI Agent, Category, or Model Engine...'}
                 className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-400"
               />
               {searchQuery && (
@@ -1860,7 +1876,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     onChange={(e) => setPopularCategoryFilter(e.target.value)}
                     className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
                   >
-                    <option value="ALL">Semua Kategori</option>
+                    <option value="ALL">{k.allCategories || 'All Categories'}</option>
                     <option value="Sales">Sales & Penjualan</option>
                     <option value="Marketing">Marketing & Konten</option>
                     <option value="Finance">Finance & Pembayaran</option>
@@ -1877,7 +1893,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     onChange={(e) => setPopularModelFilter(e.target.value)}
                     className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
                   >
-                    <option value="ALL">Semua Model AI</option>
+                    <option value="ALL">{k.allAiModelsOption || 'Semua Model AI'}</option>
                     <option value="DeepSeek-V3">DeepSeek-V3</option>
                     <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
                     <option value="Llama 3.3 70B">Llama 3.3 70B</option>
@@ -1890,11 +1906,11 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
             {/* Layout View Toggles (Grid vs List) */}
             <div className="flex items-center gap-1.5 self-end sm:self-auto">
-              <span className="text-[11px] text-slate-400 font-bold mr-1 hidden md:inline">Tampilan:</span>
+              <span className="text-[11px] text-slate-400 font-bold mr-1 hidden md:inline">{k.viewLabel || 'View:'}</span>
               <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/60 dark:border-slate-700/60">
                 <button
                   onClick={() => setViewMode('grid')}
-                  title="Tampilan Grid (Kartu)"
+                  title={k.viewGridTitle || 'Grid View (Cards)'}
                   className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     viewMode === 'grid'
                       ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs'
@@ -1902,11 +1918,11 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   }`}
                 >
                   <Grid size={15} />
-                  <span className="text-[10px] hidden sm:inline">Grid</span>
+                  <span className="text-[10px] hidden sm:inline">{k.viewGrid || 'Grid'}</span>
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  title="Tampilan List (Tabel / Baris)"
+                  title={k.viewListTitle || 'List View (Table / Rows)'}
                   className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     viewMode === 'list'
                       ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs'
@@ -1914,7 +1930,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   }`}
                 >
                   <List size={15} />
-                  <span className="text-[10px] hidden sm:inline">List</span>
+                  <span className="text-[10px] hidden sm:inline">{k.viewList || 'List'}</span>
                 </button>
               </div>
             </div>
@@ -1938,7 +1954,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   return (
                     <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
                       <Clock size={24} className="animate-spin text-orange-500 mx-auto" />
-                      <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Memuat Katalog AI Populer Real-time Supabase...</p>
+                      <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{k.loadingPopularAgents || 'Memuat Katalog AI Populer Real-time Supabase...'}</p>
                     </div>
                   );
                 }
@@ -1946,7 +1962,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 if (filteredAgents.length === 0) {
                   return (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Tidak ada AI Popular yang cocok dengan filter kriteria</p>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{k.noPopularMatchFilter || 'Tidak ada AI Popular yang cocok dengan filter kriteria'}</p>
                       <button 
                         onClick={() => {
                           setSearchQuery('');
@@ -1955,7 +1971,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         }} 
                         className="text-xs text-orange-500 font-bold hover:underline cursor-pointer"
                       >
-                        Reset Filter & Pencarian
+                        {k.resetFilterAndSearch || 'Reset Filter & Pencarian'}
                       </button>
                     </div>
                   );
@@ -2110,17 +2126,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Grid size={16} className="text-indigo-600 dark:text-indigo-400" />
-                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Kategori Modul AI</h3>
+                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.categoriesHeaderTitle || 'AI Module Categories'}</h3>
                     <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold border border-indigo-200/60 dark:border-indigo-500/30">
-                      {(categoriesList.length > 0 ? categoriesList : marketplaceData.categories).length} Kategori
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200/60 dark:border-emerald-500/30 flex items-center gap-1">
-                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                      {realtimeModulesList.length} Active Modules
+                      {(categoriesList.length > 0 ? categoriesList : marketplaceData.categories).length} {k.categoryCountUnit || 'Categories'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Jelajahi dan kelola modul AI Employee terintegrasi berdasarkan kebutuhan operasional toko.
+                    {k.categoriesHeaderSubtitle || 'Explore and manage integrated AI Employee modules based on store operational needs.'}
                   </p>
                 </div>
 
@@ -2130,7 +2142,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 active:scale-95 self-start sm:self-auto"
                 >
                   <Plus size={14} />
-                  <span>Tambah Kategori</span>
+                  <span>{k.addCategory || 'Add Category'}</span>
                 </button>
               </div>
 
@@ -2146,7 +2158,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     }`}
                   >
                     <Grid size={15} className={categorySubTab === 'categories' ? 'text-orange-500' : ''} />
-                    <span>Direktori Kategori AI ({(categoriesList.length > 0 ? categoriesList : marketplaceData.categories).length})</span>
+                    <span>{k.categoryDirectoryTab || 'Direktori Kategori AI'} ({(categoriesList.length > 0 ? categoriesList : marketplaceData.categories).length})</span>
                   </button>
                   <button
                     onClick={() => handleSelectCategorySubTab('modules')}
@@ -2157,12 +2169,12 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     }`}
                   >
                     <Cpu size={15} className={categorySubTab === 'modules' ? 'text-orange-500' : ''} />
-                    <span>Katalog Modul Engine AI ({realtimeModulesList.length})</span>
+                    <span>{k.engineModuleCatalogTab || 'Katalog Modul Engine AI'} ({realtimeModulesList.length})</span>
                   </button>
                 </div>
 
                 <div className="text-[11px] text-slate-400 font-medium hidden md:block">
-                  {categorySubTab === 'categories' ? '● Menampilkan 8 Taksonomi Kategori Utama' : '● Menampilkan Filter Realtime Modul AI'}
+                  {categorySubTab === 'categories' ? (k.showing8Taxonomies || '● Menampilkan 8 Taksonomi Kategori Utama') : (k.showingRealtimeFilter || '● Menampilkan Filter Realtime Modul AI')}
                 </div>
               </div>
 
@@ -2174,7 +2186,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Sliders size={16} className="text-orange-500" />
-                        <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">Filter Modul AI Realtime & Konfigurasi Engine</h4>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.realtimeFilterBarTitle || 'Filter Modul AI Realtime & Konfigurasi Engine'}</h4>
                       </div>
                       {(moduleFilterCategory !== 'ALL' || moduleFilterModel !== 'ALL' || moduleFilterIndustry !== 'ALL' || moduleFilterStatus !== 'ALL') && (
                         <button
@@ -2186,7 +2198,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                           }}
                           className="text-[11px] font-bold text-orange-500 hover:underline cursor-pointer"
                         >
-                          Reset Filter
+                          {k.resetFilter || 'Reset Filter'}
                         </button>
                       )}
                     </div>
@@ -2194,13 +2206,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-semibold">
                       {/* Category Dropdown Filter */}
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase">Kategori AI</label>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">{k.labelAiCategory || 'Kategori AI'}</label>
                         <select
                           value={moduleFilterCategory}
                           onChange={(e) => setModuleFilterCategory(e.target.value)}
                           className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
                         >
-                          <option value="ALL">Semua Kategori AI</option>
+                          <option value="ALL">{k.allAiCategoriesOption || 'Semua Kategori AI'}</option>
                           <option value="cat_sales">Sales & Lead Automation</option>
                           <option value="cat_marketing">Marketing & Social Campaign</option>
                           <option value="cat_customer_service">Customer Support & Live Chat</option>
@@ -2214,13 +2226,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
                       {/* Model Engine Dropdown Filter */}
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase">Model Engine AI</label>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">{k.labelAiEngineModel || 'Model Engine AI'}</label>
                         <select
                           value={moduleFilterModel}
                           onChange={(e) => setModuleFilterModel(e.target.value)}
                           className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
                         >
-                          <option value="ALL">Semua AI Models</option>
+                          <option value="ALL">{k.allAiModelsOption || 'Semua AI Models'}</option>
                           <option value="DeepSeek-V3">DeepSeek-V3</option>
                           <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
                           <option value="Llama 3.3 70B">Llama 3.3 70B</option>
@@ -2231,13 +2243,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
                       {/* Target Industry Filter */}
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase">Target Industri</label>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">{k.labelTargetIndustry || 'Target Industri'}</label>
                         <select
                           value={moduleFilterIndustry}
                           onChange={(e) => setModuleFilterIndustry(e.target.value)}
                           className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
                         >
-                          <option value="ALL">Semua Target Industri</option>
+                          <option value="ALL">{k.allTargetIndustriesOption || 'Semua Target Industri'}</option>
                           <option value="Ritel">Ritel, Sales & E-Commerce</option>
                           <option value="F&B">F&B, Fashion, & Digital Product</option>
                           <option value="Service">Service, Clinic & Online Shop</option>
@@ -2249,15 +2261,15 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
                       {/* Operational Status Filter */}
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase">Status Operasional</label>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase">{k.labelOperationalStatus || 'Status Operasional'}</label>
                         <select
                           value={moduleFilterStatus}
                           onChange={(e) => setModuleFilterStatus(e.target.value)}
                           className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
                         >
-                          <option value="ALL">Semua Status</option>
-                          <option value="active">● Aktif (Tampil)</option>
-                          <option value="inactive">○ Nonaktif (Maintenance)</option>
+                          <option value="ALL">{k.allStatusOption || 'Semua Status'}</option>
+                          <option value="active">{k.statusActiveOption || '● Aktif (Tampil)'}</option>
+                          <option value="inactive">{k.statusInactiveOption || '○ Nonaktif (Maintenance)'}</option>
                         </select>
                       </div>
                     </div>
@@ -2268,13 +2280,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <Cpu size={16} className="text-orange-500" />
-                        <span>Modul AI Terintegrasi Realtime ({realtimeModulesList.length})</span>
+                        <span>{k.realtimeModulesTitle || 'Modul AI Terintegrasi Realtime'} ({realtimeModulesList.length})</span>
                       </h3>
                     </div>
 
                     {realtimeModulesList.length === 0 ? (
                       <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
-                        <p className="text-sm font-black text-slate-700 dark:text-slate-200">Tidak ada Modul AI yang memenuhi kriteria filter.</p>
+                        <p className="text-sm font-black text-slate-700 dark:text-slate-200">{k.noModulesMatchFilter || 'Tidak ada Modul AI yang memenuhi kriteria filter.'}</p>
                         <button
                           onClick={() => {
                             setModuleFilterCategory('ALL');
@@ -2284,7 +2296,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                           }}
                           className="text-xs text-orange-500 font-bold hover:underline cursor-pointer"
                         >
-                          Reset Semua Filter
+                          {k.resetAllFilters || 'Reset Semua Filter'}
                         </button>
                       </div>
                     ) : (
@@ -2327,7 +2339,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                   className="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-[10px] font-black hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
                                 >
                                   <Sliders size={12} />
-                                  <span>Konfig Engine</span>
+                                  <span>{k.configEngine || 'Konfig Engine'}</span>
                                 </button>
                               </div>
                             </div>
@@ -2353,8 +2365,8 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 if (displayCategories.length === 0) {
                   return (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Tidak ada Kategori AI yang cocok dengan "{searchQuery}"</p>
-                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">Bersihkan Pencarian</button>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{k.noCategoryMatchQuery || 'Tidak ada Kategori AI yang cocok dengan'} "{searchQuery}"</p>
+                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">{k.clearSearchSimple || 'Bersihkan Pencarian'}</button>
                     </div>
                   );
                 }
@@ -2377,7 +2389,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{cat.name}</h4>
                                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 border border-orange-200/60">
-                                    {cat.ai_module_count || cat.count || 12} Modul AI
+                                    {cat.ai_module_count || cat.count || 12} {k.aiModulesCountTag || 'Modul AI'}
                                   </span>
                                   <button
                                     type="button"
@@ -2388,7 +2400,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                         : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
                                     }`}
                                   >
-                                    ● {isInactive ? 'Nonaktif' : 'Aktif'}
+                                    ● {isInactive ? (k.statusInactiveTag || 'Nonaktif') : (k.statusActiveTag || 'Aktif')}
                                   </button>
                                   {cat.target_industry && (
                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -2406,7 +2418,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
                               >
                                 <Cpu size={13} className="text-orange-500" />
-                                <span>Detail Telemetri & Prompt AI</span>
+                                <span>{k.telemetryPromptDetail || 'Detail Telemetri & Prompt AI'}</span>
                               </button>
 
                               <button
@@ -2414,7 +2426,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
                               >
                                 <Settings size={13} className="text-slate-500" />
-                                <span>Edit Kategori</span>
+                                <span>{k.editCategoryBtn || 'Edit Kategori'}</span>
                               </button>
 
                               <button
@@ -2424,7 +2436,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 }}
                                 className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-black transition-all cursor-pointer active:scale-95 shadow-xs flex items-center gap-1"
                               >
-                                <span>Filter Modul</span>
+                                <span>{k.filterModulesBtn || 'Filter Modul'}</span>
                                 <span>→</span>
                               </button>
                             </div>
@@ -2459,10 +2471,10 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                       : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
                                   }`}
                                 >
-                                  ● {isInactive ? 'Nonaktif' : 'Aktif'}
+                                  ● {isInactive ? (k.statusInactiveTag || 'Nonaktif') : (k.statusActiveTag || 'Aktif')}
                                 </button>
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 border border-orange-200/60">
-                                  {cat.ai_module_count || cat.count || 12} Modul AI
+                                  {cat.ai_module_count || cat.count || 12} {k.aiModulesCountTag || 'Modul AI'}
                                 </span>
                               </div>
                             </div>
@@ -2490,12 +2502,12 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 className="flex-1 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center gap-1"
                               >
                                 <Cpu size={13} className="text-orange-500" />
-                                <span>Detail Telemetri & Prompt</span>
+                                <span>{k.telemetryPromptDetail || 'Detail Telemetri & Prompt'}</span>
                               </button>
                               <button
                                 onClick={() => setSelectedCategoryForEdit(cat)}
                                 className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center gap-1"
-                                title="Edit Kategori"
+                                title={k.editCategoryBtn || 'Edit Kategori'}
                               >
                                 <Settings size={13} className="text-slate-500" />
                                 <span>Edit</span>
@@ -2518,7 +2530,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                               }}
                               className="w-full py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold transition-all cursor-pointer active:scale-95 shadow-xs flex items-center justify-center gap-1"
                             >
-                              <span>Lihat Modul Engine {cat.name}</span>
+                              <span>{k.viewEngineModulesFor || 'Lihat Modul Engine'} {cat.name}</span>
                               <span>→</span>
                             </button>
                           </div>
@@ -2541,16 +2553,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Layers size={16} className="text-emerald-600 dark:text-emerald-400" />
-                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Pusat Integrasi Gateway</h3>
+                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.integrationsHeaderTitle || 'Gateway Integration Center'}</h3>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200/60 dark:border-emerald-500/30">
-                      {marketplaceData.payments.filter((p: any) => p.is_connected || p.connection_status === 'connected').length} / {marketplaceData.payments.length} Terhubung
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
-                      TLS 1.3 & Sol-M2H
+                      {marketplaceData.payments.filter((p: any) => p.is_connected || p.connection_status === 'connected').length} / {marketplaceData.payments.length} {k.connectedCount || 'Connected'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Kelola saluran pembayaran, engine AI, dan kurir pengiriman toko secara aman.
+                    {k.integrationsHeaderSubtitle || 'Manage store payment channels, AI engines, and shipping couriers securely.'}
                   </p>
                 </div>
 
@@ -2560,7 +2569,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 active:scale-95 self-start sm:self-auto"
                 >
                   <Plus size={14} />
-                  <span>Tambah Integrasi</span>
+                  <span>{k.addIntegration || 'Add Integration'}</span>
                 </button>
               </div>
 
@@ -2584,13 +2593,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   return (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
                       <p className="text-sm font-black text-slate-800 dark:text-slate-200">
-                        Tidak ada integrasi atau gateway yang cocok dengan "{searchQuery}"
+                        {k.noIntegrationsMatch || 'Tidak ada integrasi atau gateway yang cocok dengan'} "{searchQuery}"
                       </p>
                       <button
                         onClick={() => setSearchQuery('')}
                         className="text-xs text-orange-500 font-bold hover:underline cursor-pointer"
                       >
-                        Bersihkan Kata Kunci Pencarian
+                        {k.clearSearch || 'Bersihkan Kata Kunci Pencarian'}
                       </button>
                     </div>
                   );
@@ -2608,9 +2617,9 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 );
 
                 const sections = [
-                  { title: 'Payment Gateways & Web3 M2H Protocol', icon: Receipt, items: paymentGateways, desc: 'Gateway pembayaran kartu kredit, QRIS otomatis, e-wallet, dan protokol mesin-ke-mesin x402.' },
-                  { title: 'AI Models & LLM Mesh Infrastructure', icon: Cpu, items: aiModels, desc: 'High-availability AI model mesh via 9Router & Anthropic API untuk copywriting & asistensi otomatis.' },
-                  { title: 'E-Commerce & Courier Logistics Hub', icon: Package, items: logistics, desc: 'Integrasi ekspedisi kurir terpadu untuk cetak resi otomatis, pickup barang, & tracking lokasi real-time.' }
+                  { title: k.secPaymentTitle || 'Payment Gateways & Web3 M2H Protocol', icon: Receipt, items: paymentGateways, desc: k.secPaymentDesc || 'Gateway pembayaran kartu kredit, QRIS otomatis, e-wallet, dan protokol mesin-ke-mesin x402.' },
+                  { title: k.secAiTitle || 'AI Models & LLM Mesh Infrastructure', icon: Cpu, items: aiModels, desc: k.secAiDesc || 'High-availability AI model mesh via 9Router & Anthropic API untuk copywriting & asistensi otomatis.' },
+                  { title: k.secLogisticsTitle || 'E-Commerce & Courier Logistics Hub', icon: Package, items: logistics, desc: k.secLogisticsDesc || 'Integrasi ekspedisi kurir terpadu untuk cetak resi otomatis, pickup barang, & tracking lokasi real-time.' }
                 ];
 
                 return (
@@ -2630,7 +2639,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                                   <span>{sec.title}</span>
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                                    {sec.items.length} Gateway
+                                    {sec.items.length} {k.gatewayCount || 'Gateway'}
                                   </span>
                                 </h3>
                                 <p className="text-[11px] text-slate-400 font-medium">{sec.desc}</p>
@@ -2662,7 +2671,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
                                               isConn ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                                             }`}>
-                                              {isConn ? '• Terhubung' : 'Terputus'}
+                                              {isConn ? `• ${k.connectedCount || 'Terhubung'}` : (k.disconnectedCount || 'Terputus')}
                                             </span>
                                           )}
                                         </div>
@@ -2683,7 +2692,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                         }`}
                                       >
                                         {isConn ? <Settings size={13} /> : <Plug size={13} />}
-                                        <span>{isConn ? 'Kelola Konfigurasi' : 'Hubungkan Gateway'}</span>
+                                        <span>{isConn ? (k.manageConfig || 'Kelola Konfigurasi') : (k.connectGateway || 'Hubungkan Gateway')}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2711,7 +2720,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
                                             isConn ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                                           }`}>
-                                            {isConn ? '• Terhubung' : 'Terputus'}
+                                            {isConn ? `• ${k.connectedCount || 'Terhubung'}` : (k.disconnectedCount || 'Terputus')}
                                           </span>
                                         )}
                                       </div>
@@ -2734,7 +2743,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                         }`}
                                       >
                                         {isConn ? <Settings size={13} /> : <Plug size={13} />}
-                                        <span>{isConn ? 'Kelola Konfigurasi' : 'Hubungkan Gateway'}</span>
+                                        <span>{isConn ? (k.manageConfig || 'Kelola Konfigurasi') : (k.connectGateway || 'Hubungkan Gateway')}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2766,17 +2775,17 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <BookOpen size={16} className="text-blue-600 dark:text-blue-400" />
-                      <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Pusat Panduan & Artikel AI</h3>
+                      <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.articlesHeaderTitle || 'Pusat Panduan & Artikel AI'}</h3>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      Repositori SOP operasional toko, panduan integrasi, dan edukasi otomatisasi AI.
+                      {k.articlesHeaderSubtitle || 'Repositori SOP operasional toko, panduan integrasi, dan edukasi otomatisasi AI.'}
                     </p>
                   </div>
                   <button 
                     onClick={() => onNavigateTab?.('knowledge')}
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 active:scale-95 self-start sm:self-auto"
                   >
-                    <span>Knowledge Base Utama</span>
+                    <span>{k.mainKnowledgeBase || 'Knowledge Base Utama'}</span>
                     <ArrowRight size={13} />
                   </button>
                 </div>
@@ -2784,7 +2793,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 {/* Category Filter Chips Toolbar (Deduplicated Single-Row Horizontal Scroll) */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm">
                   <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth max-w-full flex-nowrap">
-                    {getDeduplicatedCategories(knowledgeCategories).map(cat => (
+                    {getDeduplicatedCategories(knowledgeCategories, k.allGuides || 'Semua Panduan', k).map(cat => (
                       <button
                         key={cat.id}
                         onClick={() => setArticleCategoryFilter(cat.id)}
@@ -2799,7 +2808,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     ))}
                   </div>
                   <span className="text-[11px] text-slate-400 font-bold px-2 whitespace-nowrap self-end sm:self-auto flex-shrink-0">
-                    {getFilteredArticles().length} Panduan Ditemukan
+                    {getFilteredArticles().length} {k.guidesFound || 'Panduan Ditemukan'}
                   </span>
                 </div>
 
@@ -2811,16 +2820,16 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         <BookOpen size={24} />
                       </div>
                       <h4 className="text-base font-black text-slate-900 dark:text-slate-100">
-                        Belum Ada Panduan untuk Kategori "{articleCategoryFilter}"
+                        {k.noGuidesForCategory || 'Belum Ada Panduan untuk Kategori'} "{articleCategoryFilter}"
                       </h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto font-medium leading-relaxed">
-                        Panduan untuk kategori ini sedang disiapkan oleh tim ZEGA. Anda juga dapat melihat kategori lain atau membuat dokumen SOP baru di Knowledge Base Utama.
+                        {k.noGuidesCategoryDesc || 'Panduan untuk kategori ini sedang disiapkan oleh tim ZEGA. Anda juga dapat melihat kategori lain atau membuat dokumen SOP baru di Knowledge Base Utama.'}
                       </p>
                       <button
-                        onClick={() => setArticleCategoryFilter('Semua Panduan')}
+                        onClick={() => setArticleCategoryFilter('Semua')}
                         className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs transition-all mt-2"
                       >
-                        Tampilkan Semua Panduan
+                        {k.showAllGuides || 'Tampilkan Semua Panduan'}
                       </button>
                     </div>
                   ) : viewMode === 'grid' ? (
@@ -2834,7 +2843,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 {art.category_name}
                               </span>
                               <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                                <Clock size={11} /> {art.read_time_minutes || 5} mnt baca
+                                <Clock size={11} /> {art.read_time_minutes || 5} {k.minRead || 'mnt baca'}
                               </span>
                             </div>
                             <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 leading-snug group-hover:text-orange-500 transition-colors">
@@ -2849,12 +2858,12 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             </div>
                           </div>
                           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-                            <span>{art.view_count || art.views_count || 1200} Pembaca</span>
+                            <span>{art.view_count || art.views_count || 1200} {k.readers || 'Pembaca'}</span>
                             <button 
                               onClick={() => setSelectedArticleForDetail(art)} 
                               className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs cursor-pointer shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 active:scale-95"
                             >
-                              <span>Baca Artikel →</span>
+                              <span>{k.readArticle || 'Baca Artikel'} →</span>
                             </button>
                           </div>
                         </div>
@@ -2871,7 +2880,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 <span className="px-2 py-0.5 rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[9px] font-black uppercase">
                                   {art.category_name}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-semibold">• {art.read_time_minutes || 5} mnt baca</span>
+                                <span className="text-[10px] text-slate-400 font-semibold">• {art.read_time_minutes || 5} {k.minRead || 'mnt baca'}</span>
                               </div>
                               <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{art.title}</h4>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">{art.summary}</p>
@@ -2881,7 +2890,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             onClick={() => setSelectedArticleForDetail(art)} 
                             className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs cursor-pointer shadow-xs hover:shadow-md transition-all whitespace-nowrap self-end md:self-auto active:scale-95"
                           >
-                            Baca Artikel →
+                            {k.readArticle || 'Baca Artikel'} →
                           </button>
                         </div>
                       ))}
@@ -2900,26 +2909,23 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-violet-600 dark:text-violet-400" />
-                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Katalog AI Terbaru</h3>
+                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.newAgentsTitle || 'Katalog AI Terbaru'}</h3>
                     <span className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-bold border border-violet-200/60 dark:border-violet-500/30">
-                      Rilis Minggu Ini
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-                      ZeroClaw v3.4 Engine
+                      {k.thisWeekRelease || 'Rilis Minggu Ini'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Otomatisasi bisnis baru diluncurkan dengan performa 9Router ultra-cepat.
+                    {k.newAgentsSubtitle || 'Otomatisasi bisnis baru diluncurkan dengan performa 9Router ultra-cepat.'}
                   </p>
                 </div>
 
                 {/* Category Filter Chips */}
                 <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold self-start sm:self-auto">
                   {[
-                    { id: 'all', label: 'Semua' },
-                    { id: 'Sales & Marketing', label: 'Sales' },
-                    { id: 'Finance & Accounting', label: 'Finance' },
-                    { id: 'Store & Operations', label: 'Operations' },
+                    { id: 'all', label: k.catAll || 'Semua' },
+                    { id: 'Sales & Marketing', label: k.catSales || 'Sales' },
+                    { id: 'Finance & Accounting', label: k.catFinance || 'Finance' },
+                    { id: 'Store & Operations', label: k.catStoreOps || 'Operations' },
                     { id: 'CRM & Intelligence', label: 'CRM' }
                   ].map(cat => (
                     <button
@@ -2950,8 +2956,8 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 if (filteredNewAgents.length === 0) {
                   return (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Tidak ada AI Terbaru yang cocok dengan "{searchQuery}"</p>
-                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">Bersihkan Kata Kunci Pencarian</button>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{k.noNewAgentsMatch || 'Tidak ada AI Terbaru yang cocok dengan'} "{searchQuery}"</p>
+                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">{k.clearSearch || 'Bersihkan Kata Kunci Pencarian'}</button>
                     </div>
                   );
                 }
@@ -2970,7 +2976,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{item.title}</h4>
                                 <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[9px] font-black border border-orange-200/60 flex items-center gap-1 shrink-0">
                                   <Tag size={10} className="text-orange-500" />
-                                  <span>{item.release_tag || 'Rilis Minggu Ini'}</span>
+                                  <span>{item.release_tag || k.thisWeekRelease || 'Rilis Minggu Ini'}</span>
                                 </span>
                               </div>
                               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{item.description}</p>
@@ -2998,7 +3004,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                               }`}
                             >
                               {item.is_installed ? <ExternalLink size={14} /> : <Plus size={14} />}
-                              <span>{item.is_installed ? 'Buka Agent' : 'Install AI Baru Ini'}</span>
+                              <span>{item.is_installed ? (k.openAgent || 'Buka Agent') : (k.installThisNewAi || 'Install AI Baru Ini')}</span>
                             </button>
                             <button
                               onClick={() => handleExecuteAgentTest(item)}
@@ -3006,7 +3012,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                               className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs cursor-pointer transition-all flex items-center gap-1"
                             >
                               <Activity size={14} className="text-orange-500" />
-                              <span>Uji</span>
+                              <span>{k.testAgent || 'Uji'}</span>
                             </button>
                           </div>
                         </div>
@@ -3027,7 +3033,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                           <div className="flex items-center justify-between">
                             <span className="px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black border border-orange-200/60 dark:border-orange-900/50 flex items-center gap-1">
                               <Tag size={12} className="text-orange-500" />
-                              <span>{item.release_tag || 'Rilis Minggu Ini'}</span>
+                              <span>{item.release_tag || k.thisWeekRelease || 'Rilis Minggu Ini'}</span>
                             </span>
                             <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[9px] font-bold">
                               {item.version_tag || 'v3.4.0'}
@@ -3096,7 +3102,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             }`}
                           >
                             {item.is_installed ? <ExternalLink size={14} /> : <Plus size={14} />}
-                            <span>{item.is_installed ? 'Buka Agent' : 'Install AI Baru Ini'}</span>
+                            <span>{item.is_installed ? (k.openAgent || 'Buka Agent') : (k.installThisNewAi || 'Install AI Baru Ini')}</span>
                           </button>
                           <button
                             onClick={() => handleExecuteAgentTest(item)}
@@ -3104,7 +3110,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             className="px-3 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs cursor-pointer transition-all flex items-center gap-1"
                           >
                             <Activity size={14} className="text-orange-500" />
-                            <span>Uji</span>
+                            <span>{k.testAgent || 'Uji'}</span>
                           </button>
                         </div>
                       </div>
@@ -3124,14 +3130,14 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   <div className="flex items-center gap-2">
                     <Trophy size={16} className="text-rose-500" />
                     <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                      Leaderboard AI Terpopuler
+                      {k.leaderboardTitle || 'Leaderboard AI Terpopuler'}
                     </h3>
                     <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-200/60 dark:border-rose-500/30">
-                      Telemetry Real-time
+                      {k.realtimeTelemetry || 'Telemetry Real-time'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Peringkat berdasarkan eksekusi tugas nyata, latency 9Router, dan status AI ZeroClaw.
+                    {k.leaderboardDesc || 'Peringkat berdasarkan eksekusi tugas nyata, latency 9Router, dan status AI ZeroClaw.'}
                   </p>
                 </div>
 
@@ -3145,7 +3151,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    7 Hari
+                    {k.timeframe7d || '7 Hari'}
                   </button>
                   <button
                     onClick={() => setTopUsedTimeframe('30d')}
@@ -3155,7 +3161,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    30 Hari
+                    {k.timeframe30d || '30 Hari'}
                   </button>
                   <button
                     onClick={() => setTopUsedTimeframe('all_time')}
@@ -3165,7 +3171,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    Semua Waktu
+                    {k.timeframeAllTime || 'Semua Waktu'}
                   </button>
                 </div>
               </div>
@@ -3182,8 +3188,8 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 if (filteredLeaderboard.length === 0) {
                   return (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">Tidak ada Leaderboard AI yang cocok dengan "{searchQuery}"</p>
-                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">Bersihkan Kata Kunci Pencarian</button>
+                      <p className="text-sm font-black text-slate-700 dark:text-slate-200">{k.noLeaderboardMatch || 'Tidak ada Leaderboard AI yang cocok dengan'} "{searchQuery}"</p>
+                      <button onClick={() => setSearchQuery('')} className="text-xs text-orange-500 font-bold hover:underline cursor-pointer">{k.clearSearch || 'Bersihkan Kata Kunci Pencarian'}</button>
                     </div>
                   );
                 }
@@ -3253,13 +3259,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             {/* Telemetry Metrics Grid */}
                             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                               <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-left">
-                                <span className="text-[9px] text-slate-400 font-medium block">Total Eksekusi Tugas</span>
+                                <span className="text-[9px] text-slate-400 font-medium block">{k.totalTaskExecution || 'Total Eksekusi Tugas'}</span>
                                 <span className="text-xs font-black text-slate-900 dark:text-slate-100">
                                   {item.total_tasks_executed ? item.total_tasks_executed.toLocaleString('id-ID') : '342.8k'}
                                 </span>
                               </div>
                               <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-left">
-                                <span className="text-[9px] text-slate-400 font-medium block">Kepuasan User</span>
+                                <span className="text-[9px] text-slate-400 font-medium block">{k.userSatisfaction || 'Kepuasan User'}</span>
                                 <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                                   {item.satisfaction_rate || 99.6}%
                                 </span>
@@ -3298,7 +3304,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                       <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
                         <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
                           <BarChart3 size={14} className="text-orange-500" />
-                          <span>Peringkat Telemetry AI (#4 dan Seterusnya)</span>
+                          <span>{k.telemetryRankings || 'Peringkat Telemetry AI (#4 dan Seterusnya)'}</span>
                         </h4>
 
                         <div className="space-y-2">
@@ -3332,10 +3338,10 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                               <div className="flex items-center justify-between sm:justify-end gap-3 text-right">
                                 <div>
                                   <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
-                                    {item.total_tasks_executed ? item.total_tasks_executed.toLocaleString('id-ID') : '72.1k'} Tugas
+                                    {item.total_tasks_executed ? item.total_tasks_executed.toLocaleString('id-ID') : '72.1k'} {k.tasks || 'Tugas'}
                                   </span>
                                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
-                                    {item.satisfaction_rate || 98.0}% Kepuasan
+                                    {item.satisfaction_rate || 98.0}% {k.satisfaction || 'Kepuasan'}
                                   </span>
                                 </div>
 
@@ -3386,7 +3392,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari AI atau solusi (contoh: WhatsApp, Invoice, CRM...)" 
+              placeholder={k.searchOverviewPlaceholder || 'Search AI or solution (e.g., WhatsApp, Invoice, CRM...)'} 
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 shadow-xs"
             />
           </div>
@@ -3397,7 +3403,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
             onChange={(e) => setSelectedCategoryPill(e.target.value)}
             className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer shadow-xs w-full sm:w-auto"
           >
-            <option value="Semua">Semua Kategori</option>
+            <option value="Semua">{k.allCategories || 'Semua Kategori'}</option>
             <option value="Sales">Sales</option>
             <option value="Marketing">Marketing</option>
             <option value="Customer Service">Customer Service</option>
@@ -3405,7 +3411,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
             <option value="Store & Operations">Store & Operations</option>
             <option value="Productivity">Productivity</option>
             <option value="Analytics">Analytics</option>
-            <option value="Lainnya">Lainnya</option>
+            <option value="Lainnya">{k.catOther || 'Lainnya'}</option>
           </select>
         </div>
 
@@ -3421,7 +3427,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
               }`}
             >
-              {pill}
+              {pill === 'Semua' ? (k.catAll || 'Semua') : pill === 'Lainnya' ? (k.catOther || 'Lainnya') : pill}
             </button>
           ))}
         </div>
@@ -3437,14 +3443,14 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">AI Employees Populer</h2>
-                <span className="px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-200/60 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 text-[9px] font-black">{filteredAgents.length} Agent</span>
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.popularEmployees || 'AI Employees Populer'}</h2>
+                <span className="px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-200/60 dark:border-orange-500/30 text-orange-600 dark:text-orange-400 text-[9px] font-black">{filteredAgents.length} {k.agentCountUnit || 'Agent'}</span>
               </div>
               <button 
                 onClick={() => setActiveSubPage('popular_agents')}
                 className="text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 cursor-pointer"
               >
-                <span>Lihat Semua</span>
+                <span>{k.viewAll || 'Lihat Semua'}</span>
                 <ArrowRight size={12} />
               </button>
             </div>
@@ -3490,7 +3496,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             <Star size={11} fill="currentColor" /> {agent.rating_score} ({agent.rating_reviews_count})
                           </span>
                           <span>•</span>
-                          <span>Instalasi {agent.installs_count_label}</span>
+                          <span>{k.installs || 'Instalasi'} {agent.installs_count_label}</span>
                         </div>
                         <div className="mt-0.5">
                           <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
@@ -3505,7 +3511,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                           onClick={() => setSelectedAgentForDetail(agent)}
                           className="text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                         >
-                          Lihat Detail →
+                          {k.viewDetails || 'Lihat Detail'} →
                         </button>
                         <button 
                           onClick={() => setSelectedAgentForDetail(agent)}
@@ -3515,7 +3521,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-orange-500 hover:text-white hover:border-orange-500'
                           }`}
                         >
-                          {agent.is_installed ? 'Terinstal' : 'Install'}
+                          {agent.is_installed ? (k.installed || 'Terinstal') : (k.install || 'Install')}
                         </button>
                       </div>
                     </div>
@@ -3528,14 +3534,14 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">Integrasi Pembayaran</h2>
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{k.paymentIntegrationsHeader || 'Integrasi Pembayaran'}</h2>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-black">{marketplaceData.payments.length} Gateway</span>
               </div>
               <button 
                 onClick={() => setActiveSubPage('all_integrations')}
                 className="text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1 cursor-pointer"
               >
-                <span>Lihat Semua Integrasi</span>
+                <span>{k.viewAllIntegrations || 'Lihat Semua Integrasi'}</span>
                 <ArrowRight size={12} />
               </button>
             </div>
@@ -3577,7 +3583,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      {pay.is_connected ? 'Terhubung' : 'Hubungkan'}
+                      {pay.is_connected ? (k.connected || 'Terhubung') : (k.connect || 'Hubungkan')}
                     </button>
                   </div>
               ))}
@@ -3591,7 +3597,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <FileText size={14} className="text-blue-500" />
-                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Artikel & Panduan Terbaru</h4>
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.latestArticlesHeader || 'Artikel & Panduan Terbaru'}</h4>
                 </div>
                 <div className="space-y-2 text-xs font-semibold">
                   {marketplaceData.articles.slice(0, 4).map((art: any, i: number) => (
@@ -3608,7 +3614,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 </div>
               </div>
               <button onClick={() => setActiveSubPage('marketplace_articles')} className="text-left text-[11px] font-extrabold text-orange-500 hover:text-orange-600 cursor-pointer pt-1">
-                Lihat Semua Artikel →
+                {k.viewAllArticles || 'Lihat Semua Artikel'} →
               </button>
             </div>
 
@@ -3617,7 +3623,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={14} className="text-purple-500" />
-                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">AI Terbaru</h4>
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.newestAiHeader || 'AI Terbaru'}</h4>
                 </div>
                 <div className="space-y-2 text-xs font-semibold">
                   {marketplaceData.newAgents.slice(0, 5).map((ag: any, i: number) => (
@@ -3629,7 +3635,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 </div>
               </div>
               <button onClick={() => setActiveSubPage('new_agents')} className="text-left text-[11px] font-extrabold text-orange-500 hover:text-orange-600 cursor-pointer pt-1">
-                Lihat Semua AI →
+                {k.viewAllAi || 'Lihat Semua AI'} →
               </button>
             </div>
 
@@ -3638,7 +3644,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <Activity size={14} className="text-amber-500" />
-                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Paling Banyak Digunakan</h4>
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.mostUsedHeader || 'Paling Banyak Digunakan'}</h4>
                 </div>
                 <div className="space-y-2 text-xs font-semibold">
                   {marketplaceData.topAgents.slice(0, 5).map((top: any, i: number) => (
@@ -3653,7 +3659,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 </div>
               </div>
               <button onClick={() => setActiveSubPage('top_used_agents')} className="text-left text-[11px] font-extrabold text-orange-500 hover:text-orange-600 cursor-pointer pt-1">
-                Lihat Semua →
+                {k.viewAll || 'Lihat Semua'} →
               </button>
             </div>
 
@@ -3662,13 +3668,13 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck size={14} className="text-emerald-500" />
-                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Keamanan & Standar</h4>
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.securityStandardsHeader || 'Keamanan & Standar'}</h4>
                 </div>
                 <div className="space-y-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400">
-                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> Enkripsi data end-to-end (AES-256)</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> Row Level Security (RLS) Supabase</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> AI model diaudit sebelum rilis</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> Isolasi data per toko / tenant</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> {k.secEncrypted || 'Enkripsi data end-to-end (AES-256)'}</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> {k.secRls || 'Row Level Security (RLS) Supabase'}</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> {k.secAudited || 'AI model diaudit sebelum rilis'}</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> {k.secIsolated || 'Isolasi data per toko / tenant'}</div>
                 </div>
               </div>
               <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/50 text-emerald-700 dark:text-emerald-400 text-center text-[10px] font-extrabold flex items-center justify-center gap-1">
@@ -3687,7 +3693,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-black text-white">
                 <Sparkles size={15} className="text-orange-400" />
-                <span>AI Recommendation</span>
+                <span>{k.aiRecommendationTitle || 'AI Recommendation'}</span>
               </div>
               <button
                 type="button"
@@ -3695,16 +3701,16 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                 className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 transition-colors cursor-pointer flex items-center gap-1"
               >
                 <ChevronDown size={13} className={`transition-transform duration-200 ${isAiRecommendationExpanded ? 'rotate-180' : ''}`} />
-                <span>{isAiRecommendationExpanded ? 'Sembunyikan' : 'Buka'}</span>
+                <span>{isAiRecommendationExpanded ? (k.hide || 'Sembunyikan') : (k.show || 'Buka')}</span>
               </button>
             </div>
 
             {isAiRecommendationExpanded ? (
               <div className="space-y-3 pt-1 border-t border-slate-800/80">
                 <div>
-                  <span className="text-[10px] text-slate-400 block font-semibold">Berdasarkan aktivitas bisnis Anda</span>
+                  <span className="text-[10px] text-slate-400 block font-semibold">{k.basedOnBusinessActivity || 'Berdasarkan aktivitas bisnis Anda'}</span>
                   <p className="text-[11px] font-medium leading-relaxed pt-1 text-slate-200">
-                    Pelanggan sering menanyakan tentang retur, ongkir, dan pembayaran. AI menyarankan membuat FAQ otomatis untuk meningkatkan layanan.
+                    {k.faqRecommendationDesc || 'Pelanggan sering menanyakan tentang retur, ongkir, dan pembayaran. AI menyarankan membuat FAQ otomatis untuk meningkatkan layanan.'}
                   </p>
                 </div>
                 <button 
@@ -3714,17 +3720,17 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   }}
                   className="w-full py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
-                  <Zap size={14} /> <span>Generate FAQ Sekarang</span>
+                  <Zap size={14} /> <span>{k.generateFaqNow || 'Generate FAQ Sekarang'}</span>
                 </button>
               </div>
             ) : (
-              <p className="text-[10.5px] text-slate-400 font-medium">Saran FAQ otomatis tersedia. Klik "Buka" untuk detail.</p>
+              <p className="text-[10.5px] text-slate-400 font-medium">{k.faqSuggestionAvailable || 'Saran FAQ otomatis tersedia. Klik "Buka" untuk detail.'}</p>
             )}
           </div>
 
           {/* Card 2: Kategori Populer */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
-            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">Kategori Populer</h3>
+            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{k.popularCategoriesHeader || 'Kategori Populer'}</h3>
             <div className="space-y-1 text-xs font-semibold">
               {marketplaceData.categories.map((cat: any, i: number) => (
                 <button
@@ -3748,15 +3754,15 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
               onClick={() => setActiveSubPage('all_categories')}
               className="w-full text-center text-[11px] font-extrabold text-orange-500 hover:text-orange-600 pt-1 cursor-pointer"
             >
-              Lihat Semua Kategori →
+              {k.viewAllCategories || 'Lihat Semua Kategori'} →
             </button>
           </div>
 
           {/* Card 3: Butuh Custom AI? */}
           <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-2.5 shadow-xs">
-            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Butuh Custom AI?</h4>
+            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.needCustomAiHeader || 'Butuh Custom AI?'}</h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              Kami dapat membuat AI Employee khusus kebutuhan bisnis Anda.
+              {k.needCustomAiDesc || 'Kami dapat membuat AI Employee khusus kebutuhan bisnis Anda.'}
             </p>
             <button 
               onClick={() => setIsRequestCustomAIModalOpen(true)}
@@ -3768,26 +3774,26 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
 
           {/* Card 4: Bantuan Marketplace */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
-            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Bantuan Marketplace</h4>
+            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">{k.marketplaceHelpHeader || 'Bantuan Marketplace'}</h4>
             <div className="space-y-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
               <button onClick={() => onNavigateTab?.('bantuan')} className="w-full text-left flex items-center gap-2 hover:text-orange-500 cursor-pointer">
-                <HelpCircle size={14} className="text-slate-400" /> <span>Cara Install AI</span>
+                <HelpCircle size={14} className="text-slate-400" /> <span>{k.howToInstallAi || 'Cara Install AI'}</span>
               </button>
               <button onClick={() => onNavigateTab?.('bantuan')} className="w-full text-left flex items-center gap-2 hover:text-orange-500 cursor-pointer">
-                <HelpCircle size={14} className="text-slate-400" /> <span>Pembayaran & Langganan</span>
+                <HelpCircle size={14} className="text-slate-400" /> <span>{k.paymentSubscriptionsHelp || 'Pembayaran & Langganan'}</span>
               </button>
               <button onClick={() => onNavigateTab?.('bantuan')} className="w-full text-left flex items-center gap-2 hover:text-orange-500 cursor-pointer">
-                <HelpCircle size={14} className="text-slate-400" /> <span>Kebijakan Marketplace</span>
+                <HelpCircle size={14} className="text-slate-400" /> <span>{k.marketplacePolicies || 'Kebijakan Marketplace'}</span>
               </button>
               <button onClick={() => onNavigateTab?.('bantuan')} className="w-full text-left flex items-center gap-2 hover:text-orange-500 cursor-pointer">
-                <HelpCircle size={14} className="text-slate-400" /> <span>Hubungi Support</span>
+                <HelpCircle size={14} className="text-slate-400" /> <span>{k.contactSupportHelp || 'Hubungi Support'}</span>
               </button>
             </div>
             <button 
               onClick={() => onNavigateTab?.('bantuan')}
               className="text-[11px] font-extrabold text-orange-500 hover:text-orange-600 cursor-pointer pt-1 block"
             >
-              Pusat Bantuan →
+              {k.helpCenter || 'Pusat Bantuan'} →
             </button>
           </div>
 

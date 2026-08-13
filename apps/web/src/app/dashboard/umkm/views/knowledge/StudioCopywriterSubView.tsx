@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface StudioCopywriterSubViewProps {
   categories?: any[];
@@ -24,6 +25,8 @@ export function StudioCopywriterSubView({
   triggerToast,
   onRefresh
 }: StudioCopywriterSubViewProps) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView;
   const [activeTabMode, setActiveTabMode] = useState<'editor' | 'preview'>('editor');
 
   // Article Form State
@@ -77,23 +80,23 @@ export function StudioCopywriterSubView({
   // AI Prompt Templates
   const promptPresets: Record<string, { label: string; topic: string; category: string }> = {
     sop_kasir: {
-      label: 'SOP Pembukaan & Penutupan Kasir',
-      topic: 'Standard Operating Procedure (SOP) Pembukaan Shift, Transaksi POS, dan Penutupan Kasir Toko Retail',
+      label: k.presetSopCashier || 'SOP Pembukaan & Penutupan Kasir',
+      topic: k.topicSopCashier || 'Standard Operating Procedure (SOP) Pembukaan Shift, Transaksi POS, dan Penutupan Kasir Toko Retail',
       category: 'Prosedur Operasional'
     },
     faq_retur: {
-      label: 'Kebijakan & FAQ Retur Barang',
-      topic: 'Panduan Kebijakan Retur, Tukar Size, dan Garansi Pengembalian Dana untuk Customer Service',
+      label: k.presetFaqReturns || 'Kebijakan & FAQ Retur Barang',
+      topic: k.topicFaqReturns || 'Panduan Kebijakan Retur, Tukar Size, dan Garansi Pengembalian Dana untuk Customer Service',
       category: 'FAQ'
     },
     campaign_promo: {
-      label: 'Copywriting Promo & Campaign Launching',
-      topic: 'Strategi Copywriting Promosi Produk Baru, Paket Bundling Hemat, dan Program Loyalty Customer',
+      label: k.presetCampaignPromo || 'Copywriting Promo & Campaign Launching',
+      topic: k.topicCampaignPromo || 'Strategi Copywriting Promosi Produk Baru, Paket Bundling Hemat, dan Program Loyalty Customer',
       category: 'Marketing'
     },
     gudang_logistik: {
-      label: 'SOP Pengadaan & Cek Stok Gudang',
-      topic: 'Prosedur Penerimaan Barang Supplier, Stock Opname Harian, dan Packing Pengiriman Logistik',
+      label: k.presetWarehouseLogistics || 'SOP Pengadaan & Cek Stok Gudang',
+      topic: k.topicWarehouseLogistics || 'Prosedur Penerimaan Barang Supplier, Stock Opname Harian, dan Packing Pengiriman Logistik',
       category: 'Shipping & Logistik'
     }
   };
@@ -244,14 +247,14 @@ export function StudioCopywriterSubView({
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <h1 className="text-sm sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight truncate">
                 <span className="sm:hidden">Copywriter Studio</span>
-                <span className="hidden sm:inline">ZEGA Executive Copywriter Studio</span>
+                <span className="hidden sm:inline">{k.copywriterTitle || 'ZEGA Copywriter Studio'}</span>
               </h1>
               <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1 shrink-0">
                 <Activity size={10} /> ZeroClaw
               </span>
             </div>
             <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-              Lingkungan kerja penulisan artikel, SOP, dan dokumen operasional berstandar MS Word, Medium & LinkedIn.
+              {k.copywriterSubtitle || 'Lingkungan penulisan artikel, SOP, dan dokumen operasional toko.'}
             </p>
           </div>
         </div>
@@ -268,7 +271,7 @@ export function StudioCopywriterSubView({
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
               }`}
             >
-              <Edit3 size={13} /> <span>Editor</span>
+              <Edit3 size={13} /> <span>{k.editorTab || 'Editor'}</span>
             </button>
             <button
               onClick={() => setActiveTabMode('preview')}
@@ -278,7 +281,7 @@ export function StudioCopywriterSubView({
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
               }`}
             >
-              <Eye size={13} /> <span>Pratinjau</span>
+              <Eye size={13} /> <span>{k.previewTab || 'Pratinjau'}</span>
             </button>
           </div>
 
@@ -292,7 +295,7 @@ export function StudioCopywriterSubView({
             ) : (
               <Send size={14} />
             )}
-            <span className="hidden sm:inline">Publish Artikel</span>
+            <span className="hidden sm:inline">{isPublishing ? (k.publishingBtn || 'Memublikasikan...') : (k.publishArticleBtn || 'Publish Artikel')}</span>
             <span className="sm:hidden">Publish</span>
           </button>
         </div>
@@ -312,7 +315,7 @@ export function StudioCopywriterSubView({
                   rows={2}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Judul Artikel, SOP, atau Panduan..."
+                  placeholder={k.articleTitlePlaceholder || "Judul Artikel, SOP, atau Panduan..."}
                   className="w-full min-w-0 max-w-full text-base sm:text-2xl font-black text-slate-900 dark:text-slate-100 placeholder-slate-300 dark:placeholder-slate-700 focus:outline-none border-b border-transparent focus:border-orange-500 pb-1 sm:pb-2 transition-all leading-snug resize-none bg-transparent [word-break:break-word]"
                 />
 
@@ -321,7 +324,7 @@ export function StudioCopywriterSubView({
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ringkasan singkat atau abstrak isi artikel (opsional)..."
+                  placeholder={k.articleDescPlaceholder || "Ringkasan singkat atau abstrak isi artikel (opsional)..."}
                   className="w-full min-w-0 max-w-full text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 placeholder-slate-300 dark:placeholder-slate-700 focus:outline-none leading-relaxed resize-none bg-transparent [word-break:break-word]"
                 />
 
@@ -329,7 +332,7 @@ export function StudioCopywriterSubView({
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 pt-2 min-w-0 w-full overflow-hidden">
                   <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2.5 sm:px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs min-w-0 w-full sm:w-auto overflow-hidden">
                     <Layers size={14} className="text-slate-400 shrink-0" />
-                    <span className="font-extrabold text-slate-500 text-[10px] uppercase shrink-0">Kategori:</span>
+                    <span className="font-extrabold text-slate-500 text-[10px] uppercase shrink-0">{k.categoryLabel || 'Kategori:'}</span>
                     <select
                       value={categoryName}
                       onChange={(e) => setCategoryName(e.target.value)}
@@ -357,7 +360,7 @@ export function StudioCopywriterSubView({
 
                   <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 px-2.5 sm:px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs min-w-0 w-full sm:w-auto overflow-hidden">
                     <FileText size={14} className="text-slate-400 shrink-0" />
-                    <span className="font-extrabold text-slate-500 text-[10px] uppercase shrink-0">Tipe:</span>
+                    <span className="font-extrabold text-slate-500 text-[10px] uppercase shrink-0">{k.typeLabel || 'Tipe:'}</span>
                     <select
                       value={badgeType}
                       onChange={(e) => {
@@ -390,14 +393,14 @@ export function StudioCopywriterSubView({
               <div className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                   <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1 shrink-0">
-                    <Zap size={11} className="text-orange-500" /> <span className="hidden sm:inline">Quick Snippet:</span><span className="sm:hidden">Snippet:</span>
+                    <Zap size={11} className="text-orange-500" /> <span className="hidden sm:inline">{k.quickSnippetLabel || 'Quick Snippet:'}</span><span className="sm:hidden">Snippet:</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => insertFormatting('\n### Standard Operating Procedure (SOP)\n**Tujuan**: Menjelaskan langkah kerja baku operasional toko.\n\n#### 1. Persiapan Awal\n- [ ] Cek kelengkapan mesin POS Kasir & struk printer.\n- [ ] Pastikan modal kasir awal Rp 500.000 sudah sesuai.\n\n#### 2. Pelaksanaan Operasional\n- [ ] Melakukan verifikasi pembayaran tunai / QRIS.\n- [ ] Cetak struk transaksi & berikan salam ke customer.\n\n#### 3. Penutupan Shift\n- [ ] Cetak laporan penutupan z-report kasir.\n')}
                     className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] shrink-0 cursor-pointer shadow-2xs transition-colors"
                   >
-                    SOP Kasir Step-by-Step
+                    {k.snippetCashier || 'SOP Kasir Step-by-Step'}
                   </button>
 
                   <button
@@ -405,7 +408,7 @@ export function StudioCopywriterSubView({
                     onClick={() => insertFormatting('\n### Pertanyaan Umum & Kebijakan Retur (FAQ)\n\n**Q: Berapa lama batas waktu pengajuan retur barang?**\n> Retur barang dapat diajukan maksimal **3x24 jam** setelah barang diterima dengan melampirkan struk pembelian asli.\n\n**Q: Apakah saldo dapat di-refund tunai?**\n> Pengembalian dana dilakukan melalui voucher belanja toko atau transfer bank sesuai nominal invoice.\n')}
                     className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] shrink-0 cursor-pointer shadow-2xs transition-colors"
                   >
-                    Format FAQ Customer
+                    {k.snippetFaq || 'Format FAQ Customer'}
                   </button>
 
                   <button
@@ -413,7 +416,7 @@ export function StudioCopywriterSubView({
                     onClick={() => insertFormatting('\n### Headline Promo Launching Produk Baru\n> **"Solusi Praktis Kelola Toko UMKM Tanpa Ribet!"**\n\n#### Keunggulan Utama:\n- **Cepat & Otomatis**: Efisiensi waktu transaksi hingga 80%.\n- **Aman & Terpercaya**: Data tersimpan terenkripsi di cloud.\n\n*Dapatkan Promo Diskon Special Launching 30% Bulan Ini! Hubungi Admin Kasir Sekarang.*\n')}
                     className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] shrink-0 cursor-pointer shadow-2xs transition-colors"
                   >
-                    Structure Campaign Promo
+                    {k.snippetCampaign || 'Structure Campaign Promo'}
                   </button>
 
                   <button
@@ -421,7 +424,7 @@ export function StudioCopywriterSubView({
                     onClick={() => insertFormatting('\n| Spesifikasi | Detail Produk / SOP | Keterangan |\n| :--- | :--- | :--- |\n| Nama SOP | Prosedur Penanganan Retur | Tim CS Toko |\n| Standar SLA | Maksimal 15 Menit | Respon Cepat |\n| Penanggung Jawab | Supervisor Store | Verifikasi Akhir |\n')}
                     className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] shrink-0 cursor-pointer shadow-2xs transition-colors"
                   >
-                    Tabel Spesifikasi
+                    {k.snippetTable || 'Tabel Spesifikasi'}
                   </button>
                 </div>
               </div>
@@ -684,7 +687,7 @@ export function StudioCopywriterSubView({
                   ref={textareaRef}
                   value={contentMarkdown}
                   onChange={(e) => setContentMarkdown(e.target.value)}
-                  placeholder="Ketik konten artikel, langkah-langkah SOP, atau minta ZeroClaw AI untuk meng-generate teks secara otomatis di panel kanan..."
+                  placeholder={k.editorPlaceholder || "Ketik konten artikel atau langkah-langkah SOP..."}
                   rows={20}
                   style={{
                     textAlign: textAlign,
@@ -700,21 +703,21 @@ export function StudioCopywriterSubView({
                 <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                   <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
                     <FileText size={13} className="text-orange-500" />
-                    <span>{contentMarkdown.trim() ? contentMarkdown.trim().split(/\s+/).length : 0} Kata</span>
+                    <span>{contentMarkdown.trim() ? contentMarkdown.trim().split(/\s+/).length : 0} {k.wordCountLabel || 'Kata'}</span>
                   </span>
                   <span className="hidden sm:inline">•</span>
-                  <span>{contentMarkdown.length} Karakter</span>
+                  <span>{contentMarkdown.length} {k.charCountLabel || 'Karakter'}</span>
                   <span className="hidden sm:inline">•</span>
-                  <span>{contentMarkdown.split('\n\n').filter(Boolean).length} Paragraf</span>
+                  <span>{contentMarkdown.split('\n\n').filter(Boolean).length} {k.paragraphCountLabel || 'Paragraf'}</span>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                     <Clock size={13} className="text-amber-500" />
-                    <span>~{Math.max(1, Math.ceil((contentMarkdown.trim() ? contentMarkdown.trim().split(/\s+/).length : 0) / 200))} Menit</span>
+                    <span>~{Math.max(1, Math.ceil((contentMarkdown.trim() ? contentMarkdown.trim().split(/\s+/).length : 0) / 200))} {k.estReadTime || 'Menit'}</span>
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] uppercase font-black tracking-wider">
-                    {contentMarkdown.length > 500 ? 'Artikel Mendalam' : 'Draf Singkat'}
+                    {contentMarkdown.length > 500 ? (k.detailedArticle || 'Artikel Mendalam') : (k.shortDraft || 'Draf Singkat')}
                   </span>
                 </div>
               </div>
@@ -755,7 +758,7 @@ export function StudioCopywriterSubView({
                     <BarChart3 size={16} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">ZeroClaw AI Copywriter</h3>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">{k.aiCopywriterTitle || 'ZeroClaw AI Copywriter'}</h3>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">9Router LLM Swarm</p>
                   </div>
                 </div>
@@ -768,7 +771,7 @@ export function StudioCopywriterSubView({
               {/* Preset Prompts Selector */}
               <div className="space-y-1.5">
                 <label className="text-[10.5px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Pilih Preset Template SOP:
+                  {k.aiPresetPromptLabel || 'Pilih Preset Template SOP:'}
                 </label>
                 <div className="space-y-1.5">
                   {Object.entries(promptPresets).map(([key, item]) => (
@@ -791,7 +794,7 @@ export function StudioCopywriterSubView({
               {/* Tone of Voice Selector */}
               <div className="space-y-1.5 pt-1">
                 <label className="text-[10.5px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Gaya Bahasa (Tone of Voice):
+                  {k.toneOfVoiceLabel || 'Gaya Bahasa (Tone of Voice):'}
                 </label>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
                   <button
@@ -803,7 +806,7 @@ export function StudioCopywriterSubView({
                         : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
-                    Profesional & Formal
+                    {k.toneProfessional || 'Profesional & Formal'}
                   </button>
 
                   <button
@@ -815,7 +818,7 @@ export function StudioCopywriterSubView({
                         : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
-                    Persuasif Marketing
+                    {k.tonePersuasive || 'Persuasif Marketing'}
                   </button>
 
                   <button
@@ -827,7 +830,7 @@ export function StudioCopywriterSubView({
                         : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
-                    Ringkas & Instruktif
+                    {k.toneInstructive || 'Ringkas & Instruktif'}
                   </button>
 
                   <button
@@ -839,7 +842,7 @@ export function StudioCopywriterSubView({
                         : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
-                    Ramah & Edukatif
+                    {k.toneFriendly || 'Ramah & Edukatif'}
                   </button>
                 </div>
               </div>
@@ -852,7 +855,7 @@ export function StudioCopywriterSubView({
                 <textarea
                   value={aiTopicInput}
                   onChange={(e) => setAiTopicInput(e.target.value)}
-                  placeholder="Ketik rincian spesifik topik SOP..."
+                  placeholder={k.topicInputPlaceholder || "Ketik rincian spesifik topik SOP..."}
                   rows={3}
                   className="w-full min-w-0 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-orange-500 font-medium [word-break:break-word]"
                 />
@@ -868,12 +871,12 @@ export function StudioCopywriterSubView({
                 {isGeneratingAI ? (
                   <>
                     <RefreshCw size={15} className="animate-spin" />
-                    <span>ZeroClaw AI Sedang Menulis...</span>
+                    <span>{k.generatingAiBtn || 'ZeroClaw AI Sedang Menulis...'}</span>
                   </>
                 ) : (
                   <>
                     <BarChart3 size={15} />
-                    <span>Generate dengan ZeroClaw AI Swarm</span>
+                    <span>{k.generateAiBtn || 'Generate dengan ZeroClaw AI Swarm'}</span>
                   </>
                 )}
               </button>
@@ -884,34 +887,34 @@ export function StudioCopywriterSubView({
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <Globe size={16} className="text-blue-500" />
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                  SEO & Search Engine Metadata
+                  {k.seoSectionTitle || 'SEO & Search Engine Metadata'}
                 </h3>
               </div>
 
               <div className="space-y-3 text-xs">
                 <div className="space-y-1">
                   <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                    <span>Judul Meta SEO</span>
+                    <span>{k.seoTitleLabel || 'Judul Meta SEO'}</span>
                     <span>{seoTitle.length} / 60</span>
                   </div>
                   <input
                     type="text"
                     value={seoTitle}
                     onChange={(e) => setSeoTitle(e.target.value)}
-                    placeholder="Judul ramah Google..."
+                    placeholder={k.seoTitlePlaceholder || "Judul ramah Google..."}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                    <span>Meta Deskripsi SEO</span>
+                    <span>{k.seoDescLabel || 'Meta Deskripsi SEO'}</span>
                     <span>{seoMetaDescription.length} / 160</span>
                   </div>
                   <textarea
                     value={seoMetaDescription}
                     onChange={(e) => setSeoMetaDescription(e.target.value)}
-                    placeholder="Abstrak deskripsi yang muncul pada hasil pencarian Google..."
+                    placeholder={k.seoDescPlaceholder || "Abstrak deskripsi yang muncul pada hasil pencarian Google..."}
                     rows={3}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-blue-500 resize-none"
                   />
@@ -920,16 +923,16 @@ export function StudioCopywriterSubView({
                 {/* Google Search Snippet Live Preview */}
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-1">
                   <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block">
-                    Pratinjau Google Search:
+                    {k.googlePreviewTitle || 'Pratinjau Google Search:'}
                   </span>
                   <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono truncate">
                     https://zegaai.site/knowledge/article/{title ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'sop-operasional'}
                   </div>
                   <div className="text-xs font-bold text-blue-600 dark:text-blue-400 line-clamp-1">
-                    {seoTitle || title || 'Judul SOP / Artikel Knowledge Base'}
+                    {seoTitle || title || (k.googlePreviewDefaultTitle || 'Judul SOP / Artikel Knowledge Base')}
                   </div>
                   <p className="text-[10.5px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-tight">
-                    {seoMetaDescription || description || 'Panduan operasional lengkap untuk UMKM.'}
+                    {seoMetaDescription || description || (k.googlePreviewDefaultDesc || 'Panduan operasional lengkap untuk UMKM.')}
                   </p>
                 </div>
               </div>
@@ -949,7 +952,7 @@ export function StudioCopywriterSubView({
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
-              {title || 'Judul Pratinjau Artikel Copywriting'}
+              {title || (k.previewDefaultTitle || 'Judul Pratinjau Artikel Copywriting')}
             </h1>
 
             {description && (
@@ -1000,7 +1003,7 @@ export function StudioCopywriterSubView({
                 return <p key={lIdx}>{line}</p>;
               })
             ) : (
-              <p className="text-slate-400 italic">Belum ada konten artikel yang ditulis...</p>
+              <p className="text-slate-400 italic">{k.previewDefaultEmpty || 'Belum ada konten artikel yang ditulis...'}</p>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@ import {
   ShieldCheck, Lock, Smartphone, Laptop, LogOut, Check, Eye, EyeOff, Globe, Shield, X, KeyRound, Radio, Plus, CheckCircle2, Server, Cloud, Cpu, Activity, Mail
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface SecurityTabProps {
   triggerToast: (msg: string) => void;
@@ -10,6 +11,7 @@ interface SecurityTabProps {
 }
 
 export function SecurityTab({ triggerToast }: SecurityTabProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -20,7 +22,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
   const [newDeviceVerify, setNewDeviceVerify] = useState(true);
   const [ipAllowlistEnabled, setIpAllowlistEnabled] = useState(false);
   const [ipAllowlist, setIpAllowlist] = useState<string[]>([]);
-  const [lastPasswordChange, setLastPasswordChange] = useState<string>('Belum pernah diubah');
+  const [lastPasswordChange, setLastPasswordChange] = useState<string>('');
 
   // Active Sessions state
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
@@ -59,8 +61,10 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       if (sec) {
         if (sec.two_factor_enabled !== undefined) setTwoFactorEnabled(sec.two_factor_enabled);
         if (sec.two_factor_method) {
-          setTwoFactorMethod(sec.two_factor_method);
-          setSelected2faMethod(sec.two_factor_method);
+          let method = sec.two_factor_method;
+          if (method === 'Authenticator App' || !method) method = 'Authenticator App (TOTP)';
+          setTwoFactorMethod(method);
+          setSelected2faMethod(method);
         }
         if (sec.magic_link_login !== undefined) setMagicLinkLogin(sec.magic_link_login);
         if (sec.new_device_verify !== undefined) setNewDeviceVerify(sec.new_device_verify);
@@ -68,7 +72,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
         if (sec.ip_allowlist && Array.isArray(sec.ip_allowlist)) setIpAllowlist(sec.ip_allowlist);
         if (sec.last_password_change) {
           const daysAgo = Math.max(1, Math.floor((Date.now() - new Date(sec.last_password_change).getTime()) / 86400000));
-          setLastPasswordChange(`${daysAgo} hari lalu`);
+          setLastPasswordChange(`${daysAgo} ${t.settingsView?.securityTab?.daysAgo || 'days ago'}`);
         }
       }
 
@@ -112,7 +116,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       };
 
       await SupabaseDashboardService.updateUmkmSecuritySettings(payload);
-      triggerToast('✓ Pengaturan keamanan tersimpan & terintegrasi ke Supabase!');
+      triggerToast(`✓ ${t.settingsView?.securityTab?.toastSaveSuccess || 'Security settings saved!'}`);
     } catch (e) {
       triggerToast('✕ Gagal menyimpan pengaturan keamanan.');
     } finally {
@@ -125,7 +129,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       const res = await SupabaseDashboardService.revokeUmkmUserSession(sessionId);
       if (res.success) {
         setActiveSessions(prev => prev.filter(s => s.id !== sessionId));
-        triggerToast('✓ Sesi perangkat berhasil dihentikan!');
+        triggerToast(`✓ ${t.settingsView?.securityTab?.toastSessionRevoked || 'Device session revoked successfully!'}`);
       } else {
         triggerToast('✕ Gagal menghentikan sesi.');
       }
@@ -153,28 +157,31 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
   const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword || !confirmPassword) {
-      triggerToast('✕ Harap isi semua kolom kata sandi!');
+      triggerToast('✕ ' + (t.settingsView?.securityTab?.fillAllFields || 'Harap isi semua kolom kata sandi!'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      triggerToast('✕ Konfirmasi kata sandi tidak cocok!');
+      triggerToast('✕ ' + (t.settingsView?.securityTab?.passwordMismatch || 'Konfirmasi kata sandi tidak cocok!'));
       return;
     }
     if (newPassword.length < 8) {
-      triggerToast('✕ Kata sandi baru minimal 8 karakter!');
+      triggerToast('✕ ' + (t.settingsView?.securityTab?.passwordTooShort || 'Kata sandi baru minimal 8 karakter!'));
       return;
     }
 
     try {
-      await SupabaseDashboardService.logAuditTrail('PASSWORD_CHANGED', { timestamp: new Date().toISOString() });
+      setSaving(true);
+      await SupabaseDashboardService.changeUmkmUserPassword(newPassword);
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setIsPasswordModalOpen(false);
-      setLastPasswordChange('Baru saja');
-      triggerToast('✓ Kata sandi akun berhasil diperbarui secara aman!');
+      setLastPasswordChange(t.settingsView?.securityTab?.justNow || 'Just now');
+      triggerToast('✓ ' + (t.settingsView?.securityTab?.toastPassSuccess || 'Password updated successfully!'));
     } catch (err) {
-      triggerToast('✓ Kata sandi berhasil diperbarui!');
+      triggerToast('✓ ' + (t.settingsView?.securityTab?.toastPassSuccess || 'Password updated successfully!'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -183,7 +190,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     await handleSaveSecurity({ two_factor_method: selected2faMethod, two_factor_enabled: true });
     setTwoFactorEnabled(true);
     setIs2faModalOpen(false);
-    triggerToast(`✓ Metode 2FA diubah ke: ${selected2faMethod}`);
+    triggerToast(`✓ ${t.settingsView?.securityTab?.toastSaveSuccess || 'Security settings saved!'}`);
   };
 
   const handleAddIpAddress = () => {
@@ -191,7 +198,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     const cleanIp = newIpInput.trim();
     const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
     if (!ipRegex.test(cleanIp)) {
-      triggerToast('✕ Format IP Address tidak valid! (Contoh: 182.253.12.98)');
+      triggerToast('✕ Invalid IP Address format! (Example: 182.253.12.98)');
       return;
     }
     if (!ipAllowlist.includes(cleanIp)) {
@@ -199,7 +206,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       setIpAllowlist(updated);
       handleSaveSecurity({ ip_allowlist: updated, ip_allowlist_enabled: true });
       setIpAllowlistEnabled(true);
-      triggerToast(`✓ IP ${cleanIp} berhasil ditambahkan ke Allowlist!`);
+      triggerToast(`✓ ${t.settingsView?.securityTab?.toastIpAdded || 'IP added to allowlist!'}`);
     }
     setNewIpInput('');
   };
@@ -208,7 +215,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     const updated = ipAllowlist.filter(ip => ip !== ipToRemove);
     setIpAllowlist(updated);
     handleSaveSecurity({ ip_allowlist: updated });
-    triggerToast(`✓ IP ${ipToRemove} dihapus dari Allowlist.`);
+    triggerToast(`✓ ${t.settingsView?.securityTab?.toastSaveSuccess || 'Security settings saved!'}`);
   };
 
   const handleToggleIntegrationStatus = async (item: any) => {
@@ -216,9 +223,9 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     try {
       await SupabaseDashboardService.toggleUmkmSecurityIntegration(item.id, nextStatus);
       setSecurityIntegrations(prev => prev.map(i => i.id === item.id ? { ...i, status: nextStatus } : i));
-      triggerToast(`✓ Integrasi ${item.tool_name} diubah menjadi: ${nextStatus}`);
+      triggerToast(`✓ ${t.settingsView?.securityTab?.toastSaveSuccess || 'Security settings saved!'}`);
     } catch (e) {
-      triggerToast('✕ Gagal mengubah status integrasi.');
+      triggerToast('✕ Failed to update integration status.');
     }
   };
 
@@ -233,7 +240,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
   const handleSaveIntegrationSettings = async () => {
     if (!selectedIntegration) return;
     try {
-      const res = await SupabaseDashboardService.updateUmkmSecurityIntegration(selectedIntegration.id, {
+      await SupabaseDashboardService.updateUmkmSecurityIntegration(selectedIntegration.id, {
         webhook_url: webhookUrlInput,
         alert_email: alertEmailInput,
         api_token_masked: apiTokenInput
@@ -246,10 +253,10 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
         api_token_masked: apiTokenInput
       } : i));
 
-      triggerToast(`✓ Konfigurasi Webhook & Email Notifikasi ${selectedIntegration.tool_name} berhasil disimpan!`);
+      triggerToast(`✓ ${t.settingsView?.securityTab?.toastSaveSuccess || 'Security settings saved!'}`);
       setIsIntegrationModalOpen(false);
     } catch (e) {
-      triggerToast('✕ Gagal menyimpan konfigurasi SIEM.');
+      triggerToast('✕ Failed to save configuration.');
     }
   };
 
@@ -276,9 +283,9 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
     if (/[0-9]/.test(pass)) s += 1;
     if (/[^A-Za-z0-9]/.test(pass)) s += 1;
 
-    if (s <= 2) return { score: 33, label: 'Lemah', color: 'bg-rose-500' };
-    if (s <= 4) return { score: 66, label: 'Sedang', color: 'bg-amber-500' };
-    return { score: 100, label: 'Sangat Kuat', color: 'bg-emerald-500' };
+    if (s <= 2) return { score: 33, label: t.settingsView?.securityTab?.weak || 'Weak', color: 'bg-rose-500' };
+    if (s <= 4) return { score: 66, label: t.settingsView?.securityTab?.medium || 'Medium', color: 'bg-amber-500' };
+    return { score: 100, label: t.settingsView?.securityTab?.strong || 'Strong', color: 'bg-emerald-500' };
   };
 
   const passStrength = getPasswordStrength(newPassword);
@@ -298,41 +305,19 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
   return (
     <div className="space-y-6 font-sans">
       {/* Account Security Header Banner */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="relative size-12 sm:size-14 rounded-2xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black shrink-0 border border-orange-200/60 dark:border-orange-900/50">
+          <div className="relative size-12 sm:size-14 rounded-2xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold shrink-0 border border-orange-200/60 dark:border-orange-900/50">
             <ShieldCheck size={26} />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
-                Keamanan & Proteksi Akun
-              </h2>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
-                twoFactorEnabled 
-                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200/60' 
-                  : 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200/60'
-              }`}>
-                {twoFactorEnabled ? '2FA Aktif' : '2FA Non-Aktif'}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border-indigo-200/60">
-                OWASP Zero-Trust Shield
-              </span>
-            </div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+              {t.settingsView?.securityTab?.title || 'Keamanan & Proteksi Akun'}
+            </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kelola kata sandi, autentikasi dua faktor (2FA), dan proteksi akses toko secara terpusat.
+              {t.settingsView?.securityTab?.subtitle || 'Kelola kata sandi, autentikasi dua faktor (2FA), dan proteksi akses toko secara terpusat.'}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          <button
-            onClick={() => setIsPasswordModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all active:scale-95 shadow-orange-500/20"
-          >
-            <KeyRound size={15} />
-            <span>Ubah Password</span>
-          </button>
         </div>
       </div>
 
@@ -341,38 +326,38 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
         {/* Left Column: Password, 2FA, Active Sessions */}
         <div className="space-y-6">
           {/* 1. Password Security Card */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <div className="size-10 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 flex items-center justify-center font-black shrink-0 border border-indigo-100 dark:border-indigo-900/40">
+              <div className="size-10 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 flex items-center justify-center font-bold shrink-0 border border-indigo-100 dark:border-indigo-900/40">
                 <Lock size={18} />
               </div>
               <div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Kata Sandi Akun</h3>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Terakhir diperbarui {lastPasswordChange}</p>
+                <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.passwordCardTitle || 'Kata Sandi Akun'}</h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">{t.settingsView?.securityTab?.passwordCardDesc || 'Terakhir diperbarui'} {lastPasswordChange || t.settingsView?.securityTab?.neverChanged || 'Belum pernah diubah'}</p>
               </div>
             </div>
 
             <button
               onClick={() => setIsPasswordModalOpen(true)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer self-start sm:self-auto"
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer self-start sm:self-auto"
             >
-              Ubah Password
+              {t.settingsView?.securityTab?.changePassBtn || 'Ubah Password'}
             </button>
           </div>
 
           {/* 2. Two-Factor Authentication (2FA) Card */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-black shrink-0 border border-blue-100 dark:border-blue-900/40">
+                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold shrink-0 border border-blue-100 dark:border-blue-900/40">
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">
-                    Two-Factor Authentication (2FA)
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {t.settingsView?.securityTab?.twoFaTitle || 'Two-Factor Authentication (2FA)'}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                    Tambahkan lapisan verifikasi ekstra saat masuk ke sistem ZEGA AI.
+                    {t.settingsView?.securityTab?.twoFaSubtitle || 'Tambahkan lapisan verifikasi ekstra saat masuk ke sistem ZEGA AI.'}
                   </p>
                 </div>
               </div>
@@ -385,36 +370,39 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-2.5 py-0.5 rounded-full font-black ${
-                  twoFactorEnabled ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'
+                <span className={`px-2.5 py-0.5 rounded-full font-bold ${
+                  twoFactorEnabled ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                 }`}>
-                  {twoFactorEnabled ? '2FA Aktif' : '2FA Non-Aktif'}
+                  {twoFactorEnabled ? (t.settingsView?.securityTab?.twoFaActive || '2FA Aktif') : (t.settingsView?.securityTab?.twoFaInactive || '2FA Non-Aktif')}
                 </span>
-                <span className="text-slate-400 font-medium">Metode: <strong className="text-slate-700 dark:text-slate-300">{twoFactorMethod}</strong></span>
+                <span className="text-slate-400 font-medium">{t.settingsView?.securityTab?.methodLabel || 'Metode:'} <strong className="text-slate-700 dark:text-slate-300 font-bold">{twoFactorMethod}</strong></span>
               </div>
 
               <button
-                onClick={() => setIs2faModalOpen(true)}
-                className="text-orange-500 hover:underline font-extrabold cursor-pointer self-start sm:self-auto"
+                onClick={() => {
+                  setSelected2faMethod(twoFactorMethod);
+                  setIs2faModalOpen(true);
+                }}
+                className="text-orange-500 hover:underline font-bold cursor-pointer self-start sm:self-auto"
               >
-                Ganti Metode
+                {t.settingsView?.securityTab?.changeMethodBtn || 'Ganti Metode'}
               </button>
             </div>
           </div>
 
           {/* 3. Perangkat & Sesi Aktif */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Perangkat & Sesi Aktif</h3>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Daftar perangkat yang memiliki akses aktif ke akun Anda.</p>
+                <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.sessionsTitle || 'Perangkat & Sesi Aktif'}</h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">{t.settingsView?.securityTab?.sessionsSubtitle || 'Daftar perangkat yang memiliki akses aktif ke akun Anda.'}</p>
               </div>
 
               <button
                 onClick={handleRevokeAllOtherSessions}
-                className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400 text-[11px] font-extrabold cursor-pointer transition-colors self-start sm:self-auto"
+                className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400 text-[11px] font-bold cursor-pointer transition-colors self-start sm:self-auto"
               >
-                Keluar Sesi Lain
+                {t.settingsView?.securityTab?.revokeAllBtn || 'Keluar Sesi Lain'}
               </button>
             </div>
 
@@ -422,8 +410,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               {activeSessions.length === 0 ? (
                 <div className="p-6 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                   <Laptop className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada sesi perangkat lain terdaftar</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Daftar perangkat yang memiliki akses aktif ke akun Anda akan ditampilkan di sini.</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t.settingsView?.securityTab?.noSessions || 'Belum ada sesi perangkat lain terdaftar'}</p>
                 </div>
               ) : (
                 activeSessions.map((session, idx) => (
@@ -438,13 +425,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{session.device_name || 'Perangkat Browser'} • {session.browser}</h4>
                           {session.is_current && (
-                            <span className="px-2 py-0.2 rounded-full text-[8.5px] font-black bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                              Perangkat Ini
+                            <span className="px-2 py-0.2 rounded-full text-[8.5px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                              {t.settingsView?.securityTab?.thisDevice || 'Perangkat Ini'}
                             </span>
                           )}
                         </div>
                         <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">
-                          {session.location} • <span className="font-mono">{session.ip_address}</span>
+                          {session.location} • <span className="tabular-nums font-semibold">{session.ip_address}</span>
                         </p>
                       </div>
                     </div>
@@ -468,41 +455,41 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
         {/* Right Column: IP Allowlist, Additional Security Settings, Security Checklist, SIEM Integrations */}
         <div className="space-y-6">
           {/* 4. Pengaturan Keamanan Lanjutan & IP Allowlist */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div>
-              <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Pengaturan Keamanan Lanjutan</h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Atur proteksi ekstra untuk membatasi akses ilegal.</p>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.advancedSecTitle || 'Pengaturan Keamanan Lanjutan'}</h3>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">{t.settingsView?.securityTab?.advancedSecSubtitle || 'Atur proteksi ekstra untuk membatasi akses ilegal.'}</p>
             </div>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Login dengan Email Magic Link</h4>
-                  <p className="text-[10px] text-slate-400">Izinkan masuk tanpa kata sandi via link verifikasi email.</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.magicLinkTitle || 'Login dengan Email Magic Link'}</h4>
+                  <p className="text-[10px] text-slate-400">{t.settingsView?.securityTab?.magicLinkDesc || 'Izinkan masuk tanpa kata sandi via link verifikasi email.'}</p>
                 </div>
                 {renderToggle(magicLinkLogin, (val) => { setMagicLinkLogin(val); handleSaveSecurity({ magic_link_login: val }); })}
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Verifikasi Perangkat Baru</h4>
-                  <p className="text-[10px] text-slate-400">Kirim notifikasi keamanan saat ada login dari perangkat baru.</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.newDeviceVerifyTitle || 'Verifikasi Perangkat Baru'}</h4>
+                  <p className="text-[10px] text-slate-400">{t.settingsView?.securityTab?.newDeviceVerifyDesc || 'Kirim notifikasi keamanan saat ada login dari perangkat baru.'}</p>
                 </div>
                 {renderToggle(newDeviceVerify, (val) => { setNewDeviceVerify(val); handleSaveSecurity({ new_device_verify: val }); })}
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Proteksi IP Allowlist</h4>
-                  <p className="text-[10px] text-slate-400">Batasi akses login hanya dari daftar IP tepercaya ({ipAllowlist.length} IP terdaftar).</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.ipAllowlistTitle || 'Proteksi IP Allowlist'}</h4>
+                  <p className="text-[10px] text-slate-400">{t.settingsView?.securityTab?.ipAllowlistDesc || 'Batasi akses login hanya dari daftar IP tepercaya'} ({ipAllowlist.length}).</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {renderToggle(ipAllowlistEnabled, (val) => { setIpAllowlistEnabled(val); handleSaveSecurity({ ip_allowlist_enabled: val }); })}
                   <button
                     onClick={() => setIsIpModalOpen(true)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-xs font-extrabold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700"
                   >
-                    Kelola IP
+                    {t.settingsView?.securityTab?.manageIpBtn || 'Kelola IP'}
                   </button>
                 </div>
               </div>
@@ -510,30 +497,29 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
           </div>
 
           {/* 5. External SIEM & Zero-Trust Integrations */}
-          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
             <div>
-              <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">Integrasi Tools Keamanan & SIEM</h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Hubungkan audit log & sistem autentikasi ke penyedia keamanan pihak ketiga.</p>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t.settingsView?.securityTab?.siemTitle || 'Integrasi Tools Keamanan & SIEM'}</h3>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">{t.settingsView?.securityTab?.siemSubtitle || 'Hubungkan audit log & sistem autentikasi ke penyedia keamanan pihak ketiga.'}</p>
             </div>
 
             <div className="space-y-3">
               {securityIntegrations.length === 0 ? (
                 <div className="p-6 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                   <Shield className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada integrasi SIEM terhubung</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Integrasi tools keamanan enterprise (Cloudflare Zero Trust, Datadog SIEM, Okta) akan muncul di sini.</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t.settingsView?.securityTab?.noSiem || 'Belum ada integrasi SIEM terhubung'}</p>
                 </div>
               ) : (
                 securityIntegrations.map((tool) => (
                   <div key={tool.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1.5 shrink-0 shadow-2xs">
+                      <div className="size-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1.5 shrink-0">
                         {renderBrandIcon(tool.tool_name)}
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                           <span>{tool.tool_name}</span>
-                          <span className={`px-2 py-0.2 rounded-full text-[8.5px] font-black ${
+                          <span className={`px-2 py-0.2 rounded-full text-[8.5px] font-bold ${
                             tool.status === 'Terhubung' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-500'
                           }`}>
                             {tool.status}
@@ -541,7 +527,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                         </h4>
                         <p className="text-[10px] text-slate-400 font-medium">{tool.category}</p>
                         {tool.alert_email && (
-                          <p className="text-[9.5px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                          <p className="text-[9.5px] text-slate-400 font-semibold tabular-nums mt-0.5 flex items-center gap-1">
                             <Mail size={10} className="text-slate-400" />
                             <span>{tool.alert_email}</span>
                           </p>
@@ -552,9 +538,9 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                     <div className="flex items-center gap-2 self-end sm:self-auto">
                       <button
                         onClick={() => openIntegrationModal(tool)}
-                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10.5px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
                       >
-                        Atur Webhook
+                        {t.settingsView?.securityTab?.setupWebhookBtn || 'Atur Webhook'}
                       </button>
                       {renderToggle(tool.status === 'Terhubung', () => handleToggleIntegrationStatus(tool))}
                     </div>
@@ -571,20 +557,20 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       {/* 1. Password Change Modal */}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <KeyRound size={18} className="text-orange-500" />
-                <span>Ubah Password Akun</span>
+                <span>{t.settingsView?.securityTab?.modalPassTitle || 'Ubah Password Akun'}</span>
               </h3>
-              <button onClick={() => setIsPasswordModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={() => setIsPasswordModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleChangePasswordSubmit} className="space-y-3.5 text-xs font-semibold">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Password Saat Ini</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">{t.settingsView?.securityTab?.currentPass || 'Password Saat Ini'}</label>
                 <input
                   type="password"
                   required
@@ -595,7 +581,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Password Baru (Minimal 8 Karakter)</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">{t.settingsView?.securityTab?.newPass || 'Password Baru (Minimal 8 Karakter)'}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -617,8 +603,8 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                 {newPassword && (
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-slate-400">Kekuatan Kata Sandi:</span>
-                      <span className="font-extrabold text-slate-700 dark:text-slate-300">{passStrength.label}</span>
+                      <span className="text-slate-400">{t.settingsView?.securityTab?.passStrengthLabel || 'Kekuatan Kata Sandi:'}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">{passStrength.label}</span>
                     </div>
                     <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div className={`h-full transition-all duration-300 ${passStrength.color}`} style={{ width: `${passStrength.score}%` }} />
@@ -628,7 +614,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               </div>
 
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Konfirmasi Password Baru</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">{t.settingsView?.securityTab?.confirmPass || 'Konfirmasi Password Baru'}</label>
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -642,15 +628,15 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                 <button
                   type="button"
                   onClick={() => setIsPasswordModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                 >
-                  Batal
+                  {t.settingsView?.billingTab?.cancelBtn || 'Batal'}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-sm shadow-orange-500/20"
+                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer"
                 >
-                  Simpan Password Baru
+                  {t.settingsView?.securityTab?.savePassBtn || 'Simpan Password Baru'}
                 </button>
               </div>
             </form>
@@ -661,13 +647,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       {/* 2. Change 2FA Method Modal */}
       {is2faModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <ShieldCheck size={18} className="text-orange-500" />
-                <span>Pilih Metode Autentikasi 2FA</span>
+                <span>{t.settingsView?.securityTab?.modal2faTitle || 'Pilih Metode Autentikasi 2FA'}</span>
               </h3>
-              <button onClick={() => setIs2faModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={() => setIs2faModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -683,11 +669,11 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               >
                 <Radio className={`size-4 mt-0.5 shrink-0 ${selected2faMethod === 'Authenticator App (TOTP)' ? 'text-orange-500' : 'text-slate-400'}`} />
                 <div>
-                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <span>Authenticator App (TOTP)</span>
-                    <span className="px-2 py-0.2 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-600">Rekomendasi</span>
+                    <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">{t.settingsView?.securityTab?.recommended || 'Rekomendasi'}</span>
                   </h4>
-                  <p className="text-[10.5px] text-slate-400 mt-0.5">Gunakan Google Authenticator, Authy, atau 1Password untuk kode 6-digit real-time.</p>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">{t.settingsView?.securityTab?.totpDesc || 'Gunakan Google Authenticator, Authy, atau 1Password untuk kode 6-digit real-time.'}</p>
                 </div>
               </label>
 
@@ -701,8 +687,8 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               >
                 <Radio className={`size-4 mt-0.5 shrink-0 ${selected2faMethod === 'SMS OTP' ? 'text-orange-500' : 'text-slate-400'}`} />
                 <div>
-                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100">SMS OTP</h4>
-                  <p className="text-[10.5px] text-slate-400 mt-0.5">Kirim kode verifikasi 6-digit via SMS ke nomor handphone terverifikasi.</p>
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100">SMS OTP</h4>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">{t.settingsView?.securityTab?.smsOtpDesc || 'Kirim kode verifikasi 6-digit via SMS ke nomor handphone terverifikasi.'}</p>
                 </div>
               </label>
 
@@ -716,8 +702,8 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               >
                 <Radio className={`size-4 mt-0.5 shrink-0 ${selected2faMethod === 'Email OTP' ? 'text-orange-500' : 'text-slate-400'}`} />
                 <div>
-                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100">Email OTP</h4>
-                  <p className="text-[10.5px] text-slate-400 mt-0.5">Kirim kode verifikasi 6-digit langsung ke alamat email terdaftar.</p>
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100">Email OTP</h4>
+                  <p className="text-[10.5px] text-slate-400 mt-0.5">{t.settingsView?.securityTab?.emailOtpDesc || 'Kirim kode verifikasi 6-digit langsung ke alamat email terdaftar.'}</p>
                 </div>
               </label>
             </div>
@@ -726,16 +712,16 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               <button
                 type="button"
                 onClick={() => setIs2faModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                Batal
+                {t.settingsView?.billingTab?.cancelBtn || 'Batal'}
               </button>
               <button
                 type="button"
                 onClick={handleSelect2faMethod}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-sm shadow-orange-500/20"
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer"
               >
-                Simpan Metode
+                {t.settingsView?.securityTab?.saveMethodBtn || 'Simpan Metode'}
               </button>
             </div>
           </div>
@@ -745,13 +731,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       {/* 3. IP Allowlist Modal */}
       {isIpModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Globe size={18} className="text-orange-500" />
-                <span>Kelola IP Allowlist</span>
+                <span>{t.settingsView?.securityTab?.modalIpTitle || 'Kelola IP Allowlist'}</span>
               </h3>
-              <button onClick={() => setIsIpModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={() => setIsIpModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -760,18 +746,18 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Contoh: 182.253.12.98"
+                  placeholder={t.settingsView?.securityTab?.ipPlaceholder || 'Contoh: 182.253.12.98'}
                   value={newIpInput}
                   onChange={e => setNewIpInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIpAddress())}
-                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono focus:outline-hidden focus:border-orange-500"
+                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 tabular-nums font-semibold focus:outline-hidden focus:border-orange-500"
                 />
                 <button
                   onClick={handleAddIpAddress}
-                  className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1 shadow-sm shadow-orange-500/20"
+                  className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1"
                 >
                   <Plus size={14} />
-                  <span>Tambah</span>
+                  <span>{t.settingsView?.securityTab?.addBtn || 'Tambah'}</span>
                 </button>
               </div>
 
@@ -780,13 +766,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                   <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700">
                     <div className="flex items-center gap-2">
                       <span className="size-2 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{ip}</span>
+                      <span className="text-xs tabular-nums font-bold text-slate-800 dark:text-slate-200">{ip}</span>
                     </div>
                     <button
                       onClick={() => handleRemoveIpAddress(ip)}
                       className="text-xs text-rose-500 hover:underline font-bold cursor-pointer"
                     >
-                      Hapus
+                      {t.settingsView?.billingTab?.deleteBtn || 'Hapus'}
                     </button>
                   </div>
                 ))}
@@ -798,7 +784,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                 onClick={() => setIsIpModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-xs cursor-pointer"
               >
-                Selesai
+                {t.settingsView?.billingTab?.doneBtn || 'Selesai'}
               </button>
             </div>
           </div>
@@ -808,13 +794,13 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
       {/* 4. SIEM Integration & Webhook Modal */}
       {isIntegrationModalOpen && selectedIntegration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Server size={18} className="text-orange-500" />
                 <span>Konfigurasi {selectedIntegration.tool_name}</span>
               </h3>
-              <button onClick={() => setIsIntegrationModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={() => setIsIntegrationModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -827,21 +813,21 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                   value={webhookUrlInput}
                   onChange={e => setWebhookUrlInput(e.target.value)}
                   placeholder="https://api.your-siem.com/v1/logs"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-[11px] focus:outline-hidden focus:border-orange-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-semibold tabular-nums text-[11px] focus:outline-hidden focus:border-orange-500"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1.5">
                   <Mail size={13} className="text-slate-400" />
-                  <span>Email Notifikasi & Security Alert</span>
+                  <span>{t.settingsView?.securityTab?.emailAlertLabel || 'Email Notifikasi & Security Alert'}</span>
                 </label>
                 <input
                   type="email"
                   value={alertEmailInput}
                   onChange={e => setAlertEmailInput(e.target.value)}
                   placeholder="security@zega.ai"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-[11px] focus:outline-hidden focus:border-orange-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-semibold tabular-nums text-[11px] focus:outline-hidden focus:border-orange-500"
                 />
               </div>
 
@@ -852,12 +838,12 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
                   value={apiTokenInput}
                   onChange={e => setApiTokenInput(e.target.value)}
                   placeholder="••••••••••••••••••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-[11px] focus:outline-hidden focus:border-orange-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-semibold tabular-nums text-[11px] focus:outline-hidden focus:border-orange-500"
                 />
               </div>
 
-              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 text-[10.5px] text-amber-800 dark:text-amber-300">
-                <strong>Catatan Integrasi:</strong> Audit trail login & insiden keamanan akan dikirim ke <code>{alertEmailInput}</code> dan webhook {selectedIntegration.tool_name} secara real-time.
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 text-[10.5px] text-amber-800 dark:text-amber-300 font-medium">
+                <strong>{t.settingsView?.securityTab?.integrationNote || 'Catatan Integrasi:'}</strong> {t.settingsView?.securityTab?.integrationDesc || 'Audit trail login & insiden keamanan akan dikirim ke'} <code>{alertEmailInput}</code>.
               </div>
             </div>
 
@@ -865,16 +851,16 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
               <button
                 type="button"
                 onClick={() => setIsIntegrationModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                Batal
+                {t.settingsView?.billingTab?.cancelBtn || 'Batal'}
               </button>
               <button
                 type="button"
                 onClick={handleSaveIntegrationSettings}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-sm shadow-orange-500/20"
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer"
               >
-                Simpan Konfigurasi
+                {t.settingsView?.securityTab?.saveConfigBtn || 'Simpan Konfigurasi'}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface IntegrationsTabProps {
   triggerToast: (msg: string) => void;
@@ -47,6 +48,7 @@ function IntegrationBrandLogo({ name, integrationKey }: { name?: string; integra
 }
 
 export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: initialWebhookUrl, onRefresh }: IntegrationsTabProps) {
+  const { t } = useLanguage();
   const [showPublic, setShowPublic] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [currentWebhookUrl, setCurrentWebhookUrl] = useState(initialWebhookUrl || 'https://zega-ai.onrender.com/api/v1/webhook');

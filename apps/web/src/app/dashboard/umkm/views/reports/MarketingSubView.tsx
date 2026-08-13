@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../../../../../i18n/translations';
 import {
   Megaphone, TrendingUp, Eye, MousePointerClick, Plus,
   FileText, Send, Clock, X, ShieldCheck, CheckCircle2,
@@ -44,6 +45,8 @@ interface MarketingSubViewProps {
 }
 
 export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewProps) {
+  const { t } = useLanguage();
+  const m = t.marketingView;
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -227,10 +230,10 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
   const lineOpts: any = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 12 }},
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', cornerRadius: 12 } },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' }},
-      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 10 }, color: '#94a3b8' }}
+      x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' as const }, color: '#94a3b8' } },
+      y: { grid: { color: 'rgba(226,232,240,0.5)' }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
     }
   };
 
@@ -256,13 +259,13 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
           </div>
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Intelijen Pemasaran & Otomasi Campaign</span>
+              <span>{m.headerTitle || 'Intelijen Pemasaran & Otomasi Campaign'}</span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1">
-                <Cpu size={12} className="text-orange-500" /> ZeroClaw Engine Active
+                <Cpu size={12} className="text-orange-500" /> {m.zeroClawEngineActive || 'ZeroClaw Engine Active'}
               </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Analisis efisiensi channel, konversi campaign, dan eksekusi iklan multi-platform terintegrasi.
+              {m.headerSubtitle || 'Analisis efisiensi channel, konversi campaign, dan eksekusi iklan multi-platform terintegrasi.'}
             </p>
           </div>
         </div>
@@ -273,14 +276,14 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
             className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <Plus size={14} />
-            <span>Launch AI Campaign</span>
+            <span>{m.launchAiCampaign || 'Launch AI Campaign'}</span>
           </button>
           <button
             onClick={() => setIsReportModalOpen(true)}
             className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
           >
             <FileText size={15} />
-            <span>Create Marketing Report</span>
+            <span>{m.createMarketingReport || 'Create Marketing Report'}</span>
           </button>
         </div>
       </div>
@@ -288,10 +291,10 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
       {/* 2. Marketing Diagnostic KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Campaign', val: `${campaigns.length}`, sub: `${campaigns.filter((c: any) => c.status === 'Aktif').length} aktif`, icon: Megaphone, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
-          { label: 'Total Reach', val: `${(totalReach / 1000).toFixed(1)}K`, sub: `+${marketingKpi.reach_growth_pct || 0}% vs bulan lalu`, icon: Eye, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
-          { label: 'Click-Through Rate', val: `${avgCTR}%`, sub: `+${marketingKpi.ctr_growth_pct || 0}% vs bulan lalu`, icon: MousePointerClick, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
-          { label: 'Marketing ROI', val: `${avgROI}%`, sub: 'Avg. semua channel', icon: TrendingUp, bg: 'bg-orange-50 dark:bg-orange-950/60', text: 'text-orange-600' },
+          { label: m.totalCampaign || 'Total Campaign', val: `${campaigns.length}`, sub: `${campaigns.filter((c: any) => c.status === 'Aktif').length} ${m.statusAktif || 'aktif'}`, icon: Megaphone, bg: 'bg-blue-50 dark:bg-blue-950/60', text: 'text-blue-600' },
+          { label: m.totalReach || 'Total Reach', val: `${(totalReach / 1000).toFixed(1)}K`, sub: `+${marketingKpi.reach_growth_pct || 0}% ${m.vsLastMonth || 'vs bulan lalu'}`, icon: Eye, bg: 'bg-purple-50 dark:bg-purple-950/60', text: 'text-purple-600' },
+          { label: m.clickThroughRate || 'Click-Through Rate', val: `${avgCTR}%`, sub: `+${marketingKpi.ctr_growth_pct || 0}% ${m.vsLastMonth || 'vs bulan lalu'}`, icon: MousePointerClick, bg: 'bg-emerald-50 dark:bg-emerald-950/60', text: 'text-emerald-600' },
+          { label: m.marketingRoi || 'Marketing ROI', val: `${avgROI}%`, sub: m.avgAllChannels || 'Avg. semua channel', icon: TrendingUp, bg: 'bg-orange-50 dark:bg-orange-950/60', text: 'text-orange-600' },
         ].map((card, i) => {
           const Icon = card.icon;
           return (
@@ -315,8 +318,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
         {/* Engagement Over Time */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Marketing Engagement Trend</h3>
-            <p className="text-[11px] text-slate-400">Pertumbuhan impresi, klik, dan konversi mingguan</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.engagementTrendTitle || 'Marketing Engagement Trend'}</h3>
+            <p className="text-[11px] text-slate-400">{m.engagementTrendSubtitle || 'Pertumbuhan impresi, klik, dan konversi mingguan'}</p>
           </div>
           <div className="h-56"><Line data={engagementData} options={lineOpts} /></div>
         </div>
@@ -324,8 +327,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
         {/* Channel ROI */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">ROI per Channel Pemasaran</h3>
-            <p className="text-[11px] text-slate-400">Efisiensi biaya (spend) vs omset (revenue) per platform</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.channelRoiTitle || 'ROI per Channel Pemasaran'}</h3>
+            <p className="text-[11px] text-slate-400">{m.channelRoiSubtitle || 'Efisiensi biaya (spend) vs omset (revenue) per platform'}</p>
           </div>
           <div className="space-y-3">
             {channelROI.map((ch: any, i: number) => {
@@ -348,8 +351,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                     <span className="text-xs font-black text-emerald-600">ROI {ch.roi_pct}%</span>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                    <span>Spend: Rp{((ch.spend_idr || 0) / 1000000).toFixed(1)}M</span>
-                    <span>Revenue: Rp{((ch.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
+                    <span>{m.spend || 'Spend:'} Rp{((ch.spend_idr || 0) / 1000000).toFixed(1)}M</span>
+                    <span>{m.revenue || 'Revenue:'} Rp{((ch.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
                   </div>
                   <div className="mt-1.5 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((ch.roi_pct || 0) / 5, 100)}%`, backgroundColor: ch.color_hex }} />
@@ -368,8 +371,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
             <div className="flex items-center gap-2">
               <Megaphone size={16} className="text-purple-600 dark:text-purple-400" />
               <div>
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Daftar Campaign Pemasaran Active</h3>
-                <p className="text-[11px] text-slate-400">Database campaign terintegrasi Supabase Realtime</p>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.activeCampaignsList || 'Daftar Campaign Pemasaran Active'}</h3>
+                <p className="text-[11px] text-slate-400">{m.activeCampaignsSub || 'Database campaign terintegrasi Supabase Realtime'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -377,7 +380,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                 <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari campaign..."
+                  placeholder={m.searchCampaignPlaceholder || 'Cari campaign...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none text-slate-900 dark:text-slate-100 w-36"
@@ -387,7 +390,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                 onClick={() => setIsLaunchModalOpen(true)}
                 className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
               >
-                <Plus size={13} /> Buat Campaign
+                <Plus size={13} /> {m.createCampaignBtn || 'Buat Campaign'}
               </button>
             </div>
           </div>
@@ -396,17 +399,19 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
             <table className="w-full text-left text-xs font-medium">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-2.5 px-3">CAMPAIGN</th>
-                  <th className="py-2.5 px-3">CHANNEL</th>
-                  <th className="py-2.5 px-3 text-center">STATUS</th>
-                  <th className="py-2.5 px-3 text-center">SENT / REACH</th>
-                  <th className="py-2.5 px-3 text-right">REVENUE (RP)</th>
-                  <th className="py-2.5 px-3 text-right">AKSI</th>
+                  <th className="py-2.5 px-3">{m.colCampaign || 'CAMPAIGN'}</th>
+                  <th className="py-2.5 px-3">{m.colChannel || 'CHANNEL'}</th>
+                  <th className="py-2.5 px-3 text-center">{m.colStatus || 'STATUS'}</th>
+                  <th className="py-2.5 px-3 text-center">{m.colSentReach || 'SENT / REACH'}</th>
+                  <th className="py-2.5 px-3 text-right">{m.colRevenueIdr || 'REVENUE (RP)'}</th>
+                  <th className="py-2.5 px-3 text-right">{m.colActions || 'AKSI'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredCampaigns.map((c: any, i: number) => {
                   const channelLogo = CHANNEL_CDN_LOGOS[c.channel] || CHANNEL_CDN_LOGOS['WhatsApp'];
+                  const statusLabel = c.status === 'Aktif' ? (m.statusAktif || 'Aktif') : c.status === 'Selesai' ? (m.statusSelesai || 'Selesai') : (m.statusPaused || 'Paused');
+                  const actionLabel = c.status === 'Aktif' ? (m.actionPause || 'Pause') : (m.actionActivate || 'Aktifkan');
                   return (
                     <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-3 font-extrabold text-slate-900 dark:text-slate-100">
@@ -427,9 +432,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                         </div>
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : c.status === 'Selesai' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
-                        }`}>{c.status}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : c.status === 'Selesai' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
+                          }`}>{statusLabel}</span>
                       </td>
                       <td className="py-3 px-3 text-center font-mono font-bold">{(c.sent_count || 0).toLocaleString()}</td>
                       <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
@@ -440,7 +444,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                           onClick={() => toggleCampaignStatus(i)}
                           className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer transition-colors"
                         >
-                          {c.status === 'Aktif' ? 'Pause' : 'Aktifkan'}
+                          {actionLabel}
                         </button>
                       </td>
                     </tr>
@@ -453,8 +457,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Content Performance</h3>
-            <p className="text-[11px] text-slate-400">Konten kreatif dengan engagement & lead konversi tertinggi</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.topContentTitle || 'Top Content Performance'}</h3>
+            <p className="text-[11px] text-slate-400">{m.topContentSub || 'Konten kreatif dengan engagement & lead konversi tertinggi'}</p>
           </div>
           <div className="space-y-2.5">
             {topContent.map((c: any, i: number) => (
@@ -467,7 +471,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                   <div className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
                     <span><Eye size={10} className="inline mr-0.5" />{(c.views || 0).toLocaleString()} views</span>
                     <span>Eng. {c.engagement_pct}%</span>
-                    <span className="text-emerald-600 font-bold">{c.leads_generated} leads</span>
+                    <span className="text-emerald-600 font-bold">{c.leads_generated} {m.leads || 'leads'}</span>
                   </div>
                 </div>
               </div>
@@ -482,15 +486,15 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
           <div className="flex items-center gap-2">
             <FileText size={16} className="text-emerald-600 dark:text-emerald-400" />
             <div>
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Riwayat Otomasi Laporan Marketing</h3>
-              <p className="text-[11px] text-slate-400">Audit log laporan terbitan ZeroClaw Marketing Engine</p>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{m.reportsHistoryTitle || 'Riwayat Otomasi Laporan Marketing'}</h3>
+              <p className="text-[11px] text-slate-400">{m.reportsHistorySub || 'Audit log laporan terbitan ZeroClaw Marketing Engine'}</p>
             </div>
           </div>
           <button
             onClick={() => setIsReportModalOpen(true)}
             className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold cursor-pointer transition-colors shadow-xs flex items-center gap-1"
           >
-            <Plus size={13} /> Generate Laporan Baru
+            <Plus size={13} /> {m.generateNewReportBtn || 'Generate Laporan Baru'}
           </button>
         </div>
 
@@ -498,19 +502,19 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
           <table className="w-full text-left text-xs font-medium">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-2.5 px-3">JENIS LAPORAN</th>
-                <th className="py-2.5 px-3 text-center">FORMAT</th>
-                <th className="py-2.5 px-3 text-center">PERIODE</th>
-                <th className="py-2.5 px-3 text-center">STATUS</th>
-                <th className="py-2.5 px-3 text-right">TANGGAL GENERATE</th>
-                <th className="py-2.5 px-3 text-right">AKSI</th>
+                <th className="py-2.5 px-3">{m.colReportType || 'JENIS LAPORAN'}</th>
+                <th className="py-2.5 px-3 text-center">{m.colFormat || 'FORMAT'}</th>
+                <th className="py-2.5 px-3 text-center">{m.colPeriod || 'PERIODE'}</th>
+                <th className="py-2.5 px-3 text-center">{m.colStatus || 'STATUS'}</th>
+                <th className="py-2.5 px-3 text-right">{m.colGeneratedDate || 'TANGGAL GENERATE'}</th>
+                <th className="py-2.5 px-3 text-right">{m.colActions || 'AKSI'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {reportsAutomation.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-slate-400 text-xs font-medium">
-                    Belum ada laporan marketing yang dibuat. Klik "Create Marketing Report" untuk membuat laporan baru.
+                    {m.noReportsEmpty || 'Belum ada laporan marketing yang dibuat. Klik "Create Marketing Report" untuk membuat laporan baru.'}
                   </td>
                 </tr>
               ) : (
@@ -520,9 +524,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                       {rep.report_type}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                        rep.file_format === 'PDF' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${rep.file_format === 'PDF' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                        }`}>
                         {rep.file_format}
                       </span>
                     </td>
@@ -554,7 +557,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                         }}
                         className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1 ml-auto"
                       >
-                        <Download size={11} /> Download
+                        <Download size={11} /> {m.downloadBtn || 'Download'}
                       </button>
                     </td>
                   </tr>
@@ -575,8 +578,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                   <Megaphone size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">ZeroClaw Launch AI Campaign</h3>
-                  <p className="text-xs text-slate-400">Otomasi peluncuran iklan & broadcast berbasis AI Copywriting</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{m.modalLaunchTitle || 'ZeroClaw Launch AI Campaign'}</h3>
+                  <p className="text-xs text-slate-400">{m.modalLaunchSub || 'Otomasi peluncuran iklan & broadcast berbasis AI Copywriting'}</p>
                 </div>
               </div>
               <button onClick={() => setIsLaunchModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -584,11 +587,11 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
             <form onSubmit={handleLaunchCampaign} className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Nama Campaign Pemasaran *</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.campaignNameLabel || 'Nama Campaign Pemasaran *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Flash Sale Akhir Bulan / Promo Member VIP"
+                  placeholder={m.campaignNamePlaceholder || 'Contoh: Flash Sale Akhir Bulan / Promo Member VIP'}
                   value={newCampaignName}
                   onChange={(e) => setNewCampaignName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none"
@@ -597,7 +600,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Channel Pemasaran</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.channelLabel || 'Channel Pemasaran'}</label>
                   <select
                     value={newCampaignChannel}
                     onChange={(e) => setNewCampaignChannel(e.target.value)}
@@ -611,38 +614,38 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Target Segmentasi Audiens</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.targetAudienceLabel || 'Target Segmentasi Audiens'}</label>
                   <select
                     value={newCampaignAudience}
                     onChange={(e) => setNewCampaignAudience(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                   >
-                    <option value="Pelanggan Setia (RFM Champions)">Pelanggan Setia (RFM Champions)</option>
-                    <option value="Pelanggan Churn Potential">Pelanggan Churn Potential</option>
-                    <option value="Audiens Baru (Prospective Leads)">Audiens Baru (Prospective Leads)</option>
+                    <option value="Pelanggan Setia (RFM Champions)">{m.audChampions || 'Pelanggan Setia (RFM Champions)'}</option>
+                    <option value="Pelanggan Churn Potential">{m.audChurn || 'Pelanggan Churn Potential'}</option>
+                    <option value="Audiens Baru (Prospective Leads)">{m.audLeads || 'Audiens Baru (Prospective Leads)'}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Tipe Media Creative</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.mediaTypeLabel || 'Tipe Media Creative'}</label>
                   <select
                     value={mediaType}
                     onChange={(e: any) => setMediaType(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                   >
-                    <option value="IMAGE">Banner Gambar (PNG/JPG)</option>
-                    <option value="VIDEO">Video Short / Reel (MP4/WebM)</option>
-                    <option value="CAROUSEL">Carousel Multi-Gambar</option>
+                    <option value="IMAGE">{m.mediaBanner || 'Banner Gambar (PNG/JPG)'}</option>
+                    <option value="VIDEO">{m.mediaVideo || 'Video Short / Reel (MP4/WebM)'}</option>
+                    <option value="CAROUSEL">{m.mediaCarousel || 'Carousel Multi-Gambar'}</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-extrabold text-slate-700 dark:text-slate-300">Kode Promo Voucher</label>
+                  <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.promoCodeLabel || 'Kode Promo Voucher'}</label>
                   <input
                     type="text"
-                    placeholder="Contoh: ZEGA-AI-VIP"
+                    placeholder={m.promoCodePlaceholder || 'Contoh: ZEGA-AI-VIP'}
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none uppercase"
@@ -653,8 +656,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
               {/* Upload Media Banner / Video Dropzone to Cloudflare R2 CDN */}
               <div className="space-y-1.5">
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>Upload Media Banner / Video Promo (R2 CDN)</span>
-                  {isUploadingMedia && <span className="text-purple-600 text-[10px] animate-pulse">Mengunggah ke CDN...</span>}
+                  <span>{m.uploadMediaLabel || 'Upload Media Banner / Video Promo (R2 CDN)'}</span>
+                  {isUploadingMedia && <span className="text-purple-600 text-[10px] animate-pulse">{m.uploadingCdn || 'Mengunggah ke CDN...'}</span>}
                 </label>
                 <div className="border-2 border-dashed border-purple-300 dark:border-purple-900/60 rounded-2xl p-3 text-center bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50 transition-colors relative cursor-pointer">
                   <input
@@ -668,10 +671,10 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                       <Download size={16} className="rotate-180" />
                     </div>
                     <p className="text-[11px] font-extrabold text-purple-900 dark:text-purple-200">
-                      Klik atau tarik file Banner Gambar / Video Promo di sini
+                      {m.uploadPrompt || 'Klik atau tarik file Banner Gambar / Video Promo di sini'}
                     </p>
                     <p className="text-[9px] text-slate-400">
-                      Mendukung PNG, JPG, MP4, WebM up to 100MB (Otomatis Sync ke R2 CDN)
+                      {m.uploadSub || 'Mendukung PNG, JPG, MP4, WebM up to 100MB (Otomatis Sync ke R2 CDN)'}
                     </p>
                   </div>
                 </div>
@@ -690,7 +693,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Target URL Landing Page (CTA Link)</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.ctaUrlLabel || 'Target URL Landing Page (CTA Link)'}</label>
                 <input
                   type="url"
                   placeholder="https://zega.ai/promo/flash-sale"
@@ -702,7 +705,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
               <div className="space-y-1">
                 <label className="font-extrabold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <Cpu size={12} className="text-purple-500" /> Pratinjau Teks Iklan AI Copywriting (9Router Swarm)
+                  <Cpu size={12} className="text-purple-500" /> {m.aiCopyLabel || 'Pratinjau Teks Iklan AI Copywriting (9Router Swarm)'}
                 </label>
                 <textarea
                   rows={2}
@@ -714,7 +717,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsLaunchModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                  Batal
+                  {m.cancel || 'Batal'}
                 </button>
                 <button
                   type="submit"
@@ -722,7 +725,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                   className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {isLaunching ? <Clock size={14} className="animate-spin" /> : <Send size={14} />}
-                  <span>{isLaunching ? 'Meluncurkan...' : 'Luncurkan AI Campaign'}</span>
+                  <span>{isLaunching ? (m.launching || 'Meluncurkan...') : (m.launchBtn || 'Luncurkan AI Campaign')}</span>
                 </button>
               </div>
             </form>
@@ -740,8 +743,8 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Automation Create Marketing Reports</h3>
-                  <p className="text-xs text-slate-400">Generate laporan efisiensi campaign & ROI channel</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{m.modalReportTitle || 'Automation Create Marketing Reports'}</h3>
+                  <p className="text-xs text-slate-400">{m.modalReportSub || 'Generate laporan efisiensi campaign & ROI channel'}</p>
                 </div>
               </div>
               <button onClick={() => setIsReportModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -749,41 +752,41 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Jenis Laporan Marketing</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.reportTypeLabel || 'Jenis Laporan Marketing'}</label>
                 <select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="Campaign_ROI_Summary">Laporan Ringkasan ROI & Konversi Campaign</option>
-                  <option value="Channel_Performance">Analisis Efisiensi Biaya per Channel Pemasaran</option>
-                  <option value="Audience_Engagement">Audit Engagement Funnel & Lead Content</option>
+                  <option value="Campaign_ROI_Summary">{m.repRoiSummary || 'Laporan Ringkasan ROI & Konversi Campaign'}</option>
+                  <option value="Channel_Performance">{m.repChannelEff || 'Analisis Efisiensi Biaya per Channel Pemasaran'}</option>
+                  <option value="Audience_Engagement">{m.repFunnelAudit || 'Audit Engagement Funnel & Lead Content'}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="font-extrabold text-slate-700 dark:text-slate-300">Format File Export</label>
+                <label className="font-extrabold text-slate-700 dark:text-slate-300">{m.exportFormatLabel || 'Format File Export'}</label>
                 <select
                   value={reportFormat}
                   onChange={(e) => setReportFormat(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
                 >
-                  <option value="PDF">Dokumen PDF Resmi (.pdf)</option>
-                  <option value="CSV">Microsoft Excel / CSV (.csv)</option>
+                  <option value="PDF">{m.optPdf || 'Dokumen PDF Resmi (.pdf)'}</option>
+                  <option value="CSV">{m.optCsv || 'Microsoft Excel / CSV (.csv)'}</option>
                 </select>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> ZeroClaw Report Engine Active</span>
+                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {m.zeroClawReportEngineActive || 'ZeroClaw Report Engine Active'}</span>
                 <p className="leading-relaxed">
-                  Laporan akan mengompilasi metrik impresi, CTR, spend IDR, dan revenue IDR terverifikasi dari Supabase.
+                  {m.reportEngineDesc || 'Laporan akan mengompilasi metrik impresi, CTR, spend IDR, dan revenue IDR terverifikasi dari Supabase.'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => setIsReportModalOpen(false)} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-                Batal
+                {m.cancel || 'Batal'}
               </button>
               <button
                 onClick={handleGenerateMarketingReport}
@@ -791,7 +794,7 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
                 className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isGeneratingReport ? <Clock size={14} className="animate-spin" /> : <FileText size={14} />}
-                <span>{isGeneratingReport ? 'Generating...' : 'Generate & Download Laporan'}</span>
+                <span>{isGeneratingReport ? (m.generating || 'Generating...') : (m.generateDownloadReportBtn || 'Generate & Download Laporan')}</span>
               </button>
             </div>
           </div>

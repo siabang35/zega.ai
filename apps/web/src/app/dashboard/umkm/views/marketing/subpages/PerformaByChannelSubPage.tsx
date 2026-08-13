@@ -569,7 +569,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
                 />
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                    Audit Detail: {selectedAuditChannel.channel_name}
+                    {m.channelAuditTitle || 'Audit Detail Channel'}: {selectedAuditChannel.channel_name}
                   </h3>
                   <p className="text-xs text-slate-400">Record detail terautentikasi Supabase DB</p>
                 </div>

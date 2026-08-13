@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ export function UpgradePlanModal({
   triggerToast,
   onRefresh
 }: ModalProps & { currentPlan: any }) {
+  const { t } = useLanguage();
+  const k = t.billingView || {};
+
   const [selectedPlan, setSelectedPlan] = useState('Growth');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -33,23 +37,23 @@ export function UpgradePlanModal({
       name: 'Starter',
       price: 99000,
       priceLabel: 'Rp99.000 /bln',
-      desc: 'Cocok untuk UMKM pemula yang baru memulai otomatisasi.',
-      features: ['2 AI Employees', '1.000 AI Credits/bln', 'Standard Support', '5GB Storage']
+      desc: k.starterPlanDesc || 'Cocok untuk UMKM pemula yang baru memulai otomatisasi.',
+      features: ['2 AI Employees', '1.000 AI Credits/bln', k.standardSupport || 'Standard Support', '5GB Storage']
     },
     {
       name: 'Growth',
       price: 299000,
       priceLabel: 'Rp299.000 /bln',
-      badge: 'Populer',
-      desc: 'Untuk bisnis berkembang dengan tim & channel penjualan aktif.',
-      features: ['10 AI Employees', 'Unlimited Automation', '5.000 AI Credits/bln', 'Priority Support', '50GB Storage']
+      badge: k.popularBadge || 'Populer',
+      desc: k.growthPlanDesc || 'Untuk bisnis berkembang dengan tim & channel penjualan aktif.',
+      features: ['10 AI Employees', k.unlimitedAutomation || 'Unlimited Automation', '5.000 AI Credits/bln', k.prioritySupport || 'Priority Support', '50GB Storage']
     },
     {
       name: 'Enterprise',
       price: 999000,
       priceLabel: 'Rp999.000 /bln',
-      desc: 'Solusi enterprise dengan kustomisasi AI tanpa batas.',
-      features: ['Unlimited AI Employees', 'Unlimited AI Credits', 'Dedicated Account Manager', '500GB Storage', 'Custom API Integration']
+      desc: k.enterprisePlanDesc || 'Solusi enterprise dengan kustomisasi AI tanpa batas.',
+      features: ['Unlimited AI Employees', 'Unlimited AI Credits', k.dedicatedManager || 'Dedicated Account Manager', '500GB Storage', k.customApiIntegration || 'Custom API Integration']
     }
   ];
 
@@ -78,8 +82,8 @@ export function UpgradePlanModal({
               <Zap size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Pilih Paket Langganan ZEGA AI</h3>
-              <p className="text-xs text-slate-400">Tingkatkan kapasitas AI Employee & fitur bisnis Anda</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.upgradeModalTitle || 'Pilih Paket Langganan ZEGA AI'}</h3>
+              <p className="text-xs text-slate-400">{k.upgradeModalSub || 'Tingkatkan kapasitas AI Employee & fitur bisnis Anda'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -132,7 +136,7 @@ export function UpgradePlanModal({
                   }`}
                 >
                   {isProcessing && <Clock size={14} className="animate-spin" />}
-                  <span>{isCurrent ? 'Paket Saat Ini' : 'Pilih Paket Ini'}</span>
+                  <span>{isCurrent ? (k.currentPlanBadge || 'Paket Saat Ini') : (k.chooseThisPlanBtn || 'Pilih Paket Ini')}</span>
                 </button>
               </div>
             );
@@ -140,9 +144,9 @@ export function UpgradePlanModal({
         </div>
 
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-          <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-emerald-500" /> Garansi Pembatalan Kapan Saja</span>
+          <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-emerald-500" /> {k.cancellationGuarantee || 'Garansi Pembatalan Kapan Saja'}</span>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-            Tutup
+            {k.cancelBtn || 'Tutup'}
           </button>
         </div>
       </div>
@@ -154,6 +158,9 @@ export function UpgradePlanModal({
  * 2. Add Payment Method Modal (with Physical Card Photo & Extended Enterprise Telemetry)
  */
 export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh }: ModalProps) {
+  const { t } = useLanguage();
+  const k = t.billingView || {};
+
   const [methodType, setMethodType] = useState('Kartu Kredit');
   const [methodName, setMethodName] = useState('');
   const [cardHolderName, setCardHolderName] = useState('');
@@ -319,8 +326,8 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
               <CreditCard size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Metode Pembayaran</h3>
-              <p className="text-xs text-slate-400">Tambahkan kanal pembayaran toko UMKM Anda</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.addPaymentTitle || 'Tambah Metode Pembayaran'}</h3>
+              <p className="text-xs text-slate-400">{k.addPaymentSub || 'Tambahkan kanal pembayaran toko UMKM Anda'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"><X size={18} /></button>
@@ -330,7 +337,7 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
           {/* Physical Card / Proof Photo Upload Section */}
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
             <label className="text-slate-700 dark:text-slate-300 font-extrabold flex items-center gap-1.5">
-              <span>Foto Kartu Fisik / Bukti Pembayaran (Opsional)</span>
+              <span>{k.cardPhotoLabel || 'Foto Kartu Fisik / Bukti Pembayaran (Opsional)'}</span>
             </label>
 
             <input
@@ -363,7 +370,7 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
                     className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-[11px] hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Upload size={12} />
-                    <span>Pilih Berkas Perangkat</span>
+                    <span>{k.chooseFileBtn || 'Pilih Berkas Perangkat'}</span>
                   </button>
                 </div>
                 <input
@@ -382,29 +389,29 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Tipe Metode Pembayaran</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.paymentTypeLabel || 'Tipe Metode Pembayaran'}</label>
               <select
                 value={methodType}
                 onChange={(e) => setMethodType(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
               >
-                <option value="Kartu Kredit">Kartu Kredit / Debit (Visa / Mastercard)</option>
-                <option value="Virtual Account">QRIS / Bank Virtual Account</option>
-                <option value="GoPay">GoPay E-Wallet</option>
-                <option value="DANA">DANA E-Wallet</option>
-                <option value="OVO">OVO E-Wallet</option>
-                <option value="Solana USDC">Solana Pay x402 Crypto Wallet</option>
+                <option value="Kartu Kredit">{k.creditCardOption || 'Kartu Kredit / Debit (Visa / Mastercard)'}</option>
+                <option value="Virtual Account">{k.virtualAccountOption || 'QRIS / Bank Virtual Account'}</option>
+                <option value="GoPay">{k.goPayOption || 'GoPay E-Wallet'}</option>
+                <option value="DANA">{k.danaOption || 'DANA E-Wallet'}</option>
+                <option value="OVO">{k.ovoOption || 'OVO E-Wallet'}</option>
+                <option value="Solana USDC">{k.solanaOption || 'Solana Pay x402 Crypto Wallet'}</option>
               </select>
             </div>
 
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nama Pemilik / Atas Nama</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.cardHolderLabel || 'Nama Pemilik / Atas Nama'}</label>
               <input
                 type="text"
                 required
                 value={cardHolderName}
                 onChange={(e) => setCardHolderName(e.target.value)}
-                placeholder="Contoh: CikCik Berluk"
+                placeholder={k.cardHolderPlaceholder || 'Contoh: CikCik Berluk'}
                 className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
               />
             </div>
@@ -413,7 +420,7 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
           {methodType === 'Kartu Kredit' ? (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-slate-700 dark:text-slate-300 font-extrabold">4 Digit Terakhir Kartu</label>
+                <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.last4Label || '4 Digit Terakhir Kartu'}</label>
                 <input
                   type="text"
                   maxLength={4}
@@ -425,7 +432,7 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-700 dark:text-slate-300 font-extrabold">Masa Berlaku (MM/YY)</label>
+                <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.expDateLabel || 'Masa Berlaku (MM/YY)'}</label>
                 <input
                   type="text"
                   maxLength={5}
@@ -439,17 +446,17 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nama Bank / Provider</label>
+                <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.bankNameLabel || 'Nama Bank / Provider'}</label>
                 <input
                   type="text"
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
-                  placeholder="Contoh: BCA / Mandiri / GoPay"
+                  placeholder={k.bankNamePlaceholder || 'Contoh: BCA / Mandiri / GoPay'}
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nomor Akun / Virtual Account</label>
+                <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.accountNumberLabel || 'Nomor Akun / Virtual Account'}</label>
                 <input
                   type="text"
                   value={accountNumber}
@@ -462,12 +469,12 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
           )}
 
           <div className="space-y-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nama Label Kustom (Opsional)</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.customLabel || 'Nama Label Kustom (Opsional)'}</label>
             <input
               type="text"
               value={methodName}
               onChange={(e) => setMethodName(e.target.value)}
-              placeholder="Contoh: Kartu Debit Operasional Toko CikCik"
+              placeholder={k.customLabelPlaceholder || 'Contoh: Kartu Debit Operasional Toko CikCik'}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
             />
           </div>
@@ -481,13 +488,13 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
               className="size-4 rounded-md border-slate-300 text-orange-500 focus:ring-orange-500"
             />
             <label htmlFor="makePrimaryCheck" className="text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer select-none">
-              Jadikan sebagai metode utama perpanjangan otomatis toko
+              {k.makePrimaryCheck || 'Jadikan sebagai metode utama perpanjangan otomatis toko'}
             </label>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-              Batal
+              {k.cancelBtn || 'Batal'}
             </button>
             <button
               type="submit"
@@ -495,7 +502,7 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
               className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
             >
               {isSaving && <Clock size={14} className="animate-spin" />}
-              <span>Simpan & Verifikasi Card</span>
+              <span>{k.saveVerifyBtn || 'Simpan & Verifikasi Card'}</span>
             </button>
           </div>
         </form>
@@ -514,6 +521,8 @@ export function ConfirmDeletePaymentModal({
   triggerToast,
   onConfirm
 }: ModalProps & { paymentMethod: any; onConfirm: () => void }) {
+  const { t } = useLanguage();
+  const k = t.billingView || {};
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen || !paymentMethod) return null;
@@ -533,20 +542,20 @@ export function ConfirmDeletePaymentModal({
             <X size={22} className="stroke-[3]" />
           </div>
           <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Konfirmasi Hapus Metode Pembayaran</h3>
-            <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan</p>
+            <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.confirmDeleteTitle || 'Konfirmasi Hapus Metode Pembayaran'}</h3>
+            <p className="text-xs text-slate-400">{k.confirmDeleteSub || 'Tindakan ini tidak dapat dibatalkan'}</p>
           </div>
         </div>
 
         <div className="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300 font-semibold space-y-1">
           <p className="font-extrabold text-sm">{paymentMethod.method_name}</p>
           <p className="text-[11px] text-rose-600 dark:text-rose-400">• Tipe: {paymentMethod.method_type}</p>
-          <p className="text-[11px] text-rose-600 dark:text-rose-400">• Status: {paymentMethod.status || 'Aktif'}</p>
+          <p className="text-[11px] text-rose-600 dark:text-rose-400">• Status: {paymentMethod.status || (k.active || 'Aktif')}</p>
         </div>
 
         <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-            Batal
+            {k.cancelBtn || 'Batal'}
           </button>
           <button
             onClick={handleDelete}
@@ -554,7 +563,7 @@ export function ConfirmDeletePaymentModal({
             className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
           >
             {isDeleting && <Clock size={14} className="animate-spin" />}
-            <span>Ya, Hapus Permanen</span>
+            <span>{k.confirmDeleteBtn || 'Ya, Hapus Permanen'}</span>
           </button>
         </div>
       </div>
@@ -853,6 +862,8 @@ export function TransactionDetailModal({ isOpen, onClose, txn, triggerToast }: M
  * 6. Topup Usage Quota Modal (AI Credits, Employees, Automation, Storage)
  */
 export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: ModalProps) {
+  const { t } = useLanguage();
+  const k = t.billingView || {};
   const [quotaType, setQuotaType] = useState('credits');
   const [selectedPackage, setSelectedPackage] = useState(1000);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -907,8 +918,8 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
               <Zap size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Kuota Fitur & Resource</h3>
-              <p className="text-xs text-slate-400">Pilih jenis kuota tambahan untuk performa maksimal</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.topupModalTitle || 'Tambah Kuota Fitur & Resource'}</h3>
+              <p className="text-xs text-slate-400">{k.topupModalSub || 'Pilih jenis kuota tambahan untuk performa maksimal'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"><X size={18} /></button>
@@ -916,13 +927,13 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
 
         <form onSubmit={handleTopup} className="space-y-4 text-xs font-semibold">
           <div className="space-y-1.5">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Kategori Kuota</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.quotaCategoryLabel || 'Kategori Kuota'}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { id: 'credits', name: 'AI Credits' },
+                { id: 'credits', name: k.metricCredits || 'AI Credits' },
                 { id: 'employees', name: 'AI Employee' },
-                { id: 'automation', name: 'Automation' },
-                { id: 'storage', name: 'Storage' }
+                { id: 'automation', name: k.metricAutomations || 'Automation' },
+                { id: 'storage', name: k.metricStorage || 'Storage' }
               ].map((item) => (
                 <button
                   key={item.id}
@@ -945,7 +956,7 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
           </div>
 
           <div className="space-y-2 pt-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Pilih Paket Add-On</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.selectAddonPackageLabel || 'Pilih Paket Add-On'}</label>
             <div className="space-y-2">
               {currentOptions.map((pkg) => (
                 <label
@@ -974,7 +985,7 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-              Batal
+              {k.cancelBtn || 'Batal'}
             </button>
             <button
               type="submit"
@@ -982,7 +993,7 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
               className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
             >
               {isSubmitting && <Clock size={14} className="animate-spin" />}
-              <span>Konfirmasi & Tambah Kuota</span>
+              <span>{k.confirmTopupBtn || 'Konfirmasi & Tambah Kuota'}</span>
             </button>
           </div>
         </form>

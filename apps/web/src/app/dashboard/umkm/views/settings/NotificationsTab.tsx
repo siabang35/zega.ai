@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Bell, Mail, MessageSquare, Smartphone, Laptop, Clock, Moon, Check, Edit2, X, Send, ShieldCheck
+  Bell, Mail, MessageSquare, Smartphone, Laptop, Clock, Moon, Edit2, X, Send, Bot, Building2, Shield, Sparkles
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface NotificationsTabProps {
   triggerToast: (msg: string) => void;
 }
 
 export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
+  const { t } = useLanguage();
+  const notifT = t.settingsView?.notificationsTab;
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -90,11 +94,14 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         if (data.quiet_hours_start) setQuietHoursStart(data.quiet_hours_start);
         if (data.quiet_hours_end) setQuietHoursEnd(data.quiet_hours_end);
         if (data.quiet_hours_freq) setQuietHoursFreq(data.quiet_hours_freq);
-      } else {
-        // Zero-trust fallback: fetch logged in user profile email/phone if notification row is empty
-        const userProfile = await SupabaseDashboardService.getUmkmUserProfileOverview();
-        if (userProfile?.profile?.email) setEmailTarget(userProfile.profile.email);
-        if (userProfile?.profile?.phone) setWhatsappTarget(userProfile.profile.phone);
+      }
+      
+      const userProfile = await SupabaseDashboardService.getUmkmUserProfileOverview();
+      if (!data?.email_target && userProfile?.profile?.email) {
+        setEmailTarget(userProfile.profile.email);
+      }
+      if (!data?.whatsapp_target && userProfile?.profile?.phone) {
+        setWhatsappTarget(userProfile.profile.phone);
       }
     } catch (e) {
       console.warn('Notifications load error:', e);
@@ -149,9 +156,9 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
       };
 
       await SupabaseDashboardService.updateUmkmNotificationSettings(payload);
-      triggerToast('✓ Pengaturan notifikasi berhasil disimpan & tersinkronisasi!');
+      triggerToast(`✓ ${notifT?.toastSuccess || 'Notification settings saved and synchronized!'}`);
     } catch (e) {
-      triggerToast('✕ Gagal menyimpan pengaturan notifikasi.');
+      triggerToast(`✕ ${notifT?.toastSaveError || 'Failed to save notification settings.'}`);
     } finally {
       setSaving(false);
     }
@@ -167,14 +174,14 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
 
   const handleSaveTarget = async () => {
     if (!targetInputValue.trim()) {
-      triggerToast('✕ Kolom tujuan notifikasi tidak boleh kosong!');
+      triggerToast(`✕ ${notifT?.toastTargetEmpty || 'Notification destination cannot be empty!'}`);
       return;
     }
 
     if (targetType === 'Email') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(targetInputValue.trim())) {
-        triggerToast('✕ Format email tidak valid!');
+        triggerToast(`✕ ${notifT?.toastInvalidEmail || 'Invalid email format!'}`);
         return;
       }
       setEmailTarget(targetInputValue.trim());
@@ -188,73 +195,76 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
     }
 
     setIsTargetModalOpen(false);
-    triggerToast(`✓ Alamat notifikasi ${targetType} berhasil diperbarui!`);
+    triggerToast(`✓ ${notifT?.toastTargetSuccess || 'Notification destination updated!'}`);
   };
 
   const renderToggle = (checked: boolean, onChange: (val: boolean) => void) => (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+      className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
         checked ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
       }`}
     >
-      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-        checked ? 'translate-x-4' : 'translate-x-0'
+      <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 ease-in-out ${
+        checked ? 'translate-x-3.5' : 'translate-x-0'
       }`} />
     </button>
   );
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Top Grid: Channel Notifikasi & Preferensi Notifikasi */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 1. Channel Notifikasi */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Bell size={16} className="text-orange-500" /> Channel Notifikasi
+    <div className="max-w-6xl space-y-5 font-sans">
+      {/* Upper Grid: Channels & Preferences */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Left Column: Notification Channels (5 cols on lg) */}
+        <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-2.5">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Bell size={15} className="text-orange-500" /> {notifT?.channelsTitle || 'Notification Channels'}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kelola saluran untuk menerima notifikasi real-time dari sistem ZEGA AI.
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              {notifT?.channelsSubtitle || 'Manage channels to receive real-time notifications.'}
             </p>
           </div>
 
-          <div className="space-y-3.5 pt-1">
+          <div className="space-y-2.5">
             {/* In-App */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center border border-orange-100 dark:border-orange-900/40 shrink-0">
-                  <Bell size={16} />
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center border border-orange-100 dark:border-orange-900/40 shrink-0">
+                  <Bell size={14} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">In-App</h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Notifikasi di dalam aplikasi</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.inAppTitle || 'In-App'}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{notifT?.inAppDesc || 'Inside application dashboard'}</p>
                 </div>
               </div>
-              {renderToggle(inAppEnabled, (val) => {
-                setInAppEnabled(val);
-                handleSave({ in_app_enabled: val });
-              })}
+              <div className="ml-2 shrink-0">
+                {renderToggle(inAppEnabled, (val) => {
+                  setInAppEnabled(val);
+                  handleSave({ in_app_enabled: val });
+                })}
+              </div>
             </div>
 
             {/* Email */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center border border-blue-100 dark:border-blue-900/40 shrink-0">
-                  <Mail size={16} />
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center border border-blue-100 dark:border-blue-900/40 shrink-0">
+                  <Mail size={14} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Email</h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui email</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.emailTitle || 'Email'}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{notifT?.emailDesc || 'Receive via email'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-2 shrink-0 ml-2">
                 <button
                   onClick={() => openEditTargetModal('Email')}
-                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                  className="max-w-[130px] sm:max-w-[160px] truncate text-[11px] font-mono tabular-nums text-slate-700 dark:text-slate-300 font-medium cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 flex items-center gap-1 transition-colors"
                 >
-                  <span>{emailTarget || 'Belum diatur'}</span>
-                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                  <span className="truncate">{emailTarget || (notifT?.notSet || 'Not set')}</span>
+                  <Edit2 size={10} className="text-slate-400 shrink-0" />
                 </button>
                 {renderToggle(emailEnabled, (val) => {
                   setEmailEnabled(val);
@@ -264,23 +274,23 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* WhatsApp */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 shrink-0">
-                  <MessageSquare size={16} />
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 shrink-0">
+                  <MessageSquare size={14} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">WhatsApp</h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui WhatsApp</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.waTitle || 'WhatsApp'}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{notifT?.waDesc || 'Receive via WhatsApp'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-2 shrink-0 ml-2">
                 <button
                   onClick={() => openEditTargetModal('WhatsApp')}
-                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                  className="max-w-[120px] truncate text-[11px] font-mono tabular-nums text-slate-700 dark:text-slate-300 font-medium cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 flex items-center gap-1 transition-colors"
                 >
-                  <span>{whatsappTarget || 'Belum diatur'}</span>
-                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                  <span className="truncate">{whatsappTarget || (notifT?.notSet || 'Not set')}</span>
+                  <Edit2 size={10} className="text-slate-400 shrink-0" />
                 </button>
                 {renderToggle(whatsappEnabled, (val) => {
                   setWhatsappEnabled(val);
@@ -290,40 +300,42 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
             </div>
 
             {/* Browser */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center border border-purple-100 dark:border-purple-900/40 shrink-0">
-                  <Laptop size={16} />
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center border border-purple-100 dark:border-purple-900/40 shrink-0">
+                  <Laptop size={14} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Browser</h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Notifikasi push di browser</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.browserTitle || 'Browser'}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{notifT?.browserDesc || 'Browser push alerts'}</p>
                 </div>
               </div>
-              {renderToggle(browserEnabled, (val) => {
-                setBrowserEnabled(val);
-                handleSave({ browser_enabled: val });
-              })}
+              <div className="ml-2 shrink-0">
+                {renderToggle(browserEnabled, (val) => {
+                  setBrowserEnabled(val);
+                  handleSave({ browser_enabled: val });
+                })}
+              </div>
             </div>
 
             {/* SMS */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 gap-2">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">
-                  <Smartphone size={16} />
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-7 rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 shrink-0">
+                  <Smartphone size={14} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">SMS</h4>
-                  <p className="text-[10px] text-slate-400 font-medium">Terima notifikasi melalui SMS</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.smsTitle || 'SMS'}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{notifT?.smsDesc || 'Receive via SMS'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-2 shrink-0 ml-2">
                 <button
                   onClick={() => openEditTargetModal('SMS')}
-                  className="text-[10.5px] font-mono text-slate-500 hover:text-orange-500 dark:text-slate-400 font-semibold flex items-center gap-1 cursor-pointer bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800"
+                  className="max-w-[120px] truncate text-[11px] font-mono tabular-nums text-slate-700 dark:text-slate-300 font-medium cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 flex items-center gap-1 transition-colors"
                 >
-                  <span>{smsTarget || 'Belum diatur'}</span>
-                  <Edit2 size={11} className="text-slate-400 hover:text-orange-500" />
+                  <span className="truncate">{smsTarget || (notifT?.notSet || 'Not set')}</span>
+                  <Edit2 size={10} className="text-slate-400 shrink-0" />
                 </button>
                 {renderToggle(smsEnabled, (val) => {
                   setSmsEnabled(val);
@@ -334,74 +346,83 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
           </div>
         </div>
 
-        {/* 2. Preferensi Notifikasi */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Preferensi Notifikasi
+        {/* Right Column: Notification Preferences (7 cols on lg) */}
+        <div className="lg:col-span-7 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3.5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-2.5">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+              {notifT?.prefsTitle || 'Notification Preferences'}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pilih jenis event & aktivitas yang ingin Anda dapatkan alertnya.
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              {notifT?.prefsSubtitle || 'Select event types & activities to receive alerts.'}
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* AI & Automation */}
-            <div className="space-y-2">
-              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">AI & Automation</h4>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">AI Employee menyelesaikan tugas</span>
+            <div className="space-y-1.5">
+              <h4 className="text-[10.5px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                <Bot size={12} className="text-orange-500" />
+                {notifT?.sectionAi || 'AI & Automation'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.aiTaskDone || 'AI Employee completes task'}</span>
                   {renderToggle(aiTaskDone, (val) => { setAiTaskDone(val); handleSave({ ai_task_done: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">AI memberikan insight / rekomendasi</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.aiInsights || 'AI insights & advice'}</span>
                   {renderToggle(aiInsights, (val) => { setAiInsights(val); handleSave({ ai_insights: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Task otomasi berhasil / gagal</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between md:col-span-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.automationStatus || 'Automation task status'}</span>
                   {renderToggle(automationStatus, (val) => { setAutomationStatus(val); handleSave({ automation_status: val }); })}
                 </div>
               </div>
             </div>
 
-            {/* Bisnis & Operasional */}
-            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Bisnis & Operasional</h4>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Pesanan baru masuk</span>
+            {/* Business & Operational */}
+            <div className="space-y-1.5 pt-1">
+              <h4 className="text-[10.5px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                <Building2 size={12} className="text-blue-500" />
+                {notifT?.sectionBiz || 'Business & Operational'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.newOrder || 'New order received'}</span>
                   {renderToggle(newOrder, (val) => { setNewOrder(val); handleSave({ new_order: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Invoice dibayar</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.invoicePaid || 'Invoice paid'}</span>
                   {renderToggle(invoicePaid, (val) => { setInvoicePaid(val); handleSave({ invoice_paid: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Peringatan stok produk</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.stockWarning || 'Low stock warning'}</span>
                   {renderToggle(stockWarning, (val) => { setStockWarning(val); handleSave({ stock_warning: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Pengingat follow up pelanggan</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.customerFollowup || 'Follow-up reminder'}</span>
                   {renderToggle(customerFollowup, (val) => { setCustomerFollowup(val); handleSave({ customer_followup: val }); })}
                 </div>
               </div>
             </div>
 
-            {/* Sistem */}
-            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Sistem & Keamanan</h4>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Update produk & fitur baru</span>
+            {/* System & Security */}
+            <div className="space-y-1.5 pt-1">
+              <h4 className="text-[10.5px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                <Shield size={12} className="text-emerald-500" />
+                {notifT?.sectionSystem || 'System & Security'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.productUpdates || 'Product updates'}</span>
                   {renderToggle(productUpdates, (val) => { setProductUpdates(val); handleSave({ product_updates: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Pemeliharaan sistem</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.systemMaintenance || 'System maintenance'}</span>
                   {renderToggle(systemMaintenance, (val) => { setSystemMaintenance(val); handleSave({ system_maintenance: val }); })}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Keamanan akun & login</span>
+                <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between md:col-span-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate pr-2">{notifT?.securityLogin || 'Account security & login alerts'}</span>
                   {renderToggle(securityLogin, (val) => { setSecurityLogin(val); handleSave({ security_login: val }); })}
                 </div>
               </div>
@@ -410,30 +431,30 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
         </div>
       </div>
 
-      {/* Bottom Grid: Jadwal Ringkasan & Quiet Hours */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 3. Jadwal Ringkasan */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Clock size={16} className="text-orange-500" /> Jadwal Ringkasan
+      {/* Lower Grid: Schedules & Quiet Hours */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Summary Schedule */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-2">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Clock size={15} className="text-orange-500" /> {notifT?.scheduleTitle || 'Summary Schedule'}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Atur ringkasan notifikasi yang dikirim secara berkala.
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              {notifT?.scheduleSubtitle || 'Configure automated summary reports.'}
             </p>
           </div>
 
-          <div className="space-y-4 pt-1">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Kirim ringkasan harian</h4>
-                <p className="text-[10px] text-slate-400 font-medium">Terima ringkasan aktivitas penting setiap hari.</p>
+          <div className="space-y-2">
+            <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.dailySummary || 'Daily summary'}</h4>
+                <p className="text-[10px] text-slate-400 truncate">{notifT?.dailySummaryDesc || 'Daily highlight summary'}</p>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-2 shrink-0">
                 <select
                   value={dailySummaryTime}
                   onChange={(e) => { setDailySummaryTime(e.target.value); handleSave({ daily_summary_time: e.target.value }); }}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold tabular-nums text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
                   <option value="08:00 WIB">08:00 WIB</option>
                   <option value="12:00 WIB">12:00 WIB</option>
@@ -444,26 +465,26 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Kirim ringkasan mingguan</h4>
-                <p className="text-[10px] text-slate-400 font-medium">Terima ringkasan aktivitas setiap minggu.</p>
+            <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{notifT?.weeklySummary || 'Weekly summary'}</h4>
+                <p className="text-[10px] text-slate-400 truncate">{notifT?.weeklySummaryDesc || 'Weekly performance summary'}</p>
               </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <select
                   value={weeklySummaryDay}
                   onChange={(e) => { setWeeklySummaryDay(e.target.value); handleSave({ weekly_summary_day: e.target.value }); }}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
-                  <option value="Senin">Senin</option>
-                  <option value="Rabu">Rabu</option>
-                  <option value="Jumat">Jumat</option>
-                  <option value="Minggu">Minggu</option>
+                  <option value="Senin">{notifT?.monday || 'Monday'}</option>
+                  <option value="Rabu">{notifT?.wednesday || 'Wednesday'}</option>
+                  <option value="Jumat">{notifT?.friday || 'Friday'}</option>
+                  <option value="Minggu">{notifT?.sunday || 'Sunday'}</option>
                 </select>
                 <select
                   value={weeklySummaryTime}
                   onChange={(e) => { setWeeklySummaryTime(e.target.value); handleSave({ weekly_summary_time: e.target.value }); }}
-                  className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-[10px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold tabular-nums text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
                   <option value="08:00 WIB">08:00 WIB</option>
                   <option value="09:00 WIB">09:00 WIB</option>
@@ -475,102 +496,104 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
           </div>
         </div>
 
-        {/* 4. Quiet Hours */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Quiet Hours */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Moon size={16} className="text-orange-500" /> Quiet Hours
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Moon size={15} className="text-orange-500" /> {notifT?.quietHoursTitle || 'Quiet Hours'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                Atur jam tenang agar tidak terganggu oleh notifikasi.
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                {notifT?.quietHoursSubtitle || 'Prevent disturbance during quiet hours.'}
               </p>
             </div>
             {renderToggle(quietHoursEnabled, (val) => { setQuietHoursEnabled(val); handleSave({ quiet_hours_enabled: val }); })}
           </div>
 
-          <div className="flex items-center gap-2 pt-2 flex-wrap">
-            <select
-              value={quietHoursStart}
-              onChange={(e) => { setQuietHoursStart(e.target.value); handleSave({ quiet_hours_start: e.target.value }); }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
-            >
-              <option value="20:00">20:00</option>
-              <option value="21:00">21:00</option>
-              <option value="22:00">22:00</option>
-              <option value="23:00">23:00</option>
-            </select>
-            <span className="text-xs text-slate-400 font-bold">-</span>
-            <select
-              value={quietHoursEnd}
-              onChange={(e) => { setQuietHoursEnd(e.target.value); handleSave({ quiet_hours_end: e.target.value }); }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
-            >
-              <option value="06:00">06:00</option>
-              <option value="07:00">07:00</option>
-              <option value="08:00">08:00</option>
-              <option value="09:00">09:00</option>
-            </select>
+          <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <select
+                value={quietHoursStart}
+                onChange={(e) => { setQuietHoursStart(e.target.value); handleSave({ quiet_hours_start: e.target.value }); }}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold tabular-nums text-slate-800 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+              <span className="text-xs text-slate-400 font-bold">-</span>
+              <select
+                value={quietHoursEnd}
+                onChange={(e) => { setQuietHoursEnd(e.target.value); handleSave({ quiet_hours_end: e.target.value }); }}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold tabular-nums text-slate-800 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="06:00">06:00</option>
+                <option value="07:00">07:00</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+              </select>
+            </div>
             <select
               value={quietHoursFreq}
               onChange={(e) => { setQuietHoursFreq(e.target.value); handleSave({ quiet_hours_freq: e.target.value }); }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
             >
-              <option value="Setiap hari">Setiap hari</option>
-              <option value="Hari kerja">Hari kerja (Senin - Jumat)</option>
-              <option value="Akhir pekan">Akhir pekan (Sabtu - Minggu)</option>
+              <option value="Setiap hari">{notifT?.everyday || 'Every day'}</option>
+              <option value="Hari kerja">{notifT?.weekdays || 'Weekdays (Mon - Fri)'}</option>
+              <option value="Akhir pekan">{notifT?.weekends || 'Weekends (Sat - Sun)'}</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* --- MODAL EDIT CHANNEL TARGET --- */}
+      {/* MODAL EDIT CHANNEL TARGET */}
       {isTargetModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Send size={18} className="text-orange-500" />
-                <span>Ubah Tujuan Notifikasi {targetType}</span>
+          <div className="w-full max-w-md p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <Send size={15} className="text-orange-500" />
+                <span>{notifT?.modalEditTargetTitle || 'Edit Target:'} {targetType}</span>
               </h3>
-              <button onClick={() => setIsTargetModalOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
-                <X size={18} />
+              <button onClick={() => setIsTargetModalOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs font-semibold">
+            <div className="space-y-2.5 text-xs font-medium">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  {targetType === 'Email' ? 'Alamat Email Tujuan' : targetType === 'WhatsApp' ? 'Nomor WhatsApp Terhubung' : 'Nomor Handphone SMS'}
+                <label className="block text-slate-600 dark:text-slate-400 mb-1 text-[11px]">
+                  {targetType === 'Email' ? (notifT?.targetEmailLabel || 'Destination Email Address') : targetType === 'WhatsApp' ? (notifT?.targetWaLabel || 'Connected WhatsApp Number') : (notifT?.targetSmsLabel || 'SMS Mobile Phone Number')}
                 </label>
                 <input
                   type={targetType === 'Email' ? 'email' : 'text'}
                   value={targetInputValue}
                   onChange={e => setTargetInputValue(e.target.value)}
                   placeholder={targetType === 'Email' ? 'nama@domain.com' : '+62 812-xxxx-xxxx'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs focus:outline-hidden focus:border-orange-500"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono tabular-nums text-xs focus:outline-hidden focus:border-orange-500"
                 />
               </div>
 
-              <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 text-[10.5px] text-blue-800 dark:text-blue-300">
-                <strong>Verifikasi Tujuan:</strong> Notifikasi sistem & alert mendesak akan langsung dikirim ke tujuan ini secara otomatis.
+              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 text-[10.5px] text-blue-800 dark:text-blue-300 font-medium">
+                {notifT?.targetVerificationNote || 'Destination Verification: System notifications & urgent alerts will be sent to this destination automatically.'}
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsTargetModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
               >
-                Batal
+                {notifT?.cancelBtn || 'Cancel'}
               </button>
               <button
                 type="button"
                 onClick={handleSaveTarget}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-sm shadow-orange-500/20"
+                className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer"
               >
-                Simpan Tujuan
+                {notifT?.saveTargetBtn || 'Save Destination'}
               </button>
             </div>
           </div>

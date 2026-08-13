@@ -45,6 +45,8 @@ const getPerformerLocalFallback = (name: string): string => {
   return '/assets/logo/zegalogo.png';
 };
 
+import { useLanguage } from '../../../../../i18n/translations';
+
 interface SalesSubViewProps {
   triggerToast: (msg: string) => void;
   dateRange: string;
@@ -52,6 +54,9 @@ interface SalesSubViewProps {
 }
 
 export function SalesSubView({ triggerToast, dateRange, reportsData }: SalesSubViewProps) {
+  const { t } = useLanguage();
+  const s = t.salesView;
+
   const [salesKpi, setSalesKpi] = useState({
     total_sales_idr: 0,
     total_orders: 0,
@@ -279,10 +284,10 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-white">Sales Intelligence &amp; Telemetry Hub</h2>
+              <h2 className="font-extrabold text-base text-slate-900 dark:text-white">{s.headerTitle || 'Sales Intelligence & Telemetry Hub'}</h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Otomasi pelacakan deal pipeline, konversi transaksi, dan performa sales agent terintegrasi Supabase Realtime
+              {s.headerSubtitle || 'Otomasi pelacakan deal pipeline, konversi transaksi, dan performa sales agent terintegrasi Supabase Realtime'}
             </p>
           </div>
         </div>
@@ -298,7 +303,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                   selectedHorizon === h ? 'bg-orange-500 text-white shadow-2xs font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                {h === '7d' ? '7 Hari' : h === '30d' ? 'Bulan Ini' : 'Kuartal'}
+                {h === '7d' ? (s.horizon7d || '7 Hari') : h === '30d' ? (s.horizon30d || 'Bulan Ini') : (s.horizon90d || 'Kuartal')}
               </button>
             ))}
           </div>
@@ -307,14 +312,14 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
             onClick={() => setIsLaunchBotModalOpen(true)}
             className="px-3.5 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all"
           >
-            <Play size={14} className="text-orange-400" /> Launch AI Sales Bot
+            <Play size={14} className="text-orange-400" /> {s.launchAiSalesBot || 'Launch AI Sales Bot'}
           </button>
 
           <button
             onClick={() => setIsReportModalOpen(true)}
             className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black cursor-pointer shadow-md flex items-center gap-2 transition-all active:scale-95"
           >
-            <Sparkles size={15} /> Automation Create Sales Reports
+            <Sparkles size={15} /> {s.createSalesReports || 'Automation Create Sales Reports'}
           </button>
         </div>
       </div>
@@ -322,10 +327,10 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
       {/* 2. Sales KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Penjualan', val: `Rp${(salesKpi.total_sales_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.revenue_growth_pct}%`, icon: BarChart3 },
-          { label: 'Total Orders', val: `${salesKpi.total_orders || 0}`, growth: `+${salesKpi.orders_growth_pct}%`, icon: ShoppingBag },
-          { label: 'Avg. Deal Size', val: `Rp${(salesKpi.avg_deal_size_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.aov_growth_pct}%`, icon: Target },
-          { label: 'Win Rate', val: `${salesKpi.win_rate_pct || 0}%`, growth: `+${salesKpi.win_rate_growth_pct}%`, icon: TrendingUp },
+          { label: s.totalPenjualan || 'Total Penjualan', val: `Rp${(salesKpi.total_sales_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.revenue_growth_pct}%`, icon: BarChart3 },
+          { label: s.totalOrders || 'Total Orders', val: `${salesKpi.total_orders || 0}`, growth: `+${salesKpi.orders_growth_pct}%`, icon: ShoppingBag },
+          { label: s.avgDealSize || 'Avg. Deal Size', val: `Rp${(salesKpi.avg_deal_size_idr || 0).toLocaleString('id-ID')}`, growth: `+${salesKpi.aov_growth_pct}%`, icon: Target },
+          { label: s.winRate || 'Win Rate', val: `${salesKpi.win_rate_pct || 0}%`, growth: `+${salesKpi.win_rate_growth_pct}%`, icon: TrendingUp },
         ].map((card, i) => {
           const Icon = card.icon;
           return (
@@ -337,7 +342,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                 </div>
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{card.val}</div>
-              <span className="text-[10px] font-bold text-emerald-600">{card.growth} vs last month</span>
+              <span className="text-[10px] font-bold text-emerald-600">{card.growth} {s.vsLastMonth || 'vs last month'}</span>
             </div>
           );
         })}
@@ -350,26 +355,26 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers size={16} className="text-orange-500" />
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Sales Pipeline Funnel</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.salesPipelineFunnel || 'Sales Pipeline Funnel'}</h3>
             </div>
             <span className="text-[10px] font-mono text-slate-400">{dateRange}</span>
           </div>
           <div className="space-y-2.5">
-            {pipeline.map((s: any, i: number) => (
+            {pipeline.map((sItem: any, i: number) => (
               <div key={i} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{s.stage}</span>
-                  <span className="font-mono text-slate-500">{s.deal_count} • Rp{((s.deal_value_idr || 0) / 1000000).toFixed(1)}M</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{sItem.stage}</span>
+                  <span className="font-mono text-slate-500">{sItem.deal_count} • Rp{((sItem.deal_value_idr || 0) / 1000000).toFixed(1)}M</span>
                 </div>
                 <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.conversion_pct}%`, backgroundColor: s.color_hex || '#3b82f6' }} />
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${sItem.conversion_pct}%`, backgroundColor: sItem.color_hex || '#3b82f6' }} />
                 </div>
               </div>
             ))}
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-500">Conversion Rate (Lead → Won)</span>
+              <span className="font-bold text-slate-500">{s.conversionRateLeadWon || 'Conversion Rate (Lead → Won)'}</span>
               <span className="font-black text-emerald-600">{pipeline.length > 0 ? pipeline[pipeline.length - 1]?.conversion_pct : 0}%</span>
             </div>
           </div>
@@ -380,15 +385,17 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-orange-500" />
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Penjualan Harian ({selectedHorizon === '7d' ? '7 Hari' : selectedHorizon === '90d' ? '3 Bulan' : 'Minggu Ini'})</h3>
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                {s.dailySalesTitle || 'Penjualan Harian'} ({selectedHorizon === '7d' ? (s.days7 || '7 Hari') : selectedHorizon === '90d' ? (s.months3 || '3 Bulan') : (s.thisWeek || 'Minggu Ini')})
+              </h3>
             </div>
-            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded-full">Trend Realtime</span>
+            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/60 px-2 py-0.5 rounded-full">{s.realtimeTrend || 'Trend Realtime'}</span>
           </div>
           <div className="h-52">
             <Bar data={dailySalesData} options={barOptions} />
           </div>
           <div className="flex items-center justify-between text-xs pt-1">
-            <span className="font-bold text-slate-500">Hari Terbaik: <span className="text-orange-600 font-black">{bestDay?.day_label || '-'}</span></span>
+            <span className="font-bold text-slate-500">{s.bestDayLabel || 'Hari Terbaik'}: <span className="text-orange-600 font-black">{bestDay?.day_label || '-'}</span></span>
             <span className="font-mono text-slate-400">Rp{((bestDay?.revenue_idr || 0) / 1000000).toFixed(1)}M</span>
           </div>
         </div>
@@ -397,23 +404,23 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
         <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
           <div className="flex items-center gap-2">
             <PieChart size={16} className="text-orange-500" />
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Status Order</h3>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.orderStatus || 'Status Order'}</h3>
           </div>
           <div className="relative size-32 mx-auto">
             <Doughnut data={orderStatusData} options={{ cutout: '72%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true }} }} />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-lg font-black text-slate-900 dark:text-slate-100">{orderStatuses.reduce((s: number, o: any) => s + (o.order_count || 0), 0)}</span>
-              <span className="text-[10px] font-bold text-slate-400">Total</span>
+              <span className="text-lg font-black text-slate-900 dark:text-slate-100">{orderStatuses.reduce((acc: number, o: any) => acc + (o.order_count || 0), 0)}</span>
+              <span className="text-[10px] font-bold text-slate-400">{s.orderTotal || 'Total'}</span>
             </div>
           </div>
           <div className="space-y-1.5 text-xs">
-            {orderStatuses.map((s: any, i: number) => (
+            {orderStatuses.map((st: any, i: number) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: s.color_hex }} />
-                  <span className="font-bold text-slate-700 dark:text-slate-300">{s.status}</span>
+                  <span className="size-2 rounded-full" style={{ backgroundColor: st.color_hex }} />
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{st.status}</span>
                 </div>
-                <span className="font-mono text-slate-500">{s.order_count} ({s.percentage}%)</span>
+                <span className="font-mono text-slate-500">{st.order_count} ({st.percentage}%)</span>
               </div>
             ))}
           </div>
@@ -424,15 +431,15 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Top Sales Performers (AI Agents & Channels)</h3>
-            <p className="text-[11px] text-slate-400">Kanal dan agen AI dengan kontribusi revenue tertinggi ({selectedHorizon})</p>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.topSalesPerformersTitle || 'Top Sales Performers (AI Agents & Channels)'}</h3>
+            <p className="text-[11px] text-slate-400">{s.topSalesPerformersSub || 'Kanal dan agen AI dengan kontribusi revenue tertinggi'} ({selectedHorizon})</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRecalculateTelemetry}
               className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 cursor-pointer"
             >
-              <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} /> Recalculate Telemetry
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} /> {s.recalculateTelemetry || 'Recalculate Telemetry'}
             </button>
           </div>
         </div>
@@ -442,10 +449,10 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-3">#</th>
-                <th className="py-3 px-3">AGENT / CHANNEL</th>
-                <th className="py-3 px-3 text-center">DEALS CLOSED</th>
-                <th className="py-3 px-3 text-right">REVENUE</th>
-                <th className="py-3 px-3 text-right">% KONTRIBUSI</th>
+                <th className="py-3 px-3">{s.colAgentChannel || 'AGENT / CHANNEL'}</th>
+                <th className="py-3 px-3 text-center">{s.colDealsClosed || 'DEALS CLOSED'}</th>
+                <th className="py-3 px-3 text-right">{s.colRevenue || 'REVENUE'}</th>
+                <th className="py-3 px-3 text-right">{s.colPctContribution || '% KONTRIBUSI'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -503,8 +510,8 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                   <Play size={18} />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Launch AI Sales Follow-up Bot</h3>
-                  <p className="text-[11px] text-slate-400">ZeroClaw Automated Conversion Engine</p>
+                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">{s.modalLaunchBotTitle || 'Launch AI Sales Follow-up Bot'}</h3>
+                  <p className="text-[11px] text-slate-400">{s.modalLaunchBotSub || 'ZeroClaw Automated Conversion Engine'}</p>
                 </div>
               </div>
               <button onClick={() => setIsLaunchBotModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-xl">
@@ -514,7 +521,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
 
             <div className="space-y-4 text-xs font-medium">
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">KANAL SALES AGENT</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">{s.salesAgentChannelLabel || 'KANAL SALES AGENT'}</label>
                 <select
                   value={botChannel}
                   onChange={(e) => setBotChannel(e.target.value)}
@@ -528,7 +535,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">TARGET FUNNEL STAGE</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">{s.targetFunnelStageLabel || 'TARGET FUNNEL STAGE'}</label>
                 <select
                   value={botTargetStage}
                   onChange={(e) => setBotTargetStage(e.target.value)}
@@ -541,7 +548,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">INSENTIF VOUCHER DISKON (%)</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">{s.discountVoucherLabel || 'INSENTIF VOUCHER DISKON (%)'}</label>
                 <input
                   type="number"
                   value={botDiscountPct}
@@ -556,13 +563,13 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                 onClick={() => setIsLaunchBotModalOpen(false)}
                 className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
-                Batal
+                {s.cancelBtn || 'Batal'}
               </button>
               <button
                 onClick={handleLaunchSalesBot}
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black cursor-pointer shadow-md flex items-center gap-1.5 transition-all"
               >
-                Aktifkan Sales Bot
+                {s.activateBotBtn || 'Aktifkan Sales Bot'}
               </button>
             </div>
           </div>
@@ -579,8 +586,8 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">Automation Create Sales Report</h3>
-                  <p className="text-[11px] text-slate-400">ZeroClaw & 9Router Swarm Report Generator</p>
+                  <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">{s.modalReportTitle || 'Automation Create Sales Report'}</h3>
+                  <p className="text-[11px] text-slate-400">{s.modalReportSub || 'ZeroClaw & 9Router Swarm Report Generator'}</p>
                 </div>
               </div>
               <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-xl">
@@ -590,7 +597,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
 
             <div className="space-y-4 text-xs font-medium">
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">TIPE LAPORAN SALES</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">{s.reportTypeLabel || 'TIPE LAPORAN SALES'}</label>
                 <select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
@@ -603,7 +610,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">FORMAT EKSPOR</label>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">{s.exportFormatLabel || 'FORMAT EKSPOR'}</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -612,7 +619,7 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                       reportFormat === 'PDF' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    <FileText size={14} /> Executive PDF
+                    <FileText size={14} /> {s.execPdf || 'Executive PDF'}
                   </button>
                   <button
                     type="button"
@@ -621,17 +628,17 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                       reportFormat === 'CSV' ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    <Download size={14} /> Spreadsheet CSV
+                    <Download size={14} /> {s.spreadsheetCsv || 'Spreadsheet CSV'}
                   </button>
                 </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 space-y-1">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-700 dark:text-orange-400">
-                  <ShieldCheck size={14} /> Verified ZeroClaw R2 CDN Sync
+                  <ShieldCheck size={14} /> {s.verifiedR2CdnSync || 'Verified ZeroClaw R2 CDN Sync'}
                 </div>
                 <p className="text-[10px] text-orange-600/80 dark:text-orange-300/80">
-                  Laporan akan diproses oleh 9Router Swarm AI dan diarsipkan secara aman di Cloudflare R2 CDN storage.
+                  {s.reportSwarmDesc || 'Laporan akan diproses oleh 9Router Swarm AI dan diarsipkan secara aman di Cloudflare R2 CDN storage.'}
                 </p>
               </div>
             </div>
@@ -641,14 +648,14 @@ Official Cloudflare R2 CDN Asset Link: ${res.cdn_report_url || 'https://pub-2849
                 onClick={() => setIsReportModalOpen(false)}
                 className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
-                Batal
+                {s.cancelBtn || 'Batal'}
               </button>
               <button
                 onClick={handleGenerateReport}
                 disabled={isGenerating}
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black cursor-pointer shadow-md flex items-center gap-1.5 transition-all disabled:opacity-50"
               >
-                {isGenerating ? 'Processing AI...' : 'Generate & Download'}
+                {isGenerating ? (s.processingAi || 'Processing AI...') : (s.generateDownloadBtn || 'Generate & Download')}
               </button>
             </div>
           </div>

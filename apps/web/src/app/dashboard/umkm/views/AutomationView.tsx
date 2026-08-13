@@ -106,7 +106,7 @@ const SAMPLE_JSON_BLUEPRINT = `{
 
 export function AutomationView({ triggerToast }: AutomationViewProps) {
   const { t } = useLanguage();
-  const u = (t as any).umkmAutomations || {};
+  const u = { ...(t as any)?.automationView, ...(t as any)?.umkmAutomations };
 
   const [filterTab, setFilterTab] = useState('Semua');
   const [statusFilter, setStatusFilter] = useState('Semua Status');
@@ -583,7 +583,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <Workflow size={24} />
               </div>
               <div className="max-w-xs mx-auto space-y-1">
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.zeroStateTitle || 'Zero State — Belum ada Workflow Automation'}</h4>
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{u.zeroStateTitle || 'Belum Ada Workflow Otomatisasi'}</h4>
                 <p className="text-[11px] text-slate-400 font-medium">
                   {u.zeroStateDesc || 'Database tenant belum memiliki workflow otomatisasi. Buat automation baru atau impor file blueprint JSON.'}
                 </p>
@@ -909,10 +909,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
 
             <div className="space-y-2.5">
               {[
-                { title: 'Order & Invoice Automation', sub: 'Buat invoice otomatis saat ada order', icon: ShoppingBag, bg: 'bg-emerald-50 text-emerald-600' },
-                { title: 'WhatsApp Auto Reply', sub: 'Balas chat & kirim informasi otomatis', icon: MessageSquare, bg: 'bg-emerald-50 text-emerald-600' },
-                { title: 'Payment Reminder', sub: 'Kirim pengingat pembayaran otomatis', icon: FileText, bg: 'bg-indigo-50 text-indigo-600' },
-                { title: 'New Lead Follow Up', sub: 'Follow up leads otomatis via WA', icon: Users, bg: 'bg-purple-50 text-purple-600' },
+                { title: u.tplOrderInvoiceTitle || 'Order & Invoice Automation', sub: u.tplOrderInvoiceSub || 'Buat invoice otomatis saat ada order', icon: ShoppingBag, bg: 'bg-emerald-50 text-emerald-600' },
+                { title: u.tplWaReplyTitle || 'WhatsApp Auto Reply', sub: u.tplWaReplySub || 'Balas chat & kirim informasi otomatis', icon: MessageSquare, bg: 'bg-emerald-50 text-emerald-600' },
+                { title: u.tplPaymentReminderTitle || 'Payment Reminder', sub: u.tplPaymentReminderSub || 'Kirim pengingat pembayaran otomatis', icon: FileText, bg: 'bg-indigo-50 text-indigo-600' },
+                { title: u.tplLeadFollowUpTitle || 'New Lead Follow Up', sub: u.tplLeadFollowUpSub || 'Follow up leads otomatis via WA', icon: Users, bg: 'bg-purple-50 text-purple-600' },
               ].map((tpl, idx) => {
                 const Icon = tpl.icon;
                 return (
@@ -1402,7 +1402,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   <BookOpen size={20} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">{u.docModalTitle || 'Dokumentasi Real Model Router & R2 CDN'}</h3>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">{u.docModalTitle || 'Real Model Router & R2 CDN Documentation'}</h3>
                   <p className="text-[11px] text-slate-400 font-medium">{u.docModalSubtitle || 'Enterprise Event-Driven Workflow Architecture'}</p>
                 </div>
               </div>
@@ -1420,7 +1420,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 <Workflow size={14} /> {u.archHeadline || 'Event-Driven Engine vs Autonomous AI Workforce'}
               </div>
               <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                {u.archDesc || 'Modul AI Automations menangani workflow terpicu event multi-langkah (seperti order masuk, stok menipis, dan pengingat pembayaran) dengan eksekusi otomatis tanpa jeda. Berbeda dari AI Workforce yang merupakan agen percakapan otonom.'}
+                {u.archDesc || 'The AI Automations module handles multi-step event-triggered workflows (such as incoming orders, low stock, and payment reminders) with zero-latency automatic execution. Distinct from the AI Workforce, which consists of autonomous conversational agents.'}
               </p>
             </div>
 
@@ -1465,7 +1465,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                 onClick={() => setShowDocModal(false)}
                 className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
-                {u.closeDocs || 'Tutup Dokumentasi'}
+                {u.closeDocs || 'Close Documentation'}
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getR2CdnUrl } from '../../utils/cdn';
-import { 
-  LayoutDashboard, Users, Workflow, Target, Layers, Settings, 
+import {
+  LayoutDashboard, Users, Workflow, Target, Layers, Settings,
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronLeft, ChevronDown, Menu,
   ShieldCheck, Bot, Key, CreditCard, UserCheck, Zap, Activity,
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
@@ -261,10 +261,72 @@ export function UmkmDashboardContainer({
     return () => clearInterval(timer);
   }, []);
 
-  // ZEGA Copilot Floating Dropdown & Real Gemini 3.6 Flash Inference State
+  // ZEGA Copilot AI Language State (independent from UI language)
+  const [aiLang, setAiLang] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+    }
+    return 'id';
+  });
+
+  // Sync AI language from DB on mount
+  useEffect(() => {
+    const syncAiLang = async () => {
+      try {
+        const pref = await SupabaseDashboardService.getUmkmAiPreferences();
+        if (pref && pref.default_language) {
+          const val = pref.default_language.toLowerCase();
+          let code = 'id';
+          if (val.includes('english') || val === 'en') code = 'en';
+          else if (val.includes('mandarin') || val.includes('chinese') || val === 'zh') code = 'zh';
+          else code = 'id';
+          setAiLang(code);
+          localStorage.setItem('zega_ai_default_language', code);
+        }
+      } catch (e) {
+        console.warn('AI lang sync note:', e);
+      }
+    };
+    syncAiLang();
+
+    // Listen for real-time changes from AI Preferences tab
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'zega_ai_default_language' && e.newValue) {
+        setAiLang(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also poll localStorage every 2s for same-tab changes
+    const pollInterval = setInterval(() => {
+      const current = localStorage.getItem('zega_ai_default_language');
+      if (current && current !== aiLang) {
+        setAiLang(current);
+      }
+    }, 2000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(pollInterval);
+    };
+  }, []);
+
+  // ZEGA Copilot Floating Dropdown & Real Gemini Flash Inference State
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotInput, setCopilotInput] = useState('');
   const [isCopilotTyping, setIsCopilotTyping] = useState(false);
+
+  const getSeedMessage = (lang: string) => {
+    if (lang === 'en') {
+      return 'Hello! I am **ZEGA Copilot AI** 🚀. I am ready to analyze your business data, recommend WhatsApp promo strategies, or optimize store inventory in real-time. How can I assist you today?';
+    }
+    if (lang === 'zh') {
+      return '你好！我是 **ZEGA Copilot AI** 🚀。我已准备好实时分析您的业务数据、推荐 WhatsApp 促销策略或优化店铺库存。今天有什么可以帮您？';
+    }
+    return 'Halo! Saya **ZEGA Copilot AI** 🚀. Saya siap menganalisis data bisnis Anda, merekomendasikan strategi promosi WhatsApp, atau mengoptimalkan stok toko secara real-time. Apa yang ingin kita bahas hari ini?';
+  };
+
   const [copilotMessages, setCopilotMessages] = useState<Array<{
     id?: string;
     sender: 'user' | 'copilot' | 'system';
@@ -280,7 +342,7 @@ export function UmkmDashboardContainer({
     {
       id: 'seed-1',
       sender: 'copilot',
-      message: 'Halo! Saya **ZEGA Copilot AI** 🚀. Saya siap menganalisis data bisnis Anda, merekomendasikan strategi promosi WhatsApp, atau mengoptimalkan stok toko secara real-time. Apa yang ingin kita bahas hari ini?',
+      message: getSeedMessage(aiLang),
       ai_model: 'zega-copilot',
       prompt_tokens: 42,
       completion_tokens: 58,
@@ -289,6 +351,16 @@ export function UmkmDashboardContainer({
       created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
+
+  // Sync Seed Message when AI Language Preference Changes
+  useEffect(() => {
+    setCopilotMessages(prev => {
+      if (prev.length === 1 && prev[0].id === 'seed-1') {
+        return [{ ...prev[0], message: getSeedMessage(aiLang) }];
+      }
+      return prev;
+    });
+  }, [aiLang]);
 
   // Clean Markdown Text Formatter for High Readability
   const renderFormattedMessage = (text: string) => {
@@ -333,6 +405,9 @@ export function UmkmDashboardContainer({
     const textToSend = customText || copilotInput;
     if (!textToSend.trim()) return;
 
+    // Read latest AI language preference
+    const currentAiLang = localStorage.getItem('zega_ai_default_language') || aiLang || 'id';
+
     const userMsg = {
       id: Date.now().toString(),
       sender: 'user' as const,
@@ -347,7 +422,7 @@ export function UmkmDashboardContainer({
     const startTime = Date.now();
     const envApi = import.meta.env.VITE_API_URL;
     const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
-    
+
     let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
       ? 'https://zega-ai.onrender.com'
       : (envApi || 'http://localhost:3001');
@@ -361,7 +436,8 @@ export function UmkmDashboardContainer({
         body: JSON.stringify({
           message: textToSend.trim(),
           storeId: umkmData?.store?.id || '11111111-1111-1111-1111-111111111111',
-          userId: 'demo-owner'
+          userId: 'demo-owner',
+          language: currentAiLang
         })
       });
 
@@ -388,27 +464,53 @@ export function UmkmDashboardContainer({
       console.warn('Backend proxy Copilot call fallback note:', err);
     }
 
-    // Dynamic Intent Fallback Response (No Static Robotic Repetition)
+    // Dynamic Intent Fallback Response (AI Language Responsive)
     const latency = Date.now() - startTime;
     let replyMessage = '';
     const promptLower = textToSend.toLowerCase();
     const now = new Date();
-    const currentDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const currentDate = now.toLocaleDateString(currentAiLang === 'id' ? 'id-ID' : currentAiLang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
-      replyMessage = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per **${currentDate}** (Tahun **2026**).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
-    } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
-      replyMessage = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
-    } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
-      replyMessage = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDate}**. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
-    } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
-      replyMessage = `📊 **Analisis Penjualan Real-Time ZEGA AI (2026):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
-    } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-      replyMessage = `💬 **Draf Broadcast WhatsApp ZEGA AI:**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
-    } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
-      replyMessage = `📦 **Status Stok Real-Time (2026):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Gemini merekomendasikan pemesanan ulang ke supplier hari ini.`;
+    if (currentAiLang === 'en') {
+      if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('morning') || promptLower.includes('afternoon') || promptLower.includes('evening')) {
+        replyMessage = `👋 **Hello! Welcome to ZEGA Copilot AI.**\nI am ready to assist with your business operations for **${currentDate}**. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
+      } else if (promptLower.includes('sales') || promptLower.includes('revenue') || promptLower.includes('margin')) {
+        replyMessage = `📊 **ZEGA AI Real-Time Sales Analysis (2026):**\n• Today's Revenue: **Rp48,250,000** (+24.8% vs last month)\n• Total Transactions: **342 orders**\n• Average Basket Size: **Rp141,000**\n💡 *Recommendation:* Activate F&B bundle promo to increase basket size to Rp175,000.`;
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
+        replyMessage = `💬 **ZEGA AI WhatsApp Broadcast Draft:**\n"Hello! 🌟 Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: *ZEGASUPER15*. Limited quota! Click: https://zegaai.site/promo"`;
+      } else if (promptLower.includes('stock') || promptLower.includes('inventory') || promptLower.includes('item')) {
+        replyMessage = `📦 **Real-Time Inventory Status (2026):**\n• Aren Palm Sugar Coffee: *12 units left* ⚠️ (Needs restocking!)\n• Super Groceries Pack: *45 units left* ✅\n• Premium Rice 5kg: *8 units left* ⚠️\n⚡ Gemini recommends reordering from supplier today.`;
+      } else {
+        replyMessage = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nThank you for your question regarding "*${textToSend.trim()}*". Based on operational telemetry for **${currentDate}**, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
+      }
+    } else if (currentAiLang === 'zh') {
+      if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('你好') || promptLower.includes('早')) {
+        replyMessage = `👋 **您好！欢迎使用 ZEGA Copilot AI。**\n我已准备好协助您处理 **${currentDate}** 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
+      } else if (promptLower.includes('sales') || promptLower.includes('销售') || promptLower.includes('收入') || promptLower.includes('利润')) {
+        replyMessage = `📊 **ZEGA AI 实时销售分析 (2026):**\n• 今日营业额: **Rp48,250,000** (比上月增长 +24.8%)\n• 总交易笔数: **342 笔订单**\n• 平均客单价: **Rp141,000**\n💡 *优化建议:* 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('促销') || promptLower.includes('推广')) {
+        replyMessage = `💬 **ZEGA AI WhatsApp 广播文案草稿:**\n"您好！🌟 本店特惠！超值组合包享 15% 折扣。优惠码: *ZEGASUPER15*。名额有限！点击: https://zegaai.site/promo"`;
+      } else if (promptLower.includes('stock') || promptLower.includes('库存') || promptLower.includes('商品')) {
+        replyMessage = `📦 **实时库存状态 (2026):**\n• 棕榈糖咖啡: *剩余 12 件* ⚠️ (需补货!)\n• 超级杂货包: *剩余 45 件* ✅\n• 优质大米 5kg: *剩余 8 件* ⚠️\n⚡ Gemini 建议今天向供应商重新订购。`;
+      } else {
+        replyMessage = `🧠 **ZEGA Copilot 实时推理 (2026):**\n感谢您提出关于 "*${textToSend.trim()}*" 的问题。根据 **${currentDate}** 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
+      }
     } else {
-      replyMessage = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nTerima kasih atas pertanyaan Anda mengenai "*${textToSend.trim()}*". Berdasarkan data operasional per **${currentDate}**, sistem ZEGA AI telah siap mengoptimalkan performa toko Anda.\n\nApakah Anda ingin saya menganalisis laporan keuangan, draf pemasaran, atau manajemen stok?`;
+      if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
+        replyMessage = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per **${currentDate}** (Tahun **2026**).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
+      } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
+        replyMessage = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
+      } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
+        replyMessage = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDate}**. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
+      } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
+        replyMessage = `📊 **Analisis Penjualan Real-Time ZEGA AI (2026):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
+      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
+        replyMessage = `💬 **Draf Broadcast WhatsApp ZEGA AI:**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
+      } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
+        replyMessage = `📦 **Status Stok Real-Time (2026):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Gemini merekomendasikan pemesanan ulang ke supplier hari ini.`;
+      } else {
+        replyMessage = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nTerima kasih atas pertanyaan Anda mengenai "*${textToSend.trim()}*". Berdasarkan data operasional per **${currentDate}**, sistem ZEGA AI telah siap mengoptimalkan performa toko Anda.\n\nApakah Anda ingin saya menganalisis laporan keuangan, draf pemasaran, atau manajemen stok?`;
+      }
     }
 
     const copilotMsg = {
@@ -477,35 +579,35 @@ export function UmkmDashboardContainer({
   // 3 Categorized Menu Groups
   const menuOverview = [
     { id: 'umkm', label: t.sidebarNav?.beranda || 'Beranda', icon: LayoutDashboard },
-    { 
-      id: 'my_agents', 
-      label: t.sidebarNav?.aiEmployee || 'AI Employees', 
-      icon: Bot, 
-      subItems: [t.umkmSubmenus?.aiSupport || 'AI Support', t.umkmSubmenus?.salesAgent || 'Sales Agent', t.umkmSubmenus?.swarms || 'Swarms'] 
+    {
+      id: 'my_agents',
+      label: t.sidebarNav?.aiEmployee || 'AI Employees',
+      icon: Bot,
+      subItems: [t.umkmSubmenus?.aiSupport || 'AI Support', t.umkmSubmenus?.salesAgent || 'Sales Agent', t.umkmSubmenus?.swarms || 'Swarms']
     },
     { id: 'sandbox', label: t.sidebarNav?.otokomasi || 'Automation', icon: Workflow },
-    { 
-      id: 'wa_bot', 
-      label: t.sidebarNav?.inbox || 'Inbox', 
-      icon: MessageSquare, 
-      badge: inboxUnreadBadge > 0 ? String(inboxUnreadBadge) : undefined, 
-      subItems: [t.umkmSubmenus?.whatsapp || 'WhatsApp', t.umkmSubmenus?.instagramDms || 'Instagram DMs', t.umkmSubmenus?.shopeeChat || 'Shopee Chat'] 
+    {
+      id: 'wa_bot',
+      label: t.sidebarNav?.inbox || 'Inbox',
+      icon: MessageSquare,
+      badge: inboxUnreadBadge > 0 ? String(inboxUnreadBadge) : undefined,
+      subItems: [t.umkmSubmenus?.whatsapp || 'WhatsApp', t.umkmSubmenus?.instagramDms || 'Instagram DMs', t.umkmSubmenus?.shopeeChat || 'Shopee Chat']
     },
   ];
 
   const menuBusiness = [
-    { 
-      id: 'sales_rekap', 
-      label: t.sidebarNav?.penjualan || 'Sales', 
-      icon: BarChart3, 
-      subItems: [t.umkmSubmenus?.salesSummary || 'Ringkasan Sales', t.umkmSubmenus?.transactions || 'Transaksi', t.umkmSubmenus?.paymentMethods || 'Metode Bayar'] 
+    {
+      id: 'sales_rekap',
+      label: t.sidebarNav?.penjualan || 'Sales',
+      icon: BarChart3,
+      subItems: [t.umkmSubmenus?.salesSummary || 'Ringkasan Sales', t.umkmSubmenus?.transactions || 'Transaksi', t.umkmSubmenus?.paymentMethods || 'Metode Bayar']
     },
     { id: 'ai_copywriter', label: t.sidebarNav?.pemasaran || 'Marketing', icon: Megaphone },
-    { 
-      id: 'invoice_gen', 
-      label: t.sidebarNav?.keuangan || 'Finance', 
-      icon: FileText, 
-      subItems: [t.umkmSubmenus?.invoices || 'Invoices', t.umkmSubmenus?.financialReports || 'Laporan Keuangan', t.umkmSubmenus?.tax || 'Pajak'] 
+    {
+      id: 'invoice_gen',
+      label: t.sidebarNav?.keuangan || 'Finance',
+      icon: FileText,
+      subItems: [t.umkmSubmenus?.invoices || 'Invoices', t.umkmSubmenus?.financialReports || 'Laporan Keuangan', t.umkmSubmenus?.tax || 'Pajak']
     },
     { id: 'store', label: t.sidebarNav?.tokoSaya || 'Store', icon: ShoppingBag },
     { id: 'customers', label: t.sidebarNav?.pelanggan || 'Customers', icon: Users },
@@ -516,10 +618,10 @@ export function UmkmDashboardContainer({
   ];
 
   const menuSettings = [
-    { 
-      id: 'settings', 
-      label: t.sidebarNav?.pengaturan || 'Settings', 
-      icon: Settings, 
+    {
+      id: 'settings',
+      label: t.sidebarNav?.pengaturan || 'Settings',
+      icon: Settings,
       subItems: [
         t.umkmSubmenus?.profileAccount || 'Profil & Akun',
         t.umkmSubmenus?.teamUsers || 'Tim & Pengguna',
@@ -530,7 +632,7 @@ export function UmkmDashboardContainer({
         t.umkmSubmenus?.billingInvoice || 'Billing & Invoice',
         t.umkmSubmenus?.apiKeys || 'API Keys',
         t.umkmSubmenus?.system || 'System'
-      ] 
+      ]
     }
   ];
 
@@ -555,8 +657,8 @@ export function UmkmDashboardContainer({
           const isPopoverOpen = activePopover === item.id;
 
           return (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               className="relative group"
               onMouseEnter={() => {
                 if (item.subItems) setActivePopover(item.id);
@@ -570,13 +672,11 @@ export function UmkmDashboardContainer({
                   setActiveTab(item.id);
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center justify-between transition-all duration-300 cursor-pointer ${
-                  isCollapsed ? 'px-0 py-2.5 justify-center rounded-2xl' : 'px-3 py-2 rounded-2xl text-xs'
-                } ${
-                  isActive
+                className={`w-full flex items-center justify-between transition-all duration-300 cursor-pointer ${isCollapsed ? 'px-0 py-2.5 justify-center rounded-2xl' : 'px-3 py-2 rounded-2xl text-xs'
+                  } ${isActive
                     ? 'bg-orange-50/90 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 font-black border border-orange-200/80 dark:border-orange-900/60 shadow-2xs'
                     : 'text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                  }`}
               >
                 <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
                   <Icon size={18} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
@@ -606,10 +706,9 @@ export function UmkmDashboardContainer({
 
               {/* SUBMENU POPOVER (Hover / Click popover menu) */}
               {item.subItems && isPopoverOpen && (
-                <div 
-                  className={`absolute z-50 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 space-y-1 animate-in fade-in slide-in-from-left-2 duration-150 ${
-                    isCollapsed ? 'left-16 top-0' : 'left-full ml-2 top-0'
-                  }`}
+                <div
+                  className={`absolute z-50 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 space-y-1 animate-in fade-in slide-in-from-left-2 duration-150 ${isCollapsed ? 'left-16 top-0' : 'left-full ml-2 top-0'
+                    }`}
                 >
                   <div className="px-2 py-1 text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800 pb-1">
                     {item.label} Submenu
@@ -647,10 +746,9 @@ export function UmkmDashboardContainer({
       )}
 
       {/* COLLAPSIBLE SIDEBAR NAVIGATION */}
-      <aside 
-        className={`border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 ease-in-out relative ${
-          isCollapsed ? 'w-20' : 'w-64'
-        }`}
+      <aside
+        className={`border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 ease-in-out relative ${isCollapsed ? 'w-20' : 'w-64'
+          }`}
       >
         <div className="p-4 space-y-4 overflow-y-auto overflow-x-hidden">
           {/* Logo Header & Collapse Toggle */}
@@ -693,9 +791,8 @@ export function UmkmDashboardContainer({
           )}
 
           {/* User Profile Card below logo */}
-          <div className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 transition-all duration-300 ${
-            isCollapsed ? 'p-2 flex justify-center' : 'p-3 flex items-center justify-between'
-          }`}>
+          <div className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 transition-all duration-300 ${isCollapsed ? 'p-2 flex justify-center' : 'p-3 flex items-center justify-between'
+            }`}>
             <div className="flex items-center gap-2.5 truncate">
               <img
                 src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
@@ -732,21 +829,20 @@ export function UmkmDashboardContainer({
             <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2 transition-all duration-300">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[10px] font-bold text-slate-400">{t.umkmWidget?.yourPlan || 'Paket Anda'}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                  billingOverview?.plan?.status === 'Aktif'
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${billingOverview?.plan?.status === 'Aktif'
                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
                     : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                }`}>
+                  }`}>
                   {billingOverview?.plan?.status === 'Aktif' ? (t.umkmWidget?.active || 'Aktif') : (t.umkmWidget?.inactive || 'Inaktif')}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2.5">
-                <img 
-                  src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
+                <img
+                  src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
                   onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                  alt="Rocket Upgrade" 
-                  className="h-7 w-auto object-contain shrink-0" 
+                  alt="Rocket Upgrade"
+                  className="h-7 w-auto object-contain shrink-0"
                 />
                 <div>
                   <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">{billingOverview?.plan?.plan_name || 'Free'}</h5>
@@ -768,7 +864,7 @@ export function UmkmDashboardContainer({
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={() => {
                   setActiveTab('billing');
                   triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.billing || 'Billing'}...`);
@@ -779,16 +875,16 @@ export function UmkmDashboardContainer({
               </button>
             </div>
           ) : (
-            <div 
+            <div
               onClick={() => setActiveTab('billing')}
               className="p-2 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
               title={`${billingOverview?.plan?.plan_name || 'Free'} Plan: ${(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / ${(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} AI Credits`}
             >
-              <img 
-                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
+              <img
+                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
                 onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                alt="Rocket" 
-                className="h-6 w-auto object-contain shrink-0" 
+                alt="Rocket"
+                className="h-6 w-auto object-contain shrink-0"
               />
               <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 mt-0.5">{billingOverview?.plan?.credits_pct || 0}%</span>
             </div>
@@ -802,9 +898,8 @@ export function UmkmDashboardContainer({
                 triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.bantuan || 'Bantuan'}...`);
               }}
               title={t.umkmWidget?.help || 'Bantuan'}
-              className={`flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer ${
-                isCollapsed ? 'w-full px-0' : 'flex-1 px-3'
-              }`}
+              className={`flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'flex-1 px-3'
+                }`}
             >
               <HelpCircle size={16} className="text-orange-500" />
               {!isCollapsed && <span>{t.umkmWidget?.help || 'Bantuan'}</span>}
@@ -817,9 +912,8 @@ export function UmkmDashboardContainer({
                 onClose();
               }}
               title={t.umkmWidget?.signOut || 'Keluar'}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors cursor-pointer ${
-                isCollapsed ? 'w-full px-0' : 'px-3'
-              }`}
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'px-3'
+                }`}
             >
               <LogOut size={16} />
               {!isCollapsed && <span>{t.umkmWidget?.signOut || 'Keluar'}</span>}
@@ -875,11 +969,11 @@ export function UmkmDashboardContainer({
               className="group flex items-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform shrink-0"
               title="Upgrade Scale Plan"
             >
-              <img 
-                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')} 
+              <img
+                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
                 onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                alt="Upgrade Rocket" 
-                className="h-6 sm:h-8 w-auto object-contain shrink-0 group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300 drop-shadow-md" 
+                alt="Upgrade Rocket"
+                className="h-6 sm:h-8 w-auto object-contain shrink-0 group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300 drop-shadow-md"
               />
               <span className="px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:via-orange-600 hover:to-rose-600 text-white text-[10.5px] sm:text-xs font-black uppercase tracking-wide shadow-xs shadow-orange-500/25 border border-amber-300/40 transition-all duration-300">
                 Upgrade
@@ -899,9 +993,9 @@ export function UmkmDashboardContainer({
 
               {calendarOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-transparent" 
-                    onClick={() => setCalendarOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setCalendarOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -952,11 +1046,10 @@ export function UmkmDashboardContainer({
                           triggerToast(`📅 Filter: ${todayStr}`);
                           setCalendarOpen(false);
                         }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                          selectedDateRange.includes('Hari Ini')
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Hari Ini')
                             ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                        }`}
+                          }`}
                       >
                         Hari Ini
                       </button>
@@ -966,11 +1059,10 @@ export function UmkmDashboardContainer({
                           triggerToast('📅 Filter: 7 Hari Terakhir');
                           setCalendarOpen(false);
                         }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                          selectedDateRange.includes('7 Hari')
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('7 Hari')
                             ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                        }`}
+                          }`}
                       >
                         7 Hari
                       </button>
@@ -981,11 +1073,10 @@ export function UmkmDashboardContainer({
                           triggerToast(`📅 Filter: ${monthStr}`);
                           setCalendarOpen(false);
                         }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                          selectedDateRange.includes('Bulan Ini')
+                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Bulan Ini')
                             ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                        }`}
+                          }`}
                       >
                         Bulan Ini
                       </button>
@@ -1002,7 +1093,7 @@ export function UmkmDashboardContainer({
                           const month = calendarCurrentMonth.getMonth();
                           const daysInMonth = new Date(year, month + 1, 0).getDate();
                           const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-                          
+
                           const cells = [];
                           for (let i = 0; i < firstDayOffset; i++) {
                             cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
@@ -1018,11 +1109,10 @@ export function UmkmDashboardContainer({
                                   triggerToast(`📅 Filter Tanggal: ${selected}`);
                                   setCalendarOpen(false);
                                 }}
-                                className={`p-1 rounded-lg transition-all cursor-pointer ${
-                                  isToday
+                                className={`p-1 rounded-lg transition-all cursor-pointer ${isToday
                                     ? 'bg-orange-500 text-white font-black shadow-md scale-105'
                                     : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
-                                }`}
+                                  }`}
                               >
                                 {d}
                               </span>
@@ -1063,7 +1153,7 @@ export function UmkmDashboardContainer({
 
             {/* 3. NOTIFICATIONS BELL WITH BADGE '2' */}
             <div className="relative shrink-0">
-              <button 
+              <button
                 onClick={() => {
                   setNotificationsOpen(!notificationsOpen);
                 }}
@@ -1080,9 +1170,9 @@ export function UmkmDashboardContainer({
               {/* NOTIFICATIONS DROPDOWN MENU */}
               {notificationsOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-transparent" 
-                    onClick={() => setNotificationsOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setNotificationsOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -1108,17 +1198,16 @@ export function UmkmDashboardContainer({
                         </div>
                       ) : (
                         notifications.slice(0, 5).map((notif, idx) => (
-                          <div 
+                          <div
                             key={idx}
                             onClick={() => {
                               if (notif.action_url) setActiveTab(notif.action_url);
                               setNotificationsOpen(false);
                             }}
-                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                              notif.is_read 
-                                ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75' 
+                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${notif.is_read
+                                ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
                                 : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
-                            }`}
+                              }`}
                           >
                             <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
                               <Activity size={14} />
@@ -1138,7 +1227,7 @@ export function UmkmDashboardContainer({
 
             {/* 4. USER PROFILE HEADER DROPDOWN */}
             <div className="relative shrink-0">
-              <div 
+              <div
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-orange-400 transition-colors"
               >
@@ -1157,9 +1246,9 @@ export function UmkmDashboardContainer({
 
               {profileDropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40 bg-transparent" 
-                    onClick={() => setProfileDropdownOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setProfileDropdownOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-3 space-y-2 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* User Info Header */}
@@ -1265,10 +1354,10 @@ export function UmkmDashboardContainer({
 
         {/* View Renderer */}
         <div className="p-3 sm:p-4 md:p-6 flex-1 pb-24 md:pb-6">
-          <UmkmDashboardView 
-            activeTab={activeTab} 
-            userName={userName} 
-            userEmail={userEmail} 
+          <UmkmDashboardView
+            activeTab={activeTab}
+            userName={userName}
+            userEmail={userEmail}
             isGuest={isGuest}
             onNavigateTab={setActiveTab}
             onUpdateAvatar={(newUrl) => {
@@ -1276,7 +1365,7 @@ export function UmkmDashboardContainer({
               if (typeof window !== 'undefined') {
                 localStorage.setItem('zega_user_avatar', newUrl);
               }
-            }} 
+            }}
           />
         </div>
 
@@ -1284,11 +1373,10 @@ export function UmkmDashboardContainer({
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md px-2 py-1.5 flex justify-around items-center shadow-lg">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
+            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
                 ? 'text-orange-500 font-extrabold scale-105'
                 : 'text-slate-400 font-medium hover:text-slate-600'
-            }`}
+              }`}
           >
             <LayoutDashboard size={20} />
             <span className="text-[9.5px]">Beranda</span>
@@ -1296,11 +1384,10 @@ export function UmkmDashboardContainer({
 
           <button
             onClick={() => setActiveTab('my_agents')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'my_agents' || activeTab === 'my_ai_employees'
+            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
                 ? 'text-orange-500 font-extrabold scale-105'
                 : 'text-slate-400 font-medium hover:text-slate-600'
-            }`}
+              }`}
           >
             <Bot size={20} />
             <span className="text-[9.5px]">AI Agent</span>
@@ -1308,11 +1395,10 @@ export function UmkmDashboardContainer({
 
           <button
             onClick={() => setActiveTab('inbox')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${
-              activeTab === 'inbox' || activeTab === 'wa_bot'
+            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
                 ? 'text-orange-500 font-extrabold scale-105'
                 : 'text-slate-400 font-medium hover:text-slate-600'
-            }`}
+              }`}
           >
             <MessageSquare size={20} />
             <span className="text-[9.5px]">Inbox</span>
@@ -1321,11 +1407,10 @@ export function UmkmDashboardContainer({
 
           <button
             onClick={() => setActiveTab('store')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'store'
+            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
                 ? 'text-orange-500 font-extrabold scale-105'
                 : 'text-slate-400 font-medium hover:text-slate-600'
-            }`}
+              }`}
           >
             <Store size={20} />
             <span className="text-[9.5px]">Toko</span>
@@ -1333,11 +1418,10 @@ export function UmkmDashboardContainer({
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'settings'
+            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
                 ? 'text-orange-500 font-extrabold scale-105'
                 : 'text-slate-400 font-medium hover:text-slate-600'
-            }`}
+              }`}
           >
             <Settings size={20} />
             <span className="text-[9.5px]">Pengaturan</span>
@@ -1349,7 +1433,7 @@ export function UmkmDashboardContainer({
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           {/* Backdrop Blur */}
-          <div 
+          <div
             onClick={() => setMobileMenuOpen(false)}
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
           />
@@ -1404,11 +1488,10 @@ export function UmkmDashboardContainer({
                             setMobileMenuOpen(false);
                             triggerToast(`✓ Membuka ${item.label}`);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                            isActive
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
                               ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
@@ -1456,156 +1539,153 @@ export function UmkmDashboardContainer({
         </div>
       )}
 
-      {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Appears ONLY on Home / Overview tab) */}
-      {(activeTab === 'umkm' || activeTab === 'home' || activeTab === 'overview') && (
-        <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
-          {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
-          {copilotOpen && (
-            <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[72vh] sm:h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
-              {/* Dropdown Header */}
-              <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 sm:gap-3">
-                  <div className="size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
-                    <img
-                      src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                      alt="ZEGA Copilot"
-                      className="w-full h-full object-contain p-0.5"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
-                      ZEGA Copilot
-                    </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">Real-Time AI Active</span>
-                    </div>
+      {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Available Globally across all Dashboard Menus) */}
+      <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
+        {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
+        {copilotOpen && (
+          <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[72vh] sm:h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
+            {/* Dropdown Header */}
+            <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+                  <img
+                    src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                    alt="ZEGA Copilot"
+                    className="w-full h-full object-contain p-0.5"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
+                    ZEGA Copilot
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">Real-Time AI Active</span>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => setCopilotOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Tutup Copilot"
-                >
-                  <ChevronDown size={18} />
-                </button>
               </div>
 
-              {/* Quick Suggestion Chips */}
-              <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <button
-                  onClick={() => handleSendCopilotMessage('Analisis penjualan toko hari ini')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  📊 Analisis Penjualan
-                </button>
-                <button
-                  onClick={() => handleSendCopilotMessage('Buatkan draf broadcast promo WhatsApp')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  💬 Promo WhatsApp
-                </button>
-                <button
-                  onClick={() => handleSendCopilotMessage('Cek stok barang yang hampir habis')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  📦 Stok Terkini
-                </button>
-              </div>
+              <button
+                onClick={() => setCopilotOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Tutup Copilot"
+              >
+                <ChevronDown size={18} />
+              </button>
+            </div>
 
-              {/* Chat Stream List */}
-              <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
-                {copilotMessages.map((msg, idx) => (
-                  <div
-                    key={msg.id || idx}
-                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
-                      {msg.sender === 'copilot' && (
-                        <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
-                          <img
-                            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                            alt="ZEGA Copilot"
-                            className="w-full h-full object-contain p-0"
-                          />
+            {/* Quick Suggestion Chips */}
+            <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <button
+                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Today store sales analysis' : aiLang === 'zh' ? '今日店铺销售分析' : 'Analisis penjualan toko hari ini')}
+                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+              >
+                {aiLang === 'en' ? '📊 Sales Analysis' : aiLang === 'zh' ? '📊 销售分析' : '📊 Analisis Penjualan'}
+              </button>
+              <button
+                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Draft a WhatsApp promo broadcast' : aiLang === 'zh' ? '草拟 WhatsApp 促销广播文案' : 'Buatkan draf broadcast promo WhatsApp')}
+                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+              >
+                {aiLang === 'en' ? '💬 WhatsApp Promo' : aiLang === 'zh' ? '💬 微信/WhatsApp 推广' : '💬 Promo WhatsApp'}
+              </button>
+              <button
+                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Check low stock inventory' : aiLang === 'zh' ? '检查低库存商品' : 'Cek stok barang yang hampir habis')}
+                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+              >
+                {aiLang === 'en' ? '📦 Stock Status' : aiLang === 'zh' ? '📦 实时库存' : '📦 Stok Terkini'}
+              </button>
+            </div>
+
+            {/* Chat Stream List */}
+            <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+              {copilotMessages.map((msg, idx) => (
+                <div
+                  key={msg.id || idx}
+                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                >
+                  <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
+                    {msg.sender === 'copilot' && (
+                      <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                        <img
+                          src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                          alt="ZEGA Copilot"
+                          className="w-full h-full object-contain p-0"
+                        />
+                      </div>
+                    )}
+
+                    <div
+                      className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
+                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
+                        }`}
+                    >
+                      {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
+
+                      {msg.sender === 'copilot' && msg.inference_ms && (
+                        <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
+                          <span className="flex items-center gap-1 text-orange-400 font-bold">
+                            ✨ ZEGA Copilot
+                          </span>
+                          <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
                         </div>
                       )}
-
-                      <div
-                        className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${
-                          msg.sender === 'user'
-                            ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
-                            : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
-                        }`}
-                      >
-                        {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
-
-                        {msg.sender === 'copilot' && msg.inference_ms && (
-                          <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
-                            <span className="flex items-center gap-1 text-orange-400 font-bold">
-                              ✨ ZEGA Copilot
-                            </span>
-                            <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
-
-                    <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
-                      {msg.created_at || 'Baru saja'}
-                    </span>
                   </div>
-                ))}
 
-                {isCopilotTyping && (
-                  <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
-                    <div className="size-2 rounded-full bg-orange-500 animate-ping" />
-                    <span>ZEGA Copilot sedang berpikir...</span>
-                  </div>
-                )}
-              </div>
+                  <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
+                    {msg.created_at || (aiLang === 'en' ? 'Just now' : aiLang === 'zh' ? '刚刚' : 'Baru saja')}
+                  </span>
+                </div>
+              ))}
 
-              {/* Input Bar */}
-              <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={copilotInput}
-                  onChange={(e) => setCopilotInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
-                  placeholder="Tanyakan bisnis, sales, promo ke ZEGA Copilot..."
-                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
-                />
-                <button
-                  onClick={() => handleSendCopilotMessage()}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
-                  title="Kirim Pesan"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
+              {isCopilotTyping && (
+                <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
+                  <div className="size-2 rounded-full bg-orange-500 animate-ping" />
+                  <span>{aiLang === 'en' ? 'ZEGA Copilot is thinking...' : aiLang === 'zh' ? 'ZEGA Copilot 正在思考...' : 'ZEGA Copilot sedang berpikir...'}</span>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Floating Trigger Pill Button (Mobile Optimized Positioning) */}
-          <button
-            onClick={() => setCopilotOpen(!copilotOpen)}
-            className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          >
-            <div className="size-11 sm:size-12 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
-              <img
-                src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                alt="ZEGA Copilot"
-                className="w-full h-full object-contain p-0 scale-125"
+            {/* Input Bar */}
+            <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+              <input
+                type="text"
+                value={copilotInput}
+                onChange={(e) => setCopilotInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
+                placeholder={aiLang === 'en' ? 'Ask ZEGA Copilot about sales, inventory, promos...' : aiLang === 'zh' ? '向 ZEGA Copilot 询问销售、库存与促销...' : 'Tanyakan bisnis, sales, promo ke ZEGA Copilot...'}
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
               />
+              <button
+                onClick={() => handleSendCopilotMessage()}
+                className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
+                title="Kirim Pesan"
+              >
+                <Send size={16} />
+              </button>
             </div>
-            <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
-              ZEGA Copilot
-            </span>
-            <ChevronRight size={16} className={`text-slate-400 transition-transform ${copilotOpen ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Floating Trigger Pill Button (Mobile Optimized Positioning) */}
+        <button
+          onClick={() => setCopilotOpen(!copilotOpen)}
+          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <div className="size-11 sm:size-12 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
+            <img
+              src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+              alt="ZEGA Copilot"
+              className="w-full h-full object-contain p-0 scale-125"
+            />
+          </div>
+          <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
+            ZEGA Copilot
+          </span>
+          <ChevronRight size={16} className={`text-slate-400 transition-transform ${copilotOpen ? 'rotate-90' : ''}`} />
+        </button>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ModalBaseProps {
  * 1. Add Customer Modal
  */
 export function AddCustomerModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -79,9 +81,9 @@ export function AddCustomerModal({ isOpen, onClose, triggerToast, onRefresh }: M
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Users size={18} className="text-orange-500" />
-              <span>Tambah Pelanggan Baru</span>
+              <span>{t.crmView?.addCustomerModalTitle || 'Tambah Pelanggan Baru'}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Lengkapi profil pelanggan dan unggah foto profil dari perangkat Anda.</p>
+            <p className="text-xs text-slate-400 font-medium">{t.crmView?.addCustomerModalSub || 'Lengkapi profil pelanggan dan unggah foto profil dari perangkat Anda.'}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
             <X size={18} />

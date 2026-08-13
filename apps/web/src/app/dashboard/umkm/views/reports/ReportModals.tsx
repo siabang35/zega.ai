@@ -4,6 +4,7 @@ import {
   Send, ShieldCheck, TrendingUp, BarChart2, DollarSign, Users, ShoppingBag
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalProps {
   isOpen: boolean;
@@ -16,6 +17,9 @@ interface ModalProps {
  * 1. Export Report Modal
  */
 export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [format, setFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
   const [dateRange, setDateRange] = useState('1 Jul – 31 Jul 2026');
   const [includeSections, setIncludeSections] = useState({
@@ -67,8 +71,8 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
               <Download size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Export Business Report</h3>
-              <p className="text-xs text-slate-400">Unduh dokumen analisis & laporan performa bisnis</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.exportReportTitle || 'Export Business Report'}</h3>
+              <p className="text-xs text-slate-400">{r?.exportReportSubtitle || 'Unduh dokumen analisis & laporan performa bisnis'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -76,7 +80,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
 
         {/* Format Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Format File</label>
+          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.fileFormat || 'Format File'}</label>
           <div className="grid grid-cols-3 gap-2.5">
             {[
               { id: 'pdf', label: 'PDF Report', desc: 'Rapi & Siap Cetak' },
@@ -101,7 +105,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
 
         {/* Date Range Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Periode Laporan</label>
+          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.reportPeriod || 'Periode Laporan'}</label>
           <select 
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
@@ -116,7 +120,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
 
         {/* Sections Checkboxes */}
         <div className="space-y-2">
-          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Bagian yang Diikutsertakan</label>
+          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.includedSections || 'Bagian yang Diikutsertakan'}</label>
           <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
             {Object.entries({
               revenue: 'Revenue & Volume Orders',
@@ -142,7 +146,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
         {/* Actions */}
         <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-            Batal
+            {r?.cancel || 'Batal'}
           </button>
           <button
             onClick={handleExport}
@@ -150,7 +154,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
             className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
             {isExporting ? <Clock size={14} className="animate-spin" /> : <Download size={14} />}
-            <span>{isExporting ? 'Generating Document...' : 'Unduh Laporan'}</span>
+            <span>{isExporting ? 'Generating Document...' : (r?.downloadReport || 'Unduh Laporan')}</span>
           </button>
         </div>
       </div>
@@ -273,6 +277,9 @@ export function AIHealthRecommendationModal({ isOpen, onClose, triggerToast, onR
  * 3. Schedule Report Modal (Real-time Database Updates & Custom Schedule Creation)
  */
 export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }: ModalProps) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [schedules, setSchedules] = useState([
     { id: 's1', title: 'Laporan Mingguan', desc: 'Setiap Senin, 08:00', active: true, format: 'PDF', channel: 'Email' },
     { id: 's2', title: 'Laporan Bulanan', desc: 'Setiap 1 Bulan, 08:00', active: true, format: 'Excel', channel: 'Email & WA' }
@@ -386,7 +393,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
               <Clock size={20} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Kelola Jadwal Laporan Otomatis</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.manageScheduleTitle || 'Kelola Jadwal Laporan Otomatis'}</h3>
               <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
                 ZeroClaw Cron Engine Active
               </span>
@@ -396,7 +403,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Email Utama Penerima Laporan</label>
+          <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.primaryEmail || 'Email Utama Penerima Laporan'}</label>
           <input
             type="email"
             value={emailInput}
@@ -407,12 +414,12 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Daftar Jadwal Otomatis ({schedules.length})</label>
+            <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.scheduleListTitle || 'Daftar Jadwal Otomatis'} ({schedules.length})</label>
             <button
               onClick={() => setIsAddingNew(!isAddingNew)}
               className="text-[11px] font-black text-orange-600 hover:text-orange-700 cursor-pointer flex items-center gap-1"
             >
-              + {isAddingNew ? 'Batal Tambah' : 'Tambah Jadwal Baru'}
+              + {isAddingNew ? (r?.cancelAdd || 'Batal Tambah') : (r?.addNewSchedule || 'Tambah Jadwal Baru')}
             </button>
           </div>
 
@@ -431,7 +438,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
 
               <div>
                 <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                  Judul Jadwal / Nama Laporan
+                  {r?.newScheduleTitleLabel || 'Judul Jadwal / Nama Laporan'}
                 </label>
                 <input
                   type="text"
@@ -446,7 +453,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <Calendar size={12} className="text-blue-500" />
-                    <span>Frekuensi</span>
+                    <span>{r?.frequency || 'Frekuensi'}</span>
                   </label>
                   <div className="relative">
                     <select
@@ -467,7 +474,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <Clock size={12} className="text-purple-500" />
-                    <span>Jam Pengiriman</span>
+                    <span>{r?.deliveryTime || 'Jam Pengiriman'}</span>
                   </label>
                   <div className="relative">
                     <select
@@ -490,7 +497,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <FileText size={12} className="text-emerald-500" />
-                    <span>Format Dokumen</span>
+                    <span>{r?.documentFormat || 'Format Dokumen'}</span>
                   </label>
                   <div className="relative">
                     <select
@@ -511,7 +518,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
                 <div>
                   <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                     <Send size={12} className="text-pink-500" />
-                    <span>Kanal Pengiriman</span>
+                    <span>{r?.deliveryChannel || 'Kanal Pengiriman'}</span>
                   </label>
                   <div className="relative">
                     <select
@@ -535,7 +542,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
                 className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs cursor-pointer shadow-sm transition-all flex items-center justify-center gap-1.5"
               >
                 <Check size={14} />
-                <span>+ Tambahkan Jadwal ke System</span>
+                <span>+ {r?.addScheduleBtn || 'Tambahkan Jadwal ke System'}</span>
               </button>
             </div>
           )}
@@ -589,7 +596,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
             onClick={onClose}
             className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
           >
-            Batal
+            {r?.cancel || 'Batal'}
           </button>
 
           <button
@@ -598,7 +605,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
             className="px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isSendingTest ? <Clock size={14} className="animate-spin" /> : <Send size={14} />}
-            <span>{isSendingTest ? 'Mengirim Real Email...' : '📧 Kirim Test Email Laporan'}</span>
+            <span>{isSendingTest ? 'Mengirim Real Email...' : (`📧 ${r?.sendTestEmail || 'Kirim Test Email Laporan'}`)}</span>
           </button>
 
           <button 
@@ -607,7 +614,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
             className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isSaving ? <Clock size={14} className="animate-spin" /> : <Check size={14} />}
-            <span>{isSaving ? 'Menyimpan ke Database...' : 'Simpan Pengaturan Jadwal'}</span>
+            <span>{isSaving ? 'Menyimpan ke Database...' : (r?.saveScheduleSettings || 'Simpan Pengaturan Jadwal')}</span>
           </button>
         </div>
       </div>
@@ -691,6 +698,9 @@ export function DatePickerModal({
   onSelectRange, 
   triggerToast 
 }: ModalProps & { currentRange: string; onSelectRange: (range: string) => void }) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [selected, setSelected] = useState(currentRange);
 
   if (!isOpen) return null;
@@ -719,7 +729,7 @@ export function DatePickerModal({
               <Calendar size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Pilih Periode Laporan</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.selectReportPeriodTitle || 'Pilih Periode Laporan'}</h3>
               <p className="text-xs text-slate-400">Sinkronkan telemetry data laporan</p>
             </div>
           </div>
@@ -745,10 +755,10 @@ export function DatePickerModal({
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-            Batal
+            {r?.cancel || 'Batal'}
           </button>
           <button onClick={handleApply} className="px-5 py-2.5 rounded-2xl bg-orange-500 text-white font-extrabold text-xs hover:bg-orange-600 cursor-pointer shadow-xs">
-            Terapkan Periode
+            {r?.applyPeriod || 'Terapkan Periode'}
           </button>
         </div>
       </div>
@@ -765,6 +775,9 @@ export function ReportsFilterModal({
   subTab, 
   triggerToast 
 }: ModalProps & { subTab: string }) {
+  const { t } = useLanguage();
+  const r = t.reportsView;
+
   const [channelFilter, setChannelFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -784,7 +797,7 @@ export function ReportsFilterModal({
               <Sparkles size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Filter Laporan & Telemetry</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.filterReportsTitle || 'Filter Laporan & Telemetry'}</h3>
               <p className="text-xs text-slate-400">Filter data untuk {subTab}</p>
             </div>
           </div>
@@ -793,7 +806,7 @@ export function ReportsFilterModal({
 
         <div className="space-y-3 text-xs">
           <div className="space-y-1.5">
-            <label className="font-extrabold text-slate-700 dark:text-slate-300">Channel Penjualan</label>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.salesChannelFilter || 'Channel Penjualan'}</label>
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}

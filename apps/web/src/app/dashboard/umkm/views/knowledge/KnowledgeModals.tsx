@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalProps {
   isOpen: boolean;
@@ -1287,6 +1288,8 @@ export function CreateCategoryModal({
   onRefresh,
   onCategoryCreated 
 }: ModalProps & { onCategoryCreated?: (cat: any) => void }) {
+  const { t } = useLanguage();
+  const k = t.knowledgeView;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [iconName, setIconName] = useState('Folder');
@@ -1331,7 +1334,7 @@ export function CreateCategoryModal({
           id: 'cat-' + Date.now(),
           name,
           slug,
-          description: description || 'Kategori dokumentasi operasional dan panduan kerja toko UMKM.',
+          description: description || k.defaultCategoryDesc || 'Kategori dokumentasi operasional dan panduan kerja toko UMKM.',
           icon_name: iconName,
           badge_color: badgeColor,
           sort_order: Number(sortOrder) || 1,
@@ -1355,8 +1358,8 @@ export function CreateCategoryModal({
               <Plus size={20} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Tambah Kategori Baru</h3>
-              <p className="text-xs text-slate-400">Buat grup artikel & SOP baru untuk basis data toko</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.createCategoryModalTitle || 'Tambah Kategori Baru'}</h3>
+              <p className="text-xs text-slate-400">{k.createCategoryModalSub || 'Buat grup artikel & SOP baru untuk basis data toko'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"><X size={18} /></button>
@@ -1365,48 +1368,48 @@ export function CreateCategoryModal({
         <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
           
           <div className="space-y-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Nama Kategori</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.categoryNameLabel || 'Nama Kategori'}</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Manajemen Kasir & QRIS"
+              placeholder={k.categoryNamePlaceholder || 'Contoh: Manajemen Kasir & QRIS'}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-slate-700 dark:text-slate-300 font-extrabold">Deskripsi Kategori</label>
+            <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.categoryDescLabel || 'Deskripsi Kategori'}</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Jelaskan cakupan dokumen atau SOP dalam kategori ini..."
+              placeholder={k.categoryDescPlaceholder || 'Jelaskan cakupan dokumen atau SOP dalam kategori ini...'}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Pilih Ikon</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.selectIconLabel || 'Pilih Ikon'}</label>
               <select
                 value={iconName}
                 onChange={(e) => setIconName(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
               >
-                <option value="BookOpen">📖 BookOpen (Buku SOP)</option>
-                <option value="ShoppingBag">🛍️ ShoppingBag (Kasir/Sales)</option>
-                <option value="Truck">🚚 Truck (Logistik/Pengiriman)</option>
-                <option value="Receipt">🧾 Receipt (Perpajakan/Invoice)</option>
-                <option value="Sparkles">✨ Sparkles (Marketing)</option>
-                <option value="ShieldCheck">🛡️ ShieldCheck (Quality Control)</option>
-                <option value="Folder">📁 Folder (Umum)</option>
+                <option value="BookOpen">{k.iconSopGuide || '📖 BookOpen (Buku SOP)'}</option>
+                <option value="ShoppingBag">{k.iconSalesCashier || '🛍️ ShoppingBag (Kasir/Sales)'}</option>
+                <option value="Truck">{k.iconLogistics || '🚚 Truck (Logistik/Pengiriman)'}</option>
+                <option value="Receipt">{k.iconTaxInvoice || '🧾 Receipt (Perpajakan/Invoice)'}</option>
+                <option value="Sparkles">{k.iconMarketing || '✨ Sparkles (Marketing)'}</option>
+                <option value="ShieldCheck">{k.iconQualityControl || '🛡️ ShieldCheck (Quality Control)'}</option>
+                <option value="Folder">{k.iconFolderGeneral || '📁 Folder (Umum)'}</option>
               </select>
             </div>
 
             <div className="space-y-1">
-              <label className="text-slate-700 dark:text-slate-300 font-extrabold">Urutan Tampil</label>
+              <label className="text-slate-700 dark:text-slate-300 font-extrabold">{k.displayOrderLabel || 'Urutan Tampil'}</label>
               <input
                 type="number"
                 min={1}
@@ -1420,7 +1423,7 @@ export function CreateCategoryModal({
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
-              Batal
+              {k.cancelBtn || 'Batal'}
             </button>
             <button
               type="submit"
@@ -1428,7 +1431,7 @@ export function CreateCategoryModal({
               className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting && <Clock size={14} className="animate-spin" />}
-              <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Kategori'}</span>
+              <span>{isSubmitting ? (k.savingCategoryBtn || 'Menyimpan...') : (k.saveCategoryBtn || 'Simpan Kategori')}</span>
             </button>
           </div>
         </form>

@@ -8,6 +8,7 @@ import {
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { umkmSupabaseService } from '../../../services/umkmSupabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ProfileTabProps {
   profileData: any;
@@ -32,6 +33,7 @@ export function ProfileTab({
   onNavigateTab,
   onUpdateAvatar
 }: ProfileTabProps) {
+  const { t } = useLanguage();
   // Session fallback helper
   const getSessionUserFallback = () => {
     if (typeof window !== 'undefined') {
@@ -176,11 +178,11 @@ export function ProfileTab({
         avatar_url: avatarUrl
       });
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
-      triggerToast('✓ Profile & Foto Profil CDN Berhasil Diperbarui & Disimpan ke Database!');
+      triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
       onRefresh();
     } catch (err: any) {
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
-      triggerToast('✓ Profile disimpan secara lokal!');
+      triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
     } finally {
       setIsSaving(false);
     }
@@ -390,7 +392,9 @@ export function ProfileTab({
                   disabled={isSaving}
                   className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer"
                 >
-                  {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  {isSaving 
+                    ? (t.settingsView?.profileTab?.saving || 'Menyimpan...') 
+                    : (t.settingsView?.profileTab?.saveBtn || 'Simpan Perubahan')}
                 </button>
               </div>
 
