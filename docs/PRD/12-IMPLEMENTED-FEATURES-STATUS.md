@@ -173,6 +173,7 @@ The backend architecture (`apps/api`) has been hardened with OWASP security best
 | Billing Overview RPC SQL Migration 84 | `supabase/migrations/sql_umkm/84_umkm_billing_overview_realtime.sql` | Executed & RPC Ready |
 | Billing Actions & Support SQL Migration 85 | `supabase/migrations/sql_umkm/85_umkm_billing_actions_and_support_realtime.sql` | Executed & RLS/Realtime Ready |
 | Custom AI Request Modal & Workflow | `apps/web/src/app/dashboard/umkm/views/marketplace/MarketplaceModals.tsx` | Verified & Production Ready |
+| AI Chat Persistence & Multi-Intent Spec | `docs/PRD/45-UMKM-AI-CHAT-PERSISTENCE-AND-MULTI-INTENT-LOCALIZATION-SPEC.md` | Documented & Verified |
 
 ---
 

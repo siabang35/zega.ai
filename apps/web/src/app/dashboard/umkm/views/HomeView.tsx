@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
   UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
-  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle
+  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle,
+  Maximize2, Minimize2, History, ArrowLeft, Search, Trash2
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
@@ -16,6 +17,23 @@ interface HomeViewProps {
   onNavigateTab: (tab: string) => void;
   triggerToast: (msg: string) => void;
 }
+
+// Helper to strip markdown formatting symbols and excessive emojis from plain text previews
+const stripMarkdown = (text?: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
+    .replace(/^#+\s+/gm, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/[\*\_\#\`]/g, '')
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 // Dynamic Sales 7 Hari & 30 Hari Terakhir for Recharts
 const getDynamicSales7Days = () => {
@@ -135,21 +153,45 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showSupportAssistantModal, setShowSupportAssistantModal] = useState(false);
+  const [isHelpFullScreen, setIsHelpFullScreen] = useState(false);
+  const [activeHelpChatId, setActiveHelpChatId] = useState<string | null>(null);
   const [supportSearchQuery, setSupportSearchQuery] = useState('');
-  // AI Language Preference helper
-  const getAiLang = () => {
+
+  // UI Interface Language (for titles, placeholders, buttons)
+  const getUiLang = () => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zega_ai_default_language');
-      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+      const saved = localStorage.getItem('zega_language') || localStorage.getItem('zega_umkm_language');
+      if (saved) {
+        const lower = saved.toLowerCase();
+        if (lower === 'en' || lower.includes('english')) return 'en';
+        if (lower === 'zh' || lower.includes('mandarin') || lower.includes('chinese')) return 'zh';
+        if (lower === 'id' || lower.includes('indonesia')) return 'id';
+      }
     }
     return 'id';
   };
 
+  // AI Output Result Language Preference (for backend AI response generation)
+  const getAiPrefLang = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved) {
+        const lower = saved.toLowerCase();
+        if (lower === 'en' || lower.includes('english')) return 'en';
+        if (lower === 'zh' || lower.includes('mandarin') || lower.includes('chinese')) return 'zh';
+        if (lower === 'id' || lower.includes('indonesia')) return 'id';
+      }
+    }
+    return getUiLang();
+  };
+
+  const getAiLang = getUiLang;
+
   const getSeedMessage = () => {
     const lang = getAiLang();
-    if (lang === 'en') return 'Hello! I am **ZEGA Ops Specialist** 🛠️. I am your operational guide for onboarding, AI Swarm agent deployment, WhatsApp & Instagram API setup, and store workflow automation. How can I assist your system configuration today?';
-    if (lang === 'zh') return '你好！我是 **ZEGA Ops Specialist** 🛠️。我是您的系统运营与配置指南，专注于 AI Swarm 员工部署、WhatsApp/Instagram API 集成与店铺工作流自动化。今天有什么可以协助您？';
-    return 'Halo! Saya **ZEGA Ops Specialist** 🛠️. Saya adalah panduan operasional Anda untuk onboarding, alokasi AI Swarm agent, integrasi WhatsApp & Instagram API, dan otomatisasi alur kerja toko. Ada yang bisa saya bantu dengan konfigurasi sistem Anda hari ini?';
+    if (lang === 'en') return 'Hello! I am ZEGA Ops Specialist. I am your operational guide for onboarding, AI Swarm agent deployment, WhatsApp & Instagram API setup, and store workflow automation. How can I assist your system configuration today?';
+    if (lang === 'zh') return '你好！我是 ZEGA Ops Specialist。我是您的系统运营与配置指南，专注于 AI Swarm 员工部署、WhatsApp/Instagram API 集成与店铺工作流自动化。今天有什么可以协助您？';
+    return 'Halo! Saya ZEGA Ops Specialist. Saya adalah panduan operasional Anda untuk onboarding, alokasi AI Swarm agent, integrasi WhatsApp & Instagram API, dan otomatisasi alur kerja toko. Ada yang bisa saya bantu dengan konfigurasi sistem Anda hari ini?';
   };
 
   const [supportChatMessages, setSupportChatMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; model?: string; inference_ms?: number; tokens?: number }>>([
@@ -172,19 +214,133 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
   const [newTaskForm, setNewTaskForm] = useState({ title: '', agent: 'Customer Service AI', priority: 'normal' });
   const [aiTasksList, setAiTasksList] = useState<Array<{ id?: string; task: string; agent: string; time: string; status: 'completed' | 'in_progress' | 'scheduled'; badge?: string }>>([]);
 
-  // Dynamically update seed message whenever support modal opens
+  const [tierUsage, setTierUsage] = useState<any>(null);
+
+  // Recent Help Chat History Panel State
+  const [showHelpHistory, setShowHelpHistory] = useState(false);
+  const [helpHistoryList, setHelpHistoryList] = useState<any[]>([]);
+  const [helpHistorySearch, setHelpHistorySearch] = useState('');
+
+  const filteredHelpHistoryList = helpHistoryList.filter(session =>
+    (session.title || '').toLowerCase().includes(helpHistorySearch.toLowerCase()) ||
+    (session.last_message || '').toLowerCase().includes(helpHistorySearch.toLowerCase())
+  );
+
+  const fetchHelpHistoryList = async () => {
+    try {
+      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory('demo-owner', 'ai_assistant');
+      if (recentRpcList && recentRpcList.length > 0) {
+        setHelpHistoryList(recentRpcList.map((item: any) => ({
+          id: item.chat_id,
+          title: item.title,
+          created_at: item.updated_at || item.created_at,
+          last_message: item.last_message
+        })));
+        return;
+      }
+      const list = await SupabaseDashboardService.getUmkmAiAssistantChats('11111111-1111-1111-1111-111111111111', 'demo-owner');
+      if (list) setHelpHistoryList(list);
+    } catch (e) {
+      console.warn('Note loading help chat list:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (showHelpHistory) {
+      fetchHelpHistoryList();
+    }
+  }, [showHelpHistory]);
+
+  const handleDeleteHelpSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const ok = await SupabaseDashboardService.deleteUmkmAiAssistantChat(sessionId);
+      if (ok) {
+        setHelpHistoryList((prev) => prev.filter((s) => s.id !== sessionId));
+        if (activeHelpChatId === sessionId) {
+          setActiveHelpChatId(null);
+          setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
+        }
+        triggerToast(getAiLang() === 'en' ? 'Chat session deleted' : 'Sesi chat berhasil dihapus');
+      }
+    } catch (err) {
+      console.warn('Error deleting session:', err);
+    }
+  };
+
+  const handleSelectHelpSession = async (session: any) => {
+    try {
+      setActiveHelpChatId(session.id);
+      const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(session.id);
+      if (msgs && msgs.length > 0) {
+        const formatted = msgs.map((m: any) => ({
+          sender: m.sender === 'user' ? ('user' as const) : ('ai' as const),
+          text: m.text,
+          inference_ms: m.inference_ms || 185,
+          tokens: m.tokens || 94
+        }));
+        setSupportChatMessages(formatted);
+      }
+      setShowHelpHistory(false);
+    } catch (e) {
+      console.warn('Error selecting help session:', e);
+    }
+  };
+
+  // Load Help Live Chat History from Supabase DB on modal open
   useEffect(() => {
     if (showSupportAssistantModal) {
-      setSupportChatMessages([
-        {
-          sender: 'ai',
-          text: getSeedMessage(),
-          inference_ms: 120,
-          tokens: 45
+      const loadHelpHistory = async () => {
+        try {
+          const usage = await SupabaseDashboardService.getUserChatTierUsage('demo-owner');
+          if (usage) setTierUsage(usage);
+
+          const chatSessionList = await SupabaseDashboardService.getUmkmAiAssistantChats('11111111-1111-1111-1111-111111111111', 'demo-owner');
+          const chatSession = (chatSessionList && chatSessionList.length > 0) ? chatSessionList[0] : null;
+          if (chatSession && chatSession.id) {
+            setActiveHelpChatId(chatSession.id);
+            const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(chatSession.id);
+            if (msgs && msgs.length > 0) {
+              const formatted = msgs.map((m: any) => ({
+                sender: m.sender === 'user' ? ('user' as const) : ('ai' as const),
+                text: m.text,
+                inference_ms: m.inference_ms || 185,
+                tokens: m.tokens || 94
+              }));
+              setSupportChatMessages(formatted);
+              return;
+            }
+          }
+          setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
+        } catch (e) {
+          console.warn('Note loading help chat history:', e);
         }
-      ]);
+      };
+      loadHelpHistory();
     }
   }, [showSupportAssistantModal]);
+
+  // Create New Help Chat Session Function (+ Sesi Baru)
+  const handleNewHelpChat = async () => {
+    try {
+      const title = `Ops Specialist ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      const newChat = await SupabaseDashboardService.createUmkmAiAssistantChat('11111111-1111-1111-1111-111111111111', 'demo-owner', title);
+      if (newChat) {
+        setActiveHelpChatId(newChat.id);
+        const seedText = getSeedMessage();
+        setSupportChatMessages([{ sender: 'ai', text: seedText, inference_ms: 120, tokens: 45 }]);
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: newChat.id,
+          user_id: 'demo-owner',
+          sender: 'ai',
+          text: seedText
+        });
+        fetchHelpHistoryList();
+      }
+    } catch (e) {
+      console.warn('Error starting new help chat:', e);
+    }
+  };
 
   // Clean Markdown & Natural Text Formatting Hardening Helper
   const renderFormattedSupportMessage = (rawText: string) => {
@@ -270,7 +426,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
     const textToSend = customText || supportInput;
     if (!textToSend.trim()) return;
 
-    const currentAiLang = getAiLang();
+    const currentAiLang = getAiPrefLang();
 
     setSupportChatMessages(prev => [
       ...prev,
@@ -278,6 +434,30 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
     ]);
     if (!customText) setSupportInput('');
     setLoading(true);
+
+    // ── STEP 1: Ensure Session Exists First ──
+    let chatIdToUse = activeHelpChatId;
+    try {
+      if (!chatIdToUse) {
+        const title = `Ops Specialist: ${textToSend.trim().slice(0, 25)}`;
+        const newChat = await SupabaseDashboardService.createUmkmAiAssistantChat('11111111-1111-1111-1111-111111111111', 'demo-owner', title);
+        if (newChat && newChat.id) {
+          chatIdToUse = newChat.id;
+          setActiveHelpChatId(newChat.id);
+        }
+      }
+      // Save User Message to DB
+      if (chatIdToUse) {
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: chatIdToUse,
+          user_id: 'demo-owner',
+          sender: 'user',
+          text: textToSend.trim()
+        });
+      }
+    } catch (sessionErr) {
+      console.warn('Session setup error in HomeView:', sessionErr);
+    }
 
     const envApi = import.meta.env.VITE_API_URL;
     const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
@@ -288,7 +468,16 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
 
     const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
 
+    let aiResponseText = '';
+    let inferenceMsToUse = 210;
+    let tokensToUse = 118;
+
     try {
+      const prefStyle = localStorage.getItem('zega_ai_response_style') || 'Profesional';
+      const prefLen = localStorage.getItem('zega_ai_response_length') || 'Sedang';
+      const prefFormat = localStorage.getItem('zega_ai_response_format') || 'Ringkas';
+      const prefModel = localStorage.getItem('zega_ai_default_model') || 'GPT-4o (Recommended)';
+
       const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,60 +486,75 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           storeId: '11111111-1111-1111-1111-111111111111',
           userId: 'demo-owner',
           language: currentAiLang,
+          response_style: prefStyle,
+          response_length: prefLen,
+          response_format: prefFormat,
+          default_model: prefModel,
           agent_role: 'ZEGA Ops Specialist'
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
-          setSupportChatMessages(prev => [
-            ...prev,
-            {
-              sender: 'ai',
-              text: result.data.message,
-              inference_ms: result.data.inference_ms || 210,
-              tokens: result.data.total_tokens || 118
-            }
-          ]);
-          setLoading(false);
-          return;
+        if (result.success && result.data && result.data.message) {
+          aiResponseText = result.data.message;
+          inferenceMsToUse = result.data.inference_ms || 210;
+          tokensToUse = result.data.total_tokens || 118;
         }
       }
     } catch (err) {
       console.warn('Real AI Model backend call note:', err);
     }
 
-    // Dynamic Real Model AI Inference Engine Fallback (AI Language Responsive)
-    const promptLower = textToSend.toLowerCase();
-    let reply = '';
-    if (currentAiLang === 'en') {
-      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('add')) {
-        reply = '**AI Employee Deployment Management:**\nTo add a new AI Employee to your team:\n1. Click **"+ Add New AI Employee"** in the dashboard header.\n2. Define the specialization role (Support, Growth, Finance, or Sales).\n3. Write System Instructions tailored to store operations.\n4. Click **Deploy AI Employee** to activate the agent automatically.';
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-        reply = '**WhatsApp API Bot Automation:**\nYour WhatsApp Business Bot is active and connected. The bot reads transaction history & product catalog from Supabase to automatically reply to price inquiries and order delivery status.';
+    // Dynamic Real Model AI Inference Engine Fallback if API was unavailable
+    if (!aiResponseText) {
+      const promptLower = textToSend.toLowerCase();
+      if (currentAiLang === 'en') {
+        if (promptLower.includes('fashion') || promptLower.includes('apparel') || promptLower.includes('boutique') || promptLower.includes('clothing')) {
+          aiResponseText = '**ZEGA AI Fashion Store Intelligence:**\n1. **WhatsApp AI Catalog**: 24/7 size & color guidance for customers.\n2. **Sales Swarm Broadcasts**: Flash promos ready for new arrivals.\n3. **POS Inventory Tracking**: Variant size (S, M, L, XL) auto-alerts for fast sellers.';
+        } else if (promptLower.includes('profit') || promptLower.includes('growth') || promptLower.includes('margin') || promptLower.includes('make more') || promptLower.includes('increase')) {
+          aiResponseText = '**ZEGA AI Profit & Growth Strategy:**\n1. **WhatsApp Follow-Ups**: Auto-convert unpaid carts & past customers.\n2. **AI Sales Swarm Cross-Selling**: Auto-recommend bundles to repeat buyers.\n3. **High-Margin POS Analytics**: Focus marketing on top 20% profitable items.';
+        } else if (promptLower.includes('know') || promptLower.includes('unsure') || promptLower.includes('help')) {
+          aiResponseText = '**ZEGA AI Store Operations Advisory:**\nNo problem! Tell me what you need most:\n- **24/7 WhatsApp AI Catalog & Order Bot**\n- **Auto POS Cashier System** for rapid sales\n- **Inventory & Low-Stock Alerts**';
+        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('add')) {
+          aiResponseText = '**AI Employee Deployment Management:**\nTo add a new AI Employee to your team:\n1. Click **"+ Add New AI Employee"** in the dashboard header.\n2. Define the specialization role (Support, Growth, Finance, or Sales).\n3. Write System Instructions tailored to store operations.\n4. Click **Deploy AI Employee** to activate the agent automatically.';
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+          aiResponseText = '**WhatsApp API Bot Automation:**\nYour WhatsApp Business Bot is active and connected. The bot reads transaction history & product catalog from Supabase to automatically reply to price inquiries and order delivery status.';
+        } else {
+          aiResponseText = `**ZEGA AI Operational Support:**\nYour query regarding "${textToSend}" has been processed. All automation workflows and AI integrations can be monitored directly from this real-time dashboard.`;
+        }
+      } else if (currentAiLang === 'zh') {
+        if (promptLower.includes('fashion') || promptLower.includes('服装') || promptLower.includes('女装') || promptLower.includes('精品店')) {
+          aiResponseText = '**ZEGA AI 服饰店铺智能方案：**\n1. **WhatsApp AI 目录**：24/7 为客户提供尺码与颜色建议。\n2. **销售团队广播**：新品上新与限时抢购广播文案准备就绪。\n3. **POS 库存追踪**：多尺码（S, M, L, XL）实时监控与热销品预警。';
+        } else if (promptLower.includes('profit') || promptLower.includes('增长') || promptLower.includes('利润') || promptLower.includes('提升')) {
+          aiResponseText = '**ZEGA AI 利润与增长策略：**\n1. **WhatsApp 自动追单**：自动转化未付款订单与沉睡客户。\n2. **AI 销售团队交叉销售**：自动向老客户推荐组合商品。\n3. **高利润 POS 分析**：重点营销贡献 20% 主要利润的商品。';
+        } else if (promptLower.includes('know') || promptLower.includes('不懂') || promptLower.includes('帮助')) {
+          aiResponseText = '**ZEGA AI 运营咨询顾问：**\n别担心！告诉我您最需要的模块：\n- **24/7 WhatsApp AI 目录与接单机器人**\n- **高效 POS 收银系统** 处理日常销售\n- **库存与低库存预警**';
+        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('添加')) {
+          aiResponseText = '**AI 员工部署管理：**\n在您的团队中添加新的 AI 员工：\n1. 点击仪表板顶部的 **"+ 添加新 AI 员工"** 按钮。\n2. 定义专业角色（支持、增长、财务或销售）。\n3. 编写符合店铺运营需求的系统指令。\n4. 点击 **部署 AI 员工** 自动激活该代理。';
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+          aiResponseText = '**WhatsApp API 机器人自动化：**\n您的 WhatsApp Business 机器人已激活并自动连接。机器人从 Supabase 读取交易记录和产品目录，自动回复价格查询及配送状态。';
+        } else {
+          aiResponseText = `**ZEGA AI 运营支持：**\n关于 "${textToSend}" 的提问已处理。您可以在此仪表板中实时监控所有自动化工作流与 AI 集成。`;
+        }
       } else {
-        reply = `**ZEGA AI Operational Support:**\nYour query regarding "${textToSend}" has been processed. All automation workflows and AI integrations can be monitored directly from this real-time dashboard.`;
-      }
-    } else if (currentAiLang === 'zh') {
-      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('添加')) {
-        reply = '**AI 员工部署管理：**\n在您的团队中添加新的 AI 员工：\n1. 点击仪表板顶部的 **"+ 添加新 AI 员工"** 按钮。\n2. 定义专业角色（支持、增长、财务或销售）。\n3. 编写符合店铺运营需求的系统指令。\n4. 点击 **部署 AI 员工** 自动激活该代理。';
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-        reply = '**WhatsApp API 机器人自动化：**\n您的 WhatsApp Business 机器人已激活并自动连接。机器人从 Supabase 读取交易记录和产品目录，自动回复价格查询及配送状态。';
-      } else {
-        reply = `**ZEGA AI 运营支持：**\n关于 "${textToSend}" 的提问已处理。您可以在此仪表板中实时监控所有自动化工作流与 AI 集成。`;
-      }
-    } else {
-      if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
-        reply = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-        reply = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
-      } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
-        reply = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
-      } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
-        reply = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
-      } else {
-        reply = `**Bantuan Operasional ZEGA AI:**\nPertanyaan Anda mengenai "${textToSend}" telah diproses. Seluruh alur kerja otomatisasi dan integrasi AI dapat Anda pantau langsung dari dashboard ini secara real-time.`;
+        if (promptLower.includes('fashion') || promptLower.includes('baju') || promptLower.includes('pakaian') || promptLower.includes('distro') || promptLower.includes('boutique')) {
+          aiResponseText = '**Solusi Cerdas Toko Fashion ZEGA AI:**\n1. **Katalog WA AI**: Panduan ukuran & stok baju otomatis di WhatsApp 24/7.\n2. **Broadcast Promo WA**: Draf promo otomatis siap rilis saat koleksi baru rilis.\n3. **Kasir POS & Stok Varian**: Memantau varian warna/ukuran (S, M, L, XL) dengan peringatan stok menipis.';
+        } else if (promptLower.includes('profit') || promptLower.includes('untung') || promptLower.includes('omzet') || promptLower.includes('penjualan') || promptLower.includes('margin') || promptLower.includes('make more')) {
+          aiResponseText = '**Strategi Pertumbuhan Profit ZEGA AI:**\n1. **Follow-up WA Otomatis**: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. **AI Sales Swarm Cross-Selling**: Rekomendasikan produk pelengkap ke pelanggan lama secara otomatis.\n3. **Analitik POS Margin Tinggi**: Fokuskan promo pada 20% produk paling menguntungkan.';
+        } else if (promptLower.includes('know') || promptLower.includes('bingung') || promptLower.includes('tidak tahu') || promptLower.includes('gimana') || promptLower.includes('apa aja')) {
+          aiResponseText = '**Konsultasi Operasional ZEGA AI:**\nTidak masalah Kak! Mari tentukan fokus toko Kakak:\n- **Otomatisasi WA 24 Jam** untuk terima pesanan otomatis\n- **Sistem Kasir POS Cepat** untuk transaksi harian\n- **Manajemen Stok Barang & Peringatan Supplier**';
+        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
+          aiResponseText = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
+          aiResponseText = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
+        } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
+          aiResponseText = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
+        } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
+          aiResponseText = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
+        } else {
+          aiResponseText = `**Bantuan Operasional ZEGA AI:**\nPertanyaan Anda mengenai "${textToSend}" telah diproses. Seluruh alur kerja otomatisasi dan integrasi AI dapat Anda pantau langsung dari dashboard ini secara real-time.`;
+        }
       }
     }
 
@@ -358,12 +562,29 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       ...prev,
       {
         sender: 'ai',
-        text: reply,
-        inference_ms: 185,
-        tokens: 94
+        text: aiResponseText,
+        inference_ms: inferenceMsToUse,
+        tokens: tokensToUse
       }
     ]);
     setLoading(false);
+
+    // ── STEP 2: Always Persist AI Response Message to Supabase DB ──
+    try {
+      if (chatIdToUse) {
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: chatIdToUse,
+          user_id: 'demo-owner',
+          sender: 'ai',
+          text: aiResponseText,
+          inference_ms: inferenceMsToUse,
+          tokens: tokensToUse
+        });
+        fetchHelpHistoryList();
+      }
+    } catch (e) {
+      console.warn('Error persisting Ops Specialist AI response:', e);
+    }
   };
   const [igPolicyTriggers, setIgPolicyTriggers] = useState({
     autoCommentReply: true,
@@ -1874,31 +2095,215 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
       {/* ========================================================================= */}
       {/* MODAL 6: INLINE QUICK SUPPORT ASSISTANT SUB-MODAL */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* MODAL 6: INLINE QUICK SUPPORT ASSISTANT SUB-MODAL (Full Screen Responsive & Persistence) */}
+      {/* ========================================================================= */}
       {showSupportAssistantModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-3.5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="size-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-black shadow-md shadow-orange-500/20">
-                  <Bot size={18} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-xs">
+          <div className={
+            isHelpFullScreen
+              ? 'fixed inset-2 sm:inset-6 z-[60] bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 relative'
+              : 'bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-3.5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] relative'
+          }>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-9 sm:size-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+                  <Bot size={20} />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
                     <span>ZEGA Ops Specialist</span>
-                    <span className="px-2 py-0.2 rounded-full text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black">ONLINE</span>
                   </h3>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-slate-400 truncate">
                     {getAiLang() === 'en' ? 'Operational Onboarding & System Setup Guide' : getAiLang() === 'zh' ? '运营入门与系统设置指南' : 'Bantuan Langsung & Otomasi Alur Kerja Toko'}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowSupportAssistantModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-                <X size={18} />
-              </button>
+
+              {/* Action Buttons: History, + Sesi Baru, Maximize, Close */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowHelpHistory(!showHelpHistory)}
+                  className={`p-1.5 rounded-xl transition-colors cursor-pointer ${showHelpHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  title={getAiLang() === 'en' ? 'Recent Chat History' : getAiLang() === 'zh' ? '历史对话' : 'Riwayat Chat'}
+                >
+                  <History size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNewHelpChat}
+                  className="px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                  title={getAiLang() === 'en' ? 'Start New Chat Session' : getAiLang() === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
+                >
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">
+                    {getAiLang() === 'en' ? 'New Chat' : getAiLang() === 'zh' ? '新对话' : 'Sesi Baru'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsHelpFullScreen(!isHelpFullScreen)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isHelpFullScreen ? 'Kecilkan Modal' : 'Layar Penuh (Full Screen)'}
+                >
+                  {isHelpFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSupportAssistantModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Tutup Modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
+            {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
+            {showHelpHistory && (
+              <div className="absolute inset-0 z-50 bg-white/98 dark:bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
+                {/* Overlay Header Bar */}
+                <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-200/80 dark:border-slate-800/80 shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowHelpHistory(false)}
+                      className="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-2xs"
+                      title="Kembali ke Chat"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <History size={15} className="text-orange-500" />
+                          <span>{getAiLang() === 'en' ? 'AI Assistant Chat History' : getAiLang() === 'zh' ? 'AI 助手历史' : 'Riwayat AI Assistant'}</span>
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                          OPS SPECIALIST
+                        </span>
+                      </div>
+                      <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
+                        {filteredHelpHistoryList.length} {getAiLang() === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleNewHelpChat();
+                      setShowHelpHistory(false);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} />
+                    <span>{getAiLang() === 'en' ? 'New Session' : getAiLang() === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                  </button>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="relative mb-3 shrink-0">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder={getAiLang() === 'en' ? 'Filter chat history by title or text...' : getAiLang() === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat AI Assistant...'}
+                    value={helpHistorySearch}
+                    onChange={(e) => setHelpHistorySearch(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                  />
+                  {helpHistorySearch && (
+                    <button
+                      onClick={() => setHelpHistorySearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Session Cards List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {filteredHelpHistoryList.length === 0 ? (
+                    <div className="text-center py-14 px-4 bg-slate-50/50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      <MessageSquare size={28} className="mx-auto mb-2 text-slate-400/60 dark:text-slate-600" />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mb-1">
+                        {getAiLang() === 'en' ? 'No Ops Specialist sessions found' : 'Belum ada riwayat percakapan AI Assistant'}
+                      </p>
+                      <p className="text-[10.5px] text-slate-400 dark:text-slate-500">
+                        {getAiLang() === 'en' ? 'Click "+ New Session" to start a new ops discussion.' : getAiLang() === 'zh' ? '点击 "+ 新对话" 开始新讨论。' : 'Klik "+ Sesi Baru" untuk memulai diskusi operasional baru.'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredHelpHistoryList.map((session) => {
+                      const isActive = activeHelpChatId === session.id;
+                      let displayTitle = stripMarkdown(session.title);
+                      if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi Utama' || displayTitle === 'Bantuan Ops Specialist' || displayTitle === 'Ops Specialist Guide') {
+                        displayTitle = getAiLang() === 'en' ? 'Ops Specialist Guide' : getAiLang() === 'zh' ? '运营专家指南' : 'Bantuan Ops Specialist';
+                      } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
+                        const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
+                        displayTitle = getAiLang() === 'en' ? `Session ${timePart}` : getAiLang() === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
+                      }
+
+                      return (
+                        <button
+                          key={session.id}
+                          onClick={() => handleSelectHelpSession(session)}
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${
+                            isActive
+                              ? 'bg-orange-500/10 border-orange-500/50 text-orange-900 dark:text-orange-300 shadow-sm'
+                              : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:translate-x-0.5'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="font-bold truncate text-xs group-hover:text-orange-500 transition-colors">
+                                {displayTitle}
+                              </span>
+                            </div>
+                            {isActive && (
+                              <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white font-mono text-[8.5px] font-extrabold uppercase shrink-0 flex items-center gap-1 shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                Aktif
+                              </span>
+                            )}
+                          </div>
+                          {session.last_message && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 truncate font-normal leading-snug">
+                              {stripMarkdown(session.last_message)}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800/60 mt-0.5">
+                            <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteHelpSession(session.id, e)}
+                                title="Hapus Sesi Chat"
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                              <span className="flex items-center gap-1 text-orange-500 font-bold group-hover:translate-x-0.5 transition-transform">
+                                {getAiLang() === 'en' ? 'Open Chat' : getAiLang() === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Quick FAQ Chips */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 py-1">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                 {getAiLang() === 'en' ? 'Popular Topics' : getAiLang() === 'zh' ? '热门主题' : 'Pertanyaan Populer'}
               </span>
@@ -1931,8 +2336,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
               </div>
             </div>
 
-            {/* Chat Output Stream */}
-            <div className="h-44 overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2 text-xs">
+            {/* Chat Output Stream (Adaptive Height) */}
+            <div className={`overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2 text-xs my-2 ${isHelpFullScreen ? 'flex-1 min-h-[300px]' : 'h-52 sm:h-60'}`}>
               {supportChatMessages.map((msg, mIdx) => (
                 <div key={mIdx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[88%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none font-medium shadow-xs' : 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700/80 rounded-bl-none font-medium shadow-xs space-y-1.5'}`}>

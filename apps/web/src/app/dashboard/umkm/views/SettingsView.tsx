@@ -18,6 +18,8 @@ interface SettingsViewProps {
 }
 
 const tabSlugMap: Record<string, string> = {
+  'Profile': 'profile',
+  'Profil': 'profile',
   'Overview & Profile': 'profile',
   'Profil & Akun': 'profile',
   'Tim & Pengguna': 'team',
@@ -31,8 +33,10 @@ const tabSlugMap: Record<string, string> = {
 };
 
 const slugTabMap: Record<string, string> = {
-  profile: 'Overview & Profile',
-  'profil-akun': 'Overview & Profile',
+  profile: 'Profile',
+  profil: 'Profile',
+  'profil-akun': 'Profile',
+  'overview-profile': 'Profile',
   team: 'Tim & Pengguna',
   integrations: 'Integrasi',
   'ai-preferences': 'AI Preferences',
@@ -60,7 +64,7 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
         if (slugTabMap[subSlug]) return slugTabMap[subSlug];
       }
     }
-    return 'Overview & Profile';
+    return 'Profile';
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialTabFromUrl);
@@ -139,7 +143,7 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
   }, []);
 
   const tabs = [
-    { key: 'Overview & Profile', label: t.settingsView?.tabs?.profile || 'Overview & Profile' },
+    { key: 'Profile', label: t.settingsView?.tabs?.profile || 'Profile' },
     { key: 'Tim & Pengguna', label: t.settingsView?.tabs?.team || 'Tim & Pengguna' },
     { key: 'Integrasi', label: t.settingsView?.tabs?.integrations || 'Integrasi' },
     { key: 'AI Preferences', label: t.settingsView?.tabs?.aiPreferences || 'AI Preferences' },
@@ -166,7 +170,8 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
       {/* 2. Sub-Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 text-xs font-bold overflow-x-auto pb-0.5">
         {tabs.map(({ key, label }) => {
-          const isActive = activeTab === key || (key === 'Overview & Profile' && activeTab === 'Profil & Akun');
+          const isActive = activeTab === key || 
+            (key === 'Profile' && (activeTab === 'Overview & Profile' || activeTab === 'Profil & Akun' || activeTab === 'Profil'));
           return (
             <button
               key={key}
@@ -184,7 +189,7 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
       </div>
 
       {/* 3. Conditional Sub-Tab Rendering */}
-      {(activeTab === 'Overview & Profile' || activeTab === 'Profil & Akun') && (
+      {(activeTab === 'Profile' || activeTab === 'Overview & Profile' || activeTab === 'Profil & Akun' || activeTab === 'Profil') && (
         <ProfileTab
           profileData={profileOverview.profile}
           securityData={profileOverview.security}

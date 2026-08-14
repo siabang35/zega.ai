@@ -37,6 +37,7 @@ interface DocsPageProps {
   dark?: boolean;
   setDark?: (dark: boolean) => void;
   triggerComingSoon?: () => void;
+  isEmbedded?: boolean;
 }
 
 const DOCS_NAV = [
@@ -156,7 +157,7 @@ function getTabFromUrl(): string {
   return 'quickstart';
 }
 
-export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, triggerComingSoon }) => {
+export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, triggerComingSoon, isEmbedded = false }) => {
   const [activeTab, setActiveTab] = useState<string>(getTabFromUrl);
   const [codeLang, setCodeLang] = useState<'typescript' | 'python' | 'curl'>('typescript');
   const [pkgManager, setPkgManager] = useState<'npm' | 'pnpm' | 'yarn' | 'bun' | 'curl'>('npm');
@@ -166,17 +167,18 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
 
   // Sync activeTab with URL & popstate (browser back/forward button)
   useEffect(() => {
+    if (isEmbedded) return;
     const handlePopState = () => {
       setActiveTab(getTabFromUrl());
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [isEmbedded]);
 
   // Update browser URL and document title when activeTab changes
   const selectTab = (tabId: string) => {
     setActiveTab(tabId);
-    if (typeof window !== 'undefined') {
+    if (!isEmbedded && typeof window !== 'undefined') {
       const hostname = window.location.hostname.toLowerCase();
       const isSubdomain = hostname === 'docs.zegaai.site' || hostname.startsWith('docs.');
       const newPath = isSubdomain ? `/${tabId}` : `/docs/${tabId}`;
@@ -196,14 +198,14 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
 
   // Ensure initial title is set on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (!isEmbedded && typeof window !== 'undefined') {
       const allItems = DOCS_NAV.flatMap((g) => g.items);
       const currentItem = allItems.find((i) => i.id === activeTab);
       if (currentItem) {
         document.title = `${currentItem.title} - ZEGA AI Documentation`;
       }
     }
-  }, [activeTab]);
+  }, [activeTab, isEmbedded]);
 
   // Prevent background body scroll when documentation mobile menu drawer is open
   useEffect(() => {
@@ -218,6 +220,10 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
   }, [mobileMenuOpen]);
 
   const handleBackToMain = () => {
+    if (isEmbedded) {
+      onBack();
+      return;
+    }
     if (typeof window !== 'undefined' && (window.location.hostname === 'docs.zegaai.site' || window.location.hostname.startsWith('docs.'))) {
       window.location.href = 'https://zegaai.site';
     } else {

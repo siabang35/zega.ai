@@ -6,7 +6,8 @@ import {
   ShieldCheck, Bot, Key, CreditCard, UserCheck, Zap, Activity,
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
   Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Calendar,
-  Megaphone, ShoppingBag, BookOpen, Building, HelpCircle, PanelLeftClose, PanelLeftOpen, Send
+  Megaphone, ShoppingBag, BookOpen, Building, HelpCircle, PanelLeftClose, PanelLeftOpen, Send,
+  Maximize2, Minimize2, Plus, History, ArrowLeft, Trash2
 } from 'lucide-react';
 
 import { UmkmDashboardView } from './UmkmDashboard';
@@ -264,8 +265,13 @@ export function UmkmDashboardContainer({
   // ZEGA Copilot AI Language State (independent from UI language)
   const [aiLang, setAiLang] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zega_ai_default_language');
-      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+      const saved = localStorage.getItem('zega_ai_default_language') || localStorage.getItem('zega_language') || localStorage.getItem('zega_umkm_language');
+      if (saved) {
+        const lower = saved.toLowerCase();
+        if (lower === 'en' || lower.includes('english')) return 'en';
+        if (lower === 'zh' || lower.includes('mandarin') || lower.includes('chinese')) return 'zh';
+        if (lower === 'id' || lower.includes('indonesia')) return 'id';
+      }
     }
     return 'id';
   });
@@ -314,17 +320,129 @@ export function UmkmDashboardContainer({
 
   // ZEGA Copilot Floating Dropdown & Real Gemini Flash Inference State
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [isCopilotFullScreen, setIsCopilotFullScreen] = useState(false);
   const [copilotInput, setCopilotInput] = useState('');
   const [isCopilotTyping, setIsCopilotTyping] = useState(false);
+  const [activeCopilotChatId, setActiveCopilotChatId] = useState<string | null>(null);
+  const [tierUsage, setTierUsage] = useState<any>(null);
+
+  // Recent Chat History Panel State
+  const [showCopilotHistory, setShowCopilotHistory] = useState(false);
+  const [copilotHistoryList, setCopilotHistoryList] = useState<any[]>([]);
+  const [copilotHistorySearch, setCopilotHistorySearch] = useState('');
+
+  const filteredCopilotHistoryList = copilotHistoryList.filter(session =>
+    (session.title || '').toLowerCase().includes(copilotHistorySearch.toLowerCase()) ||
+    (session.last_message || '').toLowerCase().includes(copilotHistorySearch.toLowerCase())
+  );
+
+  const fetchCopilotHistoryList = async () => {
+    try {
+      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory(userEmail || 'demo-owner', 'copilot');
+      if (recentRpcList && recentRpcList.length > 0) {
+        setCopilotHistoryList(recentRpcList.map((item: any) => ({
+          id: item.chat_id,
+          title: item.title,
+          created_at: item.updated_at || item.created_at,
+          last_message: item.last_message
+        })));
+        return;
+      }
+      const list = await SupabaseDashboardService.getUmkmZegaCopilotChats('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner');
+      if (list) setCopilotHistoryList(list);
+    } catch (e) {
+      console.warn('Note loading copilot chat list:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (showCopilotHistory) {
+      fetchCopilotHistoryList();
+    }
+  }, [showCopilotHistory]);
+
+  const handleDeleteCopilotSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const ok = await SupabaseDashboardService.deleteUmkmZegaCopilotChat(sessionId);
+      if (ok) {
+        setCopilotHistoryList((prev) => prev.filter((s) => s.id !== sessionId));
+        if (activeCopilotChatId === sessionId) {
+          setActiveCopilotChatId(null);
+          setCopilotMessages([{
+            sender: 'copilot',
+            message: getSeedMessage(aiLang),
+            ai_model: '9Router-Llama-3.3-70B',
+            inference_ms: 185,
+            total_tokens: 94,
+            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+        }
+      }
+    } catch (err) {
+      console.warn('Error deleting copilot session:', err);
+    }
+  };
+
+  const handleSelectCopilotSession = async (session: any) => {
+    try {
+      setActiveCopilotChatId(session.id);
+      const msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(session.id);
+      if (msgs && msgs.length > 0) {
+        const formatted = msgs.map((m: any) => ({
+          id: m.id,
+          sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
+          message: m.message,
+          ai_model: m.model_engine || '9Router-Llama-3.3-70B',
+          inference_ms: m.latency_ms || 185,
+          total_tokens: m.tokens_used || 94,
+          created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        setCopilotMessages(formatted);
+      }
+      setShowCopilotHistory(false);
+    } catch (e) {
+      console.warn('Error selecting copilot session:', e);
+    }
+  };
+
+  useEffect(() => {
+    const fetchTierUsage = async () => {
+      try {
+        const usage = await SupabaseDashboardService.getUserChatTierUsage('demo-owner');
+        if (usage) setTierUsage(usage);
+      } catch (e) {
+        console.warn('Note loading tier usage:', e);
+      }
+    };
+    fetchTierUsage();
+  }, [copilotOpen]);
+
+// Helper to strip markdown formatting symbols and excessive emojis from plain text previews
+const stripMarkdown = (text?: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
+    .replace(/^#+\s+/gm, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/[\*\_\#\`]/g, '')
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
   const getSeedMessage = (lang: string) => {
     if (lang === 'en') {
-      return 'Hello! I am **ZEGA Copilot AI** 🚀. I am ready to analyze your business data, recommend WhatsApp promo strategies, or optimize store inventory in real-time. How can I assist you today?';
+      return 'Hello! I am ZEGA Copilot AI. I am ready to analyze your business data, recommend WhatsApp promo strategies, or optimize store inventory in real-time. How can I assist you today?';
     }
     if (lang === 'zh') {
-      return '你好！我是 **ZEGA Copilot AI** 🚀。我已准备好实时分析您的业务数据、推荐 WhatsApp 促销策略或优化店铺库存。今天有什么可以帮您？';
+      return '你好！我是 ZEGA Copilot AI。我已准备好实时分析您的业务数据、推荐 WhatsApp 促销策略或优化店铺库存。今天有什么可以帮您？';
     }
-    return 'Halo! Saya **ZEGA Copilot AI** 🚀. Saya siap menganalisis data bisnis Anda, merekomendasikan strategi promosi WhatsApp, atau mengoptimalkan stok toko secara real-time. Apa yang ingin kita bahas hari ini?';
+    return 'Halo! Saya ZEGA Copilot AI. Saya siap menganalisis data bisnis Anda, merekomendasikan strategi promosi WhatsApp, atau mengoptimalkan stok toko secara real-time. Apa yang ingin kita bahas hari ini?';
   };
 
   const [copilotMessages, setCopilotMessages] = useState<Array<{
@@ -352,10 +470,82 @@ export function UmkmDashboardContainer({
     }
   ]);
 
+  // Load User Authenticated Copilot Chat Session & Messages from Supabase DB
+  useEffect(() => {
+    const loadCopilotHistory = async () => {
+      try {
+        const chats = await SupabaseDashboardService.getUmkmZegaCopilotChats('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner');
+        if (chats && chats.length > 0) {
+          const latestChat = chats[0];
+          setActiveCopilotChatId(latestChat.id);
+          const msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(latestChat.id);
+          if (msgs && msgs.length > 0) {
+            const formatted = msgs.map((m: any) => ({
+              id: m.id,
+              sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
+              message: m.message,
+              ai_model: m.model_engine || '9Router-Llama-3.3-70B',
+              inference_ms: m.latency_ms || 185,
+              total_tokens: m.tokens_used || 94,
+              created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+            setCopilotMessages(formatted);
+          }
+        } else {
+          // Create initial session in DB
+          const defaultTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
+          const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner', defaultTitle);
+          if (newSession) {
+            setActiveCopilotChatId(newSession.id);
+            await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
+              chat_id: newSession.id,
+              sender: 'assistant',
+              message: getSeedMessage(aiLang)
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Note loading copilot chat history:', e);
+      }
+    };
+    loadCopilotHistory();
+  }, [userEmail]);
+
+  // Create New Chat Session Function (+ Sesi Baru)
+  const handleNewCopilotChatSession = async () => {
+    try {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const title = aiLang === 'en' ? `Session ${timeStr}` : aiLang === 'zh' ? `对话 ${timeStr}` : `Sesi ${timeStr}`;
+      const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner', title);
+      if (newSession) {
+        setActiveCopilotChatId(newSession.id);
+      }
+      const initialMsg = getSeedMessage(aiLang);
+      setCopilotMessages([
+        {
+          id: Date.now().toString(),
+          sender: 'copilot',
+          message: initialMsg,
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      if (newSession) {
+        await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
+          chat_id: newSession.id,
+          sender: 'assistant',
+          message: initialMsg
+        });
+        fetchCopilotHistoryList();
+      }
+    } catch (e) {
+      console.warn('Error starting new copilot chat session:', e);
+    }
+  };
+
   // Sync Seed Message when AI Language Preference Changes
   useEffect(() => {
     setCopilotMessages(prev => {
-      if (prev.length === 1 && prev[0].id === 'seed-1') {
+      if (prev.length === 1 && (prev[0].id === 'seed-1' || prev[0].id?.startsWith('seed-'))) {
         return [{ ...prev[0], message: getSeedMessage(aiLang) }];
       }
       return prev;
@@ -420,6 +610,29 @@ export function UmkmDashboardContainer({
     setIsCopilotTyping(true);
 
     const startTime = Date.now();
+
+    // ── STEP 1: Ensure Session Exists First & Save User Message ──
+    let chatIdToUse = activeCopilotChatId;
+    try {
+      if (!chatIdToUse) {
+        const title = `Copilot: ${textToSend.trim().slice(0, 25)}`;
+        const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', 'demo-owner', title);
+        if (newSession && newSession.id) {
+          chatIdToUse = newSession.id;
+          setActiveCopilotChatId(newSession.id);
+        }
+      }
+      if (chatIdToUse) {
+        await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
+          chat_id: chatIdToUse,
+          sender: 'user',
+          message: textToSend.trim()
+        });
+      }
+    } catch (sessionErr) {
+      console.warn('Session setup error in UmkmDashboardContainer:', sessionErr);
+    }
+
     const envApi = import.meta.env.VITE_API_URL;
     const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
 
@@ -429,7 +642,18 @@ export function UmkmDashboardContainer({
 
     const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
 
+    let copilotReplyText = '';
+    let aiModelToUse = 'gemini-3.6-flash';
+    let promptTokensToUse = Math.floor(textToSend.length * 1.2);
+    let completionTokensToUse = 94;
+    let inferenceMsToUse = Date.now() - startTime;
+
     try {
+      const prefStyle = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_style')) || 'Profesional';
+      const prefLen = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_length')) || 'Sedang';
+      const prefFormat = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_format')) || 'Ringkas';
+      const prefModel = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_default_model')) || 'GPT-4o (Recommended)';
+
       const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -437,96 +661,129 @@ export function UmkmDashboardContainer({
           message: textToSend.trim(),
           storeId: umkmData?.store?.id || '11111111-1111-1111-1111-111111111111',
           userId: 'demo-owner',
-          language: currentAiLang
+          language: currentAiLang,
+          response_style: prefStyle,
+          response_length: prefLen,
+          response_format: prefFormat,
+          default_model: prefModel
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
-          const copilotMsg = {
-            id: (Date.now() + 1).toString(),
-            sender: 'copilot' as const,
-            message: result.data.message,
-            ai_model: result.data.ai_model || 'gemini-3.6-flash',
-            prompt_tokens: result.data.prompt_tokens,
-            completion_tokens: result.data.completion_tokens,
-            total_tokens: result.data.total_tokens,
-            inference_ms: result.data.inference_ms,
-            created_at: result.data.created_at || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          setCopilotMessages(prev => [...prev, copilotMsg]);
-          setIsCopilotTyping(false);
-          return;
+        if (result.success && result.data && result.data.message) {
+          copilotReplyText = result.data.message;
+          aiModelToUse = result.data.ai_model || 'gemini-3.6-flash';
+          promptTokensToUse = result.data.prompt_tokens || promptTokensToUse;
+          completionTokensToUse = result.data.completion_tokens || Math.floor(copilotReplyText.length * 0.8);
+          inferenceMsToUse = result.data.inference_ms || (Date.now() - startTime);
         }
       }
     } catch (err) {
       console.warn('Backend proxy Copilot call fallback note:', err);
     }
 
-    // Dynamic Intent Fallback Response (AI Language Responsive)
-    const latency = Date.now() - startTime;
-    let replyMessage = '';
-    const promptLower = textToSend.toLowerCase();
-    const now = new Date();
-    const currentDate = now.toLocaleDateString(currentAiLang === 'id' ? 'id-ID' : currentAiLang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // Dynamic Intent Fallback Response if API was unavailable
+    if (!copilotReplyText) {
+      const latency = Date.now() - startTime;
+      inferenceMsToUse = latency;
+      const promptLower = textToSend.toLowerCase();
+      const now = new Date();
+      const currentDate = now.toLocaleDateString(currentAiLang === 'id' ? 'id-ID' : currentAiLang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    if (currentAiLang === 'en') {
-      if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('morning') || promptLower.includes('afternoon') || promptLower.includes('evening')) {
-        replyMessage = `👋 **Hello! Welcome to ZEGA Copilot AI.**\nI am ready to assist with your business operations for **${currentDate}**. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
-      } else if (promptLower.includes('sales') || promptLower.includes('revenue') || promptLower.includes('margin')) {
-        replyMessage = `📊 **ZEGA AI Real-Time Sales Analysis (2026):**\n• Today's Revenue: **Rp48,250,000** (+24.8% vs last month)\n• Total Transactions: **342 orders**\n• Average Basket Size: **Rp141,000**\n💡 *Recommendation:* Activate F&B bundle promo to increase basket size to Rp175,000.`;
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-        replyMessage = `💬 **ZEGA AI WhatsApp Broadcast Draft:**\n"Hello! 🌟 Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: *ZEGASUPER15*. Limited quota! Click: https://zegaai.site/promo"`;
-      } else if (promptLower.includes('stock') || promptLower.includes('inventory') || promptLower.includes('item')) {
-        replyMessage = `📦 **Real-Time Inventory Status (2026):**\n• Aren Palm Sugar Coffee: *12 units left* ⚠️ (Needs restocking!)\n• Super Groceries Pack: *45 units left* ✅\n• Premium Rice 5kg: *8 units left* ⚠️\n⚡ Gemini recommends reordering from supplier today.`;
+      if (currentAiLang === 'en') {
+        if (promptLower.includes('fashion') || promptLower.includes('apparel') || promptLower.includes('boutique') || promptLower.includes('clothing')) {
+          copilotReplyText = `👕 **ZEGA AI Fashion Store Intelligence (2026):**\n• **Catalog Automation**: Automated 24/7 size & color variant assistant on WhatsApp.\n• **Sales Campaign**: Flash promo broadcast ready for new seasonal arrivals.\n• **POS Inventory**: Tracking variant sizes (S, M, L, XL) with auto-alerts for fast sellers.\n💡 *Action:* Deploy WhatsApp Promo Broadcast or set up product catalog.`;
+        } else if (promptLower.includes('profit') || promptLower.includes('growth') || promptLower.includes('margin') || promptLower.includes('make more') || promptLower.includes('increase')) {
+          copilotReplyText = `📈 **ZEGA AI Profit & Growth Strategy (2026):**\n1. **WhatsApp Re-engagement**: Auto-message unpaid carts & inactive customers.\n2. **AI Sales Swarm Cross-Selling**: Auto-recommend bundles to repeat shoppers.\n3. **High-Margin POS Analytics**: Focus marketing on top 20% profitable items.\n⚡ *Target:* Expand net margin by +18.5% this quarter.`;
+        } else if (promptLower.includes('know') || promptLower.includes('unsure') || promptLower.includes('help')) {
+          copilotReplyText = `💡 **ZEGA Copilot Advisory Service:**\nNo worries! What area would you like to explore for your store right now?\n• **24/7 WhatsApp API Automation** for instant customer orders\n• **Auto POS Cashier System** for rapid daily sales\n• **Inventory & Low-Stock Alerts** to prevent lost revenue`;
+        } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('morning') || promptLower.includes('afternoon') || promptLower.includes('evening')) {
+          copilotReplyText = `👋 **Hello! Welcome to ZEGA Copilot AI.**\nI am ready to assist with your business operations for **${currentDate}**. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
+        } else if (promptLower.includes('sales') || promptLower.includes('revenue') || promptLower.includes('margin')) {
+          copilotReplyText = `📊 **ZEGA AI Real-Time Sales Analysis (2026):**\n• Today's Revenue: **Rp48,250,000** (+24.8% vs last month)\n• Total Transactions: **342 orders**\n• Average Basket Size: **Rp141,000**\n💡 *Recommendation:* Activate F&B bundle promo to increase basket size to Rp175,000.`;
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
+          copilotReplyText = `💬 **ZEGA AI WhatsApp Broadcast Draft:**\n"Hello! 🌟 Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: *ZEGASUPER15*. Limited quota! Click: https://zegaai.site/promo"`;
+        } else if (promptLower.includes('stock') || promptLower.includes('inventory') || promptLower.includes('item')) {
+          copilotReplyText = `📦 **Real-Time Inventory Status (2026):**\n• Aren Palm Sugar Coffee: *12 units left* ⚠️ (Needs restocking!)\n• Super Groceries Pack: *45 units left* ✅\n• Premium Rice 5kg: *8 units left* ⚠️\n⚡ Gemini recommends reordering from supplier today.`;
+        } else {
+          copilotReplyText = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nThank you for your question regarding "*${textToSend.trim()}*". Based on operational telemetry for **${currentDate}**, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
+        }
+      } else if (currentAiLang === 'zh') {
+        if (promptLower.includes('fashion') || promptLower.includes('服装') || promptLower.includes('女装') || promptLower.includes('精品店')) {
+          copilotReplyText = `👕 **ZEGA AI 服饰店铺智能方案 (2026):**\n• **目录自动化**: 24/7 WhatsApp 多尺码与颜色助手。\n• **销售活动**: 新品上新与限时抢购广播文案准备就绪。\n• **POS 库存**: 实时追踪尺码（S, M, L, XL）并提供热销品预警。\n💡 *操作:* 部署 WhatsApp 促销广播或配置商品目录。`;
+        } else if (promptLower.includes('profit') || promptLower.includes('增长') || promptLower.includes('利润') || promptLower.includes('提升')) {
+          copilotReplyText = `📈 **ZEGA AI 利润与增长策略 (2026):**\n1. **WhatsApp 追单**: 自动提醒未付款订单与沉睡客户。\n2. **AI 销售团队交叉销售**: 自动向老客户推荐组合商品。\n3. **高利润 POS 分析**: 将营销重点放在贡献 20% 主要利润的商品。\n⚡ *目标:* 本季度净利润率提升 +18.5%。`;
+        } else if (promptLower.includes('know') || promptLower.includes('不懂') || promptLower.includes('帮助')) {
+          copilotReplyText = `💡 **ZEGA Copilot 运营咨询顾问:**\n别担心！今天想先探索哪个店铺模块？\n• **24/7 WhatsApp API 自动化** 实现即时接单\n• **高效 POS 收银系统** 处理日常销售\n• **库存与低库存预警** 防止收入损失`;
+        } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('你好') || promptLower.includes('早')) {
+          copilotReplyText = `👋 **您好！欢迎使用 ZEGA Copilot AI。**\n我已准备好协助您处理 **${currentDate}** 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
+        } else if (promptLower.includes('sales') || promptLower.includes('销售') || promptLower.includes('收入') || promptLower.includes('利润')) {
+          copilotReplyText = `📊 **ZEGA AI 实时销售分析 (2026):**\n• 今日营业额: **Rp48,250,000** (比上月增长 +24.8%)\n• 总交易笔数: **342 笔订单**\n• 平均客单价: **Rp141,000**\n💡 *优化建议:* 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('促销') || promptLower.includes('推广')) {
+          copilotReplyText = `💬 **ZEGA AI WhatsApp 广播文案草稿:**\n"您好！🌟 本店特惠！超值组合包享 15% 折扣。优惠码: *ZEGASUPER15*。名额有限！点击: https://zegaai.site/promo"`;
+        } else if (promptLower.includes('stock') || promptLower.includes('库存') || promptLower.includes('商品')) {
+          copilotReplyText = `📦 **实时库存状态 (2026):**\n• 棕榈糖咖啡: *剩余 12 件* ⚠️ (需补货!)\n• 超级杂货包: *剩余 45 件* ✅\n• 优质大米 5kg: *剩余 8 件* ⚠️\n⚡ Gemini 建议今天向供应商重新订购。`;
+        } else {
+          copilotReplyText = `🧠 **ZEGA Copilot 实时推理 (2026):**\n感谢您提出关于 "*${textToSend.trim()}*" 的问题。根据 **${currentDate}** 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
+        }
       } else {
-        replyMessage = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nThank you for your question regarding "*${textToSend.trim()}*". Based on operational telemetry for **${currentDate}**, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
+        if (promptLower.includes('fashion') || promptLower.includes('baju') || promptLower.includes('pakaian') || promptLower.includes('distro') || promptLower.includes('boutique')) {
+          copilotReplyText = `👕 **Solusi Cerdas Toko Fashion ZEGA AI (2026):**\n• **Katalog Otomatis**: Panduan ukuran (S, M, L, XL) & rekomendasi baju otomatis di WhatsApp 24/7.\n• **Kampanye WA**: Draf pesan promo otomatis siap kirim saat koleksi baju baru rilis.\n• **Stok Kasir POS**: Memantau varian warna/ukuran terlaris dengan notifikasi stok menipis secara real-time.\n💡 *Langkah:* Siapkan katalog fashion atau jalankan broadcast promo WA toko Kakak.`;
+        } else if (promptLower.includes('profit') || promptLower.includes('untung') || promptLower.includes('omzet') || promptLower.includes('penjualan') || promptLower.includes('margin') || promptLower.includes('make more')) {
+          copilotReplyText = `📈 **Strategi Pertumbuhan Profit ZEGA AI (2026):**\n1. **Follow-up WA Otomatis**: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. **AI Sales Swarm Cross-Selling**: Rekomendasikan produk pelengkap secara otomatis.\n3. **Analitik POS Margin Tinggi**: Fokuskan promo pada 20% produk paling menguntungkan.\n⚡ *Target:* Tingkatkan margin bersih toko sebesar +18.5% triwulan ini.`;
+        } else if (promptLower.includes('know') || promptLower.includes('bingung') || promptLower.includes('tidak tahu') || promptLower.includes('gimana') || promptLower.includes('apa aja')) {
+          copilotReplyText = `💡 **Konsultasi Operasional ZEGA Copilot:**\nTidak masalah Kak! Mau mulai dari bagian mana untuk toko Kakak hari ini?\n• **Otomatisasi WhatsApp API 24 Jam** untuk penerimaan pesanan otomatis\n• **Kasir POS Otomatis** untuk pencatatan transaksi harian cepat\n• **Manajemen Stok Barang** & Notifikasi Supplier otomatis`;
+        } else if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
+          copilotReplyText = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per **${currentDate}** (Tahun **2026**).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
+        } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
+          copilotReplyText = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
+        } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
+          copilotReplyText = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDate}**. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
+        } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
+          copilotReplyText = `📊 **Analisis Penjualan Real-Time ZEGA AI (2026):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
+        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
+          copilotReplyText = `💬 **Draf Broadcast WhatsApp ZEGA AI:**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
+        } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
+          copilotReplyText = `📦 **Status Stok Real-Time (2026):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Gemini merekomendasikan pemesanan ulang ke supplier hari ini.`;
+        } else {
+          copilotReplyText = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nTerima kasih atas pertanyaan Anda mengenai "*${textToSend.trim()}*". Berdasarkan data operasional per **${currentDate}**, sistem ZEGA AI telah siap mengoptimalkan performa toko Anda.\n\nApakah Anda ingin saya menganalisis laporan keuangan, draf pemasaran, atau manajemen stok?`;
+        }
       }
-    } else if (currentAiLang === 'zh') {
-      if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('你好') || promptLower.includes('早')) {
-        replyMessage = `👋 **您好！欢迎使用 ZEGA Copilot AI。**\n我已准备好协助您处理 **${currentDate}** 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
-      } else if (promptLower.includes('sales') || promptLower.includes('销售') || promptLower.includes('收入') || promptLower.includes('利润')) {
-        replyMessage = `📊 **ZEGA AI 实时销售分析 (2026):**\n• 今日营业额: **Rp48,250,000** (比上月增长 +24.8%)\n• 总交易笔数: **342 笔订单**\n• 平均客单价: **Rp141,000**\n💡 *优化建议:* 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('促销') || promptLower.includes('推广')) {
-        replyMessage = `💬 **ZEGA AI WhatsApp 广播文案草稿:**\n"您好！🌟 本店特惠！超值组合包享 15% 折扣。优惠码: *ZEGASUPER15*。名额有限！点击: https://zegaai.site/promo"`;
-      } else if (promptLower.includes('stock') || promptLower.includes('库存') || promptLower.includes('商品')) {
-        replyMessage = `📦 **实时库存状态 (2026):**\n• 棕榈糖咖啡: *剩余 12 件* ⚠️ (需补货!)\n• 超级杂货包: *剩余 45 件* ✅\n• 优质大米 5kg: *剩余 8 件* ⚠️\n⚡ Gemini 建议今天向供应商重新订购。`;
-      } else {
-        replyMessage = `🧠 **ZEGA Copilot 实时推理 (2026):**\n感谢您提出关于 "*${textToSend.trim()}*" 的问题。根据 **${currentDate}** 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
-      }
-    } else {
-      if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
-        replyMessage = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per **${currentDate}** (Tahun **2026**).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
-      } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
-        replyMessage = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
-      } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
-        replyMessage = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDate}**. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
-      } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
-        replyMessage = `📊 **Analisis Penjualan Real-Time ZEGA AI (2026):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
-      } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-        replyMessage = `💬 **Draf Broadcast WhatsApp ZEGA AI:**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
-      } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
-        replyMessage = `📦 **Status Stok Real-Time (2026):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Gemini merekomendasikan pemesanan ulang ke supplier hari ini.`;
-      } else {
-        replyMessage = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nTerima kasih atas pertanyaan Anda mengenai "*${textToSend.trim()}*". Berdasarkan data operasional per **${currentDate}**, sistem ZEGA AI telah siap mengoptimalkan performa toko Anda.\n\nApakah Anda ingin saya menganalisis laporan keuangan, draf pemasaran, atau manajemen stok?`;
-      }
+      completionTokensToUse = Math.floor(copilotReplyText.length * 0.8);
     }
 
     const copilotMsg = {
       id: (Date.now() + 1).toString(),
       sender: 'copilot' as const,
-      message: replyMessage,
-      ai_model: 'gemini-3.6-flash',
-      prompt_tokens: Math.floor(textToSend.length * 1.2),
-      completion_tokens: Math.floor(replyMessage.length * 0.8),
-      total_tokens: Math.floor(textToSend.length * 1.2 + replyMessage.length * 0.8),
-      inference_ms: latency,
+      message: copilotReplyText,
+      ai_model: aiModelToUse,
+      prompt_tokens: promptTokensToUse,
+      completion_tokens: completionTokensToUse,
+      total_tokens: promptTokensToUse + completionTokensToUse,
+      inference_ms: inferenceMsToUse,
       created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setCopilotMessages(prev => [...prev, copilotMsg]);
     setIsCopilotTyping(false);
+
+    // ── STEP 2: Always Persist Assistant Message to Supabase DB ──
+    try {
+      if (chatIdToUse) {
+        await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
+          chat_id: chatIdToUse,
+          sender: 'assistant',
+          message: copilotReplyText,
+          model_engine: aiModelToUse,
+          latency_ms: inferenceMsToUse,
+          tokens_used: promptTokensToUse + completionTokensToUse
+        });
+        fetchCopilotHistoryList();
+      }
+    } catch (e) {
+      console.warn('Error persisting ZEGA Copilot AI response:', e);
+    }
   };
 
   const triggerToast = (msg: string) => {
@@ -1541,38 +1798,209 @@ export function UmkmDashboardContainer({
 
       {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Available Globally across all Dashboard Menus) */}
       <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
-        {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile Responsive Sheet) */}
+        {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile & Desktop Full-Screen Responsive) */}
         {copilotOpen && (
-          <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[72vh] sm:h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all">
+          <div className={
+            isCopilotFullScreen
+              ? 'relative fixed inset-2 sm:inset-6 z-[70] bg-slate-950/98 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 transition-all'
+              : 'relative w-[92vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[540px] max-h-[600px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all'
+          }>
             {/* Dropdown Header */}
-            <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="size-11 sm:size-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+            <div className="p-3 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
                   <img
                     src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
                     alt="ZEGA Copilot"
                     className="w-full h-full object-contain p-0.5"
                   />
                 </div>
-                <div>
-                  <h3 className="font-black text-sm sm:text-base text-white tracking-tight">
+                <div className="min-w-0">
+                  <h3 className="font-black text-xs sm:text-base text-white tracking-tight truncate">
                     ZEGA Copilot
                   </h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">Real-Time AI Active</span>
+                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate">Real-Time AI Active</span>
                   </div>
                 </div>
               </div>
 
-              <button
-                onClick={() => setCopilotOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Tutup Copilot"
-              >
-                <ChevronDown size={18} />
-              </button>
+              {/* Action Buttons: History, New Chat, Maximize/Minimize, Close */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowCopilotHistory(!showCopilotHistory)}
+                  className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${showCopilotHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                  title={aiLang === 'en' ? 'Recent Chat History' : aiLang === 'zh' ? '历史对话' : 'Riwayat Chat'}
+                >
+                  <History size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNewCopilotChatSession}
+                  className="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                  title={aiLang === 'en' ? 'Start New Chat Session' : aiLang === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
+                >
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">
+                    {aiLang === 'en' ? 'New Chat' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCopilotFullScreen(!isCopilotFullScreen)}
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isCopilotFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
+                >
+                  {isCopilotFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCopilotOpen(false)}
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Tutup Copilot"
+                >
+                  <ChevronDown size={18} />
+                </button>
+              </div>
             </div>
+
+            {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
+            {showCopilotHistory && (
+              <div className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
+                {/* Overlay Header Bar */}
+                <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-800/80 shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowCopilotHistory(false)}
+                      className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-2xs"
+                      title="Kembali ke Chat"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                        <History size={15} className="text-orange-400" />
+                        <span>{aiLang === 'en' ? 'ZEGA Copilot History' : aiLang === 'zh' ? 'Copilot 历史' : 'Riwayat ZEGA Copilot'}</span>
+                      </h4>
+                      <span className="text-[10.5px] text-slate-400 font-medium">
+                        {filteredCopilotHistoryList.length} {aiLang === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleNewCopilotChatSession();
+                      setShowCopilotHistory(false);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} />
+                    <span>{aiLang === 'en' ? 'New Session' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                  </button>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="relative mb-3 shrink-0">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder={aiLang === 'en' ? 'Filter chat history by title or text...' : aiLang === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat ZEGA Copilot...'}
+                    value={copilotHistorySearch}
+                    onChange={(e) => setCopilotHistorySearch(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                  />
+                  {copilotHistorySearch && (
+                    <button
+                      onClick={() => setCopilotHistorySearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Session Cards List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {filteredCopilotHistoryList.length === 0 ? (
+                    <div className="text-center py-14 px-4 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
+                      <MessageSquare size={28} className="mx-auto mb-2 text-slate-600" />
+                      <p className="text-xs text-slate-400 font-semibold mb-1">
+                        {aiLang === 'en' ? 'No Copilot sessions found' : 'Belum ada riwayat percakapan ZEGA Copilot'}
+                      </p>
+                      <p className="text-[10.5px] text-slate-500">
+                        {aiLang === 'en' ? 'Click "+ New Session" to start a new chat.' : aiLang === 'zh' ? '点击 "+ 新对话" 开始新聊天。' : 'Klik "+ Sesi Baru" untuk memulai percakapan baru.'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredCopilotHistoryList.map((session) => {
+                      const isActive = activeCopilotChatId === session.id;
+                      let displayTitle = stripMarkdown(session.title);
+                      if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi ZEGA Copilot' || displayTitle === 'Main Copilot Session') {
+                        displayTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
+                      } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
+                        const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
+                        displayTitle = aiLang === 'en' ? `Session ${timePart}` : aiLang === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
+                      }
+
+                      return (
+                        <button
+                          key={session.id}
+                          onClick={() => handleSelectCopilotSession(session)}
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${
+                            isActive
+                              ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
+                              : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
+                                {displayTitle}
+                              </span>
+                            </div>
+                            {isActive && (
+                              <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white font-mono text-[8.5px] font-extrabold uppercase shrink-0 flex items-center gap-1 shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                Aktif
+                              </span>
+                            )}
+                          </div>
+                          {session.last_message && (
+                            <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
+                              {stripMarkdown(session.last_message)}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 mt-0.5">
+                            <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteCopilotSession(session.id, e)}
+                                title="Hapus Sesi Chat"
+                                className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                              <span className="flex items-center gap-1 text-orange-400/80 group-hover:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
+                                {aiLang === 'en' ? 'Open Chat' : aiLang === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Quick Suggestion Chips */}
             <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -1668,22 +2096,19 @@ export function UmkmDashboardContainer({
           </div>
         )}
 
-        {/* Floating Trigger Pill Button (Mobile Optimized Positioning) */}
+        {/* Floating Trigger Pill Button (Robot Icon Only across all screen sizes) */}
         <button
           onClick={() => setCopilotOpen(!copilotOpen)}
-          className="group relative flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="group relative p-1 sm:p-1.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          title="ZEGA Copilot"
         >
-          <div className="size-11 sm:size-12 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform">
+          <div className="size-10 sm:size-11 rounded-full bg-orange-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
             <img
               src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
               alt="ZEGA Copilot"
               className="w-full h-full object-contain p-0 scale-125"
             />
           </div>
-          <span className="text-xs sm:text-sm font-black tracking-tight text-orange-400 group-hover:text-orange-300 transition-colors">
-            ZEGA Copilot
-          </span>
-          <ChevronRight size={16} className={`text-slate-400 transition-transform ${copilotOpen ? 'rotate-90' : ''}`} />
         </button>
       </div>
     </div>

@@ -3,7 +3,7 @@ import {
   HelpCircle, Search, BookOpen, MessageSquare, Ticket, 
   Send, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle,
   Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X, RefreshCw,
-  Activity, ArrowUpRight, Bot, User, Check
+  Activity, ArrowUpRight, Bot, User, Check, Plus, Maximize2, Minimize2
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
 import { getApiBase } from '../../../../config/api';
@@ -25,6 +25,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   // Modal & Live Chat Drawer State
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
+  const [isLiveChatFullScreen, setIsLiveChatFullScreen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
@@ -691,27 +692,58 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
 
       {/* LIVE CHAT DRAWER */}
       {isLiveChatOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md h-full flex flex-col border-l border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-right duration-250">
+        <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex justify-end p-2 sm:p-4">
+          <div className={
+            isLiveChatFullScreen
+              ? 'fixed inset-2 sm:inset-6 z-[60] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200'
+              : 'bg-white dark:bg-slate-900 w-full max-w-md h-full flex flex-col border-l border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl animate-in slide-in-from-right duration-250 overflow-hidden'
+          }>
             {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shadow-sm">
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-8 sm:size-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shadow-sm shrink-0">
                   <Bot size={18} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">ZEGA AI Specialist Direct</h4>
-                  <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> 24/7 Live Agent Queue
+                <div className="min-w-0">
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">ZEGA AI Specialist Direct</h4>
+                  <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1 truncate">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" /> 24/7 Live Agent Queue
                   </span>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsLiveChatOpen(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+
+              {/* Action Buttons: New Chat, Maximize, Close */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleOpenLiveChat()}
+                  className="px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                  title={getAiLang() === 'en' ? 'Start New Chat Session' : getAiLang() === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
+                >
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">
+                    {getAiLang() === 'en' ? 'New Chat' : getAiLang() === 'zh' ? '新对话' : 'Sesi Baru'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsLiveChatFullScreen(!isLiveChatFullScreen)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isLiveChatFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
+                >
+                  {isLiveChatFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => setIsLiveChatOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Tutup Modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Messages Body */}

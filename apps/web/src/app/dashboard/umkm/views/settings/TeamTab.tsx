@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, ShieldCheck, Mail, Trash2, CheckCircle2, UserPlus, X, Search, Phone, Edit3, RefreshCw, Key, Shield, UserCheck, Clock, TrendingUp, Award, Briefcase, Activity, FileText, PieChart as PieIcon, BarChart3, Filter } from 'lucide-react';
+import { Users, ShieldCheck, Mail, Trash2, CheckCircle2, UserPlus, X, Search, Phone, Edit3, RefreshCw, UserCheck, Award, TrendingUp, Activity, FileText, PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { useLanguage } from '../../../../../i18n/translations';
+import { getR2CdnUrl } from '../../../../utils/cdn';
 
 interface TeamTabProps {
   triggerToast: (msg: string) => void;
@@ -13,7 +14,7 @@ export interface TeamMember {
   email: string;
   role: 'Owner' | 'Admin' | 'Sales Agent' | 'Finance' | 'Developer' | string;
   department?: string;
-  status: 'Aktif' | 'Pending' | 'Non-Aktif' | string;
+  status: 'Aktif' | 'Active' | 'Pending' | 'Non-Aktif' | 'Inactive' | string;
   avatar_url?: string;
   phone?: string;
   tasks_completed?: number;
@@ -25,8 +26,32 @@ export interface TeamMember {
   permissions_json?: any;
 }
 
+function getMemberAvatarUrl(url?: string, name?: string) {
+  if (url && (url.startsWith('http') || url.startsWith('/'))) {
+    return getR2CdnUrl(url);
+  }
+  const safeName = name || 'User';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=f97316&color=fff&bold=true`;
+}
+
+function getLocalizedRoleName(role: string, i18nRoles: any) {
+  const key = (role || '').toLowerCase().trim();
+  if (key === 'all' || key === 'semua') return i18nRoles?.all || 'All';
+  if (key === 'owner') return i18nRoles?.owner || 'Owner';
+  if (key === 'admin') return i18nRoles?.admin || 'Admin';
+  if (key === 'sales agent' || key === 'sales') return i18nRoles?.sales || 'Sales Agent';
+  if (key === 'finance') return i18nRoles?.finance || 'Finance';
+  if (key === 'developer') return i18nRoles?.developer || 'Developer';
+  return role;
+}
+
 export function TeamTab({ triggerToast }: TeamTabProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const i18n = t.settingsView?.teamTab || ({} as any);
+  const modalsI18n = i18n.modals || {};
+  const metricsI18n = i18n.metrics || {};
+  const rolesI18n = i18n.roles || {};
+
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +80,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
   const [editBio, setEditBio] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  const roles = ['Semua', 'Owner', 'Admin', 'Sales Agent', 'Finance', 'Developer'];
+  const internalRoles = ['Semua', 'Owner', 'Admin', 'Sales Agent', 'Finance', 'Developer'];
 
   const fetchMembers = async () => {
     try {
@@ -86,6 +111,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
       const computedName = newName.trim() || newEmail.split('@')[0].replace('.', ' ');
       
       const tempId = Date.now().toString();
+      const avatarUrl = getMemberAvatarUrl(undefined, computedName);
       const newMemberItem: TeamMember = {
         id: tempId,
         name: computedName,
@@ -93,13 +119,13 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         phone: newPhone,
         role: newRole,
         department: newDepartment,
-        bio: newBio || 'Anggota tim baru',
+        bio: newBio || 'Team member',
         status: 'Pending',
         tasks_completed: 0,
         performance_score: 100.00,
         total_sales_handled: 0,
-        recent_activity: 'Baru ditambahkan ke sistem',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+        recent_activity: 'Just added to the system',
+        avatar_url: avatarUrl
       };
       setMembers(prev => [...prev, newMemberItem]);
 
@@ -110,10 +136,10 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         role: newRole,
         department: newDepartment,
         bio: newBio,
-        avatar_url: newMemberItem.avatar_url
+        avatar_url: avatarUrl
       });
 
-      triggerToast(`✓ ${t.settingsView?.teamTab?.toastInviteSuccess || 'Invitation successfully sent!'}`);
+      triggerToast(`✓ ${i18n.toastInviteSuccess || 'Invitation successfully sent!'}`);
       setIsAddModalOpen(false);
       setNewName('');
       setNewEmail('');
@@ -121,7 +147,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
       setNewBio('');
       fetchMembers();
     } catch (err) {
-      triggerToast('✕ Gagal mengirim undangan anggota tim');
+      triggerToast(`✕ ${i18n.toastInviteFailed || 'Failed to send team member invitation.'}`);
     } finally {
       setIsAdding(false);
     }
@@ -162,25 +188,33 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         bio: editBio
       });
 
-      triggerToast(`✓ Data profil ${editName} berhasil diperbarui!`);
+      const successMsg = i18n.toastUpdateSuccess
+        ? i18n.toastUpdateSuccess.replace('{name}', editName)
+        : `✓ Profile data for ${editName} updated successfully!`;
+      triggerToast(successMsg);
       setSelectedMember(null);
       fetchMembers();
     } catch (err) {
-      triggerToast('✕ Gagal memperbarui data anggota');
+      triggerToast(`✕ ${i18n.toastUpdateFailed || 'Failed to update member data.'}`);
     } finally {
       setIsSavingEdit(false);
     }
   };
 
   const handleRemoveMember = async (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus ${name} dari tim?`)) return;
+    const promptMsg = modalsI18n.removeConfirmPrompt
+      ? modalsI18n.removeConfirmPrompt.replace('{name}', name)
+      : `Are you sure you want to remove ${name} from the team?`;
+
+    if (!confirm(promptMsg)) return;
+
     try {
       setMembers(prev => prev.filter(m => m.id !== id));
       await SupabaseDashboardService.deleteUmkmTeamMember(id);
-      triggerToast(`✓ ${t.settingsView?.teamTab?.toastRemoveSuccess || 'Team member removed.'}`);
+      triggerToast(`✓ ${i18n.toastRemoveSuccess || 'Team member removed successfully.'}`);
       fetchMembers();
     } catch (err) {
-      triggerToast('✕ Gagal menghapus anggota');
+      triggerToast(`✕ ${i18n.toastRemoveFailed || 'Failed to remove member.'}`);
     }
   };
 
@@ -192,17 +226,13 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
       (member.department || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesSearch) return false;
-    if (activeRoleTab === 'Semua') return true;
+    if (activeRoleTab === 'Semua' || activeRoleTab === 'All') return true;
     return member.role === activeRoleTab;
   });
 
-  const activeCount = members.filter(m => m.status === 'Aktif').length;
+  const activeCount = members.filter(m => m.status === 'Aktif' || m.status === 'Active').length;
   const pendingCount = members.filter(m => m.status === 'Pending').length;
   const totalTasks = members.reduce((acc, m) => acc + (m.tasks_completed || 0), 0);
-  const totalSales = members.reduce((acc, m) => acc + (m.total_sales_handled || 0), 0);
-  const avgScore = members.length > 0 
-    ? (members.reduce((acc, m) => acc + (m.performance_score || 0), 0) / members.length).toFixed(1)
-    : '-';
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
@@ -223,18 +253,20 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
   const getRoleColorCode = (role: string) => {
     switch (role) {
-      case 'Owner': return '#9333ea'; // purple-600
-      case 'Admin': return '#2563eb'; // blue-600
-      case 'Sales Agent': return '#10b981'; // emerald-500
-      case 'Finance': return '#f59e0b'; // amber-500
-      case 'Developer': return '#6366f1'; // indigo-500
+      case 'Owner': return '#9333ea';
+      case 'Admin': return '#2563eb';
+      case 'Sales Agent': return '#10b981';
+      case 'Finance': return '#f59e0b';
+      case 'Developer': return '#6366f1';
       default: return '#64748b';
     }
   };
 
   const formatCurrency = (val?: number) => {
     if (!val || val === 0) return 'N/A';
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+    const locale = language === 'en' ? 'en-US' : language === 'zh' ? 'zh-CN' : 'id-ID';
+    const currency = language === 'en' ? 'USD' : 'IDR';
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(val);
   };
 
   // Donut Chart Data Calculation
@@ -247,7 +279,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
   const donutSegments: Array<{ role: string; count: number; percentage: number; color: string; strokeDasharray: string; strokeDashoffset: number }> = [];
   
   let cumulativeOffset = 0;
-  const circumference = 2 * Math.PI * 40; // radius = 40, circumference ~ 251.32
+  const circumference = 2 * Math.PI * 40;
 
   Object.entries(roleCounts).forEach(([role, count]) => {
     if (count > 0) {
@@ -277,7 +309,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Clean Enterprise Header Banner (No Gradient) */}
+      {/* Clean Enterprise Header Banner */}
       <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="size-11 rounded-2xl bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-900 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
@@ -285,10 +317,10 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
           </div>
           <div>
             <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              Tim & Pengguna Bisnis ZEGA AI ({members.length})
+              {i18n.bannerTitle ? i18n.bannerTitle.replace('{count}', members.length.toString()) : `ZEGA AI Team & Business Users (${members.length})`}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pusat kendali tim, visualisasi produktivitas staf real-time, dan manajemen izin akses terpusat.
+              {i18n.bannerSubtitle || 'Team control center, real-time staff productivity visualization, and centralized access permissions.'}
             </p>
           </div>
         </div>
@@ -299,12 +331,22 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
             className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <UserPlus size={16} />
-            <span>Undang Anggota</span>
+            <span>{i18n.inviteBtn || 'Invite Member'}</span>
           </button>
           
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300">
             <UserCheck size={14} className="text-emerald-500" />
-            <span>Telemetry: <strong className="text-emerald-600 dark:text-emerald-400">{activeCount} Aktif</strong> {pendingCount > 0 && <span className="text-amber-500 font-normal">({pendingCount} Pending)</span>}</span>
+            <span>
+              {i18n.telemetry || 'Telemetry:'}{' '}
+              <strong className="text-emerald-600 dark:text-emerald-400">
+                {i18n.activeCount ? i18n.activeCount.replace('{count}', activeCount.toString()) : `${activeCount} Active`}
+              </strong>{' '}
+              {pendingCount > 0 && (
+                <span className="text-amber-500 font-normal">
+                  {i18n.pendingCount ? i18n.pendingCount.replace('{count}', pendingCount.toString()) : `(${pendingCount} Pending)`}
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -319,17 +361,16 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                 <PieIcon size={16} />
               </div>
               <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">
-                Distribusi Peran Tim (Donut)
+                {i18n.donutTitle || 'Team Role Distribution (Donut)'}
               </h3>
             </div>
-            <span className="text-[11px] font-bold text-slate-400">Real-time</span>
+            <span className="text-[11px] font-bold text-slate-400">{i18n.donutRealtime || 'Real-time'}</span>
           </div>
 
           <div className="flex items-center justify-center gap-6 py-2">
             {/* SVG Donut */}
             <div className="relative size-32 shrink-0">
               <svg className="size-full -rotate-90" viewBox="0 0 100 100">
-                {/* Background Ring */}
                 <circle
                   cx="50"
                   cy="50"
@@ -339,7 +380,6 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   strokeWidth="14"
                   className="text-slate-100 dark:text-slate-800"
                 />
-                {/* Donut Segments */}
                 {donutSegments.map((segment) => {
                   const isHovered = hoveredRole === segment.role;
                   return (
@@ -368,7 +408,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   {hoveredRole ? roleCounts[hoveredRole] || 0 : members.length}
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  {hoveredRole || 'Staf'}
+                  {hoveredRole ? getLocalizedRoleName(hoveredRole, rolesI18n) : (i18n.donutStaffLabel || 'Staff')}
                 </span>
               </div>
             </div>
@@ -389,7 +429,9 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                 >
                   <div className="flex items-center gap-2 truncate">
                     <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                    <span className="text-slate-700 dark:text-slate-300 truncate">{seg.role}</span>
+                    <span className="text-slate-700 dark:text-slate-300 truncate">
+                      {getLocalizedRoleName(seg.role, rolesI18n)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-slate-900 dark:text-slate-100 font-bold">{seg.count}</span>
@@ -410,14 +452,20 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               </div>
               <div>
                 <h3 className="text-xs font-black text-slate-900 dark:text-slate-100">
-                  Diagram Produktivitas Staf (Tugas & Tiket Chat Selesai)
+                  {i18n.barTitle || 'Staff Productivity Chart (Completed Tasks & Chat Tickets)'}
                 </h3>
-                <p className="text-[11px] text-slate-400 font-medium">Perbandingan kontribusi penyelesaian tiket chat dan pesanan.</p>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  {i18n.barSubtitle || 'Comparison of chat ticket and order resolution contributions.'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900">
               <CheckCircle2 size={13} />
-              <span>Total: {totalTasks} Tiket Selesai</span>
+              <span>
+                {i18n.totalCompletedTickets
+                  ? i18n.totalCompletedTickets.replace('{count}', totalTasks.toString())
+                  : `Total: ${totalTasks} Tickets Completed`}
+              </span>
             </div>
           </div>
 
@@ -433,12 +481,14 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     <div className="flex items-center gap-2 truncate">
                       <span className="text-slate-900 dark:text-slate-100 font-extrabold truncate">{m.name}</span>
                       <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-bold ${getRoleBadgeStyle(m.role)}`}>
-                        {m.role}
+                        {getLocalizedRoleName(m.role, rolesI18n)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-slate-500 dark:text-slate-400">
                       <span>{formatCurrency(m.total_sales_handled)}</span>
-                      <strong className="text-slate-900 dark:text-slate-100 font-black">{tasks} Tiket</strong>
+                      <strong className="text-slate-900 dark:text-slate-100 font-black">
+                        {tasks} {metricsI18n.ticketsSuffix || 'Tickets'}
+                      </strong>
                     </div>
                   </div>
 
@@ -461,10 +511,10 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              Daftar Staf & Visualisasi Hasil Kerja
+              {i18n.listTitle || 'Staff List & Work Output Visualization'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pantau skor pencapaian, jumlah tugas selesai, dan aktivitas real-time tiap anggota.
+              {i18n.listSubtitle || 'Monitor achievement scores, completed task count, and real-time activity per member.'}
             </p>
           </div>
 
@@ -476,7 +526,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari nama, email, departemen..."
+                placeholder={i18n.searchPlaceholder || 'Search name, email, department...'}
                 className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-orange-500"
               />
               {searchQuery && (
@@ -488,8 +538,10 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
             {/* Role Filter Tabs */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {roles.map((r) => {
+              {internalRoles.map((r) => {
                 const isSelected = activeRoleTab === r;
+                const localizedRoleLabel = getLocalizedRoleName(r, rolesI18n);
+
                 return (
                   <button
                     key={r}
@@ -500,7 +552,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                     }`}
                   >
-                    {r}
+                    {localizedRoleLabel}
                   </button>
                 );
               })}
@@ -512,11 +564,13 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
         {loading ? (
           <div className="p-8 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-400 text-xs flex items-center justify-center gap-2">
             <RefreshCw size={14} className="animate-spin text-orange-500" />
-            <span>Memuat data kinerja tim dari database...</span>
+            <span>{i18n.loadingData || 'Loading team performance data from database...'}</span>
           </div>
         ) : filteredMembers.length === 0 ? (
           <div className="p-8 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-400 text-xs">
-            Tidak ada anggota tim yang cocok dengan kriteria &quot;{searchQuery || activeRoleTab}&quot;.
+            {i18n.emptyState
+              ? i18n.emptyState.replace('{query}', searchQuery || getLocalizedRoleName(activeRoleTab, rolesI18n))
+              : `No team members matching criteria "${searchQuery || activeRoleTab}".`}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4.5">
@@ -524,7 +578,9 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               const score = member.performance_score || 95.0;
               const tasks = member.tasks_completed || 0;
               const sales = member.total_sales_handled || 0;
-              
+              const isMemberActive = member.status === 'Aktif' || member.status === 'Active';
+              const avatarSrc = getMemberAvatarUrl(member.avatar_url, member.name);
+
               return (
                 <div
                   key={member.id}
@@ -535,15 +591,15 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="relative shrink-0">
                         <img
-                          src={member.avatar_url || '/assets/logo/zega.png'}
+                          src={avatarSrc}
                           alt={member.name}
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=f97316&color=fff&bold=true`;
                           }}
                           className="size-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
                         />
                         <span className={`size-3 rounded-full absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-slate-900 ${
-                          member.status === 'Aktif' ? 'bg-emerald-500' : 'bg-amber-500'
+                          isMemberActive ? 'bg-emerald-500' : 'bg-amber-500'
                         }`} />
                       </div>
 
@@ -553,7 +609,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                             {member.name}
                           </h4>
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${getRoleBadgeStyle(member.role)}`}>
-                            {member.role}
+                            {getLocalizedRoleName(member.role, rolesI18n)}
                           </span>
                           {member.department && (
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
@@ -581,7 +637,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                       <button
                         onClick={() => handleOpenEditModal(member)}
                         className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        title="Edit Profil & Peran"
+                        title={modalsI18n.editProfileTitle || 'Edit Profile & Role'}
                       >
                         <Edit3 size={15} />
                       </button>
@@ -590,7 +646,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                         <button
                           onClick={() => handleRemoveMember(member.id, member.name)}
                           className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                          title="Hapus Anggota"
+                          title={modalsI18n.removeMemberTitle || 'Remove Member'}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -603,7 +659,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                       <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                         <Award size={13} className="text-amber-500" />
-                        <span>Skor Kinerja / CSAT</span>
+                        <span>{metricsI18n.csatScore || 'Performance Score / CSAT'}</span>
                       </span>
                       <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{score}%</span>
                     </div>
@@ -620,12 +676,18 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800 text-[11px]">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 size={13} className="text-blue-500 shrink-0" />
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">Tugas Selesai:</span>
-                        <strong className="text-slate-900 dark:text-slate-100 font-bold">{tasks} Tiket</strong>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">
+                          {metricsI18n.tasksCompleted || 'Completed Tasks:'}
+                        </span>
+                        <strong className="text-slate-900 dark:text-slate-100 font-bold">
+                          {tasks} {metricsI18n.ticketsSuffix || 'Tickets'}
+                        </strong>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <TrendingUp size={13} className="text-emerald-500 shrink-0" />
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">Omzet Diproses:</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">
+                          {metricsI18n.revenueProcessed || 'Processed Revenue:'}
+                        </span>
                         <strong className="text-slate-900 dark:text-slate-100 font-bold">{formatCurrency(sales)}</strong>
                       </div>
                     </div>
@@ -636,7 +698,9 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     {member.recent_activity && (
                       <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
                         <Activity size={12} className="text-orange-500 shrink-0" />
-                        <span className="truncate"><strong>Aktivitas Terakhir:</strong> {member.recent_activity}</span>
+                        <span className="truncate">
+                          <strong>{metricsI18n.recentActivity || 'Recent Activity:'}</strong> {member.recent_activity}
+                        </span>
                       </div>
                     )}
                     {member.bio && (
@@ -661,7 +725,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               <div className="flex items-center gap-2">
                 <UserPlus size={18} className="text-orange-500" />
                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                  Undang Anggota Tim Baru
+                  {modalsI18n.inviteTitle || 'Invite New Team Member'}
                 </h3>
               </div>
               <button
@@ -675,40 +739,40 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
             <form onSubmit={handleAddMember} className="space-y-4 text-xs font-semibold">
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Nama Lengkap
+                  {modalsI18n.fullNameLabel || 'Full Name'}
                 </label>
                 <input
                   type="text"
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder="contoh: Ahmad Subagja"
+                  placeholder={modalsI18n.namePlaceholder || 'e.g. Alex Johnson'}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Alamat Email <span className="text-rose-500">*</span>
+                  {modalsI18n.emailLabel || 'Email Address'} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
                   required
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
-                  placeholder="contoh: ahmad@zega.ai"
+                  placeholder={modalsI18n.emailPlaceholder || 'e.g. alex@zega.ai'}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Nomor Telepon (WhatsApp)
+                  {modalsI18n.phoneLabel || 'Phone Number (WhatsApp)'}
                 </label>
                 <input
                   type="text"
                   value={newPhone}
                   onChange={e => setNewPhone(e.target.value)}
-                  placeholder="contoh: +62 812-3456-7890"
+                  placeholder={modalsI18n.phonePlaceholder || 'e.g. +62 812-3456-7890'}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
@@ -716,23 +780,23 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                    Peran Pengguna
+                    {modalsI18n.roleLabel || 'User Role'}
                   </label>
                   <select
                     value={newRole}
                     onChange={e => setNewRole(e.target.value as any)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                   >
-                    <option value="Admin">Admin</option>
-                    <option value="Sales Agent">Sales Agent</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Developer">Developer</option>
+                    <option value="Admin">{rolesI18n.admin || 'Admin'}</option>
+                    <option value="Sales Agent">{rolesI18n.sales || 'Sales Agent'}</option>
+                    <option value="Finance">{rolesI18n.finance || 'Finance'}</option>
+                    <option value="Developer">{rolesI18n.developer || 'Developer'}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                    Departemen
+                    {modalsI18n.departmentLabel || 'Department'}
                   </label>
                   <select
                     value={newDepartment}
@@ -750,13 +814,13 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Bio / Catatan Staf
+                  {modalsI18n.bioLabel || 'Staff Bio / Profile Notes'}
                 </label>
                 <input
                   type="text"
                   value={newBio}
                   onChange={e => setNewBio(e.target.value)}
-                  placeholder="contoh: Senior Sales Officer WhatsApp Store"
+                  placeholder={modalsI18n.bioPlaceholder || 'Staff expertise or main responsibilities...'}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
@@ -767,7 +831,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   onClick={() => setIsAddModalOpen(false)}
                   className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold cursor-pointer"
                 >
-                  Batal
+                  {modalsI18n.cancelBtn || 'Cancel'}
                 </button>
                 <button
                   type="submit"
@@ -775,7 +839,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={15} />}
-                  <span>{isAdding ? 'Mengirim...' : 'Kirim Undangan'}</span>
+                  <span>{isAdding ? (modalsI18n.sendingInviteBtn || 'Sending...') : (modalsI18n.sendInviteBtn || 'Send Invitation')}</span>
                 </button>
               </div>
             </form>
@@ -791,7 +855,9 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               <div className="flex items-center gap-2">
                 <Edit3 size={18} className="text-orange-500" />
                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                  Edit Profil Anggota: {selectedMember.name}
+                  {modalsI18n.editTitle
+                    ? modalsI18n.editTitle.replace('{name}', selectedMember.name)
+                    : `Edit Member Profile: ${selectedMember.name}`}
                 </h3>
               </div>
               <button
@@ -805,7 +871,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs font-semibold">
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Nama Lengkap
+                  {modalsI18n.fullNameLabel || 'Full Name'}
                 </label>
                 <input
                   type="text"
@@ -818,7 +884,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Nomor Telepon
+                  {modalsI18n.phoneLabel || 'Phone Number'}
                 </label>
                 <input
                   type="text"
@@ -831,7 +897,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                    Peran Pengguna
+                    {modalsI18n.roleLabel || 'User Role'}
                   </label>
                   <select
                     value={editRole}
@@ -839,17 +905,17 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                     onChange={e => setEditRole(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 disabled:opacity-60"
                   >
-                    <option value="Owner">Owner</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Sales Agent">Sales Agent</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Developer">Developer</option>
+                    <option value="Owner">{rolesI18n.owner || 'Owner'}</option>
+                    <option value="Admin">{rolesI18n.admin || 'Admin'}</option>
+                    <option value="Sales Agent">{rolesI18n.sales || 'Sales Agent'}</option>
+                    <option value="Finance">{rolesI18n.finance || 'Finance'}</option>
+                    <option value="Developer">{rolesI18n.developer || 'Developer'}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                    Departemen
+                    {modalsI18n.departmentLabel || 'Department'}
                   </label>
                   <select
                     value={editDepartment}
@@ -868,28 +934,28 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Status Anggota
+                  {modalsI18n.statusLabel || 'Member Status'}
                 </label>
                 <select
                   value={editStatus}
                   onChange={e => setEditStatus(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Pending">Pending (Menunggu Konfirmasi)</option>
-                  <option value="Non-Aktif">Non-Aktif (Ditangguhkan)</option>
+                  <option value="Aktif">{modalsI18n.statusActiveOption || 'Active'}</option>
+                  <option value="Pending">{modalsI18n.statusPendingOption || 'Pending (Awaiting Confirmation)'}</option>
+                  <option value="Non-Aktif">{modalsI18n.statusInactiveOption || 'Inactive (Suspended)'}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-slate-500 dark:text-slate-400 mb-1">
-                  Bio / Catatan Profil Staf
+                  {modalsI18n.bioLabel || 'Staff Bio / Profile Notes'}
                 </label>
                 <textarea
                   rows={2}
                   value={editBio}
                   onChange={e => setEditBio(e.target.value)}
-                  placeholder="Catatan keahlian atau tugas utama staf..."
+                  placeholder={modalsI18n.bioPlaceholder || 'Staff expertise or main responsibilities...'}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
                 />
               </div>
@@ -900,7 +966,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   onClick={() => setSelectedMember(null)}
                   className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold cursor-pointer"
                 >
-                  Batal
+                  {modalsI18n.cancelBtn || 'Cancel'}
                 </button>
                 <button
                   type="submit"
@@ -908,7 +974,7 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                   className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   {isSavingEdit ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  <span>{isSavingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
+                  <span>{isSavingEdit ? (modalsI18n.savingChangesBtn || 'Saving...') : (modalsI18n.saveChangesBtn || 'Save Changes')}</span>
                 </button>
               </div>
             </form>

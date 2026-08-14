@@ -348,10 +348,10 @@ export function EnterpriseCopilot({
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button (Icon only on mobile) */}
       <button
         onClick={() => setCopilotOpen(!copilotOpen)}
-        className="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
+        className="group flex items-center gap-2 p-1 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
       >
         <div className="size-9.5 sm:size-10 rounded-full bg-white/20 p-0.5 flex items-center justify-center overflow-hidden">
           <img
@@ -360,8 +360,8 @@ export function EnterpriseCopilot({
             className="w-full h-full object-contain p-0 scale-125"
           />
         </div>
-        <span>Enterprise Copilot</span>
-        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="hidden sm:inline">Enterprise Copilot</span>
+        <span className="hidden sm:block size-2 rounded-full bg-emerald-400 animate-pulse" />
       </button>
     </div>
   );
