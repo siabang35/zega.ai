@@ -349,7 +349,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
   const goalPct = isNaN(rawGoalPct) ? 0 : rawGoalPct;
 
   return (
-    <div className="space-y-6 font-sans pb-10">
+    <div className="space-y-6 font-sans pb-20 sm:pb-10">
       {/* ========================================================================= */}
       {/* 1. TOP HEADER */}
       {/* ========================================================================= */}
@@ -364,82 +364,85 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
           </p>
 
           {/* Enterprise Sub-Menu Navigation Bar */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl w-fit border border-slate-200 dark:border-slate-700/60 text-xs font-medium mt-2.5">
+          <div 
+            className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl w-full sm:w-fit border border-slate-200 dark:border-slate-700/60 text-xs font-medium mt-2.5 overflow-x-auto whitespace-nowrap touch-pan-x min-w-0 no-scrollbar"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <button
               onClick={() => setActiveSubTab('overview')}
-              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-[11px] sm:text-xs ${
                 activeSubTab === 'overview'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              <BarChart3 size={14} />
+              <BarChart3 size={14} className="flex-shrink-0" />
               <span>{t.salesView.subTabOverview || 'Overview'}</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('sales_by_source')}
-              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-[11px] sm:text-xs ${
                 activeSubTab === 'sales_by_source'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              <TrendingUp size={14} />
+              <TrendingUp size={14} className="flex-shrink-0" />
               <span>{t.salesView.subTabSalesBySource || 'Sales by Source'}</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('sales_by_channel')}
-              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-[11px] sm:text-xs ${
                 activeSubTab === 'sales_by_channel'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              <ShoppingBag size={14} />
+              <ShoppingBag size={14} className="flex-shrink-0" />
               <span>{t.salesView.subTabSalesByChannel || 'Sales by Channel'}</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('monthly_report')}
-              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-[11px] sm:text-xs ${
                 activeSubTab === 'monthly_report'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-semibold border border-slate-200/60 dark:border-slate-800 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
-              <Calendar size={14} />
+              <Calendar size={14} className="flex-shrink-0" />
               <span>{t.salesView.subTabMonthlyReport || 'Monthly Report'}</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 w-full sm:w-auto">
           {/* Optimasi Model Action Button */}
           <button
             onClick={() => setActiveModal('deploySwarm')}
-            className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-none"
+            className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-none whitespace-nowrap min-w-0"
           >
-            <Workflow size={14} />
-            <span>{t.salesView.modelOptimization || 'Optimasi Model'}</span>
+            <Workflow size={14} className="flex-shrink-0" />
+            <span className="truncate">{t.salesView.modelOptimization || 'Optimasi Model'}</span>
           </button>
 
           {/* Date Picker Button */}
           <button
             onClick={() => setActiveModal('dateFilter')}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors whitespace-nowrap min-w-0"
           >
-            <span>{metrics.period_label || '1 Jul - 31 Jul 2026'}</span>
-            <Calendar size={14} className="text-slate-400" />
+            <span className="truncate">{metrics.period_label || '1 Jul - 31 Jul 2026'}</span>
+            <Calendar size={14} className="text-slate-400 flex-shrink-0" />
           </button>
 
           {/* Filter Button */}
           <button
             onClick={() => setActiveModal('filter')}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
           >
-            <Filter size={14} className="text-slate-500" />
+            <Filter size={14} className="text-slate-500 flex-shrink-0" />
             <span>{t.salesView.filter}</span>
           </button>
         </div>
@@ -682,28 +685,30 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
           <div>
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 mb-3">{t.salesView.topProducts}</h3>
             
-            <div className="space-y-2 text-xs">
-              <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                <span className="col-span-1">#</span>
-                <span className="col-span-5">{t.salesView.colProduct}</span>
-                <span className="col-span-2 text-center">{t.salesView.colSold}</span>
-                <span className="col-span-2 text-right">{t.salesView.colRevenue}</span>
-                <span className="col-span-2 text-right">{t.salesView.colTrend}</span>
-              </div>
+            <div className="space-y-2 text-xs overflow-x-auto no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="min-w-[340px] sm:min-w-0">
+                <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="col-span-1">#</span>
+                  <span className="col-span-5">{t.salesView.colProduct}</span>
+                  <span className="col-span-2 text-center">{t.salesView.colSold}</span>
+                  <span className="col-span-2 text-right">{t.salesView.colRevenue}</span>
+                  <span className="col-span-2 text-right">{t.salesView.colTrend}</span>
+                </div>
 
-              {topProducts.length > 0 ? (
-                topProducts.map((p) => (
-                  <div key={p.rank} className="grid grid-cols-12 items-center p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <span className="col-span-1 font-semibold text-slate-400">{p.rank}</span>
-                    <span className="col-span-5 font-semibold text-slate-900 dark:text-slate-100 truncate">{p.product_name}</span>
-                    <span className="col-span-2 text-center font-medium text-slate-600 dark:text-slate-300">{p.units_sold}</span>
-                    <span className="col-span-2 text-right font-bold text-slate-900 dark:text-slate-100">Rp{((p.revenue ?? 0) / 1000).toLocaleString('id-ID')}k</span>
-                    <span className="col-span-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">↑ {p.trend_growth}%</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-xs font-medium text-slate-400">{u.noProductsInDb || 'Belum ada produk terjual di database'}</div>
-              )}
+                {topProducts.length > 0 ? (
+                  topProducts.map((p) => (
+                    <div key={p.rank} className="grid grid-cols-12 items-center p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs">
+                      <span className="col-span-1 font-semibold text-slate-400">{p.rank}</span>
+                      <span className="col-span-5 font-semibold text-slate-900 dark:text-slate-100 truncate">{p.product_name}</span>
+                      <span className="col-span-2 text-center font-medium text-slate-600 dark:text-slate-300">{p.units_sold}</span>
+                      <span className="col-span-2 text-right font-bold text-slate-900 dark:text-slate-100">Rp{((p.revenue ?? 0) / 1000).toLocaleString('id-ID')}k</span>
+                      <span className="col-span-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">↑ {p.trend_growth}%</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-xs font-medium text-slate-400">{u.noProductsInDb || 'Belum ada produk terjual di database'}</div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -357,7 +357,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
   };
 
   return (
-    <div className="space-y-6 font-sans pb-10">
+    <div className="space-y-6 font-sans pb-20 sm:pb-10">
       {/* ========================================================================= */}
       {/* 1. TOP HEADER */}
       {/* ========================================================================= */}
@@ -372,31 +372,31 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-w-full min-w-0">
           {/* Primary Action: Deploy AI Swarm */}
           <button
             onClick={() => setActiveModal('deploySwarm')}
-            className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all"
+            className="px-3.5 sm:px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all flex-shrink-0 min-w-0 shadow-xs"
           >
-            <Zap size={14} className="fill-current" />
-            <span>+ {m.deploySwarm || 'Deploy AI Swarm'}</span>
+            <Zap size={14} className="fill-current flex-shrink-0" />
+            <span className="truncate">+ {m.deploySwarm || 'Deploy AI Swarm'}</span>
           </button>
 
           {/* Date Picker Button */}
           <button
             onClick={() => setActiveModal('dateFilter')}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-all"
+            className="px-3 sm:px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition-all min-w-0 truncate"
           >
-            <span>{metrics.period_label || '1 Jul - 31 Jul 2026'}</span>
-            <Calendar size={14} className="text-slate-400" />
+            <span className="truncate">{metrics.period_label || '1 Jul - 31 Jul 2026'}</span>
+            <Calendar size={14} className="text-slate-400 flex-shrink-0" />
           </button>
 
           {/* Filter Button */}
           <button
             onClick={() => setActiveModal('filter')}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-all"
+            className="px-3 sm:px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-all flex-shrink-0"
           >
-            <Filter size={14} className="text-orange-500" />
+            <Filter size={14} className="text-orange-500 flex-shrink-0" />
             <span>{m.filter || 'Filter'}</span>
           </button>
         </div>
@@ -405,7 +405,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
       {/* ========================================================================= */}
       {/* SUB-TAB NAVIGATION BAR */}
       {/* ========================================================================= */}
-      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2.5 overflow-x-auto">
+      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2.5 overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {[
           { id: 'overview', label: m.overviewTab || 'Overview', icon: LayoutDashboard },
           { id: 'campaign', label: m.campaignTab || 'Campaign', icon: Megaphone },
@@ -420,13 +420,13 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as MarketingSubTab)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap flex-shrink-0 ${
                 isActive
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-orange-500 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              <Icon size={15} />
+              <Icon size={15} className="flex-shrink-0" />
               <span>{tab.label}</span>
             </button>
           );
@@ -652,14 +652,15 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
         <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mb-3">{m.performanceByChannel || 'Performa by Channel'}</h3>
-            <div className="space-y-2 text-xs">
-              <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1">
-                <span className="col-span-4">Channel</span>
-                <span className="col-span-2 text-center">Reach</span>
-                <span className="col-span-2 text-center">Eng</span>
-                <span className="col-span-2 text-center">Leads</span>
-                <span className="col-span-2 text-right">Conv</span>
-              </div>
+            <div className="overflow-x-auto no-scrollbar max-w-full pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="min-w-[320px] space-y-2 text-xs">
+                <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1">
+                  <span className="col-span-4">Channel</span>
+                  <span className="col-span-2 text-center">Reach</span>
+                  <span className="col-span-2 text-center">Eng</span>
+                  <span className="col-span-2 text-center">Leads</span>
+                  <span className="col-span-2 text-right">Conv</span>
+                </div>
 
               {channels.map((ch, i) => {
                 const logo = getChannelLogo(ch.channel_name);
@@ -683,6 +684,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
               })}
             </div>
           </div>
+        </div>
 
           <button
             onClick={() => setActiveSubTab('channel')}
@@ -763,53 +765,56 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
               </button>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1">
-                <span className="col-span-5">Campaign</span>
-                <span className="col-span-2 text-center">Reach</span>
-                <span className="col-span-2 text-center">Leads</span>
-                <span className="col-span-3 text-right">Revenue</span>
-              </div>
+            <div className="overflow-x-auto no-scrollbar max-w-full pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="min-w-[340px] space-y-2 text-xs">
+                <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1">
+                  <span className="col-span-5">Campaign</span>
+                  <span className="col-span-2 text-center">Reach</span>
+                  <span className="col-span-2 text-center">Leads</span>
+                  <span className="col-span-3 text-right">Revenue</span>
+                </div>
 
-              {campaigns.slice(0, 5).map((c, i) => {
-                const logo = getChannelLogo(c.channel_name || '');
-                return (
-                  <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <div className="col-span-5 flex items-center gap-2 truncate">
-                      <img 
-                        src={c.cdn_icon_url || logo.cdn} 
-                        alt={c.campaign_name || 'Campaign'} 
-                        className="size-8 rounded-xl object-contain border border-slate-200 dark:border-slate-700 bg-white p-1 shrink-0 shadow-2xs" 
-                        onError={(e: any) => { 
-                          e.target.onerror = null;
-                          e.target.src = logo.fallback || logo.cdn; 
-                        }}
-                      />
-                      <div className="truncate">
-                        <div className="font-extrabold text-slate-900 dark:text-slate-100 truncate text-[11px]">{c.campaign_name}</div>
-                        <div className="text-[10px] text-slate-400">{c.date_range}</div>
+                {campaigns.slice(0, 5).map((c, i) => {
+                  const logo = getChannelLogo(c.channel_name || '');
+                  return (
+                    <div key={i} className="grid grid-cols-12 items-center p-2.5 rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <div className="col-span-5 flex items-center gap-2 truncate">
+                        <img 
+                          src={c.cdn_icon_url || logo.cdn} 
+                          alt={c.campaign_name || 'Campaign'} 
+                          className="size-8 rounded-xl object-contain border border-slate-200 dark:border-slate-700 bg-white p-1 shrink-0 shadow-2xs" 
+                          onError={(e: any) => { 
+                            e.target.onerror = null;
+                            e.target.src = logo.fallback || logo.cdn; 
+                          }}
+                        />
+                        <div className="truncate">
+                          <div className="font-extrabold text-slate-900 dark:text-slate-100 truncate text-[11px]">{c.campaign_name}</div>
+                          <div className="text-[10px] text-slate-400">{c.date_range}</div>
+                        </div>
+                      </div>
+
+                      <span className="col-span-2 text-center font-bold text-slate-600 dark:text-slate-300 text-[11px]">{c.reach_text}</span>
+                      <span className="col-span-2 text-center font-bold text-slate-900 dark:text-slate-100 text-[11px]">{c.leads_count}</span>
+                      <div className="col-span-3 text-right">
+                        <div className="font-black text-slate-900 dark:text-slate-100 text-[11px]">Rp{(c.revenue || c.revenue_num || 0).toLocaleString('id-ID')}</div>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold ${
+                          c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {c.status}
+                        </span>
                       </div>
                     </div>
+                  );
+                })}
 
-                    <span className="col-span-2 text-center font-bold text-slate-600 dark:text-slate-300 text-[11px]">{c.reach_text}</span>
-                    <span className="col-span-2 text-center font-bold text-slate-900 dark:text-slate-100 text-[11px]">{c.leads_count}</span>
-                    <div className="col-span-3 text-right">
-                      <div className="font-black text-slate-900 dark:text-slate-100 text-[11px]">Rp{(c.revenue || c.revenue_num || 0).toLocaleString('id-ID')}</div>
-                      <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold ${
-                        c.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </div>
+                {campaigns.length === 0 && (
+                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1">
+                    <p className="font-extrabold text-xs text-slate-600 dark:text-slate-400">{m.noCampaignYet || 'Belum Ada Campaign'}</p>
+                    <p className="text-[11px] text-slate-400">{m.noCampaignsFound || 'Tidak ada data campaign aktif'}</p>
                   </div>
-                );
-              })}
-              {campaigns.length === 0 && (
-                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1">
-                  <p className="font-extrabold text-xs text-slate-600 dark:text-slate-400">{m.noCampaignYet || 'Belum Ada Campaign'}</p>
-                  <p className="text-[11px] text-slate-400">{m.noCampaignsFound || 'Tidak ada data campaign aktif'}</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 

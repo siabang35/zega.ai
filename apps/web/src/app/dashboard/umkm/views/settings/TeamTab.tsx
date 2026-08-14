@@ -459,14 +459,6 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900">
-              <CheckCircle2 size={13} />
-              <span>
-                {i18n.totalCompletedTickets
-                  ? i18n.totalCompletedTickets.replace('{count}', totalTasks.toString())
-                  : `Total: ${totalTasks} Tickets Completed`}
-              </span>
-            </div>
           </div>
 
           {/* Bar Chart Visualization */}

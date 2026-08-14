@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  DollarSign, Scale, TrendingUp, ChevronDown, Sparkles, X, ArrowRight, QrCode, ExternalLink,
+  DollarSign, Scale, TrendingUp, ChevronDown, ChevronUp, Sparkles, X, ArrowRight, QrCode, ExternalLink,
   Calendar, Filter, CheckCircle2, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CreditCard,
   PieChart, RefreshCw, FileText, Plus, ShieldCheck, ChevronRight, Copy, Check, Bot, Settings,
   Send, MessageSquare, History, Trash2, Search, Clock, LayoutDashboard, Banknote, Coins, Building2
@@ -45,7 +45,7 @@ function TradingViewCryptoChart({ symbol = 'BINANCE:SOLUSDT', theme = 'dark' }: 
   const iframeSrc = `https://s.tradingview.com/widgetembed/?frameElementId=tradingview_solusdt&symbol=${encodedSymbol}&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=131722&theme=${theme}&style=1&timezone=Etc%2FUTC&locale=en`;
 
   return (
-    <div className="w-full h-[450px] rounded-2xl overflow-hidden border border-purple-500/40 bg-slate-950 shadow-2xl relative">
+    <div className="w-full h-[320px] sm:h-[450px] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl relative touch-auto">
       <iframe
         id="tradingview_solusdt"
         src={iframeSrc}
@@ -87,6 +87,10 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   const [overviewSubTab, setOverviewSubTab] = useState<'all' | 'fiat' | 'crypto'>('all');
   const [fiatCurrencyMode, setFiatCurrencyMode] = useState<'IDR' | 'USD'>('IDR');
 
+  // Crypto & FIAT Treasury Collapsible Accordion State (Default Closed as per User Request)
+  const [isCryptoTreasuryOpen, setIsCryptoTreasuryOpen] = useState<boolean>(false);
+  const [isFiatTreasuryOpen, setIsFiatTreasuryOpen] = useState<boolean>(false);
+
   const handleTabChange = (tab: 'overview' | 'zeroclaw') => {
     setActiveFinanceTab(tab);
     if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
@@ -127,6 +131,10 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   const [usdIdrRate, setUsdIdrRate] = useState<number>(16250);
   const [isWsLiveConnected, setIsWsLiveConnected] = useState<boolean>(false);
   const [solPriceHistory, setSolPriceHistory] = useState<{ time: string; price: number }[]>([]);
+
+  // Anti-Throttling & Anti-Chunking State Guards
+  const lastWsUpdateRef = useRef<number>(0);
+  const lastRpcFetchRef = useRef<number>(0);
 
   useEffect(() => {
     // 1. Fetch initial Binance prices via REST API
@@ -189,15 +197,32 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     // Auto-poll real-time exchange rates every 30 seconds
     const kursInterval = setInterval(fetchUsdIdrRate, 30000);
 
-    // 3. Connect to Binance WebSocket for real-time live price streaming
+    // 3. Connect to Binance WebSocket for real-time live price streaming with Anti-Throttling & Anti-Chunking
     let ws: WebSocket | null = null;
     try {
       ws = new WebSocket('wss://stream.binance.com:9443/ws/solusdt@ticker');
       ws.onopen = () => setIsWsLiveConnected(true);
       ws.onmessage = (event) => {
+        // Anti-Throttling: Rate limit React state re-renders to max 1 update per 1000ms
+        const now = Date.now();
+        if (now - lastWsUpdateRef.current < 1000) {
+          return;
+        }
+
         try {
-          const data = JSON.parse(event.data);
+          // Anti-Chunking: Safe text extraction for string or binary frame chunks
+          let payloadText = '';
+          if (typeof event.data === 'string') {
+            payloadText = event.data;
+          } else if (event.data instanceof ArrayBuffer) {
+            payloadText = new TextDecoder('utf-8').decode(event.data);
+          }
+
+          if (!payloadText || !payloadText.trim().startsWith('{')) return;
+
+          const data = JSON.parse(payloadText);
           if (data.c) {
+            lastWsUpdateRef.current = now;
             const price = parseFloat(data.c);
             setSolPriceBinance(price);
             if (data.P) setSolPriceChange24h(parseFloat(data.P));
@@ -209,7 +234,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
               return updated.slice(-20); // Keep last 20 real-time ticks
             });
           }
-        } catch (err) { }
+        } catch (err) {
+          // Ignore incomplete chunks or parse errors gracefully
+        }
       };
       ws.onerror = () => setIsWsLiveConnected(false);
       ws.onclose = () => setIsWsLiveConnected(false);
@@ -231,7 +258,15 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     };
   }, []);
 
-  const fetchRealCryptoBalances = async () => {
+  const fetchRealCryptoBalances = async (isManual = false) => {
+    // Anti-Throttling: Enforce 3000ms cooldown for manual RPC refresh button triggers
+    const now = Date.now();
+    if (isManual && now - lastRpcFetchRef.current < 3000) {
+      if (triggerToast) triggerToast('⚡ Anti-Throttling Active: Cooldown 3 detik untuk RPC refresh.');
+      return;
+    }
+    lastRpcFetchRef.current = now;
+
     setIsFetchingCryptoBalance(true);
     try {
       let walletAddr = '';
@@ -334,7 +369,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   useEffect(() => {
     fetchRealCryptoBalances();
   }, []);
-  const [currencyMode, setCurrencyMode] = useState<'USDC' | 'IDR'>('USDC');
+  const [currencyMode, setCurrencyMode] = useState<'USD' | 'IDR'>('USD');
   const [periodLabel, setPeriodLabel] = useState('1 Jul - 31 Jul 2026');
   const [cashflowTab, setCashflowTab] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
 
@@ -876,12 +911,12 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   };
 
   // Helper Money Formatter
-  const formatMoney = (valUsdc: number) => {
+  const formatMoney = (valUsd: number) => {
     if (currencyMode === 'IDR') {
-      const idr = valUsdc * 16160;
+      const idr = valUsd * (usdIdrRate || 16160);
       return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(idr);
     }
-    return `$${valUsdc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
+    return `$${valUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
   };
 
   // 1. Cash Flow Multi-Line Chart (Income, Expense, Balance) Dynamic Timeframes
@@ -1074,7 +1109,38 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
             </button>
           </div>
 
-          {/* Controls: Date Picker, Filter & Deploy Swarm */}
+          {/* Controls: Currency Mode (USD / IDR), Date Picker, Filter & Deploy Swarm */}
+          <div className="flex items-center p-0.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-extrabold shrink-0 shadow-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrencyMode('USD');
+                if (triggerToast) triggerToast(language === 'en' ? 'Currency: USD ($)' : language === 'zh' ? '货币：USD ($)' : 'Mata uang: USD ($)');
+              }}
+              className={`px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
+                currencyMode === 'USD'
+                  ? 'bg-purple-600 text-white font-black shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              USD ($)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrencyMode('IDR');
+                if (triggerToast) triggerToast(language === 'en' ? 'Currency: IDR (Rp)' : language === 'zh' ? '货币：IDR (Rp)' : 'Mata uang: IDR (Rp)');
+              }}
+              className={`px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
+                currencyMode === 'IDR'
+                  ? 'bg-emerald-600 text-white font-black shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              IDR (Rp)
+            </button>
+          </div>
+
           <button
             onClick={() => setIsDateModalOpen(true)}
             className="px-3 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
@@ -1156,139 +1222,189 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           {overviewSubTab === 'crypto' ? (
             /* Dedicated Keuangan Crypto Sub-View (Real Solana Devnet RPC & DB) */
             <div className="space-y-6">
-              {/* Crypto Real-Time RPC Wallet & Balance Banner */}
-              <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-900 via-slate-900 to-indigo-950 text-white border border-purple-800/60 shadow-xl relative overflow-hidden space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-black text-white flex items-center gap-2">
-                      <img
-                        src={getR2CdnUrl('/assets/logo/solana.png')}
-                        alt="Solana"
-                        className="size-6 rounded-lg object-contain bg-slate-900/80 p-0.5 border border-purple-500/40 shadow-xs"
-                        onError={(e: any) => {
-                          e.target.src = SupabaseDashboardService.getCdnUrl('assets/logo/solana-pay.png');
-                        }}
-                      />
-                      <span>{language === 'en' ? 'Crypto Treasury (SOL & USDC)' : language === 'zh' ? '加密财资 (SOL 与 USDC)' : 'Keuangan Crypto (SOL & USDC)'}</span>
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs font-mono text-slate-300 bg-black/40 px-3 py-1.5 rounded-xl border border-purple-500/30 max-w-md truncate">
-                      <Wallet size={13} className="text-purple-400 shrink-0" />
-                      <span className="truncate">{privyWalletAddress}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(privyWalletAddress);
-                          if (triggerToast) triggerToast(language === 'en' ? 'Wallet address copied!' : language === 'zh' ? '钱包地址已复制！' : 'Wallet address copied!');
-                        }}
-                        className="p-1 hover:text-white text-purple-400 cursor-pointer transition-all shrink-0"
-                        title="Copy Address"
-                      >
-                        <Copy size={13} />
-                      </button>
-                      <a
-                        href={`https://explorer.solana.com/address/${privyWalletAddress}?cluster=devnet`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1 hover:text-white text-purple-400 cursor-pointer transition-all shrink-0"
-                        title="View on Solana Explorer"
-                      >
-                        <ExternalLink size={13} />
-                      </a>
+              {/* Crypto Real-Time RPC Wallet & Balance Banner (Collapsible Accordion - Default Closed) */}
+              <div className="rounded-3xl bg-slate-900 text-white border border-purple-900/50 shadow-xl overflow-hidden transition-all duration-300">
+                {/* Header Bar - Toggle Open / Close */}
+                <div
+                  onClick={() => setIsCryptoTreasuryOpen(!isCryptoTreasuryOpen)}
+                  className="p-4 sm:p-5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/60 transition-all select-none"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={getR2CdnUrl('/assets/logo/solana.png')}
+                      alt="Solana"
+                      className="size-7 rounded-xl object-contain bg-slate-950 p-1 border border-purple-500/40 shadow-xs shrink-0"
+                      onError={(e: any) => {
+                        e.target.src = SupabaseDashboardService.getCdnUrl('assets/logo/solana-pay.png');
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                        <span className="truncate">{language === 'en' ? 'Crypto Treasury (SOL & USDC)' : language === 'zh' ? '加密财资 (SOL 与 USDC)' : 'Keuangan Crypto (SOL & USDC)'}</span>
+                      </h3>
+                      <p className="text-[11px] text-purple-300/80 font-mono truncate">
+                        {solBalance.toFixed(4)} SOL • ${usdcBalance.toFixed(2)} USDC
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="hidden sm:inline-block text-xs font-bold text-slate-400">
+                      {isCryptoTreasuryOpen
+                        ? (language === 'en' ? 'Hide Details' : language === 'zh' ? '收起详情' : 'Tutup Details')
+                        : (language === 'en' ? 'Show Details' : language === 'zh' ? '展开详情' : 'Buka Details')}
+                    </span>
                     <button
                       type="button"
-                      onClick={fetchRealCryptoBalances}
-                      disabled={isFetchingCryptoBalance}
-                      className="px-4 py-2 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-purple-600/30 shrink-0"
+                      className="p-1.5 rounded-xl bg-slate-800 text-purple-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
                     >
-                      <RefreshCw size={14} className={isFetchingCryptoBalance ? 'animate-spin' : ''} />
-                      <span>{isFetchingCryptoBalance ? (language === 'en' ? 'Fetching Solana RPC...' : language === 'zh' ? '获取 Solana RPC 中...' : 'Fetching Solana RPC...') : (language === 'en' ? 'Refresh RPC Balance' : language === 'zh' ? '刷新 RPC 余额' : 'Refresh RPC Balance')}</span>
+                      {isCryptoTreasuryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Live Binance WebSocket Price Ticker Bar */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-purple-500/30 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex size-2">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isWsLiveConnected ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
-                      <span className={`relative inline-flex rounded-full size-2 ${isWsLiveConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                    </span>
-                    <span className="font-extrabold text-purple-200">{language === 'en' ? 'Binance WebSocket Feed' : language === 'zh' ? 'Binance WebSocket 实时行情' : 'Binance WebSocket Live Feed'}</span>
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-[11px]">
-                    <span className={`font-black ${solPriceChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      24h: {solPriceChange24h >= 0 ? '+' : ''}{solPriceChange24h.toFixed(2)}%
-                    </span>
-                    <span className="text-slate-400 hidden sm:inline">1 USD = Rp {usdIdrRate.toLocaleString('id-ID')}</span>
-                  </div>
-                </div>
+                {/* Collapsible Body Content */}
+                {isCryptoTreasuryOpen && (
+                  <div className="p-4 sm:p-6 pt-0 space-y-4 border-t border-purple-900/40 animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-mono text-slate-300 bg-black/40 px-3 py-1.5 rounded-xl border border-purple-500/30 max-w-full sm:max-w-md truncate">
+                          <Wallet size={13} className="text-purple-400 shrink-0" />
+                          <span className="truncate">{privyWalletAddress}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(privyWalletAddress);
+                              if (triggerToast) triggerToast(language === 'en' ? 'Wallet address copied!' : language === 'zh' ? '钱包地址已复制！' : 'Wallet address copied!');
+                            }}
+                            className="p-1 hover:text-white text-purple-400 cursor-pointer transition-all shrink-0"
+                            title="Copy Address"
+                          >
+                            <Copy size={13} />
+                          </button>
+                          <a
+                            href={`https://explorer.solana.com/address/${privyWalletAddress}?cluster=devnet`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 hover:text-white text-purple-400 cursor-pointer transition-all shrink-0"
+                            title="View on Solana Explorer"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      </div>
 
-                {/* Live RPC Balance Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-purple-800/40">
-                  {/* SOL Gas Reserve Card */}
-                  <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'Solana SOL Balance (Real RPC)' : language === 'zh' ? 'Solana SOL 余额 (实时 RPC)' : 'Solana SOL Balance (Real RPC)'}</span>
-                      <img
-                        src={getR2CdnUrl('/assets/logo/solana.png')}
-                        alt="Solana"
-                        className="size-5 rounded-md object-contain bg-purple-950/60 p-0.5 border border-purple-400/30"
-                        onError={(e: any) => {
-                          e.target.src = SupabaseDashboardService.getCdnUrl('assets/logo/solana-pay.png');
-                        }}
-                      />
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fetchRealCryptoBalances(true);
+                          }}
+                          disabled={isFetchingCryptoBalance}
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md shadow-purple-600/30 shrink-0"
+                        >
+                          <RefreshCw size={14} className={isFetchingCryptoBalance ? 'animate-spin' : ''} />
+                          <span>{isFetchingCryptoBalance ? (language === 'en' ? 'Fetching...' : language === 'zh' ? '获取中...' : 'Memuat...') : (language === 'en' ? 'Refresh Balance' : language === 'zh' ? '刷新余额' : 'Refresh Saldo')}</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-2xl font-black text-white font-mono tracking-tight flex items-baseline gap-1.5">
-                      <span>{solBalance.toFixed(4)}</span>
-                      <span className="text-sm font-extrabold text-purple-400">SOL</span>
-                    </div>
-                    <span className="text-[10px] text-emerald-400 font-mono block">
-                      ≈ ${(solBalance * solPriceBinance).toFixed(2)} USD (Rp {(solBalance * solPriceBinance * usdIdrRate).toLocaleString('id-ID')})
-                    </span>
-                  </div>
 
-                  {/* USDC Revenue Card */}
-                  <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
-                    <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'USDC Settlement Reserve' : language === 'zh' ? 'USDC 结算储备金' : 'Cadangan Settlement USDC'}</span>
-                    <div className="text-2xl font-black text-white font-mono tracking-tight flex items-baseline gap-1.5">
-                      <span>${usdcBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      <span className="text-sm font-extrabold text-emerald-400">USDC</span>
+                    {/* Live Binance WebSocket Price Ticker Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-black/40 border border-purple-500/30 text-xs">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={getR2CdnUrl('/assets/logo/binance.png')}
+                          alt="Binance"
+                          className="h-4.5 sm:h-5 w-auto object-contain shrink-0"
+                          onError={(e: any) => {
+                            e.target.src = 'https://cdn.zegaai.site/assets/logo/binance.png';
+                          }}
+                        />
+                        <span className="font-extrabold text-purple-200">{language === 'en' ? 'Binance Live Feed' : language === 'zh' ? 'Binance 实时行情' : 'Binance Live Feed'}</span>
+                      </div>
+                      <div className="flex items-center gap-3 font-mono text-[11px]">
+                        <span className={`font-black ${solPriceChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          24h: {solPriceChange24h >= 0 ? '+' : ''}{solPriceChange24h.toFixed(2)}%
+                        </span>
+                        <span className="text-slate-400">1 USD = Rp {usdIdrRate.toLocaleString('id-ID')}</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-purple-300 font-mono block">≈ Rp {(usdcBalance * usdIdrRate).toLocaleString('id-ID')} ({language === 'en' ? 'Solana Pay SPL Token' : language === 'zh' ? 'Solana Pay SPL 代币' : 'Token SPL Solana Pay'})</span>
-                  </div>
 
-                  {/* ZeroClaw Vault Yield Card */}
-                  <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
-                    <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'ZeroClaw Staking Yield (APY 12.4%)' : language === 'zh' ? 'ZeroClaw 质押收益 (年化 12.4%)' : 'Yield Staking ZeroClaw (APY 12.4%)'}</span>
-                    <div className="text-2xl font-black text-purple-300 font-mono tracking-tight flex items-baseline gap-1.5">
-                      <span>+${stakedYield.toFixed(2)}</span>
-                      <span className="text-sm font-extrabold text-purple-400">USDC</span>
+                    {/* Live RPC Balance Cards Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-purple-800/40">
+                      {/* SOL Gas Reserve Card */}
+                      <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'Solana SOL Balance' : language === 'zh' ? 'Solana SOL 余额' : 'Saldo Solana SOL'}</span>
+                          <img
+                            src={getR2CdnUrl('/assets/logo/solana.png')}
+                            alt="Solana"
+                            className="size-5 rounded-md object-contain bg-purple-950/60 p-0.5 border border-purple-400/30"
+                            onError={(e: any) => {
+                              e.target.src = SupabaseDashboardService.getCdnUrl('assets/logo/solana-pay.png');
+                            }}
+                          />
+                        </div>
+                        <div className="text-2xl font-black text-white font-mono tracking-tight flex items-baseline gap-1.5">
+                          <span>{solBalance.toFixed(4)}</span>
+                          <span className="text-sm font-extrabold text-purple-400">SOL</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-mono block">
+                          ≈ ${(solBalance * solPriceBinance).toFixed(2)} USD (Rp {(solBalance * solPriceBinance * usdIdrRate).toLocaleString('id-ID')})
+                        </span>
+                      </div>
+
+                      {/* USDC Revenue Card */}
+                      <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
+                        <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'USDC Settlement Reserve' : language === 'zh' ? 'USDC 结算储备金' : 'Cadangan Settlement USDC'}</span>
+                        <div className="text-2xl font-black text-white font-mono tracking-tight flex items-baseline gap-1.5">
+                          <span>${usdcBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-sm font-extrabold text-emerald-400">USDC</span>
+                        </div>
+                        <span className="text-[10px] text-purple-300 font-mono block">≈ Rp {(usdcBalance * usdIdrRate).toLocaleString('id-ID')} ({language === 'en' ? 'Solana Pay SPL Token' : language === 'zh' ? 'Solana Pay SPL 代币' : 'Token SPL Solana Pay'})</span>
+                      </div>
+
+                      {/* ZeroClaw Vault Yield Card */}
+                      <div className="p-4 rounded-2xl bg-white/5 border border-purple-500/20 space-y-1 backdrop-blur-xs">
+                        <span className="text-xs text-purple-200/70 font-semibold block">{language === 'en' ? 'ZeroClaw Staking Yield (APY 12.4%)' : language === 'zh' ? 'ZeroClaw 质押收益 (年化 12.4%)' : 'Yield Staking ZeroClaw (APY 12.4%)'}</span>
+                        <div className="text-2xl font-black text-purple-300 font-mono tracking-tight flex items-baseline gap-1.5">
+                          <span>+${stakedYield.toFixed(2)}</span>
+                          <span className="text-sm font-extrabold text-purple-400">USDC</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-mono block">≈ Rp {(stakedYield * usdIdrRate).toLocaleString('id-ID')} ({language === 'en' ? 'Auto Yield Accumulator' : language === 'zh' ? '自动收益累加器' : 'Akumulator Yield Otomatis'})</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-emerald-400 font-mono block">≈ Rp {(stakedYield * usdIdrRate).toLocaleString('id-ID')} ({language === 'en' ? 'Auto Yield Accumulator' : language === 'zh' ? '自动收益累加器' : 'Akumulator Yield Otomatis'})</span>
                   </div>
-                </div>
+                )}
               </div>
 
-                {/* 2. Dedicated Technical Analysis TradingView Chart Card */}
-                <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-extrabold text-base text-white flex items-center gap-2">
-                        <TrendingUp size={18} className="text-purple-400" />
-                        <span>{language === 'en' ? 'TradingView Professional Technical Chart (SOL/USDT Real-Time)' : language === 'zh' ? 'TradingView 专业技术分析图表 (SOL/USDT 实时)' : 'Grafik Analisis Teknikal TradingView (SOL/USDT Real-Time)'}</span>
-                      </h4>
-                      <p className="text-xs text-slate-400">
-                        {language === 'en' ? 'Interactive candlesticks, volume indicators, and real-time market data powered by TradingView.' : language === 'zh' ? '由 TradingView 提供支持的交互式 K 线图、成交量指标和实时市场数据。' : 'K-Line interaktif, indikator volume, dan data pasar real-time didukung oleh TradingView.'}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 rounded-xl text-xs font-mono font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                      BINANCE:SOLUSDT
-                    </span>
+              {/* 2. Dedicated Technical Analysis TradingView Chart Card */}
+              <div className="p-4 sm:p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="font-extrabold text-sm sm:text-base text-white flex items-center gap-2">
+                      <TrendingUp size={18} className="text-purple-400 shrink-0" />
+                      <span className="truncate">{language === 'en' ? 'TradingView Technical Chart (SOL/USDT)' : language === 'zh' ? 'TradingView 专业技术图表 (SOL/USDT)' : 'Grafik Analisis Teknikal TradingView (SOL/USDT)'}</span>
+                    </h4>
+                    <p className="text-[11px] sm:text-xs text-slate-400 leading-snug">
+                      {language === 'en' ? 'Interactive K-lines, volume indicators, and real-time market data powered by TradingView.' : language === 'zh' ? '由 TradingView 提供支持的交互式 K 线图、成交量指标和实时市场数据。' : 'K-Line interaktif, indikator volume, dan data pasar real-time didukung oleh TradingView.'}
+                    </p>
                   </div>
+                  <span className="px-3 py-1 rounded-xl text-[11px] font-mono font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                    <img
+                      src={getR2CdnUrl('/assets/logo/binance.png')}
+                      alt="Binance"
+                      className="h-3.5 w-auto object-contain shrink-0"
+                      onError={(e: any) => {
+                        e.target.src = 'https://cdn.zegaai.site/assets/logo/binance.png';
+                      }}
+                    />
+                    <span>BINANCE:SOLUSDT</span>
+                  </span>
+                </div>
 
                   {/* Lightweight TradingView Chart Widget Embed */}
                   <TradingViewCryptoChart symbol="BINANCE:SOLUSDT" theme="dark" />
@@ -1300,10 +1416,10 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                   <div>
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <ShieldCheck size={16} className="text-purple-500" />
-                      <span>{language === 'en' ? 'Solana On-Chain Crypto Transaction Ledger (Supabase DB)' : language === 'zh' ? 'Solana 链上加密交易账本 (Supabase 数据库)' : 'Riwayat Transaksi Crypto On-Chain Solana (Supabase DB)'}</span>
+                      <span>{language === 'en' ? 'Solana On-Chain Crypto Transaction Ledger' : language === 'zh' ? 'Solana 链上加密交易账本' : 'Riwayat Transaksi Crypto On-Chain Solana'}</span>
                     </h4>
                     <p className="text-[11px] text-slate-500">
-                      {language === 'en' ? 'Real-time verified transaction data from Supabase database table' : language === 'zh' ? '来自 Supabase 数据库表的实时验证交易数据' : 'Data transaksi terverifikasi real-time dari tabel database Supabase'} <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-purple-600 dark:text-purple-400">umkm_finance_solana_tx</code>.
+                      {language === 'en' ? 'Real-time verified transaction data' : language === 'zh' ? '实时验证交易数据' : 'Data transaksi terverifikasi real-time'}.
                     </p>
                   </div>
                   <button
@@ -1346,7 +1462,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                             <td className="py-3 px-3 font-sans font-semibold text-slate-700 dark:text-slate-300">
                               {tx.tx_type || 'Solana Pay QR'}
                             </td>
-                            <td className="py-3 px-3 text-right font-black text-emerald-600 dark:text-emerald-400">
+<td className="py-3 px-3 text-right font-black text-emerald-600 dark:text-emerald-400">
                               +${Number(tx.amount_usdc || tx.amount || 25).toFixed(2)} USDC
                             </td>
                             <td className="py-3 px-3 text-center">
@@ -1374,208 +1490,243 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           ) : overviewSubTab === 'fiat' ? (
             /* Dedicated Keuangan FIAT (IDR / USD) Sub-View */
             <div className="space-y-6">
-              {/* FIAT Banner & Summary */}
-              <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700 shadow-xl space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-black text-white tracking-tight">
-                      {language === 'en' ? 'Bank Mutation, QRIS & e-Faktur Tax' : language === 'zh' ? '银行交易、QRIS与电子发票' : 'Mutasi Rekening, QRIS & Pajak e-Faktur'}
-                    </h3>
-                    <p className="text-xs text-slate-300">
-                      {language === 'en'
-                        ? 'Rupiah & USD cash balance management, daily QRIS settlement, BCA/Mandiri transfers, and 11% PPN tax compliance.'
-                        : language === 'zh'
-                        ? '印尼盾与美元现金余额管理、每日 QRIS 结算、BCA/Mandiri 转账以及 11% PPN 电子发票合规。'
-                        : 'Pengelolaan saldo kas rupiah & USD, settlement QRIS harian, transfer bank BCA/Mandiri, serta pelaporan e-Faktur PPN 11%.'}
-                    </p>
+              {/* FIAT Banner & Summary (Collapsible Accordion - Default Closed) */}
+              <div className="rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-xl overflow-hidden transition-all duration-300">
+                {/* Header Bar - Toggle Open / Close */}
+                <div
+                  onClick={() => setIsFiatTreasuryOpen(!isFiatTreasuryOpen)}
+                  className="p-4 sm:p-5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/60 transition-all select-none"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                      <Banknote size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                        <span className="truncate">{language === 'en' ? 'Bank Mutation, QRIS & e-Faktur Tax' : language === 'zh' ? '银行交易、QRIS与电子发票' : 'Mutasi Rekening, QRIS & Pajak e-Faktur'}</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-mono truncate">
+                        IDR (Rp) • USD ($) • {language === 'en' ? 'e-Faktur PPN 11%' : 'e-Faktur PPN 11%'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* FIAT IDR / USD Currency Switcher */}
-                    <div className="flex items-center p-1 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFiatCurrencyMode('IDR');
-                          if (triggerToast) triggerToast('Mata uang FIAT diubah ke IDR (Rp)');
-                        }}
-                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                          fiatCurrencyMode === 'IDR'
-                            ? 'bg-emerald-600 text-white font-extrabold shadow-xs'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        IDR (Rp)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFiatCurrencyMode('USD');
-                          if (triggerToast) triggerToast('FIAT currency changed to USD ($)');
-                        }}
-                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                          fiatCurrencyMode === 'USD'
-                            ? 'bg-blue-600 text-white font-extrabold shadow-xs'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        USD ($)
-                      </button>
-                    </div>
-
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="hidden sm:inline-block text-xs font-bold text-slate-400">
+                      {isFiatTreasuryOpen
+                        ? (language === 'en' ? 'Hide Details' : language === 'zh' ? '收起详情' : 'Tutup Details')
+                        : (language === 'en' ? 'Show Details' : language === 'zh' ? '展开详情' : 'Buka Details')}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => setIsTaxModalOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs flex items-center gap-1.5 border border-slate-700 cursor-pointer transition-all"
+                      className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
                     >
-                      <Receipt size={14} className="text-emerald-400" />
-                      <span>{language === 'en' ? 'e-Faktur Settings' : language === 'zh' ? '电子发票设置' : 'Pengaturan e-Faktur'}</span>
+                      {isFiatTreasuryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Live USD/IDR Kurs Exchange Rate Ticker Bar */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-slate-700 text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex size-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="font-extrabold text-emerald-300">{language === 'en' ? 'Live Bank Indonesia / Exchange Rate Ticker' : language === 'zh' ? '印尼央行与银行实时汇率' : 'Kurs Real-Time Bank Indonesia / USD'}</span>
-                  </div>
-                  <div className="font-black text-white bg-emerald-500/20 px-2.5 py-1 rounded-xl border border-emerald-500/30">
-                    1 USD = Rp {usdIdrRate.toLocaleString('id-ID')} IDR
-                  </div>
-                </div>
+                {/* Collapsible Body Content */}
+                {isFiatTreasuryOpen && (
+                  <div className="p-4 sm:p-6 pt-0 space-y-4 border-t border-slate-800/80 animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
+                      <p className="text-xs text-slate-300 max-w-xl">
+                        {language === 'en'
+                          ? 'Rupiah & USD cash balance management, daily QRIS settlement, BCA/Mandiri transfers, and 11% PPN tax compliance.'
+                          : language === 'zh'
+                          ? '印尼盾与美元现金余额管理、每日 QRIS 结算、BCA/Mandiri 转账以及 11% PPN 电子发票合规。'
+                          : 'Pengelolaan saldo kas rupiah & USD, settlement QRIS harian, transfer bank BCA/Mandiri, serta pelaporan e-Faktur PPN 11%.'}
+                      </p>
 
-                {/* FIAT Cash Flow & Banking Settlement Real DB Trend Chart */}
-                <div className="p-4 rounded-2xl bg-black/30 border border-slate-700/80 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-extrabold text-slate-200 flex items-center gap-1.5">
-                      <TrendingUp size={14} className="text-emerald-400" />
-                      <span>{language === 'en' ? 'FIAT Monthly Cash Flow & Bank Settlement Ledger (Supabase DB)' : language === 'zh' ? '法定货币月度现金流与银行结算图 (Supabase 数据库)' : 'Tren Cash Flow & Settlement Bank FIAT (Supabase DB)'}</span>
-                    </span>
-                    <span className="text-[11px] font-mono text-emerald-400 font-extrabold">
-                      {fiatCurrencyMode === 'IDR'
-                        ? `Rp ${((m.total_revenue_idr || m.gross_revenue || 0)).toLocaleString('id-ID')}`
-                        : `$${(((m.total_revenue || (m.gross_revenue ? m.gross_revenue / usdIdrRate : 0))).toLocaleString('en-US', { minimumFractionDigits: 2 }))} USD`}
-                    </span>
-                  </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* FIAT IDR / USD Currency Switcher */}
+                        <div className="flex items-center p-1 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFiatCurrencyMode('IDR');
+                              if (triggerToast) triggerToast('Mata uang FIAT diubah ke IDR (Rp)');
+                            }}
+                            className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                              fiatCurrencyMode === 'IDR'
+                                ? 'bg-emerald-600 text-white font-extrabold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            IDR (Rp)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFiatCurrencyMode('USD');
+                              if (triggerToast) triggerToast('FIAT currency changed to USD ($)');
+                            }}
+                            className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                              fiatCurrencyMode === 'USD'
+                                ? 'bg-blue-600 text-white font-extrabold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            USD ($)
+                          </button>
+                        </div>
 
-                  <div className="h-28 w-full flex items-end gap-2 pt-2">
-                    {(() => {
-                      // Zero-Trust DB-Backed Monthly Trend Mapping from Supabase Metrics
-                      const baseRev = m.total_revenue_idr || m.gross_revenue || 0;
-                      const baseExp = m.total_expense_idr || m.total_expense || 0;
-
-                      const dbMonths = Array.isArray(financeData.monthlyTrends) && financeData.monthlyTrends.length > 0
-                        ? financeData.monthlyTrends.map((t: any) => ({
-                            label: t.month || t.label || 'Bulan',
-                            rev: Number(t.revenue || t.income || 0),
-                            exp: Number(t.expense || t.expenses || 0)
-                          }))
-                        : [
-                            { label: 'Jan', rev: baseRev * 0.7, exp: baseExp * 0.65 },
-                            { label: 'Feb', rev: baseRev * 0.78, exp: baseExp * 0.72 },
-                            { label: 'Mar', rev: baseRev * 0.85, exp: baseExp * 0.8 },
-                            { label: 'Apr', rev: baseRev * 0.9, exp: baseExp * 0.85 },
-                            { label: 'Mei', rev: baseRev * 0.95, exp: baseExp * 0.9 },
-                            { label: 'Jun', rev: baseRev, exp: baseExp }
-                          ];
-
-                      const maxRev = Math.max(1, ...dbMonths.map((d: any) => Math.max(d.rev, d.exp)));
-
-                      return dbMonths.map((item: any, idx: number) => {
-                        const revHeight = maxRev > 0 ? Math.min(100, Math.max(12, (item.rev / maxRev) * 100)) : 10;
-                        const expHeight = maxRev > 0 ? Math.min(100, Math.max(10, (item.exp / maxRev) * 100)) : 10;
-                        const isLatest = idx === dbMonths.length - 1;
-
-                        return (
-                          <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative cursor-crosshair">
-                            {/* Hover Tooltip */}
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono p-1.5 rounded-md border border-slate-700 pointer-events-none whitespace-nowrap z-20 shadow-xl">
-                              <div className="font-bold text-emerald-400">{item.label} Revenue: {fiatCurrencyMode === 'IDR' ? `Rp ${Math.round(item.rev).toLocaleString('id-ID')}` : `$${Math.round(item.rev / (usdIdrRate || 16000)).toLocaleString()}`}</div>
-                              <div className="text-rose-400">Expense: {fiatCurrencyMode === 'IDR' ? `Rp ${Math.round(item.exp).toLocaleString('id-ID')}` : `$${Math.round(item.exp / (usdIdrRate || 16000)).toLocaleString()}`}</div>
-                            </div>
-
-                            <div className="w-full flex items-end justify-center gap-1 h-20">
-                              {/* Revenue Bar */}
-                              <div
-                                style={{ height: `${revHeight}%` }}
-                                className={`flex-1 rounded-t transition-all duration-300 ${
-                                  isLatest ? 'bg-gradient-to-t from-emerald-600 to-teal-400 shadow-md shadow-emerald-600/50' : 'bg-emerald-500/80 hover:bg-emerald-400'
-                                }`}
-                              />
-                              {/* Expense Bar */}
-                              <div
-                                style={{ height: `${expHeight}%` }}
-                                className="flex-1 rounded-t bg-rose-500/50 hover:bg-rose-400 transition-all duration-300"
-                              />
-                            </div>
-                            <span className="text-[9px] font-mono text-slate-400">{item.label}</span>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                  <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-800">
-                    <span className="flex items-center gap-1">
-                      <span className="size-2 rounded-xs bg-emerald-500"></span> Revenue ({language === 'en' ? 'Supabase DB Revenue' : language === 'zh' ? 'Supabase 数据库收入' : 'Pendapatan DB'})
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="size-2 rounded-xs bg-rose-500"></span> Expense ({language === 'en' ? 'Supabase DB Expense' : language === 'zh' ? 'Supabase 数据库支出' : 'Pengeluaran DB'})
-                    </span>
-                  </div>
-                </div>
-
-                {/* FIAT Key Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2 border-t border-slate-700/60">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
-                    <span className="text-xs text-slate-400 font-semibold block">
-                      {language === 'en' ? `Total Cash (${fiatCurrencyMode})` : language === 'zh' ? `现金总额 (${fiatCurrencyMode})` : `Total Saldo Kas ${fiatCurrencyMode}`}
-                    </span>
-                    <div className="text-2xl font-black text-white font-mono tracking-tight">
-                      {fiatCurrencyMode === 'IDR'
-                        ? `Rp ${(m.cash_balance_idr || (m.gross_revenue ? m.gross_revenue - (m.total_expense || 0) : 0)).toLocaleString('id-ID')}`
-                        : `$${(((m.cash_balance_idr || (m.gross_revenue ? m.gross_revenue - (m.total_expense || 0) : 0))) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsTaxModalOpen(true);
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs flex items-center gap-1.5 border border-slate-700 cursor-pointer transition-all shrink-0"
+                        >
+                          <Receipt size={14} className="text-emerald-400 shrink-0" />
+                          <span>{language === 'en' ? 'e-Faktur Settings' : language === 'zh' ? '电子发票设置' : 'Pengaturan e-Faktur'}</span>
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-emerald-400 font-mono block">Bank BCA & Mandiri</span>
-                  </div>
 
-                  <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
-                    <span className="text-xs text-slate-400 font-semibold block">
-                      {language === 'en' ? 'Daily QRIS Settlement' : language === 'zh' ? '每日 QRIS 结算' : 'Pendapatan QRIS Harian'}
-                    </span>
-                    <div className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
-                      {fiatCurrencyMode === 'IDR'
-                        ? `Rp ${(m.qris_daily_revenue || 0).toLocaleString('id-ID')}`
-                        : `$${((m.qris_daily_revenue || 0) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
+                    {/* Live USD/IDR Kurs Exchange Rate Ticker Bar - Responsive Mobile Fix */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-black/40 border border-slate-700 text-xs font-mono">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="relative flex size-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="font-extrabold text-emerald-300 truncate">{language === 'en' ? 'Live Bank Indonesia / Exchange Rate Ticker' : language === 'zh' ? '印尼央行与银行实时汇率' : 'Kurs Real-Time Bank Indonesia / USD'}</span>
+                      </div>
+                      <div className="font-black text-white bg-emerald-500/20 px-2.5 py-1 rounded-xl border border-emerald-500/30 shrink-0 self-start sm:self-auto text-[11px]">
+                        1 USD = Rp {usdIdrRate.toLocaleString('id-ID')} IDR
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-300 font-mono block">Auto-settlement T+1</span>
-                  </div>
 
-                  <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
-                    <span className="text-xs text-slate-400 font-semibold block">
-                      {language === 'en' ? `Total Expense (${fiatCurrencyMode})` : language === 'zh' ? `支出总额 (${fiatCurrencyMode})` : `Total Pengeluaran ${fiatCurrencyMode}`}
-                    </span>
-                    <div className="text-2xl font-black text-rose-400 font-mono tracking-tight">
-                      {fiatCurrencyMode === 'IDR'
-                        ? `Rp ${(m.total_expense_idr || m.total_expense || 0).toLocaleString('id-ID')}`
-                        : `$${((m.total_expense_idr || m.total_expense || 0) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
-                    </div>
-                    <span className="text-[10px] text-slate-300 font-mono block">{language === 'en' ? 'Operational & Payroll' : language === 'zh' ? '运营与薪酬' : 'Operasional & Gaji'}</span>
-                  </div>
+                    {/* FIAT Cash Flow & Banking Settlement Trend Chart */}
+                    <div className="p-4 rounded-2xl bg-black/30 border border-slate-700/80 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+                        <span className="font-extrabold text-slate-200 flex items-center gap-1.5 min-w-0">
+                          <TrendingUp size={14} className="text-emerald-400 shrink-0" />
+                          <span className="truncate">{language === 'en' ? 'FIAT Monthly Cash Flow & Bank Settlement' : language === 'zh' ? '法定货币月度现金流与银行结算' : 'Tren Cash Flow & Settlement Bank FIAT'}</span>
+                        </span>
+                        <span className="text-[11px] font-mono text-emerald-400 font-extrabold shrink-0">
+                          {fiatCurrencyMode === 'IDR'
+                            ? `Rp ${((m.total_revenue_idr || m.gross_revenue || 0)).toLocaleString('id-ID')}`
+                            : `$${(((m.total_revenue || (m.gross_revenue ? m.gross_revenue / usdIdrRate : 0))).toLocaleString('en-US', { minimumFractionDigits: 2 }))} USD`}
+                        </span>
+                      </div>
 
-                  <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
-                    <span className="text-xs text-slate-400 font-semibold block">
-                      {language === 'en' ? 'PPN Compliance' : language === 'zh' ? '电子发票合规' : 'Kepatuhan e-Faktur PPN (11%)'}
-                    </span>
-                    <div className="text-2xl font-black text-purple-400 font-mono tracking-tight">
-                      100% Verified
+                      <div className="h-28 w-full flex items-end gap-2 pt-2">
+                        {(() => {
+                          const baseRev = m.total_revenue_idr || m.gross_revenue || 0;
+                          const baseExp = m.total_expense_idr || m.total_expense || 0;
+
+                          const dbMonths = Array.isArray(financeData.monthlyTrends) && financeData.monthlyTrends.length > 0
+                            ? financeData.monthlyTrends.map((t: any) => ({
+                                label: t.month || t.label || 'Bulan',
+                                rev: Number(t.revenue || t.income || 0),
+                                exp: Number(t.expense || t.expenses || 0)
+                              }))
+                            : [
+                                { label: 'Jan', rev: baseRev * 0.7, exp: baseExp * 0.65 },
+                                { label: 'Feb', rev: baseRev * 0.78, exp: baseExp * 0.72 },
+                                { label: 'Mar', rev: baseRev * 0.85, exp: baseExp * 0.8 },
+                                { label: 'Apr', rev: baseRev * 0.9, exp: baseExp * 0.85 },
+                                { label: 'Mei', rev: baseRev * 0.95, exp: baseExp * 0.9 },
+                                { label: 'Jun', rev: baseRev, exp: baseExp }
+                              ];
+
+                          const maxRev = Math.max(1, ...dbMonths.map((d: any) => Math.max(d.rev, d.exp)));
+
+                          return dbMonths.map((item: any, idx: number) => {
+                            const revHeight = maxRev > 0 ? Math.min(100, Math.max(12, (item.rev / maxRev) * 100)) : 10;
+                            const expHeight = maxRev > 0 ? Math.min(100, Math.max(10, (item.exp / maxRev) * 100)) : 10;
+                            const isLatest = idx === dbMonths.length - 1;
+
+                            return (
+                              <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative cursor-crosshair">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono p-1.5 rounded-md border border-slate-700 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                                  <div className="font-bold text-emerald-400">{item.label} Revenue: {fiatCurrencyMode === 'IDR' ? `Rp ${Math.round(item.rev).toLocaleString('id-ID')}` : `$${Math.round(item.rev / (usdIdrRate || 16000)).toLocaleString()}`}</div>
+                                  <div className="text-rose-400">Expense: {fiatCurrencyMode === 'IDR' ? `Rp ${Math.round(item.exp).toLocaleString('id-ID')}` : `$${Math.round(item.exp / (usdIdrRate || 16000)).toLocaleString()}`}</div>
+                                </div>
+
+                                <div className="w-full flex items-end justify-center gap-1 h-20">
+                                  <div
+                                    style={{ height: `${revHeight}%` }}
+                                    className={`flex-1 rounded-t transition-all duration-300 ${
+                                      isLatest ? 'bg-gradient-to-t from-emerald-600 to-teal-400 shadow-md shadow-emerald-600/50' : 'bg-emerald-500/80 hover:bg-emerald-400'
+                                    }`}
+                                  />
+                                  <div
+                                    style={{ height: `${expHeight}%` }}
+                                    className="flex-1 rounded-t bg-rose-500/50 hover:bg-rose-400 transition-all duration-300"
+                                  />
+                                </div>
+                                <span className="text-[9px] font-mono text-slate-400">{item.label}</span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-800">
+                        <span className="flex items-center gap-1">
+                          <span className="size-2 rounded-xs bg-emerald-500"></span> Revenue
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="size-2 rounded-xs bg-rose-500"></span> Expense
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-emerald-400 font-mono block">Audit-ready DJP</span>
+
+                    {/* FIAT Key Stats */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2 border-t border-slate-700/60">
+                      <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
+                        <span className="text-xs text-slate-400 font-semibold block">
+                          {language === 'en' ? `Total Cash (${fiatCurrencyMode})` : language === 'zh' ? `现金总额 (${fiatCurrencyMode})` : `Total Saldo Kas ${fiatCurrencyMode}`}
+                        </span>
+                        <div className="text-2xl font-black text-white font-mono tracking-tight">
+                          {fiatCurrencyMode === 'IDR'
+                            ? `Rp ${(m.cash_balance_idr || (m.gross_revenue ? m.gross_revenue - (m.total_expense || 0) : 0)).toLocaleString('id-ID')}`
+                            : `$${(((m.cash_balance_idr || (m.gross_revenue ? m.gross_revenue - (m.total_expense || 0) : 0))) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-mono block">Bank BCA & Mandiri</span>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
+                        <span className="text-xs text-slate-400 font-semibold block">
+                          {language === 'en' ? 'Daily QRIS Settlement' : language === 'zh' ? '每日 QRIS 结算' : 'Pendapatan QRIS Harian'}
+                        </span>
+                        <div className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
+                          {fiatCurrencyMode === 'IDR'
+                            ? `Rp ${(m.qris_daily_revenue || 0).toLocaleString('id-ID')}`
+                            : `$${((m.qris_daily_revenue || 0) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
+                        </div>
+                        <span className="text-[10px] text-slate-300 font-mono block">Auto-settlement T+1</span>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
+                        <span className="text-xs text-slate-400 font-semibold block">
+                          {language === 'en' ? `Total Expense (${fiatCurrencyMode})` : language === 'zh' ? `支出总额 (${fiatCurrencyMode})` : `Total Pengeluaran ${fiatCurrencyMode}`}
+                        </span>
+                        <div className="text-2xl font-black text-rose-400 font-mono tracking-tight">
+                          {fiatCurrencyMode === 'IDR'
+                            ? `Rp ${(m.total_expense_idr || m.total_expense || 0).toLocaleString('id-ID')}`
+                            : `$${((m.total_expense_idr || m.total_expense || 0) / (usdIdrRate || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}
+                        </div>
+                        <span className="text-[10px] text-rose-300 font-mono block">{language === 'en' ? 'Operational & Payroll' : language === 'zh' ? '运营与薪酬' : 'Operasional & Gaji'}</span>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white/5 border border-slate-700 space-y-1">
+                        <span className="text-xs text-slate-400 font-semibold block">
+                          {language === 'en' ? 'PPN Compliance' : language === 'zh' ? '电子发票合规' : 'Kepatuhan e-Faktur PPN (11%)'}
+                        </span>
+                        <div className="text-2xl font-black text-purple-400 font-mono tracking-tight">
+                          100% Verified
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-mono block">Audit-ready DJP</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* FIAT Bank & Accounts List with Official CDN Branding */}
@@ -1693,7 +1844,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                   {formatMoney(m.total_revenue)}
                 </div>
-                <span className="text-[11px] text-slate-400 font-normal block mt-1">{f.vsLastMonth || 'vs last month'}</span>
+                <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
+                  {currencyMode === 'IDR' ? `≈ $${(m.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD` : `≈ Rp ${Math.round((m.total_revenue || 0) * usdIdrRate).toLocaleString('id-ID')}`}
+                </span>
               </div>
             </div>
 
@@ -1713,7 +1866,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                   {formatMoney(m.total_expense)}
                 </div>
-                <span className="text-[11px] text-slate-400 font-normal block mt-1">{f.vsLastMonth || 'vs last month'}</span>
+                <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
+                  {currencyMode === 'IDR' ? `≈ $${(m.total_expense || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD` : `≈ Rp ${Math.round((m.total_expense || 0) * usdIdrRate).toLocaleString('id-ID')}`}
+                </span>
               </div>
             </div>
 
@@ -1733,7 +1888,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                   {formatMoney(m.net_profit)}
                 </div>
-                <span className="text-[11px] text-slate-400 font-normal block mt-1">{f.vsLastMonth || 'vs last month'}</span>
+                <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
+                  {currencyMode === 'IDR' ? `≈ $${(m.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD` : `≈ Rp ${Math.round((m.net_profit || 0) * usdIdrRate).toLocaleString('id-ID')}`}
+                </span>
               </div>
             </div>
 
@@ -1753,11 +1910,13 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                   {m.profit_margin}%
                 </div>
-                <span className="text-[11px] text-slate-400 font-normal block mt-1">{f.vsLastMonth || 'vs last month'}</span>
+                <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
+                  {f.vsLastMonth || 'vs last month'}
+                </span>
               </div>
             </div>
 
-            {/* Card 5: Cash Balance (USDC) */}
+            {/* Card 5: Cash Balance */}
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <div className="size-9 rounded-xl bg-teal-500/10 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold">
@@ -1769,12 +1928,12 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                 </span>
               </div>
               <div>
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{f.cashBalance || 'Cash Balance (USDC)'}</span>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">{f.cashBalance || 'Cash Balance'}</span>
                 <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1 truncate">
                   {formatMoney(m.cash_balance_usdc)}
                 </div>
                 <span className="text-[11px] text-slate-400 font-medium block mt-1 truncate">
-                  ≈ Rp31.512.000
+                  {currencyMode === 'IDR' ? `≈ $${(m.cash_balance_usdc || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD` : `≈ Rp ${Math.round((m.cash_balance_usdc || 0) * usdIdrRate).toLocaleString('id-ID')}`}
                 </span>
               </div>
             </div>
@@ -1829,7 +1988,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                   <span className="text-xs font-black text-slate-900 dark:text-slate-100">
                     {formatMoney(m.total_expense)}
                   </span>
-                  <span className="text-[9px] text-slate-400 font-medium">USDC</span>
+                  <span className="text-[9px] text-slate-400 font-medium">{currencyMode === 'IDR' ? 'IDR' : 'USD'}</span>
                 </div>
               </div>
 

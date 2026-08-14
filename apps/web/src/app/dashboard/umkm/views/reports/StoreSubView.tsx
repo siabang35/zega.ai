@@ -293,17 +293,14 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
   return (
     <div className="space-y-6">
       {/* 1. Header & Actions Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-black">
+          <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-black shrink-0">
             <ShoppingBag size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>{f.storeSubViewTitle || 'Intelijen Inventaris Toko & Store Automation'}</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
-                <Sparkles size={11} /> {f.zeroClawActive || 'ZeroClaw Automation Active'}
-              </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
+              {f.storeSubViewTitle || 'Intelijen Inventaris Toko & Store Automation'}
             </h2>
             <p className="text-xs text-slate-400 font-medium">
               {f.storeSubViewDesc || 'Analisis velositas stok, estimasi kehabisan barang, dan penerbitan PO otomatis.'}
@@ -311,34 +308,34 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setIsAddProductModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <Plus size={15} />
-            <span>{f.addSkuBtn || 'Tambah Produk SKU'}</span>
+            <Plus size={14} />
+            <span className="truncate">{f.addSkuBtn || 'Tambah SKU'}</span>
           </button>
           <button
             onClick={() => setIsBulkScanModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <Camera size={15} />
-            <span>{f.bulkScanBtn || 'Bulk Scan SKU (AI Swarm)'}</span>
+            <Camera size={14} />
+            <span className="truncate">{f.bulkScanBtn || 'Bulk Scan'}</span>
           </button>
           <button
             onClick={() => setIsPoModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <Send size={15} />
-            <span>{f.autoPoBtn || 'Buat PO Otomatis'}</span>
+            <Send size={14} />
+            <span className="truncate">{f.autoPoBtn || 'PO Otomatis'}</span>
           </button>
           <button
             onClick={() => setIsCreateReportModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <FileText size={15} />
-            <span>{f.createReportBtn || 'Create Store Report'}</span>
+            <FileText size={14} />
+            <span className="truncate">{f.createReportBtn || 'Buat Laporan'}</span>
           </button>
         </div>
       </div>
@@ -348,15 +345,16 @@ export function StoreSubView({ triggerToast, dateRange, reportsData }: StoreSubV
         {invStats.map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={i} className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 transition-all">
+            <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 transition-all">
               <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
                 <span>{s.label}</span>
                 <div className={`size-8 rounded-xl ${s.bg} ${s.text} flex items-center justify-center`}><Icon size={16} /></div>
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{s.val}</div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold text-emerald-600">{f.liveRead || 'Terbaca Live'}</span>
-                <span className="text-slate-400 font-mono">{f.supabaseDb || 'DB Supabase'}</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Telemetry
+                </span>
               </div>
             </div>
           );

@@ -208,17 +208,17 @@ export function CustomersSubView({ triggerToast, dateRange, reportsData }: Custo
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setIsAddCustomerModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all flex-1 sm:flex-initial"
           >
             <Plus size={15} />
             <span>{r?.addCustomer || 'Tambah Pelanggan'}</span>
           </button>
           <button
             onClick={() => setIsVoucherModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all flex-1 sm:flex-initial"
           >
             <Sparkles size={15} />
             <span>{r?.sendAiVoucher || 'Kirim Voucher AI'}</span>

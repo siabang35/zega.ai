@@ -247,7 +247,7 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
   const categoriesList = ['Semua', ...Array.from(new Set(storeData.products.map((p: any) => p.category || 'Apparel')))];
 
   return (
-    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
+    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100 pb-28 sm:pb-8">
       {/* Unified Enterprise Header Shell */}
       <StoreHeaderShell 
         activeTab="manage_product"

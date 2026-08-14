@@ -257,16 +257,6 @@ export function AiRecommendationsSubView({ triggerToast, dateRange }: AiRecommen
       <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 rounded-xl text-[11px] font-extrabold bg-slate-900 text-slate-100 dark:bg-slate-100 dark:text-slate-900 border border-slate-700 dark:border-slate-300 tracking-wide flex items-center gap-2 shadow-xs">
-                <Cpu size={13} className="text-orange-400 dark:text-orange-600" />
-                <span>{aiModel}</span>
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> {r?.telemetrySynchronized || 'Telemetry Realtime Synchronized'}
-              </span>
-            </div>
-
             <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               {r?.healthDiagnosisTitle || 'Diagnosis & Rekomendasi Kesehatan Toko'}
             </h2>

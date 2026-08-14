@@ -143,9 +143,9 @@ export function UpgradePlanModal({
           })}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-          <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-emerald-500" /> {k.cancellationGuarantee || 'Garansi Pembatalan Kapan Saja'}</span>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+          <span className="flex items-center gap-1 text-[11px]"><ShieldCheck size={14} className="text-emerald-500 shrink-0" /> {k.cancellationGuarantee || 'Garansi Pembatalan Kapan Saja'}</span>
+          <button onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
             {k.cancelBtn || 'Tutup'}
           </button>
         </div>
@@ -492,14 +492,14 @@ export function AddPaymentMethodModal({ isOpen, onClose, triggerToast, onRefresh
             </label>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+          <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
               {k.cancelBtn || 'Batal'}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
             >
               {isSaving && <Clock size={14} className="animate-spin" />}
               <span>{k.saveVerifyBtn || 'Simpan & Verifikasi Card'}</span>
@@ -553,14 +553,14 @@ export function ConfirmDeletePaymentModal({
           <p className="text-[11px] text-rose-600 dark:text-rose-400">• Status: {paymentMethod.status || (k.active || 'Aktif')}</p>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 w-full">
+          <button onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
             {k.cancelBtn || 'Batal'}
           </button>
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
           >
             {isDeleting && <Clock size={14} className="animate-spin" />}
             <span>{k.confirmDeleteBtn || 'Ya, Hapus Permanen'}</span>
@@ -609,9 +609,9 @@ export function UsageDetailModal({ isOpen, onClose, usageData }: ModalProps & { 
           ))}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
           <span className="text-[10px] text-slate-400 font-medium">Reset kuota otomatis pada tanggal 1 setiap bulan</span>
-          <button onClick={onClose} className="px-5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer">
+          <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer flex items-center justify-center transition-colors">
             Tutup
           </button>
         </div>
@@ -728,13 +728,13 @@ export function InvoiceDetailModal({ isOpen, onClose, invoice, triggerToast }: M
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
+          <button onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
             Tutup
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
           >
             <Download size={14} /> <span>Unduh Faktur PDF</span>
           </button>
@@ -838,8 +838,8 @@ export function TransactionDetailModal({ isOpen, onClose, txn, triggerToast }: M
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
+          <button onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
             Tutup
           </button>
           {txn.explorer_url && (
@@ -847,7 +847,7 @@ export function TransactionDetailModal({ isOpen, onClose, txn, triggerToast }: M
               href={txn.explorer_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
             >
               <span>Lihat Solscan Explorer</span>
             </a>
@@ -983,14 +983,14 @@ export function TopupQuotaModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">
+          <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors flex items-center justify-center">
               {k.cancelBtn || 'Batal'}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
             >
               {isSubmitting && <Clock size={14} className="animate-spin" />}
               <span>{k.confirmTopupBtn || 'Konfirmasi & Tambah Kuota'}</span>

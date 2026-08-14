@@ -298,7 +298,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
     const topLeader = sortedTopSelling[0];
 
     return (
-      <div className="space-y-6 animate-in fade-in">
+      <div className="space-y-6 animate-in fade-in pb-28 sm:pb-8">
         {/* Full Page Header & Breadcrumb */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-blue-200/80 dark:border-blue-900/60 shadow-xs">
           <div>
@@ -497,7 +497,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
     const outOfStockItems = storeData.products.filter((p: any) => p.stock === 0);
 
     return (
-      <div className="space-y-6 animate-in fade-in">
+      <div className="space-y-6 animate-in fade-in pb-28 sm:pb-8">
         {/* Full Page Header & Breadcrumb */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-amber-200/80 dark:border-amber-900/60 shadow-xs">
           <div>
@@ -673,7 +673,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
 
   // --- DEFAULT PAGE: KATALOG PRODUK UTAMA & DASHBOARD OVERVIEW ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28 sm:pb-8">
       {/* Unified Enterprise Header Shell */}
       <StoreHeaderShell 
         activeTab="store"
@@ -937,8 +937,8 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         {/* Main Product Table (lg:col-span-9) */}
         <div id="product-table-section" className="lg:col-span-9 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           {/* Table Control Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center justify-between md:justify-start gap-2">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.manageProducts || 'Daftar Produk'}</h3>
               {lowStockFilter && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 text-[10px] font-black animate-in fade-in">
@@ -947,108 +947,192 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     onClick={() => { setLowStockFilter(false); triggerToast('Filter stok rendah di-reset'); }}
                     className="hover:underline text-[9px] cursor-pointer ml-1 text-orange-800 dark:text-orange-200 font-extrabold"
                   >
-                    [Reset Filter]
+                    [Reset]
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
               {/* Search Bar */}
-              <div className="relative">
+              <div className="relative w-full sm:w-48">
                 <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={s.searchProductPlaceholder || 'Cari produk...'}
-                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500 w-44"
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none focus:border-orange-500"
                 />
               </div>
 
-              {/* Category Filter */}
-              <select
-                value={categoryFilter}
-                onChange={(e) => { setCategoryFilter(e.target.value); setLowStockFilter(false); }}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none"
-              >
-                <option value="Semua Kategori">{s.allCategories || 'Semua Kategori'}</option>
-                <option value="Fashion & Pakaian">{s.fashionPakaian || 'Fashion & Pakaian'}</option>
-                <option value="Makanan & Minuman">{s.fnb || 'Makanan & Minuman (F&B)'}</option>
-                <option value="Kecantikan & Skincare">{s.beautySkincare || 'Kecantikan & Skincare'}</option>
-                <option value="Elektronik & Gadget">{s.electronicsGadgets || 'Elektronik & Gadget'}</option>
-                <option value="Perlengkapan Rumah">{s.homeLifestyle || 'Perlengkapan Rumah & Lifestyle'}</option>
-                <option value="Kerajinan & Souvenir">{s.handicrafts || 'Kerajinan & Souvenir'}</option>
-                <option value="Kesehatan & Herbal">{s.healthHerbal || 'Kesehatan & Herbal'}</option>
-                <option value="Apparel">Apparel</option>
-                <option value="Drinkware">Drinkware</option>
-                <option value="Accessories">Accessories</option>
-                <option value="Lainnya">{s.other || 'Lainnya'}</option>
-              </select>
+              <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
+                {/* Category Filter */}
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => { setCategoryFilter(e.target.value); setLowStockFilter(false); }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none truncate"
+                >
+                  <option value="Semua Kategori">{s.allCategories || 'Semua Kategori'}</option>
+                  <option value="Fashion & Pakaian">{s.fashionPakaian || 'Fashion & Pakaian'}</option>
+                  <option value="Makanan & Minuman">{s.fnb || 'Makanan & Minuman (F&B)'}</option>
+                  <option value="Kecantikan & Skincare">{s.beautySkincare || 'Kecantikan & Skincare'}</option>
+                  <option value="Elektronik & Gadget">{s.electronicsGadgets || 'Elektronik & Gadget'}</option>
+                  <option value="Perlengkapan Rumah">{s.homeLifestyle || 'Perlengkapan Rumah & Lifestyle'}</option>
+                  <option value="Kerajinan & Souvenir">{s.handicrafts || 'Kerajinan & Souvenir'}</option>
+                  <option value="Kesehatan & Herbal">{s.healthHerbal || 'Kesehatan & Herbal'}</option>
+                  <option value="Apparel">Apparel</option>
+                  <option value="Drinkware">Drinkware</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Lainnya">{s.other || 'Lainnya'}</option>
+                </select>
 
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setLowStockFilter(false); }}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none"
-              >
-                <option value="Semua Status">{s.allStatus || 'Semua Status'}</option>
-                <option value="Aktif">{s.statusActive || 'Aktif'}</option>
-                <option value="Nonaktif">{s.statusInactive || 'Nonaktif'}</option>
-                <option value="Draft">{s.statusDraft || 'Draft'}</option>
-              </select>
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setLowStockFilter(false); }}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold focus:outline-none"
+                >
+                  <option value="Semua Status">{s.allStatus || 'Semua Status'}</option>
+                  <option value="Aktif">{s.statusActive || 'Aktif'}</option>
+                  <option value="Nonaktif">{s.statusInactive || 'Nonaktif'}</option>
+                  <option value="Draft">{s.statusDraft || 'Draft'}</option>
+                </select>
+              </div>
 
               {/* Filter Button */}
               <button 
                 onClick={() => triggerToast('Filter katalog berhasil diterapkan')}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 flex items-center justify-center gap-1 cursor-pointer shrink-0"
               >
                 <Filter size={12} /> <span>Filter</span>
               </button>
             </div>
           </div>
 
-          {/* Table Rendering */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-medium border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-2.5 px-3">{s.colProduct || 'PRODUK'}</th>
-                  <th className="py-2.5 px-3">SKU</th>
-                  <th className="py-2.5 px-3">{s.colCategory || 'KATEGORI'}</th>
-                  <th className="py-2.5 px-3">{s.colStock || 'STOK'}</th>
-                  <th className="py-2.5 px-3">{s.colSold || 'TERJUAL'}</th>
-                  <th className="py-2.5 px-3">{s.colPrice || 'HARGA'}</th>
-                  <th className="py-2.5 px-3">STATUS</th>
-                  <th className="py-2.5 px-3 text-right">{s.colAction || 'AKSI'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {(() => {
-                  const itemsPerPage = 5;
-                  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
-                  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
-                  const paginatedProducts = filteredProducts.slice((validCurrentPage - 1) * itemsPerPage, validCurrentPage * itemsPerPage);
+          {/* DUAL-VIEW RENDERING: Desktop Table vs Mobile Product Cards */}
+          {(() => {
+            const itemsPerPage = 5;
+            const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
+            const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+            const paginatedProducts = filteredProducts.slice((validCurrentPage - 1) * itemsPerPage, validCurrentPage * itemsPerPage);
 
-                  if (paginatedProducts.length === 0) {
-                    return (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-400 font-semibold">
-                          {s.noProductsDB || 'Belum ada produk yang ditemukan di database. Klik'} <span className="font-bold text-orange-500">{s.addProduct || '+ Tambah Produk'}</span> {s.toAddFirstProduct || 'untuk menambahkan produk pertama Anda.'}
-                        </td>
+            if (paginatedProducts.length === 0) {
+              return (
+                <div className="py-12 text-center text-slate-400 font-semibold border-y border-slate-100 dark:border-slate-800">
+                  {s.noProductsDB || 'Belum ada produk yang ditemukan di database. Klik'} <span className="font-bold text-orange-500">{s.addProduct || '+ Tambah Produk'}</span> {s.toAddFirstProduct || 'untuk menambahkan produk pertama Anda.'}
+                </div>
+              );
+            }
+
+            return (
+              <>
+                {/* 1. DESKTOP VIEW: High-Density HTML Table (hidden on mobile, visible md+) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs font-medium border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-2.5 px-3">{s.colProduct || 'PRODUK'}</th>
+                        <th className="py-2.5 px-3">SKU</th>
+                        <th className="py-2.5 px-3">{s.colCategory || 'KATEGORI'}</th>
+                        <th className="py-2.5 px-3">{s.colStock || 'STOK'}</th>
+                        <th className="py-2.5 px-3">{s.colSold || 'TERJUAL'}</th>
+                        <th className="py-2.5 px-3">{s.colPrice || 'HARGA'}</th>
+                        <th className="py-2.5 px-3">STATUS</th>
+                        <th className="py-2.5 px-3 text-right">{s.colAction || 'AKSI'}</th>
                       </tr>
-                    );
-                  }
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {paginatedProducts.map((product: any, idx: number) => {
+                        const rawImg = product.image_path || '/assets/products/kaoshitam.png';
+                        const cdnImg = getR2CdnUrl(rawImg, true);
 
-                  return paginatedProducts.map((product: any, idx: number) => {
+                        return (
+                          <tr key={product.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-3">
+                                <div className="size-9 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
+                                  <img 
+                                    src={cdnImg} 
+                                    alt={product.name} 
+                                    className="w-full h-full object-contain"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      if (target.src.includes('cdn.zegaai.site')) {
+                                        target.src = rawImg;
+                                      } else {
+                                        target.src = generateInitialsAvatar(product.name);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <span className="font-extrabold text-slate-900 dark:text-slate-100">{product.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{product.sku}</td>
+                            <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400">{product.category}</td>
+                            <td className="py-3 px-3 font-extrabold text-slate-900 dark:text-slate-100">{product.stock}</td>
+                            <td className="py-3 px-3 font-bold text-slate-500">{product.sold || 0}</td>
+                            <td className="py-3 px-3 font-black text-slate-900 dark:text-slate-100">
+                              Rp{(Number(product.price_idr) || 0).toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                product.status === 'Aktif' 
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' 
+                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                              }`}>
+                                {product.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5 text-slate-400">
+                                <button 
+                                  onClick={() => { setSelectedProductForEdit(product); setIsEditModalOpen(true); }} 
+                                  title="Edit Produk"
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-orange-500 cursor-pointer transition-colors"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedProductForAnalysis(product); setIsAnalysisModalOpen(true); }} 
+                                  title="Analisis Performa AI"
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 cursor-pointer transition-colors"
+                                >
+                                  <BarChart2 size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedProductForBarcode(product); setIsBarcodeModalOpen(true); }} 
+                                  title="Cetak Barcode SKU"
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-amber-500 cursor-pointer transition-colors"
+                                >
+                                  <MoreVertical size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 2. MOBILE VIEW: Touch-Friendly Responsive Product Cards (visible on mobile, hidden md+) */}
+                <div className="block md:hidden space-y-3 pt-1">
+                  {paginatedProducts.map((product: any, idx: number) => {
                     const rawImg = product.image_path || '/assets/products/kaoshitam.png';
                     const cdnImg = getR2CdnUrl(rawImg, true);
 
                     return (
-                      <tr key={product.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-3">
-                            <div className="size-9 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
+                      <div 
+                        key={product.id || idx}
+                        className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 space-y-3 shadow-2xs"
+                      >
+                        {/* Header Row: Thumbnail + Product Name & SKU */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="size-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-1 flex items-center justify-center">
                               <img 
                                 src={cdnImg} 
                                 alt={product.name} 
@@ -1064,57 +1148,75 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                                 }}
                               />
                             </div>
-                            <span className="font-extrabold text-slate-900 dark:text-slate-100">{product.name}</span>
+                            <div className="min-w-0">
+                              <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{product.name}</h4>
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <span className="font-mono text-[10px] text-slate-500 bg-slate-200/60 dark:bg-slate-700/60 px-1.5 py-0.2 rounded">{product.sku}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">{product.category}</span>
+                              </div>
+                            </div>
                           </div>
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{product.sku}</td>
-                        <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400">{product.category}</td>
-                        <td className="py-3 px-3 font-extrabold text-slate-900 dark:text-slate-100">{product.stock}</td>
-                        <td className="py-3 px-3 font-bold text-slate-500">{product.sold || 0}</td>
-                        <td className="py-3 px-3 font-black text-slate-900 dark:text-slate-100">
-                          Rp{(Number(product.price_idr) || 0).toLocaleString('id-ID')}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${
                             product.status === 'Aktif' 
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' 
-                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                              : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                           }`}>
                             {product.status}
                           </span>
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5 text-slate-400">
-                            <button 
-                              onClick={() => { setSelectedProductForEdit(product); setIsEditModalOpen(true); }} 
-                              title="Edit Produk"
-                              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-orange-500 cursor-pointer transition-colors"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedProductForAnalysis(product); setIsAnalysisModalOpen(true); }} 
-                              title="Analisis Performa AI"
-                              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 cursor-pointer transition-colors"
-                            >
-                              <BarChart2 size={14} />
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedProductForBarcode(product); setIsBarcodeModalOpen(true); }} 
-                              title="Cetak Barcode SKU"
-                              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-amber-500 cursor-pointer transition-colors"
-                            >
-                              <MoreVertical size={14} />
-                            </button>
+                        </div>
+
+                        {/* Middle Info Grid: Stock, Sold, Price */}
+                        <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-[11px]">
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">{s.colStock || 'STOK'}</span>
+                            <span className={`font-black ${product.stock <= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                              {product.stock} unit
+                            </span>
                           </div>
-                        </td>
-                      </tr>
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">{s.colSold || 'TERJUAL'}</span>
+                            <span className="font-bold text-slate-600 dark:text-slate-300">{product.sold || 0} unit</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">{s.colPrice || 'HARGA'}</span>
+                            <span className="font-black text-orange-600 dark:text-orange-400">
+                              Rp{(Number(product.price_idr) || 0).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Mobile Action Buttons Bar */}
+                        <div className="grid grid-cols-3 gap-1.5 pt-1">
+                          <button
+                            onClick={() => { setSelectedProductForEdit(product); setIsEditModalOpen(true); }}
+                            className="py-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-[11px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Edit size={13} />
+                            <span>{s.manage || 'Edit'}</span>
+                          </button>
+                          <button
+                            onClick={() => { setSelectedProductForAnalysis(product); setIsAnalysisModalOpen(true); }}
+                            className="py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <BarChart2 size={13} />
+                            <span>AI Analisis</span>
+                          </button>
+                          <button
+                            onClick={() => { setSelectedProductForBarcode(product); setIsBarcodeModalOpen(true); }}
+                            className="py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-600 dark:text-amber-400 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Barcode size={13} />
+                            <span>Barcode</span>
+                          </button>
+                        </div>
+                      </div>
                     );
-                  });
-                })()}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </div>
+              </>
+            );
+          })()}
 
           {/* Table Footer & Pagination */}
           {(() => {
@@ -1125,17 +1227,17 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             const endIdx = Math.min(validCurrentPage * itemsPerPage, filteredProducts.length);
 
             return (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-slate-800">
-                <span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-center sm:text-left text-[11px]">
                   {s.showingRangeOfTotal
                     ? s.showingRangeOfTotal.replace('{start}', String(startIdx)).replace('{end}', String(endIdx)).replace('{total}', String(filteredProducts.length))
                     : `Menampilkan ${startIdx} - ${endIdx} dari ${filteredProducts.length} produk`}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   <button 
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={validCurrentPage === 1}
-                    className="size-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                    className="size-8 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
                   >
                     <ChevronLeft size={14} />
                   </button>
@@ -1143,10 +1245,10 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     <button 
                       key={pg}
                       onClick={() => setCurrentPage(pg)}
-                      className={`size-7 rounded-lg flex items-center justify-center font-bold text-xs cursor-pointer transition-colors ${
+                      className={`size-8 rounded-xl flex items-center justify-center font-bold text-xs cursor-pointer transition-colors ${
                         validCurrentPage === pg
                           ? 'bg-orange-500 text-white shadow-xs'
-                          : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300'
+                          : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       {pg}
@@ -1155,7 +1257,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                   <button 
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={validCurrentPage === totalPages}
-                    className="size-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                    className="size-8 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
                   >
                     <ChevronRight size={14} />
                   </button>

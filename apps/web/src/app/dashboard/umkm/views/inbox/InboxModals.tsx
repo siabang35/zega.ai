@@ -15,15 +15,15 @@ interface ModalBaseProps {
 function ModalBase({ isOpen, onClose, title, children }: ModalBaseProps) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{title}</h3>
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+          <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100">{title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 cursor-pointer">
             <X size={16} />
           </button>
         </div>
-        <div className="p-4 max-h-[80vh] overflow-y-auto">{children}</div>
+        <div className="p-3.5 sm:p-4 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );
@@ -50,12 +50,12 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
         
         <div className="space-y-2">
           {channels.map((ch, idx) => (
-            <div key={idx} className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ch.icon className={`size-5 ${ch.color}`} />
-                <div>
-                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{ch.name}</h4>
-                  <p className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{ch.webhook}</p>
+            <div key={idx} className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <ch.icon className={`size-5 ${ch.color} flex-shrink-0`} />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{ch.name}</h4>
+                  <p className="text-[10px] font-mono text-slate-400 truncate max-w-[140px] sm:max-w-[240px]">{ch.webhook}</p>
                 </div>
               </div>
 
@@ -66,7 +66,7 @@ export function ManageIntegrationsModal({ isOpen, onClose, triggerToast }: { isO
                   setChannels(updated);
                   triggerToast(`${ch.name} ${updated[idx].connected ? (u.connectedStatus || 'Terhubung') : (u.disconnectedStatus || 'Terputus')}`);
                 }}
-                className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] cursor-pointer transition-all flex-shrink-0 ${
                   ch.connected 
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' 
                     : 'bg-orange-500 text-white hover:bg-orange-600'

@@ -227,45 +227,41 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
   return (
     <div className="space-y-6">
       {/* 1. Automation Banner & Actions Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black">
+          <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-black shrink-0">
             <PiggyBank size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>{f.subpageTitle || 'Intelijen Keuangan & Automation Money Reports'}</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center gap-1">
-                <Sparkles size={11} /> {f.zeroClawAutomationActive || 'ZeroClaw Automation Active'}
-              </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">
+              {f.subpageTitle || 'Intelijen Keuangan & Automation Money Reports'}
             </h2>
             <p className="text-xs text-slate-400 font-medium">
               {f.subpageSubtitle || 'Kalkulasi otomatis P&L, Arus Kas, dan pencetakan Money Reports berbasis AI.'}
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
+            <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setIsBulkUploadModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-2.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
-            <UploadCloud size={15} />
-            <span>{f.bulkInvoiceUpload || 'Bulk Invoice Upload'}</span>
+            <UploadCloud size={14} />
+            <span className="truncate">{f.bulkInvoiceUpload || 'Upload Invoice'}</span>
           </button>
           <button
             onClick={() => setIsAddTransactionModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-2.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <Plus size={15} />
-            <span>{f.addTransaction || 'Tambah Transaksi'}</span>
+            <Plus size={14} />
+            <span className="truncate">{f.addTransaction || 'Tambah Transaksi'}</span>
           </button>
           <button
             onClick={() => setIsCreateReportModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+            className="px-2.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all whitespace-nowrap"
           >
-            <FileText size={15} />
-            <span>{f.createMoneyReport || 'Create Money Report'}</span>
+            <FileText size={14} />
+            <span className="truncate">{f.createMoneyReport || 'Buat Laporan'}</span>
           </button>
         </div>
       </div>
@@ -280,15 +276,14 @@ export function FinanceSubView({ triggerToast, dateRange, reportsData }: Finance
         ].map((card, i) => {
           const IconComp = card.icon;
           return (
-            <div key={i} className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 hover:border-emerald-500 transition-all">
+            <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 hover:border-emerald-500 transition-all">
               <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
                 <span>{card.label}</span>
                 <div className={`size-8 rounded-xl ${card.bg} ${card.text} flex items-center justify-center`}><IconComp size={16} /></div>
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-slate-100">{card.val}</div>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="font-bold text-emerald-600">{card.sub}</span>
-                <span className="text-slate-400 font-mono">{f.liveDb || 'Live DB'}</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{card.sub}</span>
               </div>
             </div>
           );

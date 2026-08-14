@@ -438,10 +438,10 @@ export function UmkmDashboardContainer({
             const itemTypeTag = item.metadata?.item_type === 'menu'
               ? '[Menu]'
               : item.metadata?.item_type === 'submenu'
-              ? '[Submenu]'
-              : item.metadata?.item_type === 'quick_action'
-              ? '[Tindakan]'
-              : '[Data]';
+                ? '[Submenu]'
+                : item.metadata?.item_type === 'quick_action'
+                  ? '[Tindakan]'
+                  : '[Data]';
 
             return {
               id: `db_${item.id}`,
@@ -648,22 +648,22 @@ export function UmkmDashboardContainer({
     fetchTierUsage();
   }, [copilotOpen]);
 
-// Helper to strip markdown formatting symbols and excessive emojis from plain text previews
-const stripMarkdown = (text?: string): string => {
-  if (!text) return '';
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/__(.*?)__/g, '$1')
-    .replace(/_(.*?)_/g, '$1')
-    .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
-    .replace(/^#+\s+/gm, '')
-    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-    .replace(/[\*\_\#\`]/g, '')
-    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
+  // Helper to strip markdown formatting symbols and excessive emojis from plain text previews
+  const stripMarkdown = (text?: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
+      .replace(/^#+\s+/gm, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/[\*\_\#\`]/g, '')
+      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
 
   const getSeedMessage = (lang: string) => {
     if (lang === 'en') {
@@ -1387,16 +1387,24 @@ const stripMarkdown = (text?: string): string => {
         <header className="min-h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md py-2 sm:py-0">
           {/* Search Input & Mobile Sidebar Toggle + Mobile Logo */}
           <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
-            {/* Seamless Mobile Sidebar Toggle Button */}
+            {/* Solana-Style Boxed Mobile Navigation Toggle Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors md:hidden cursor-pointer shrink-0 active:scale-95"
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all md:hidden cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
               title={mobileMenuOpen ? "Tutup Menu Navigasi" : "Buka Menu Navigasi"}
             >
               {mobileMenuOpen ? (
-                <PanelLeftClose size={22} className="text-slate-800 dark:text-slate-100" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="11" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
               ) : (
-                <PanelLeftOpen size={22} className="text-slate-800 dark:text-slate-100" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="13" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
               )}
             </button>
 
@@ -1519,8 +1527,8 @@ const stripMarkdown = (text?: string): string => {
                           setCalendarOpen(false);
                         }}
                         className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Hari Ini')
-                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
                           }`}
                       >
                         Hari Ini
@@ -1532,8 +1540,8 @@ const stripMarkdown = (text?: string): string => {
                           setCalendarOpen(false);
                         }}
                         className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('7 Hari')
-                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
                           }`}
                       >
                         7 Hari
@@ -1546,8 +1554,8 @@ const stripMarkdown = (text?: string): string => {
                           setCalendarOpen(false);
                         }}
                         className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Bulan Ini')
-                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
                           }`}
                       >
                         Bulan Ini
@@ -1582,8 +1590,8 @@ const stripMarkdown = (text?: string): string => {
                                   setCalendarOpen(false);
                                 }}
                                 className={`p-1 rounded-lg transition-all cursor-pointer ${isToday
-                                    ? 'bg-orange-500 text-white font-black shadow-md scale-105'
-                                    : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
+                                  ? 'bg-orange-500 text-white font-black shadow-md scale-105'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
                                   }`}
                               >
                                 {d}
@@ -1677,8 +1685,8 @@ const stripMarkdown = (text?: string): string => {
                               setNotificationsOpen(false);
                             }}
                             className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${notif.is_read
-                                ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
-                                : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
+                              ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
+                              : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
                               }`}
                           >
                             <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
@@ -1845,8 +1853,8 @@ const stripMarkdown = (text?: string): string => {
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              ? 'text-orange-500 font-extrabold scale-105'
+              : 'text-slate-400 font-medium hover:text-slate-600'
               }`}
           >
             <LayoutDashboard size={20} />
@@ -1856,8 +1864,8 @@ const stripMarkdown = (text?: string): string => {
           <button
             onClick={() => setActiveTab('my_agents')}
             className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              ? 'text-orange-500 font-extrabold scale-105'
+              : 'text-slate-400 font-medium hover:text-slate-600'
               }`}
           >
             <Bot size={20} />
@@ -1867,8 +1875,8 @@ const stripMarkdown = (text?: string): string => {
           <button
             onClick={() => setActiveTab('inbox')}
             className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              ? 'text-orange-500 font-extrabold scale-105'
+              : 'text-slate-400 font-medium hover:text-slate-600'
               }`}
           >
             <MessageSquare size={20} />
@@ -1879,8 +1887,8 @@ const stripMarkdown = (text?: string): string => {
           <button
             onClick={() => setActiveTab('store')}
             className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              ? 'text-orange-500 font-extrabold scale-105'
+              : 'text-slate-400 font-medium hover:text-slate-600'
               }`}
           >
             <Store size={20} />
@@ -1890,8 +1898,8 @@ const stripMarkdown = (text?: string): string => {
           <button
             onClick={() => setActiveTab('settings')}
             className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              ? 'text-orange-500 font-extrabold scale-105'
+              : 'text-slate-400 font-medium hover:text-slate-600'
               }`}
           >
             <Settings size={20} />
@@ -1921,10 +1929,14 @@ const stripMarkdown = (text?: string): string => {
                 />
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
                   title="Tutup Menu Navigasi"
                 >
-                  <PanelLeftClose size={20} />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="11" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
                 </button>
               </div>
 
@@ -1960,8 +1972,8 @@ const stripMarkdown = (text?: string): string => {
                             triggerToast(`✓ Membuka ${item.label}`);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
-                              ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
                         >
                           <div className="flex items-center gap-2.5">
@@ -2168,11 +2180,10 @@ const stripMarkdown = (text?: string): string => {
                         <button
                           key={session.id}
                           onClick={() => handleSelectCopilotSession(session)}
-                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${
-                            isActive
-                              ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
-                              : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
-                          }`}
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${isActive
+                            ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
+                            : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 truncate">
@@ -2258,8 +2269,8 @@ const stripMarkdown = (text?: string): string => {
 
                     <div
                       className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
-                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
-                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
+                        ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
+                        : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
                         }`}
                     >
                       {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
@@ -2372,8 +2383,8 @@ const stripMarkdown = (text?: string): string => {
                   language === 'en'
                     ? 'Type a command or search modules, items, invoices...'
                     : language === 'zh'
-                    ? '输入命令或搜索模块、商品、发票...'
-                    : 'Ketik perintah atau cari modul, produk, invoice...'
+                      ? '输入命令或搜索模块、商品、发票...'
+                      : 'Ketik perintah atau cari modul, produk, invoice...'
                 }
                 className="w-full bg-transparent text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden"
               />
@@ -2409,11 +2420,10 @@ const stripMarkdown = (text?: string): string => {
                         setIsSearchOpen(false);
                       }}
                       onMouseEnter={() => setSearchSelectedIndex(idx)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer ${
-                        isSelected
-                          ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer ${isSelected
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-orange-500'}`}>
@@ -2444,8 +2454,8 @@ const stripMarkdown = (text?: string): string => {
                     {language === 'en'
                       ? `No results found for "${globalSearchQuery}"`
                       : language === 'zh'
-                      ? `未找到 "${globalSearchQuery}" 的相关结果`
-                      : `Tidak ada hasil ditemukan untuk "${globalSearchQuery}"`}
+                        ? `未找到 "${globalSearchQuery}" 的相关结果`
+                        : `Tidak ada hasil ditemukan untuk "${globalSearchQuery}"`}
                   </p>
                   <p className="text-[10px]">
                     {language === 'en' ? 'Try searching for modules, invoice, WhatsApp, or settings' : language === 'zh' ? '尝试搜索模块、发票、WhatsApp 或设置' : 'Coba cari nama modul, invoice, whatsapp, atau pengaturan'}

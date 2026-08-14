@@ -126,7 +126,7 @@ export function TopSellingView({ triggerToast, onNavigateTab }: TopSellingViewPr
   const categoryDisplayName = (cat: string) => (cat === 'Semua' ? t.storeView.allCategories : cat);
 
   return (
-    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
+    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100 pb-28 sm:pb-8">
       {/* Unified Enterprise Header Shell */}
       <StoreHeaderShell 
         activeTab="top_selling"

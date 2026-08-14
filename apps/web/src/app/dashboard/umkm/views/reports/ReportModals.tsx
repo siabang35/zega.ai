@@ -6,6 +6,31 @@ import {
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { useLanguage } from '../../../../../i18n/translations';
 
+/**
+ * Helper: Computes dynamic realtime date range (e.g. 1 Aug – 31 Aug 2026) based on current real time and active language
+ */
+export function getRealtimeMonthDateRange(lang: string = 'id', monthOffset: number = 0): string {
+  const now = new Date();
+  const targetDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const year = targetDate.getFullYear();
+  const monthIdx = targetDate.getMonth();
+  const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+
+  const monthNames: Record<string, string[]> = {
+    id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    zh: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+  };
+
+  const mList = monthNames[lang] || monthNames.id;
+  const mName = mList[monthIdx];
+
+  if (lang === 'zh') {
+    return `${year}年${mName}1日 – ${mName}${lastDay}日`;
+  }
+  return `1 ${mName} – ${lastDay} ${mName} ${year}`;
+}
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,11 +42,14 @@ interface ModalProps {
  * 1. Export Report Modal
  */
 export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const r = t.reportsView;
 
+  const thisMonthRange = getRealtimeMonthDateRange(language, 0);
+  const lastMonthRange = getRealtimeMonthDateRange(language, -1);
+
   const [format, setFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
-  const [dateRange, setDateRange] = useState('1 Jul – 31 Jul 2026');
+  const [dateRange, setDateRange] = useState(thisMonthRange);
   const [includeSections, setIncludeSections] = useState({
     revenue: true,
     channels: true,
@@ -34,13 +62,40 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
 
   if (!isOpen) return null;
 
+  const sectionLabels: Record<string, Record<string, string>> = {
+    en: {
+      revenue: 'Revenue & Volume Orders',
+      channels: 'Sales per Channel',
+      healthScore: 'Business Health Score & AI',
+      topProducts: 'Top Selling Products (Top 5)',
+      topCustomers: 'Top Customers (Top 5)',
+      monthlySummary: 'Monthly Summary & Key Stats'
+    },
+    zh: {
+      revenue: '收入与订单量',
+      channels: '各渠道销售额',
+      healthScore: '商业健康分与AI',
+      topProducts: '热销产品 (Top 5)',
+      topCustomers: '优质客户 (Top 5)',
+      monthlySummary: '月度总结与核心指标'
+    },
+    id: {
+      revenue: 'Revenue & Volume Orders',
+      channels: 'Penjualan per Channel',
+      healthScore: 'Business Health Score & AI',
+      topProducts: 'Produk Terlaris (Top 5)',
+      topCustomers: 'Pelanggan Terbaik (Top 5)',
+      monthlySummary: 'Ringkasan Bulanan & Key Stats'
+    }
+  };
+  const currentSectionLabels = sectionLabels[language] || sectionLabels.id;
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
       await SupabaseDashboardService.logAuditTrail('REPORT_EXPORTED', { format, dateRange, sections: includeSections });
       
-      // Real File Blob Download Generation
-      const content = `ZEGA AI PLATFORM - ENTERPRISE BUSINESS REPORT\nPeriode: ${dateRange}\nFormat: ${format.toUpperCase()}\nTanggal Export: ${new Date().toLocaleString('id-ID')}\n\nMetrics Summary:\n- Total Revenue: Rp13.500.000\n- Total Orders: 116\n- Health Score Index: 94/100 (EXCELLENT)\n- Top Channel: WhatsApp (45%)\n- AI Recommendation Engine: ZeroClaw 9Router Swarm\n\nSections Included: ${Object.keys(includeSections).filter((k: any) => (includeSections as any)[k]).join(', ')}\n`;
+      const content = `ZEGA AI PLATFORM - ENTERPRISE BUSINESS REPORT\nPeriode: ${dateRange}\nFormat: ${format.toUpperCase()}\nTanggal Export: ${new Date().toLocaleString(language === 'zh' ? 'zh-CN' : language === 'en' ? 'en-US' : 'id-ID')}\n\nMetrics Summary:\n- Total Revenue: Rp13.500.000\n- Total Orders: 116\n- Health Score Index: 94/100 (EXCELLENT)\n- Top Channel: WhatsApp (45%)\n- AI Recommendation Engine: ZeroClaw 9Router Swarm\n\nSections Included: ${Object.keys(includeSections).filter((k: any) => (includeSections as any)[k]).join(', ')}\n`;
       
       const blob = new Blob([content], { type: format === 'csv' ? 'text/csv' : 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -53,11 +108,11 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
       URL.revokeObjectURL(url);
 
       setIsExporting(false);
-      triggerToast(`✓ Laporan format ${format.toUpperCase()} (${dateRange}) berhasil di-download & dicatat ke Supabase Audit!`);
+      triggerToast(`✓ ${language === 'en' ? 'Report downloaded' : language === 'zh' ? '报表下载成功' : 'Laporan berhasil di-download'} (${format.toUpperCase()})`);
       onClose();
     } catch (e) {
       setIsExporting(false);
-      triggerToast(`✓ Laporan format ${format.toUpperCase()} (${dateRange}) berhasil di-download!`);
+      triggerToast(`✓ ${language === 'en' ? 'Report downloaded' : language === 'zh' ? '报表下载成功' : 'Laporan berhasil di-download'} (${format.toUpperCase()})`);
       onClose();
     }
   };
@@ -83,9 +138,9 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
           <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.fileFormat || 'Format File'}</label>
           <div className="grid grid-cols-3 gap-2.5">
             {[
-              { id: 'pdf', label: 'PDF Report', desc: 'Rapi & Siap Cetak' },
-              { id: 'excel', label: 'Excel (.xlsx)', desc: 'Formula & Data Raw' },
-              { id: 'csv', label: 'CSV File', desc: 'Data Teks Terpisah' }
+              { id: 'pdf', label: 'PDF Report', desc: language === 'en' ? 'Print Ready' : language === 'zh' ? '适合打印' : 'Rapi & Siap Cetak' },
+              { id: 'excel', label: 'Excel (.xlsx)', desc: language === 'en' ? 'Raw Data & Formulas' : language === 'zh' ? '公式与原数据' : 'Formula & Data Raw' },
+              { id: 'csv', label: 'CSV File', desc: language === 'en' ? 'Plain Text Data' : language === 'zh' ? '文本分隔数据' : 'Data Teks Terpisah' }
             ].map((item) => (
               <button
                 key={item.id}
@@ -111,10 +166,10 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
             onChange={(e) => setDateRange(e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer"
           >
-            <option value="1 Jul – 31 Jul 2026">Bulan Ini (1 Jul – 31 Jul 2026)</option>
-            <option value="1 Jun – 30 Jun 2026">Bulan Lalu (1 Jun – 30 Jun 2026)</option>
-            <option value="Q2 2026">Kuartal 2 (April – Juni 2026)</option>
-            <option value="Tahun 2026">Tahun Berjalan 2026</option>
+            <option value={thisMonthRange}>{language === 'en' ? `This Month (${thisMonthRange})` : language === 'zh' ? `本月 (${thisMonthRange})` : `Bulan Ini (${thisMonthRange})`}</option>
+            <option value={lastMonthRange}>{language === 'en' ? `Last Month (${lastMonthRange})` : language === 'zh' ? `上月 (${lastMonthRange})` : `Bulan Lalu (${lastMonthRange})`}</option>
+            <option value="Q2 2026">{language === 'en' ? 'Quarter 2 (Apr – Jun 2026)' : language === 'zh' ? '第二季度 (2026年4月 – 6月)' : 'Kuartal 2 (April – Juni 2026)'}</option>
+            <option value="Tahun 2026">{language === 'en' ? 'Year-to-date 2026' : language === 'zh' ? '2026年度 (YTD)' : 'Tahun Berjalan 2026'}</option>
           </select>
         </div>
 
@@ -122,14 +177,7 @@ export function ExportReportModal({ isOpen, onClose, triggerToast }: ModalProps)
         <div className="space-y-2">
           <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{r?.includedSections || 'Bagian yang Diikutsertakan'}</label>
           <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            {Object.entries({
-              revenue: 'Revenue & Volume Orders',
-              channels: 'Penjualan per Channel',
-              healthScore: 'Business Health Score & AI',
-              topProducts: 'Produk Terlaris (Top 5)',
-              topCustomers: 'Pelanggan Terbaik (Top 5)',
-              monthlySummary: 'Ringkasan Bulanan & Key Stats'
-            }).map(([key, label]) => (
+            {Object.entries(currentSectionLabels).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 cursor-pointer">
                 <input
                   type="checkbox"
@@ -394,9 +442,6 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.manageScheduleTitle || 'Kelola Jadwal Laporan Otomatis'}</h3>
-              <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
-                ZeroClaw Cron Engine Active
-              </span>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -698,25 +743,52 @@ export function DatePickerModal({
   onSelectRange, 
   triggerToast 
 }: ModalProps & { currentRange: string; onSelectRange: (range: string) => void }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const r = t.reportsView;
 
   const [selected, setSelected] = useState(currentRange);
 
+  React.useEffect(() => {
+    setSelected(currentRange);
+  }, [currentRange]);
+
   if (!isOpen) return null;
 
-  const presets = [
-    { label: 'Bulan Ini (1 Jul – 31 Jul 2026)', value: '1 Jul – 31 Jul 2026' },
-    { label: 'Bulan Lalu (1 Jun – 30 Jun 2026)', value: '1 Jun – 30 Jun 2026' },
-    { label: '7 Hari Terakhir', value: '25 Jul – 31 Jul 2026' },
-    { label: '30 Hari Terakhir', value: '1 Jul – 30 Jul 2026' },
+  const thisMonthRange = getRealtimeMonthDateRange(language, 0);
+  const lastMonthRange = getRealtimeMonthDateRange(language, -1);
+
+  const presets = language === 'en' ? [
+    { label: `This Month (${thisMonthRange})`, value: thisMonthRange },
+    { label: `Last Month (${lastMonthRange})`, value: lastMonthRange },
+    { label: 'Last 7 Days', value: 'Last 7 Days' },
+    { label: 'Last 30 Days', value: 'Last 30 Days' },
+    { label: 'Quarter 2 (Apr – Jun 2026)', value: 'Q2 2026' },
+    { label: 'Year 2026 (YTD)', value: 'Year 2026' }
+  ] : language === 'zh' ? [
+    { label: `本月 (${thisMonthRange})`, value: thisMonthRange },
+    { label: `上月 (${lastMonthRange})`, value: lastMonthRange },
+    { label: '最近7天', value: '最近7天' },
+    { label: '最近30天', value: '最近30天' },
+    { label: '第二季度 (2026年4月 – 6月)', value: 'Q2 2026' },
+    { label: '2026年度 (YTD)', value: 'Year 2026' }
+  ] : [
+    { label: `Bulan Ini (${thisMonthRange})`, value: thisMonthRange },
+    { label: `Bulan Lalu (${lastMonthRange})`, value: lastMonthRange },
+    { label: '7 Hari Terakhir', value: '7 Hari Terakhir' },
+    { label: '30 Hari Terakhir', value: '30 Hari Terakhir' },
     { label: 'Kuartal 2 (April – Juni 2026)', value: 'Q2 2026' },
     { label: 'Tahun 2026 (YTD)', value: 'Tahun 2026' }
   ];
 
   const handleApply = () => {
     onSelectRange(selected);
-    triggerToast(`Periode Laporan disesuaikan ke: ${selected}`);
+    triggerToast(
+      language === 'en'
+        ? `Report period updated to: ${selected}`
+        : language === 'zh'
+        ? `报表时间段已更改为: ${selected}`
+        : `Periode Laporan disesuaikan ke: ${selected}`
+    );
     onClose();
   };
 
@@ -729,8 +801,8 @@ export function DatePickerModal({
               <Calendar size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.selectReportPeriodTitle || 'Pilih Periode Laporan'}</h3>
-              <p className="text-xs text-slate-400">Sinkronkan telemetry data laporan</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.selectReportPeriodTitle || (language === 'en' ? 'Select Report Period' : language === 'zh' ? '选择报表时间段' : 'Pilih Periode Laporan')}</h3>
+              <p className="text-xs text-slate-400">{language === 'en' ? 'Synchronize report telemetry data' : language === 'zh' ? '同步报表遥测数据' : 'Sinkronkan telemetry data laporan'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -755,10 +827,10 @@ export function DatePickerModal({
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-            {r?.cancel || 'Batal'}
+            {r?.cancel || (language === 'en' ? 'Cancel' : language === 'zh' ? '取消' : 'Batal')}
           </button>
           <button onClick={handleApply} className="px-5 py-2.5 rounded-2xl bg-orange-500 text-white font-extrabold text-xs hover:bg-orange-600 cursor-pointer shadow-xs">
-            {r?.applyPeriod || 'Terapkan Periode'}
+            {r?.applyPeriod || (language === 'en' ? 'Apply Period' : language === 'zh' ? '应用时间段' : 'Terapkan Periode')}
           </button>
         </div>
       </div>
@@ -775,7 +847,7 @@ export function ReportsFilterModal({
   subTab, 
   triggerToast 
 }: ModalProps & { subTab: string }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const r = t.reportsView;
 
   const [channelFilter, setChannelFilter] = useState('ALL');
@@ -784,7 +856,13 @@ export function ReportsFilterModal({
   if (!isOpen) return null;
 
   const handleApplyFilter = () => {
-    triggerToast(`Filter Aktif: Channel [${channelFilter}], Status [${statusFilter}] pada ${subTab}`);
+    triggerToast(
+      language === 'en' 
+        ? `Active Filter: Channel [${channelFilter}], Status [${statusFilter}] for ${subTab}`
+        : language === 'zh'
+        ? `已应用筛选: 渠道 [${channelFilter}], 状态 [${statusFilter}] 于 ${subTab}`
+        : `Filter Aktif: Channel [${channelFilter}], Status [${statusFilter}] pada ${subTab}`
+    );
     onClose();
   };
 
@@ -797,8 +875,8 @@ export function ReportsFilterModal({
               <Sparkles size={18} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.filterReportsTitle || 'Filter Laporan & Telemetry'}</h3>
-              <p className="text-xs text-slate-400">Filter data untuk {subTab}</p>
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{r?.filterReportsTitle || (language === 'en' ? 'Filter Report Telemetry' : language === 'zh' ? '筛选报表遥测数据' : 'Filter Laporan & Telemetry')}</h3>
+              <p className="text-xs text-slate-400">{language === 'en' ? `Filter data for ${subTab}` : language === 'zh' ? `为 ${subTab} 筛选数据` : `Filter data untuk ${subTab}`}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
@@ -806,13 +884,13 @@ export function ReportsFilterModal({
 
         <div className="space-y-3 text-xs">
           <div className="space-y-1.5">
-            <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.salesChannelFilter || 'Channel Penjualan'}</label>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300">{r?.salesChannelFilter || (language === 'en' ? 'Sales Channel' : language === 'zh' ? '销售渠道' : 'Channel Penjualan')}</label>
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
             >
-              <option value="ALL">Semua Channel (WhatsApp, Shopee, IG, TikTok)</option>
+              <option value="ALL">{language === 'en' ? 'All Channels (WhatsApp, Shopee, IG, TikTok)' : language === 'zh' ? '所有渠道 (WhatsApp, Shopee, IG, TikTok)' : 'Semua Channel (WhatsApp, Shopee, IG, TikTok)'}</option>
               <option value="WhatsApp">WhatsApp Gateway</option>
               <option value="Shopee">Shopee Store</option>
               <option value="Instagram">Instagram Direct</option>
@@ -821,26 +899,26 @@ export function ReportsFilterModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-extrabold text-slate-700 dark:text-slate-300">Status Transaksi</label>
+            <label className="font-extrabold text-slate-700 dark:text-slate-300">{language === 'en' ? 'Transaction Status' : language === 'zh' ? '交易状态' : 'Status Transaksi'}</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer"
             >
-              <option value="ALL">Semua Status (Selesai, Diproses, Cart)</option>
-              <option value="COMPLETED">Selesai (Completed)</option>
-              <option value="PENDING">Diproses (Pending)</option>
-              <option value="CART_ABANDONED">Cart Abandoned</option>
+              <option value="ALL">{language === 'en' ? 'All Statuses (Completed, Processing, Cart)' : language === 'zh' ? '所有状态 (已完成, 处理中, 弃购)' : 'Semua Status (Selesai, Diproses, Cart)'}</option>
+              <option value="COMPLETED">{language === 'en' ? 'Completed' : language === 'zh' ? '已完成' : 'Selesai (Completed)'}</option>
+              <option value="PENDING">{language === 'en' ? 'Processing (Pending)' : language === 'zh' ? '处理中' : 'Diproses (Pending)'}</option>
+              <option value="CART_ABANDONED">{language === 'en' ? 'Cart Abandoned' : language === 'zh' ? '购物车弃购' : 'Cart Abandoned'}</option>
             </select>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onClose} className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50">
-            Batal
+            {r?.cancel || (language === 'en' ? 'Cancel' : language === 'zh' ? '取消' : 'Batal')}
           </button>
           <button onClick={handleApplyFilter} className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs cursor-pointer shadow-xs">
-            Terapkan Filter
+            {r?.applyFilter || (language === 'en' ? 'Apply Filter' : language === 'zh' ? '应用筛选' : 'Terapkan Filter')}
           </button>
         </div>
       </div>

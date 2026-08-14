@@ -248,170 +248,179 @@ export const DocsPage: React.FC<DocsPageProps> = ({ onBack, dark, setDark, trigg
 
   return (
     <div className="min-h-screen bg-background font-[Inter,sans-serif] text-foreground antialiased selection:bg-[#ff6b35]/20 selection:text-[#ff6b35]">
-      {/* Enterprise Dedicated Documentation Header (Stripe / Vercel Standard) */}
-      <header className="sticky top-0 z-50 h-[58px] border-b border-border/50 bg-background/90 backdrop-blur-xl transition-all">
-        <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-3 sm:px-8">
-          {/* Left: Hamburger Toggle (Mobile) & Branding */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
-            {/* Single Modern Mobile Menu Open/Close Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden grid size-8.5 place-items-center rounded-xl border border-border/80 bg-card/80 text-foreground transition-all hover:bg-muted hover:border-[#ff6b35]/40 active:scale-95 cursor-pointer shadow-2xs"
-              aria-label="Toggle documentation navigation"
-            >
-              {mobileMenuOpen ? (
-                <X size={17} className="text-[#ff6b35] transition-transform duration-200" />
-              ) : (
-                <Menu size={17} className="text-foreground transition-transform duration-200" />
-              )}
-            </button>
-
-            {/* ZEGA AI Logo */}
-            <button
-              onClick={handleBackToMain}
-              className="flex items-center gap-2 group focus:outline-none cursor-pointer"
-              title="ZEGA AI Home"
-            >
-              <img
-                src="https://cdn.zegaai.site/assets/logo/zegalogo.png"
-                alt="ZEGA AI"
-                width={120}
-                height={34}
-                className="h-5.5 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
-                loading="eager"
-                decoding="async"
-              />
-            </button>
-
-            <div className="h-3.5 w-px bg-border/60" />
-
-            <div className="flex items-center gap-1.5">
-              <span className="rounded-md bg-[#ff6b35]/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-bold text-[#ff6b35] border border-[#ff6b35]/20">
-                Docs
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[9.5px] font-mono text-muted-foreground border border-border/60">
-                v2.4
-              </span>
-            </div>
-          </div>
-
-          {/* Center: Global Documentation Search Bar (⌘K) */}
-          <div className="relative flex-1 max-w-md mx-4 hidden md:block">
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
-            <input
-              type="text"
-              placeholder="Search documentation, API reference, or SDKs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-border/70 bg-card/60 py-1.5 pl-9 pr-12 text-[11.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[#ff6b35]/60 focus:bg-background transition-all shadow-2xs"
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-              <Command size={10} />
-              <span>K</span>
-            </div>
-          </div>
-
-          {/* Right: Theme Toggle & API Key CTA */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-            <a
-              href="https://github.com/siabang35/zega.ai"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden lg:flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted/60"
-            >
-              <Github size={14} />
-              <span>GitHub</span>
-            </a>
-
-            {setDark && (
+      {/* Enterprise Dedicated Documentation Header (Only shown when not embedded in dashboard) */}
+      {!isEmbedded && (
+        <header className="sticky top-0 z-50 h-[58px] border-b border-border/50 bg-background/90 backdrop-blur-xl transition-all">
+          <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between px-3 sm:px-8">
+            {/* Left: Hamburger Toggle (Mobile) & Branding */}
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+              {/* Single Modern Mobile Menu Open/Close Toggle */}
               <button
-                onClick={() => setDark(!dark)}
-                className="grid size-8 place-items-center rounded-full border border-border/80 bg-card/60 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground cursor-pointer flex-shrink-0"
-                aria-label="Toggle theme"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden grid size-8.5 place-items-center rounded-xl border border-border/80 bg-card/80 text-foreground transition-all hover:bg-muted hover:border-[#ff6b35]/40 active:scale-95 cursor-pointer shadow-2xs"
+                aria-label="Toggle documentation navigation"
               >
-                {dark ? <Sun size={13} /> : <Moon size={13} />}
+                {mobileMenuOpen ? (
+                  <X size={17} className="text-[#ff6b35] transition-transform duration-200" />
+                ) : (
+                  <Menu size={17} className="text-foreground transition-transform duration-200" />
+                )}
               </button>
-            )}
 
-            <button
-              onClick={() => {
-                if (triggerComingSoon) triggerComingSoon();
-                else handleBackToMain();
-              }}
-              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-3 py-1.5 text-[10.5px] sm:text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:scale-[1.03] active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
-            >
-              <span>Get API Key</span>
-              <ExternalLink size={10} className="ml-1 opacity-80 hidden sm:inline" />
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Navigation Panel — GitBook & Readme Enterprise Mobile Standard */}
-        {mobileMenuOpen && (
-          <div className="fixed top-[58px] left-0 right-0 bottom-0 z-50 md:hidden bg-background text-foreground flex flex-col h-[calc(100dvh-58px)] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-            {/* Live Search Bar Sticky Header */}
-            <div className="p-3.5 border-b border-border/60 bg-card/60 sticky top-0 z-10 backdrop-blur-md">
-              <div className="relative">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search documentation..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#ff6b35] shadow-2xs"
+              {/* ZEGA AI Logo */}
+              <button
+                onClick={handleBackToMain}
+                className="flex items-center gap-2 group focus:outline-none cursor-pointer"
+                title="ZEGA AI Home"
+              >
+                <img
+                  src="https://cdn.zegaai.site/assets/logo/zegalogo.png"
+                  alt="ZEGA AI"
+                  width={120}
+                  height={34}
+                  className="h-5.5 sm:h-7.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-[filter,opacity] duration-300 group-hover:opacity-85"
+                  loading="eager"
+                  decoding="async"
                 />
+              </button>
+
+              <div className="h-3.5 w-px bg-border/60" />
+
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-md bg-[#ff6b35]/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-bold text-[#ff6b35] border border-[#ff6b35]/20">
+                  Docs
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[9.5px] font-mono text-muted-foreground border border-border/60">
+                  v2.4
+                </span>
               </div>
             </div>
 
-            {/* Scrollable Category Navigation Items — GitBook Aesthetic */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {(searchQuery ? filteredNav : DOCS_NAV).map((group) => (
-                <div key={group.category} className="space-y-2">
-                  <h4 className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/80">
-                    {group.category}
-                  </h4>
-                  <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            selectTab(item.id);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between transition-all cursor-pointer text-xs ${
-                            isActive
-                              ? 'bg-[#ff6b35]/12 text-[#ff6b35] font-bold border-l-3 border-[#ff6b35] pl-3.5 pr-3 py-2.5 rounded-r-xl'
-                              : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground px-3 py-2.5 rounded-xl font-medium'
-                          }`}
-                        >
-                          <span className="truncate">{item.title}</span>
-                          {isActive && <Check size={14} className="text-[#ff6b35] flex-shrink-0 ml-2" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            {/* Center: Global Documentation Search Bar (⌘K) */}
+            <div className="relative flex-1 max-w-md mx-4 hidden md:block">
+              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
+              <input
+                type="text"
+                placeholder="Search documentation, API reference, or SDKs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-border/70 bg-card/60 py-1.5 pl-9 pr-12 text-[11.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[#ff6b35]/60 focus:bg-background transition-all shadow-2xs"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+                <Command size={10} />
+                <span>K</span>
+              </div>
             </div>
 
-            {/* Sticky Bottom Footer CTA — GitBook Standard */}
-            <div className="p-4 border-t border-border/60 bg-card/80 sticky bottom-0 z-10 backdrop-blur-md">
+            {/* Right: Theme Toggle & API Key CTA */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+              <a
+                href="https://github.com/siabang35/zega.ai"
+                target="_blank"
+                rel="noreferrer"
+                className="hidden lg:flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-muted/60"
+              >
+                <Github size={14} />
+                <span>GitHub</span>
+              </a>
+
+              {setDark && (
+                <button
+                  onClick={() => setDark(!dark)}
+                  className="grid size-8 place-items-center rounded-full border border-border/80 bg-card/60 text-muted-foreground transition-all duration-300 hover:border-foreground/30 hover:text-foreground cursor-pointer flex-shrink-0"
+                  aria-label="Toggle theme"
+                >
+                  {dark ? <Sun size={13} /> : <Moon size={13} />}
+                </button>
+              )}
+
               <button
                 onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleBackToMain();
+                  if (triggerComingSoon) triggerComingSoon();
+                  else handleBackToMain();
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff6b35]/40 bg-[#ff6b35]/10 py-3 px-4 text-xs font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 active:scale-[0.98] transition-all cursor-pointer shadow-2xs group"
+                className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[#ff6b35] via-[#e8295a] to-[#ff6b35] bg-[length:200%_100%] px-3 py-1.5 text-[10.5px] sm:text-[11px] font-bold text-white shadow-md shadow-[#ff6b35]/25 transition-all duration-500 hover:bg-right hover:scale-[1.03] active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0"
               >
-                <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
-                <span>Return to Main Website (zegaai.site)</span>
+                <span>Get API Key</span>
+                <ExternalLink size={10} className="ml-1 opacity-80 hidden sm:inline" />
               </button>
             </div>
           </div>
-        )}
-      </header>
+        </header>
+      )}
+
+      {/* Mobile Navigation Panel — GitBook & Readme Enterprise Mobile Standard */}
+      {mobileMenuOpen && (
+        <div className={`fixed ${isEmbedded ? 'top-0 z-[60]' : 'top-[58px] z-50'} left-0 right-0 bottom-0 md:hidden bg-background text-foreground flex flex-col h-full overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200`}>
+          {/* Live Search Bar Sticky Header */}
+          <div className="p-3.5 border-b border-border/60 bg-card/60 sticky top-0 z-10 backdrop-blur-md flex items-center justify-between gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search documentation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#ff6b35] shadow-2xs"
+              />
+            </div>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              aria-label="Close navigation"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Scrollable Category Navigation Items — GitBook Aesthetic */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {(searchQuery ? filteredNav : DOCS_NAV).map((group) => (
+              <div key={group.category} className="space-y-2">
+                <h4 className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/80">
+                  {group.category}
+                </h4>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          selectTab(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between transition-all cursor-pointer text-xs ${
+                          isActive
+                            ? 'bg-[#ff6b35]/12 text-[#ff6b35] font-bold border-l-3 border-[#ff6b35] pl-3.5 pr-3 py-2.5 rounded-r-xl'
+                            : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground px-3 py-2.5 rounded-xl font-medium'
+                        }`}
+                      >
+                        <span className="truncate">{item.title}</span>
+                        {isActive && <Check size={14} className="text-[#ff6b35] flex-shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sticky Bottom Footer CTA — GitBook Standard */}
+          <div className="p-4 border-t border-border/60 bg-card/80 sticky bottom-0 z-10 backdrop-blur-md">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleBackToMain();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff6b35]/40 bg-[#ff6b35]/10 py-3 px-4 text-xs font-bold text-[#ff6b35] hover:bg-[#ff6b35]/20 active:scale-[0.98] transition-all cursor-pointer shadow-2xs group"
+            >
+              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
+              <span>{isEmbedded ? 'Tutup & Kembali' : 'Return to Main Website (zegaai.site)'}</span>
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mx-auto flex max-w-[1500px]">
         {/* Left Navigation Sidebar */}
         <aside className="w-64 flex-shrink-0 border-r border-border/40 p-6 hidden md:block min-h-[calc(100vh-56px)] sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto">

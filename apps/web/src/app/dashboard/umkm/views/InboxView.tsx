@@ -429,49 +429,47 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       {/* ========================================================================= */}
       {/* 1. TOP HEADER & INTEGRATION BADGES */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200/70 dark:border-slate-800 shadow-xs">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{t.inboxView.title}</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+      <div className={`${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'} flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-200/70 dark:border-slate-800 shadow-xs min-w-0`}>
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 truncate">{t.inboxView.title}</h1>
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate">
             {t.inboxView.subtitle}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">{t.inboxView.activeIntegrations}</span>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className="text-[10.5px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 mr-0.5 truncate">{t.inboxView.activeIntegrations}</span>
           
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-            <div className="size-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs shadow-xs" title="WhatsApp (32)">
-              <MessageSquare size={12} />
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex-shrink-0">
+            <div className="size-5 sm:size-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs shadow-xs" title="WhatsApp (32)">
+              <MessageSquare size={11} />
             </div>
-            <div className="size-6 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
-              <Instagram size={12} />
+            <div className="size-5 sm:size-6 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
+              <Instagram size={11} />
             </div>
-            <div className="size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
-              <ShoppingBag size={12} />
+            <div className="size-5 sm:size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
+              <ShoppingBag size={11} />
             </div>
-            <div className="size-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs shadow-xs" title="TikTok (5)">
-              <Video size={12} />
+            <div className="size-5 sm:size-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs shadow-xs" title="TikTok (5)">
+              <Video size={11} />
             </div>
-            <span className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[10px] font-extrabold text-slate-600 dark:text-slate-300">+2</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[9.5px] sm:text-[10px] font-extrabold text-slate-600 dark:text-slate-300">+2</span>
           </div>
 
           <button
             onClick={() => setActiveModal('integrations')}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+            className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10.5px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all min-w-0"
           >
-            <Settings size={14} className="text-blue-500" />
-            <span>{t.inboxView.manageIntegrations}</span>
+            <Settings size={13} className="text-blue-500 flex-shrink-0" />
+            <span className="truncate">{t.inboxView.manageIntegrations}</span>
           </button>
         </div>
       </div>
 
-
-
       {/* ========================================================================= */}
       {/* 2. CHANNEL FILTER TABS */}
       {/* ========================================================================= */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className={`${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'} -mx-1 px-1 items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 scrollbar-none touch-pan-x min-w-0 w-full`}>
         {[
           { key: 'Semua', label: t.inboxView.channelAll },
           { key: 'WhatsApp', label: 'WhatsApp' },
@@ -487,14 +485,14 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             <button
               key={item.key}
               onClick={() => setChannelTab(item.key)}
-              className={`px-4 py-2 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <span>{item.label}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+              <span className={`px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono ${
                 isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
               }`}>
                 {count}
@@ -505,38 +503,38 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       </div>
 
       {/* Mobile Responsive Navigation Segment Selector (Visible on mobile/tablet screens < lg) */}
-      <div className="lg:hidden flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl text-xs font-extrabold shadow-inner mb-3">
+      <div className="lg:hidden flex items-center bg-slate-100 dark:bg-slate-800 p-1 sm:p-1.5 rounded-2xl text-[10px] sm:text-xs font-extrabold shadow-inner mb-2 min-w-0">
         <button
           onClick={() => setMobileTab('list')}
-          className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            mobileTab === 'list' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
+            mobileTab === 'list' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <MessageSquare size={14} />
-          <span>{u.mobileConversations || 'Percakapan'}</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px]">
+          <MessageSquare size={13} className="flex-shrink-0" />
+          <span className="truncate">{u.mobileConversations || 'Percakapan'}</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[9px] font-mono flex-shrink-0">
             {filteredConversations.length}
           </span>
         </button>
 
         <button
           onClick={() => setMobileTab('chat')}
-          className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            mobileTab === 'chat' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
+            mobileTab === 'chat' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Send size={14} />
-          <span>{u.mobileMessages || 'Pesan'} ({activeConv.customer_name.split(' ')[0]})</span>
+          <Send size={13} className="flex-shrink-0" />
+          <span className="truncate">{u.mobileMessages || 'Pesan'}</span>
         </button>
 
         <button
           onClick={() => setMobileTab('info')}
-          className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            mobileTab === 'info' ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
+            mobileTab === 'info' ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Bot size={14} />
-          <span>{u.mobileInfoAi || 'Info & AI'}</span>
+          <Bot size={13} className="flex-shrink-0" />
+          <span className="truncate">{u.mobileInfoAi || 'Info & AI'}</span>
         </button>
       </div>
 
@@ -550,7 +548,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
         {/* ----------------------------------------------------------------------- */}
         {!isLeftSidebarOpen ? (
           /* COMPACT MINI-SIDEBAR STRIP WHEN COLLAPSED */
-          <div className={`${mobileTab === 'list' ? 'block' : 'hidden lg:flex'} lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl p-2 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col items-center h-[740px] space-y-2 animate-in fade-in slide-in-from-left-2 duration-300`}>
+          <div className={`${mobileTab === 'list' ? 'block' : 'hidden lg:flex'} lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl p-2 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col items-center h-[500px] sm:h-[600px] lg:h-[740px] space-y-2 animate-in fade-in slide-in-from-left-2 duration-300`}>
             {/* Header controls (fixed) */}
             <div className="flex flex-col items-center space-y-1.5 w-full flex-shrink-0 pt-1">
               <button
@@ -600,20 +598,20 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             </div>
           </div>
         ) : (
-          <div className={`${mobileTab === 'list' ? 'block' : 'hidden lg:flex'} lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col h-[740px] justify-between space-y-3 transition-all duration-300`}>
+          <div className={`${mobileTab === 'list' ? 'block' : 'hidden lg:flex'} lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col h-[calc(100vh-210px)] min-h-[460px] lg:h-[740px] justify-between space-y-3 transition-all duration-300 min-w-0`}>
             
             <div className="space-y-3 flex-1 flex flex-col min-h-0">
               {/* Search Bar & Advanced Filter Toggle */}
-              <div className="relative">
+              <div className="relative min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 min-w-0">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={u.searchPlaceholder || 'Cari percakapan...'}
-                      className="w-full pl-8 pr-8 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-blue-500 transition-all text-slate-900 dark:text-slate-100"
+                      className="w-full pl-8 pr-8 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-blue-500 transition-all text-slate-900 dark:text-slate-100 min-w-0"
                     />
                     {searchQuery && (
                       <button
@@ -627,7 +625,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                   <button 
                     onClick={() => setShowAdvancedFilter(!showAdvancedFilter)} 
-                    className={`p-2 rounded-2xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`p-2 rounded-2xl border transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 ${
                       showAdvancedFilter || activeFilterCount > 0
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs font-bold'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -644,7 +642,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                   <button 
                     onClick={() => setIsLeftSidebarOpen(false)} 
-                    className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer"
+                    className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer flex-shrink-0"
                     title={u.collapseSidebar || "Sembunyikan Panel Percakapan (Collapse Left)"}
                   >
                     <PanelLeftClose size={14} />
@@ -653,11 +651,11 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
                 {/* ADVANCED FILTER ENTERPRISE POPOVER MODAL */}
                 {showAdvancedFilter && (
-                  <div className="absolute left-0 right-0 top-12 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 space-y-3.5 text-xs animate-in fade-in zoom-in-95">
+                  <div className="absolute left-0 right-0 top-12 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 space-y-3.5 text-xs animate-in fade-in zoom-in-95 max-h-[75vh] overflow-y-auto">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <div className="flex items-center gap-1.5">
-                        <Sliders size={14} className="text-blue-600 dark:text-blue-400" />
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{u.advancedFilterTitle || 'Filter Lanjutan Percakapan'}</h4>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Sliders size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{u.advancedFilterTitle || 'Filter Lanjutan Percakapan'}</h4>
                       </div>
                       {activeFilterCount > 0 && (
                         <button
@@ -984,61 +982,68 @@ export function InboxView({ triggerToast }: InboxViewProps) {
         {/* ----------------------------------------------------------------------- */}
         {/* CENTER COLUMN: ACTIVE CHAT STREAM */}
         {/* ----------------------------------------------------------------------- */}
-        <div className={`${mobileTab === 'chat' ? 'block' : 'hidden lg:flex'} ${isLeftSidebarOpen ? 'lg:col-span-6' : 'lg:col-span-8'} bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col h-[740px] justify-between space-y-3 transition-all duration-300`}>
-          
+        <div className={`${mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'} ${isLeftSidebarOpen ? 'lg:col-span-6' : 'lg:col-span-8'} bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col h-[calc(100vh-200px)] min-h-[480px] lg:h-[740px] justify-between space-y-2.5 sm:space-y-3 transition-all duration-300 min-w-0 overflow-hidden`}>
+
           {/* Chat Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 sm:pb-3 flex-shrink-0 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <button
+                onClick={() => setMobileTab('list')}
+                className="lg:hidden p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors flex-shrink-0 cursor-pointer"
+                title="Kembali ke Daftar Percakapan"
+              >
+                <ChevronLeft size={18} />
+              </button>
               {!isLeftSidebarOpen && (
                 <button
                   onClick={() => setIsLeftSidebarOpen(true)}
-                  className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all text-xs font-extrabold flex items-center gap-1.5 cursor-pointer mr-1 shadow-2xs"
+                  className="hidden lg:flex p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all text-xs font-extrabold items-center gap-1.5 cursor-pointer mr-1 shadow-2xs flex-shrink-0"
                   title={u.expandSidebar || "Tampilkan Panel Percakapan (Expand Left)"}
                 >
                   <PanelLeftOpen size={15} />
-                  <span className="hidden sm:inline">{u.mobileConversations || 'Daftar Chat'}</span>
+                  <span>{u.mobileConversations || 'Daftar Chat'}</span>
                 </button>
               )}
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <img
                   src={activeConv.customer_avatar}
                   alt={activeConv.customer_name}
-                  className="size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
+                  className="size-9 sm:size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
                 />
                 <div className="absolute -bottom-0.5 -right-0.5 size-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
                     {activeConv.customer_name}
                   </h3>
                   {activeConv.channel === 'whatsapp' && (
-                    <div className="size-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px]" title="Verified WhatsApp">
+                    <div className="size-3.5 sm:size-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px] flex-shrink-0" title="Verified WhatsApp">
                       <Check size={10} />
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-0.5 truncate">
                   {activeConv.customer_phone}
                 </p>
-                <p className="text-[10px] text-slate-400 font-medium">
+                <p className="hidden md:block text-[10px] text-slate-400 font-medium mt-0.5 truncate">
                   {u.customerSince || 'Bergabung'} {formatDate(activeConv.customer_since)} • {u.totalOrder || 'Total Order'} {activeConv.total_orders} • {u.totalSpent || 'Total Belanja'} Rp{activeConv.total_spent?.toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
 
             {/* Quick Header Actions */}
-            <div className="flex items-center gap-1 text-slate-400 relative">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-slate-400 relative flex-shrink-0 ml-1">
               <button 
                 onClick={() => setActiveModal('assignAgent')} 
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
                 title={u.assignedAgent || "Tugaskan Agen CS"}
               >
                 <UserPlus size={15} />
               </button>
               <button 
                 onClick={() => setActiveModal('addTag')} 
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
                 title={u.addTag || "Tambah Tag Label"}
               >
                 <Tag size={15} />
@@ -1051,7 +1056,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
                   triggerToast(nextStar ? 'Percakapan ditandai bintang (Bintang)' : 'Bintang dilepas');
                 }} 
-                className={`p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${
+                className={`p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${
                   activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
                 }`} 
                 title={activeConv.is_starred ? (u.unstar || 'Lepas Bintang') : (u.markStarred || 'Tandai Bintang')}
@@ -1063,7 +1068,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               <div className="relative">
                 <button 
                   onClick={() => setShowMoreMenu(!showMoreMenu)} 
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                  className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
                   title={u.moreOptions || "Opsi Lanjutan"}
                 >
                   <MoreHorizontal size={15} />
@@ -1116,17 +1121,17 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           </div>
 
           {/* AI Responding Auto Banner with ZeroClaw & 9Router Indicator */}
-          <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 dark:from-blue-950/60 dark:via-purple-950/40 dark:to-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 p-2.5 rounded-2xl flex items-center justify-between text-xs text-blue-950 dark:text-blue-200 shadow-xs">
-            <div className="flex items-center gap-2 font-bold">
-              <Bot size={14} className="text-blue-500 animate-pulse" />
-              <span>{u.aiStreamActive || 'ZeroClaw & 9Router Multi-LLM Model Aktif (Real-time Stream)'}</span>
-              <span title="Model AI ditentukan secara otomatis oleh 9Router berdasarkan intent, akurasi & latensi secara real-time">
+          <div className="bg-blue-50/80 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/80 p-2 sm:p-2.5 rounded-2xl flex items-center justify-between text-[10px] sm:text-xs text-blue-950 dark:text-blue-200 shadow-xs flex-shrink-0 gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 font-bold min-w-0 flex-1">
+              <Bot size={13} className="text-blue-500 animate-pulse flex-shrink-0" />
+              <span className="truncate min-w-0 font-extrabold">{u.aiStreamActive || 'ZeroClaw & 9Router Multi-LLM Model Aktif'}</span>
+              <span title="Model AI ditentukan secara otomatis oleh 9Router berdasarkan intent, akurasi & latensi secara real-time" className="flex-shrink-0">
                 <HelpCircle size={12} className="text-purple-500 cursor-pointer" />
               </span>
             </div>
             <button
               onClick={() => setActiveModal('aiReasoning')}
-              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 text-[11px] font-extrabold border border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/40 cursor-pointer shadow-xs"
+              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 text-[10px] sm:text-[11px] font-extrabold border border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/40 cursor-pointer shadow-xs flex-shrink-0 whitespace-nowrap"
             >
               {t.inboxView.viewAction}
             </button>
@@ -1149,17 +1154,17 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     />
                   )}
 
-                  <div className={`max-w-[85%] space-y-1 ${
+                  <div className={`max-w-[88%] sm:max-w-[80%] space-y-1 min-w-0 break-words ${
                     isCustomer 
-                      ? 'p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60' 
-                      : 'p-3.5 rounded-2xl rounded-tr-xs bg-blue-600 text-white font-medium shadow-xs'
+                      ? 'p-2.5 sm:p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60' 
+                      : 'p-3 sm:p-3.5 rounded-2xl rounded-tr-xs bg-blue-600 text-white font-medium shadow-xs'
                   }`}>
                     {msg.sender_type === 'ai_assistant' && (
-                      <div className="flex items-center gap-1.5 text-[9.5px] font-extrabold text-blue-100 bg-blue-700/50 px-2 py-0.5 rounded-lg mb-1 border border-blue-400/30">
-                        <Bot size={10} className="text-blue-300 animate-pulse" />
-                        <span>{msg.model_used || 'ZeroClaw (9Router: Multi-LLM Model)'}</span>
-                        {msg.latency_ms && <span className="opacity-80">• {msg.latency_ms}ms</span>}
-                        {msg.confidence_score && <span className="opacity-80">• {msg.confidence_score}% Confidence</span>}
+                      <div className="flex items-center gap-1.5 text-[9.5px] font-extrabold text-blue-100 bg-blue-700/50 px-2 py-0.5 rounded-lg mb-1 border border-blue-400/30 truncate">
+                        <Bot size={10} className="text-blue-300 animate-pulse flex-shrink-0" />
+                        <span className="truncate">{msg.model_used || 'ZeroClaw (9Router: Multi-LLM Model)'}</span>
+                        {msg.latency_ms && <span className="opacity-80 flex-shrink-0">• {msg.latency_ms}ms</span>}
+                        {msg.confidence_score && <span className="opacity-80 flex-shrink-0">• {msg.confidence_score}%</span>}
                       </div>
                     )}
                     {msg.attached_image && (
@@ -1168,16 +1173,16 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       </div>
                     )}
                     {msg.attached_file && (
-                      <div className="mt-1.5 flex items-center gap-2 p-2 rounded-xl bg-white/10 border border-white/20 text-xs">
+                      <div className="mt-1.5 flex items-center gap-2 p-2 rounded-xl bg-white/10 border border-white/20 text-xs min-w-0">
                         <FileText size={16} className="text-amber-300 shrink-0" />
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-1 min-w-0 overflow-hidden">
                           <p className="font-bold truncate text-[11px]">{msg.attached_file.name}</p>
                           <p className="text-[9px] opacity-80">{msg.attached_file.size}</p>
                         </div>
                       </div>
                     )}
                     {msg.message_text && (
-                      <p className="whitespace-pre-line leading-relaxed text-[11px]">
+                      <p className="whitespace-pre-line leading-relaxed text-[11px] break-words">
                         {msg.message_text.replace(/\\n/g, '\n')}
                       </p>
                     )}
@@ -1198,28 +1203,28 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               );
             })}
             {isAiTyping && (
-              <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 p-2 rounded-2xl animate-pulse border border-purple-200 dark:border-purple-800/60">
-                <Bot size={13} className="animate-bounce text-blue-500" />
-                <span>{u.aiTyping || 'AI Assistant sedang mengetik balasan otomatis...'}</span>
+              <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 p-2 rounded-2xl animate-pulse border border-purple-200 dark:border-purple-800/60 min-w-0">
+                <Bot size={13} className="animate-bounce text-blue-500 flex-shrink-0" />
+                <span className="truncate">{u.aiTyping || 'AI Assistant sedang mengetik balasan otomatis...'}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Action Chips Bar (With Relative Wrapper for Unclipped Popover) */}
-          <div className="relative">
+          <div className="relative min-w-0">
             {/* Unclipped Template Dropdown Popover */}
             {showTemplateMenu && (
-              <div className="absolute right-0 bottom-full mb-2 z-50 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-2.5 w-80 space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
+              <div className="absolute right-0 bottom-full mb-2 z-50 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-2.5 max-w-[calc(100vw-32px)] sm:w-80 space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2.5 py-1 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-extrabold">
-                    <FileText size={12} className="text-blue-500" />
+                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-extrabold truncate">
+                    <FileText size={12} className="text-blue-500 flex-shrink-0" />
                     {u.quickReplyTemplates || 'Template Balasan Cepat'}
                   </span>
                   <button 
                     type="button"
                     onClick={() => setShowTemplateMenu(false)} 
-                    className="size-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center text-xs font-bold cursor-pointer"
+                    className="size-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center text-xs font-bold cursor-pointer flex-shrink-0"
                   >
                     ✕
                   </button>
@@ -1243,14 +1248,17 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       className="w-full text-left p-2 rounded-xl text-[11px] hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-400 text-slate-700 dark:text-slate-200 font-medium cursor-pointer transition-colors flex items-start gap-1.5"
                     >
                       <span className="text-blue-500 font-bold">•</span>
-                      <span>{tpl}</span>
+                      <span className="break-words">{tpl}</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-bold scrollbar-none">
+            <div 
+              className="flex items-center gap-1.5 overflow-x-auto pb-1.5 text-[10.5px] sm:text-[11px] font-bold touch-pan-x min-w-0 no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {aiAssistantEnabled && (
                 <button
                   type="button"
@@ -1328,12 +1336,12 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           />
 
           {/* Message Form & Input Container */}
-          <form onSubmit={handleSendMessage} className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+          <form onSubmit={handleSendMessage} className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800 min-w-0">
             {/* Attachment Preview Bar (Renders if image or file is selected) */}
             {(attachedImage || attachedFile) && (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-50/90 dark:bg-blue-950/60 rounded-2xl border border-blue-200 dark:border-blue-800 animate-in fade-in">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-50/90 dark:bg-blue-950/60 rounded-2xl border border-blue-200 dark:border-blue-800 animate-in fade-in min-w-0">
                 {attachedImage && (
-                  <div className="relative group">
+                  <div className="relative group flex-shrink-0">
                     <img src={attachedImage} alt="Preview" className="size-12 rounded-xl object-cover border border-blue-300 dark:border-blue-700 shadow-xs" />
                     <button 
                       type="button" 
@@ -1346,16 +1354,16 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   </div>
                 )}
                 {attachedFile && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs shadow-xs min-w-0 flex-1">
                     <FileText size={16} className="text-blue-500 shrink-0" />
-                    <div className="overflow-hidden">
-                      <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate max-w-[160px]">{attachedFile.name}</p>
+                    <div className="overflow-hidden min-w-0 flex-1">
+                      <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate">{attachedFile.name}</p>
                       <p className="text-[9px] text-slate-400 font-medium">{attachedFile.size}</p>
                     </div>
                     <button 
                       type="button" 
                       onClick={() => setAttachedFile(null)}
-                      className="size-4 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[10px] font-bold cursor-pointer ml-1"
+                      className="size-4 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[10px] font-bold cursor-pointer ml-1 flex-shrink-0"
                       title="Hapus Dokumen"
                     >
                       ✕
@@ -1365,27 +1373,27 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               </div>
             )}
 
-            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-2 transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 sm:p-2 transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 min-w-0">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={u.typeMessage || t.inboxView.typeMessage}
-                className="w-full bg-transparent px-2 text-xs font-medium focus:outline-none text-slate-900 dark:text-slate-100 pr-28"
+                className="w-full bg-transparent px-2 text-[11px] sm:text-xs font-medium focus:outline-none text-slate-900 dark:text-slate-100 pr-24 sm:pr-28 min-w-0"
               />
 
               {/* Popover Real WhatsApp / Instagram Style Emoji Picker */}
               {showEmojiPicker && (
-                <div className="absolute right-4 bottom-full mb-3 z-50 shadow-2xl rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2">
+                <div className="absolute right-2 sm:right-4 bottom-full mb-3 z-50 shadow-2xl rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 max-w-[calc(100vw-32px)] sm:max-w-[340px]">
                   <EmojiPicker
                     onEmojiClick={(emojiData: EmojiClickData) => {
                       handleSelectEmoji(emojiData.emoji);
                     }}
                     theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
                     lazyLoadEmojis={true}
-                    searchPlaceHolder="Cari emoji (misal: senyum, cinta, api)..."
-                    width={340}
-                    height={400}
+                    searchPlaceHolder="Cari emoji (senyum, cinta)..."
+                    width="100%"
+                    height={360}
                   />
                 </div>
               )}
@@ -1471,26 +1479,26 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             </div>
 
             {/* Footer Auto-Respond Info & AI Assistant Switch */}
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium px-1">
-              <div className="flex items-center gap-1">
-                <HelpCircle size={11} className="text-slate-400" />
-                <span className={aiAssistantEnabled ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}>
+            <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-medium px-1 gap-1.5 pr-14 sm:pr-1 min-w-0 border-t border-slate-100 dark:border-slate-800 pt-1.5">
+              <div className="flex items-center gap-1 truncate">
+                <HelpCircle size={11} className="text-slate-400 flex-shrink-0" />
+                <span className={`truncate ${aiAssistantEnabled ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}`}>
                   {aiAssistantEnabled ? (u.autoRespondAiActive || 'Auto-respond AI Aktif') : (u.sentByAi || t.inboxView.sentByAi)}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-700 dark:text-slate-300">{t.inboxView.useAiAssistant}</span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="font-extrabold text-slate-700 dark:text-slate-300 text-[10px]">{t.inboxView.useAiAssistant}</span>
                 <button
                   type="button"
                   onClick={handleToggleAiAssistant}
-                  className={`w-10 h-5.5 rounded-full transition-all duration-300 p-0.5 flex items-center cursor-pointer shadow-xs ${
+                  className={`w-9 h-5 rounded-full transition-all duration-300 p-0.5 flex items-center cursor-pointer shadow-xs ${
                     aiAssistantEnabled ? 'bg-blue-600 justify-end ring-2 ring-blue-400/30' : 'bg-slate-300 dark:bg-slate-700 justify-start'
                   }`}
                   title={aiAssistantEnabled ? "AI Assistant Aktif (Klik untuk menonaktifkan)" : "AI Assistant Mati (Klik untuk mengaktifkan)"}
                 >
-                  <div className={`size-4.5 rounded-full bg-white dark:bg-slate-900 shadow-md flex items-center justify-center transition-transform ${aiAssistantEnabled ? 'scale-110' : ''}`}>
-                    {aiAssistantEnabled && <Bot size={10} className="text-blue-600" />}
+                  <div className={`size-4 rounded-full bg-white dark:bg-slate-900 shadow-md flex items-center justify-center transition-transform ${aiAssistantEnabled ? 'scale-110' : ''}`}>
+                    {aiAssistantEnabled && <Bot size={9} className="text-blue-600" />}
                   </div>
                 </button>
               </div>
@@ -1501,7 +1509,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
         {/* ----------------------------------------------------------------------- */}
         {/* RIGHT COLUMN: AI ASSISTANT SUMMARY PRO & CUSTOMER DETAILS */}
         {/* ----------------------------------------------------------------------- */}
-        <div className={`${mobileTab === 'info' ? 'block' : 'hidden lg:block'} lg:col-span-3 space-y-3.5 h-[740px] overflow-y-auto scrollbar-thin`}>
+        <div className={`${mobileTab === 'info' ? 'block' : 'hidden lg:block'} lg:col-span-3 space-y-3.5 h-auto lg:h-[740px] lg:overflow-y-auto scrollbar-thin`}>
 
           {/* AI Assistant Summary Card (Pro) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-all duration-300">
@@ -1607,33 +1615,33 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               {t.inboxView.customerProfile}
             </h3>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <img
                 src={activeConv.customer_avatar}
                 alt={activeConv.customer_name}
-                className="size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                className="size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0"
               />
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{activeConv.customer_name}</h4>
-                  <Check size={12} className="text-emerald-500" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{activeConv.customer_name}</h4>
+                  <Check size={12} className="text-emerald-500 flex-shrink-0" />
                 </div>
-                <p className="text-[10px] font-mono text-slate-400">{activeConv.customer_phone}</p>
+                <p className="text-[10px] font-mono text-slate-400 truncate">{activeConv.customer_phone}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-              <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
-                <p className="text-[10px] text-slate-400 font-medium">{t.inboxView.totalOrder}</p>
-                <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">{activeConv.total_orders}x</p>
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1 text-center min-w-0">
+              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalOrder}</p>
+                <p className="font-black text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">{activeConv.total_orders}x</p>
               </div>
-              <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
-                <p className="text-[10px] text-slate-400 font-medium">{t.inboxView.totalSpent}</p>
-                <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">Rp{(activeConv.total_spent / 1000).toFixed(0)}k</p>
+              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalSpent}</p>
+                <p className="font-black text-[10.5px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">Rp{(activeConv.total_spent / 1000).toFixed(0)}k</p>
               </div>
-              <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40">
-                <p className="text-[10px] text-slate-400 font-medium">{t.inboxView.customerSince}</p>
-                <p className="font-black text-[10px] text-slate-900 dark:text-slate-100 mt-0.5">{formatDate(activeConv.customer_since)}</p>
+              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.customerSince}</p>
+                <p className="font-black text-[9.5px] sm:text-[10px] text-slate-900 dark:text-slate-100 mt-0.5 truncate">{formatDate(activeConv.customer_since)}</p>
               </div>
             </div>
 

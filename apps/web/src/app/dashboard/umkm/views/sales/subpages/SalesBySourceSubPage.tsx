@@ -285,12 +285,12 @@ export function SalesBySourceSubPage({
             </h3>
           </div>
 
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/80 text-xs font-semibold self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/80 text-xs font-semibold self-start sm:self-auto overflow-x-auto max-w-full no-scrollbar whitespace-nowrap" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <button
               onClick={() => setActiveChartTab('distribution')}
-              className={`px-3 py-1 rounded-lg cursor-pointer transition-all ${
+              className={`px-3 py-1 rounded-lg cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                 activeChartTab === 'distribution'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -298,9 +298,9 @@ export function SalesBySourceSubPage({
             </button>
             <button
               onClick={() => setActiveChartTab('funnel')}
-              className={`px-3 py-1 rounded-lg cursor-pointer transition-all ${
+              className={`px-3 py-1 rounded-lg cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                 activeChartTab === 'funnel'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -308,9 +308,9 @@ export function SalesBySourceSubPage({
             </button>
             <button
               onClick={() => setActiveChartTab('growth')}
-              className={`px-3 py-1 rounded-lg cursor-pointer transition-all ${
+              className={`px-3 py-1 rounded-lg cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                 activeChartTab === 'growth'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >

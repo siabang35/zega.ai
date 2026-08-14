@@ -463,71 +463,71 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
   return (
     <div className="space-y-6 font-sans">
       {/* 1. ENTERPRISE KPI METRIC CARDS TOP ROW */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
               {kpiI18n.connectedServices || 'Connected Services'}
             </span>
-            <div className="size-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
-              <Link2 size={14} />
+            <div className="size-6 sm:size-7 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
+              <Link2 size={13} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
             {connectedCount}/{uniqueIntegrationsList.length}
           </div>
-          <span className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block">
+          <span className="text-[10px] sm:text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block truncate">
             {kpiI18n.monthlyGrowth || '+2 this month'}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1.5">
+        <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
               {kpiI18n.activePipelines || 'Active Data Pipelines'}
             </span>
-            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
-              <Zap size={14} />
+            <div className="size-6 sm:size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
+              <Zap size={13} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
             {connectedCount} Active
           </div>
-          <span className="text-[10.5px] font-bold text-slate-400 block">
+          <span className="text-[10px] sm:text-[10.5px] font-bold text-slate-400 block truncate">
             {kpiI18n.lastSync || 'Real-time sync'}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1.5">
+        <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
               {kpiI18n.systemLatency || 'System Latency'}
             </span>
-            <div className="size-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
-              <Activity size={14} />
+            <div className="size-6 sm:size-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center shrink-0">
+              <Activity size={13} />
             </div>
           </div>
-          <div className="text-2xl font-black text-purple-600 dark:text-purple-400">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-purple-600 dark:text-purple-400">
             18ms
           </div>
-          <span className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block">
+          <span className="text-[10px] sm:text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block truncate">
             {kpiI18n.healthyStatus || 'Healthy (18ms)'}
           </span>
         </div>
 
-        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1.5">
+        <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
               {kpiI18n.apiRateLimit || 'API Rate Limit'}
             </span>
-            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
-              <Cpu size={14} />
+            <div className="size-6 sm:size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center shrink-0">
+              <Cpu size={13} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+          <div className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">
             99.98%
           </div>
-          <span className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block">
+          <span className="text-[10px] sm:text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block truncate">
             {kpiI18n.operationalStatus || '100% Operational'}
           </span>
         </div>
@@ -549,16 +549,16 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap max-w-full">
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-orange-500/20 cursor-pointer transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-orange-500/20 cursor-pointer transition-all whitespace-nowrap shrink-0"
           >
             <Plus size={15} />
             <span>{i18n.addIntegrationBtn || 'Tambah Integrasi'}</span>
           </button>
           
-          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
+          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shrink-0">
             <Zap size={14} className="text-emerald-500" />
             <span>{i18n.realtimeStatusLabel || 'Status Realtime:'} <strong className="text-emerald-600 dark:text-emerald-400">{connectedCount}/{uniqueIntegrationsList.length} {i18n.connectedText || 'Terhubung'}</strong></span>
           </div>
@@ -826,7 +826,7 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
       {/* --- INTEGRATION CONFIGURATION MODAL --- */}
       {selectedIntegration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <div className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <IntegrationBrandLogo name={selectedIntegration.name} integrationKey={selectedIntegration.key} />
@@ -907,11 +907,11 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setSelectedIntegration(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-100"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-100"
               >
                 {i18n.configModal?.cancelBtn || 'Batal'}
               </button>
@@ -919,7 +919,7 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
                 type="button"
                 disabled={isSavingConfig}
                 onClick={handleSaveIntegrationConfig}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-sm shadow-orange-500/20 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-sm shadow-orange-500/20 disabled:opacity-50"
               >
                 {isSavingConfig ? (i18n.configModal?.savingBtn || 'Menyimpan...') : (i18n.configModal?.saveBtn || 'Simpan Konfigurasi')}
               </button>
@@ -931,7 +931,7 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
       {/* --- ADD NEW INTEGRATION MODAL --- */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <form onSubmit={handleCreateIntegration} className="w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+          <form onSubmit={handleCreateIntegration} className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-black">
@@ -966,7 +966,7 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-700 dark:text-slate-300">
                     {i18n.addModal?.keyLabel || 'Integration Key (Unique)'}
@@ -1025,18 +1025,18 @@ export function IntegrationsTab({ triggerToast, integrationsList, webhookUrl: in
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-100"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer hover:bg-slate-100"
               >
                 {i18n.addModal?.cancelBtn || 'Batal'}
               </button>
               <button
                 type="submit"
                 disabled={isAdding}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-sm shadow-orange-500/20 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-sm shadow-orange-500/20 disabled:opacity-50"
               >
                 {isAdding ? (i18n.addModal?.addingBtn || 'Menambahkan...') : (i18n.addModal?.addBtn || 'Tambah Integrasi')}
               </button>

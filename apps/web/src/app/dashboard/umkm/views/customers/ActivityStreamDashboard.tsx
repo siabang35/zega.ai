@@ -191,34 +191,21 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
 
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
-      {/* 1. Top Header & Live Stream Status */}
+      {/* 1. Top Header & Stream Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Activity className="text-orange-500" size={22} />
-              <span>{t.crmView.activityStreamSubTitle}</span>
-            </h2>
-            <button
-              onClick={() => setIsLiveStreaming(!isLiveStreaming)}
-              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all cursor-pointer ${
-                isLiveStreaming
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border-emerald-200 dark:border-emerald-800'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              <span className={`size-2 rounded-full ${isLiveStreaming ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span>{isLiveStreaming ? t.crmView.realtimeActive : t.crmView.streamPaused}</span>
-            </button>
-          </div>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Activity className="text-orange-500" size={20} />
+            <span>{t.crmView.activityStreamSubTitle}</span>
+          </h2>
+          <p className="hidden sm:block text-xs text-slate-500 font-medium mt-0.5">
             {t.crmView.activityStreamSubDesc}
           </p>
         </div>
 
         <button
           onClick={() => triggerToast('Log aktivitas berhasil disinkronkan dengan Supabase RPC Audit')}
-          className="px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex items-center justify-center gap-2 shadow-xs self-start sm:self-center"
+          className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer flex items-center justify-center gap-2 shadow-xs self-start sm:self-center"
         >
           <RefreshCw size={14} className="text-orange-500" />
           <span>{t.crmView.refreshStream}</span>
@@ -234,28 +221,27 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
         const waEngagementCount = combinedActivities.filter(a => a.action_type === 'whatsapp').length;
 
         return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
                 <span>{t.crmView.totalEvents24h}</span>
                 <div className="p-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600">
                   <Zap size={14} />
                 </div>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
-                {totalEventsCount.toLocaleString('id-ID')} <span className="text-[10px] text-emerald-500 font-bold">Live</span>
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+                {totalEventsCount.toLocaleString('id-ID')}
               </div>
-              <p className="text-[10px] text-slate-400 truncate">{t.crmView.liveTelemetry}</p>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
                 <span>{t.crmView.checkoutRevenue}</span>
                 <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
                   <ShoppingBag size={14} />
                 </div>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
                 {checkoutTxCount} <span className="text-[10px] text-slate-400 font-normal">{t.crmView.txUnit}</span>
               </div>
               <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold truncate">
@@ -263,32 +249,28 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
               </p>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
                 <span>{t.crmView.waEngagement}</span>
                 <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
                   <MessageSquare size={14} />
                 </div>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
                 {waEngagementCount} <span className="text-[10px] text-blue-500 font-bold">{t.crmView.responses}</span>
               </div>
-              <p className="text-[10px] text-slate-400 truncate">{t.crmView.waAgentLive}</p>
             </div>
 
-            <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500">
                 <span>{t.crmView.peakHours}</span>
                 <div className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
                   <TrendingUp size={14} />
                 </div>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 font-mono">
                 {totalEventsCount > 0 ? `${totalEventsCount}` : '0'} <span className="text-[10px] text-slate-400 font-normal">{t.crmView.eventPerHour}</span>
               </div>
-              <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold truncate">
-                {totalEventsCount > 0 ? (t.crmView.active || 'Live') : t.crmView.noData}
-              </p>
             </div>
           </div>
         );
@@ -310,7 +292,6 @@ export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSe
                   <Clock size={16} className="text-orange-500" />
                   <span>{t.crmView.liveStreamLog} ({filteredActivities.length})</span>
                 </h3>
-                <span className="text-[10px] font-mono text-slate-400">{t.crmView.sortNewest}</span>
               </div>
 
               {/* Search Bar */}

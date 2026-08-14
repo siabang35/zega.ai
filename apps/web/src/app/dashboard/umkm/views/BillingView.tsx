@@ -416,7 +416,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
       </div>
 
       {/* 2. Sub-Navigation Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 text-xs font-bold overflow-x-auto no-scrollbar scroll-smooth flex-nowrap whitespace-nowrap -mx-1 px-1">
         {['Overview', 'Invoice', 'Usage', 'Payment Methods', 'History', 'Settings'].map((tab) => {
           const tabLabelMap: Record<string, string> = {
             Overview: k.tabOverview || 'Overview',
@@ -430,7 +430,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             <button
               key={tab}
               onClick={() => handleTabClick(tab)}
-              className={`px-4 py-2.5 cursor-pointer transition-colors relative border-b-2 ${
+              className={`px-3.5 sm:px-4 py-2.5 cursor-pointer transition-colors relative border-b-2 shrink-0 whitespace-nowrap ${
                 activeTab === tab
                   ? 'border-orange-500 text-slate-900 dark:text-slate-100 font-black'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -456,28 +456,28 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
               <p className="text-xs text-slate-400">{k.invoiceCenterSub || 'Riwayat faktur pajak resmi, bukti settlement pembayaran, dan ekspor massal multi-format'}</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => {
                   loadInvoicesOverview();
                   triggerToast('✓ Data invoice & e-Faktur berhasil diperbarui!');
                 }}
                 disabled={isInvoicesLoading}
-                className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
               >
-                <RefreshCw size={14} className={isInvoicesLoading ? 'animate-spin' : ''} /> 
+                <RefreshCw size={13} className={isInvoicesLoading ? 'animate-spin' : ''} /> 
                 <span>{k.refreshDataBtn || 'Refresh Data'}</span>
               </button>
 
               {/* Multi-Format Bulk Export Dropdown */}
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <button 
                   onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                  className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-2xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
                 >
-                  <Download size={14} />
+                  <Download size={13} />
                   <span>{k.exportBulkBtn || 'Ekspor Massal'} ({selectedInvoiceIds.length > 0 ? `${selectedInvoiceIds.length} Terpilih` : (k.filterAll || 'Semua')})</span>
-                  <ChevronDown size={14} className={`transition-transform duration-200 ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isExportDropdownOpen && (
@@ -606,7 +606,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold overflow-x-auto no-scrollbar scroll-smooth flex-nowrap whitespace-nowrap max-w-full -mx-1 px-1">
               {['Semua', 'Lunas', 'Pending', 'Overdue'].map((st) => {
                 const statusMap: Record<string, string> = {
                   Semua: k.filterAll || 'Semua',
@@ -621,7 +621,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                       setInvoiceStatusFilter(st);
                       loadInvoicesOverview(invoiceSearch, st);
                     }}
-                    className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                       invoiceStatusFilter === st
                         ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -735,10 +735,10 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap sm:flex-nowrap">
                           <button 
                             onClick={() => setSelectedInvoiceForDetail(inv)}
-                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-all flex items-center gap-1"
+                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-all flex items-center gap-1 min-h-[36px]"
                           >
                             <FileText size={12} className="text-orange-500" /> Rincian
                           </button>
@@ -747,7 +747,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                               SupabaseDashboardService.downloadSingleInvoicePDF(inv);
                               triggerToast(`✓ Membuka PDF Faktur ${inv.invoice_number}...`);
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold shadow-xs cursor-pointer transition-all flex items-center gap-1"
+                            className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold shadow-xs cursor-pointer transition-all flex items-center gap-1 min-h-[36px]"
                           >
                             <Download size={12} /> Unduh PDF
                           </button>
@@ -775,7 +775,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             {billingData.paymentMethods.length > 0 && (
               <button 
                 onClick={() => setIsAddPaymentModalOpen(true)}
-                className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center gap-1.5 transition-all hover:scale-102"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs flex items-center justify-center gap-1.5 transition-all hover:scale-102"
               >
                 <Plus size={14} /> <span>{k.addPaymentMethodBtn || 'Tambah Metode Baru'}</span>
               </button>
@@ -1100,7 +1100,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                     {/* Left Col: High Precision Interactive SVG Donut Chart */}
                     <div className="lg:col-span-5 flex flex-col items-center justify-center relative py-2">
-                      <div className="relative size-56 sm:size-60 flex items-center justify-center">
+                      <div className="relative size-48 sm:size-60 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90 cursor-pointer" viewBox="0 0 200 200">
                           {/* Base Track Circle */}
                           <circle
@@ -1343,7 +1343,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-extrabold overflow-x-auto no-scrollbar scroll-smooth flex-nowrap whitespace-nowrap max-w-full -mx-1 px-1">
               {[
                 { id: 'Semua', label: k.historyFilterAll || 'Semua' },
                 { id: 'Berhasil', label: k.historyFilterSuccess || 'Berhasil' },
@@ -1355,7 +1355,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                     setHistoryStatusFilter(st.id);
                     loadBillingHistory(historySearch, st.id);
                   }}
-                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     historyStatusFilter === st.id
                       ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
                       : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -1489,23 +1489,23 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
               </h3>
               <p className="text-xs text-slate-400">{k.usageAnalyticsSub || 'Analisis penggunaan AI Credits, AI Workforce, Otomasi Workflow, dan Cloud Storage secara real-time'}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap max-w-full">
               <button 
                 onClick={() => {
                   loadUsageTelemetry();
                   triggerToast('✓ Telemetri penggunaan kuota berhasil diperbarui!');
                 }}
                 disabled={isUsageLoading}
-                className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap shrink-0"
               >
-                <RefreshCw size={14} className={isUsageLoading ? 'animate-spin' : ''} /> 
+                <RefreshCw size={13} className={isUsageLoading ? 'animate-spin' : ''} /> 
                 <span>{k.refreshTelemetryBtn || 'Refresh Telemetri'}</span>
               </button>
               <button 
                 onClick={() => setIsTopupQuotaModalOpen(true)}
-                className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-2xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
               >
-                <Plus size={14} />
+                <Plus size={13} />
                 <span>{k.addQuotaUpgradeBtn || 'Tambah Kuota / Upgrade'}</span>
               </button>
             </div>
@@ -1569,9 +1569,9 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
               </div>
 
               {/* Timeframe & Metric Switchers & Collapsible Toggle */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap max-w-full">
                 {/* Metric Switcher */}
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold whitespace-nowrap shrink-0">
                   {[
                     { id: 'credits', label: k.metricCredits || 'AI Credits' },
                     { id: 'automations', label: k.metricAutomations || 'Automations' },
@@ -1580,7 +1580,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                     <button
                       key={btn.id}
                       onClick={() => setUsageChartMetric(btn.id as any)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                         usageChartMetric === btn.id
                           ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
                           : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -1592,7 +1592,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                 </div>
 
                 {/* Timeframe Switcher */}
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold whitespace-nowrap shrink-0">
                   {[
                     { id: '7d', label: k.timeframe7d || '7 Hari' },
                     { id: '30d', label: k.timeframe30d || '30 Hari' },
@@ -1601,7 +1601,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                     <button
                       key={tf.id}
                       onClick={() => setUsageTimeframe(tf.id as any)}
-                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                         usageTimeframe === tf.id
                           ? 'bg-orange-500 text-white shadow-xs font-black'
                           : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -1731,12 +1731,12 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                     />
                   </div>
 
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold overflow-x-auto max-w-full">
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-extrabold overflow-x-auto no-scrollbar scroll-smooth flex-nowrap whitespace-nowrap max-w-full -mx-1 px-1">
                     {['Semua', 'AI Workforce', 'Automations', 'Sales Hub', 'Vision AI', 'Storage'].map((cat) => (
                       <button
                         key={cat}
                         onClick={() => setUsageCategoryFilter(cat)}
-                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                           usageCategoryFilter === cat
                             ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs font-black'
                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -1800,17 +1800,11 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-8">
           
           {/* Header & Save Action Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800/80">
             <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                  {k.billingSettingsTitle || 'Pengaturan Tagihan & Faktur Pajak'}
-                </h3>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[11px] font-bold border border-orange-200/60 dark:border-orange-900/50 shadow-2xs">
-                  <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
-                  {k.realtimeDbSyncBadge || 'Realtime DB Sync'}
-                </span>
-              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {k.billingSettingsTitle || 'Pengaturan Tagihan & Faktur Pajak'}
+              </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium max-w-2xl leading-relaxed">
                 {k.billingSettingsSub || 'Kelola identitas badan usaha, NPWP, alamat e-Faktur, preferensi pembayaran otomatis, dan saluran notifikasi tagihan.'}
               </p>
@@ -1819,9 +1813,9 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             <button 
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
-              className="self-start md:self-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="self-start sm:self-auto px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs shadow-orange-500/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
             >
-              <RefreshCw size={15} className={isSavingSettings ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={isSavingSettings ? 'animate-spin' : ''} />
               {isSavingSettings ? (k.savingChangesBtn || 'Menyimpan...') : (k.saveChangesBtn || 'Simpan Perubahan')}
             </button>
           </div>
@@ -2119,9 +2113,9 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
             <button 
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
-              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-orange-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-95 text-white font-bold text-xs cursor-pointer shadow-xs shadow-orange-500/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              <RefreshCw size={15} className={isSavingSettings ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={isSavingSettings ? 'animate-spin' : ''} />
               {isSavingSettings ? (k.savingChangesBtn || 'Menyimpan Pengaturan...') : (k.saveAllSettingsBtn || 'Simpan Semua Pengaturan')}
             </button>
           </div>
@@ -2429,8 +2423,8 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                 </div>
               </div>
 
-              <div className="flex items-center justify-between relative z-10 w-full pt-1">
-                <div className="space-y-3 max-w-[62%]">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10 w-full pt-1">
+                <div className="space-y-3 w-full sm:max-w-[60%]">
                   <div>
                     <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">{k.overviewBoostUmkm || 'Tingkatkan Performa UMKM Anda'}</h4>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 leading-relaxed">
@@ -2446,19 +2440,19 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
 
                   <button
                     onClick={() => setIsUpgradeModalOpen(true)}
-                    className="mt-2 px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+                    className="mt-2 w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
                   >
                     <span>{k.overviewUpgradeNowBtn || 'Upgrade Sekarang'}</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
 
-                <div className="w-[42%] flex items-center justify-center cursor-pointer select-none overflow-visible" onClick={handleRocketLaunch} title={k.overviewRocketTooltip || "Klik untuk Meluncurkan Rocket Upgrade!"}>
+                <div className="w-full sm:w-[38%] flex items-center justify-center cursor-pointer select-none overflow-visible pt-1 sm:pt-0" onClick={handleRocketLaunch} title={k.overviewRocketTooltip || "Klik untuk Meluncurkan Rocket Upgrade!"}>
                   <img 
                     src={rocketSrc} 
                     onError={() => setRocketSrc('/design/dashboard_umkm/billing/rocket.png')}
                     alt="Rocket Upgrade" 
-                    className={`h-44 sm:h-52 lg:h-56 w-auto object-contain drop-shadow-2xl transition-all duration-700 ease-in-out cursor-pointer ${
+                    className={`h-32 sm:h-48 lg:h-56 w-auto object-contain drop-shadow-2xl transition-all duration-700 ease-in-out cursor-pointer ${
                       isRocketAnimating 
                         ? '-translate-y-52 scale-110 opacity-0 filter brightness-125' 
                         : 'hover:scale-110 hover:-translate-y-2 active:scale-95'

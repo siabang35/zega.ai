@@ -100,7 +100,7 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
   };
 
   return (
-    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100">
+    <div className="space-y-6 font-sans text-slate-900 dark:text-slate-100 pb-28 sm:pb-8">
       <StoreHeaderShell activeTab="manage_category" onNavigateTab={onNavigateTab} />
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6 w-full">

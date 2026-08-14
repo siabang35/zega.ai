@@ -356,42 +356,42 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {/* TOP HEADER */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{u.title || 'Automation'}</h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[10px] font-extrabold">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{u.title || 'Automation'}</h1>
+            <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[9.5px] sm:text-[10px] font-extrabold shrink-0">
               {u.badge || 'Enterprise Workflow Engine'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
             {u.subtitle || 'Buat dan kelola workflow otomatisasi tanpa kode. Hemat waktu, kurangi kesalahan, tingkatkan produktivitas.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto mt-1 md:mt-0">
           <button
             onClick={() => setShowDocModal(true)}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
+            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-all hover:border-orange-400"
           >
-            <BookOpen size={14} className="text-orange-500" />
-            <span>{u.engineDocs || 'Dokumentasi Engine'}</span>
+            <BookOpen size={14} className="text-orange-500 shrink-0" />
+            <span className="truncate">{u.engineDocs || 'Dokumentasi Engine'}</span>
           </button>
 
           <button
             onClick={() => setShowImportModal(true)}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:border-orange-400"
+            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-all hover:border-orange-400"
           >
-            <Upload size={14} className="text-orange-500" />
-            <span>{u.importWorkflow || 'Impor Workflow'}</span>
+            <Upload size={14} className="text-orange-500 shrink-0" />
+            <span className="truncate">{u.importWorkflow || 'Impor Workflow'}</span>
           </button>
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer transition-all"
+            className="flex-1 sm:flex-none min-w-0 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs cursor-pointer transition-all"
           >
-            <Plus size={16} />
-            <span>{u.createAutomation || 'Buat Automation'}</span>
+            <Plus size={15} className="shrink-0" />
+            <span className="truncate">{u.createAutomation || 'Buat Automation'}</span>
           </button>
         </div>
       </div>
@@ -399,90 +399,90 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {/* 5 TOP METRIC CARDS GRID */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
         {/* CARD 1: ACTIVE AUTOMATIONS */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">{u.activeAutomations || 'Active Automations'}</span>
-            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 hover:border-orange-400/50 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate">{u.activeAutomations || 'Active Automations'}</span>
+            <div className="size-7 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center shrink-0">
               <Play size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{runningCount}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100">{runningCount}</div>
+            <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>{u.liveDbState || '▲ Live DB State'}</span>
             </div>
           </div>
         </div>
 
         {/* CARD 2: TASKS AUTOMATED TODAY */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">{u.tasksAutomatedToday || 'Tasks Automated Today'}</span>
-            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 hover:border-orange-400/50 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate">{u.tasksAutomatedToday || 'Tasks Automated Today'}</span>
+            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
               <CheckCircle2 size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today ?? 0}</div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100">{kpiData.tasks_completed_today ?? 0}</div>
+            <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>{u.liveTelemetry || '▲ Live Telemetry'}</span>
             </div>
           </div>
         </div>
 
         {/* CARD 3: SUCCESS RATE */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">{u.successRate || 'Success Rate'}</span>
-            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 hover:border-orange-400/50 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate">{u.successRate || 'Success Rate'}</span>
+            <div className="size-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
               <ShieldCheck size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100">
               {automations.length > 0
                 ? `${Math.round(automations.reduce((acc, a) => acc + (a.success_rate || 100), 0) / automations.length)}%`
                 : '0%'}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>{u.liveTelemetry || '▲ Live Telemetry'}</span>
             </div>
           </div>
         </div>
 
         {/* CARD 4: HOURS SAVED THIS WEEK */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 hover:border-orange-400/50 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">{u.hoursSavedThisWeek || 'Hours Saved This Week'}</span>
-            <div className="size-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center">
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 hover:border-orange-400/50 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate">{u.hoursSavedThisWeek || 'Hours Saved This Week'}</span>
+            <div className="size-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center shrink-0">
               <Clock size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100">
               {`${kpiData.hours_saved_weekly ?? 0} ${u.hoursUnit || 'Jam'}`}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>{u.liveCalculation || '▲ Live Calculation'}</span>
             </div>
           </div>
         </div>
 
         {/* CARD 5: COST SAVED THIS MONTH */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5 col-span-2 sm:col-span-1 hover:border-orange-400/50 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400">{u.costSavedThisMonth || 'Cost Saved This Month'}</span>
-            <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 col-span-2 sm:col-span-1 lg:col-span-1 hover:border-orange-400/50 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 truncate">{u.costSavedThisMonth || 'Cost Saved This Month'}</span>
+            <div className="size-7 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center shrink-0">
               <DollarSign size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-base sm:text-xl font-black text-slate-900 dark:text-slate-100">
               Rp{(kpiData.estimated_ai_salary_saved || ((kpiData.hours_saved_weekly || 0) * 150000)).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+            <div className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
               <span>{u.liveRevenue || '▲ Live Revenue'}</span>
             </div>
           </div>
@@ -492,9 +492,9 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {/* ACTION BAR & FILTER TABS */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         {/* Left Tabs with Realtime Counts */}
-        <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1.5 lg:pb-0 scrollbar-none font-bold text-xs -mx-1 px-1">
           {[
             { id: 'Semua', label: u.all || 'Semua', count: totalCount, color: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300' },
             { id: 'Berjalan', label: u.running || 'Berjalan', count: runningCount, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
@@ -505,14 +505,14 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
             <button
               key={tab.id}
               onClick={() => setFilterTab(tab.id)}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap text-[11px] sm:text-xs flex items-center gap-1.5 ${
                 filterTab === tab.id
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs border border-slate-200/50 dark:border-slate-800'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <span>{tab.label}</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${tab.color}`}>
+              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${filterTab === tab.id ? 'bg-white/20 text-white' : tab.color}`}>
                 {tab.count}
               </span>
             </button>
@@ -520,43 +520,50 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
         </div>
 
         {/* Right Search & Controls */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1 sm:w-52">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={u.searchPlaceholder || 'Cari automation...'}
-              className="pl-8 pr-4 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs w-48 focus:outline-none focus:border-orange-500 font-medium"
+              className="w-full pl-8 pr-3 py-2 sm:py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:border-orange-500 font-medium"
             />
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer"
-          >
-            <option value="Semua Status">{u.allStatus || 'Semua Status'}</option>
-            <option value="Berjalan">{u.running || 'Berjalan'} ({runningCount})</option>
-            <option value="Dijeda">{u.paused || 'Dijeda'} ({pausedCount})</option>
-            <option value="Gagal">{u.failed || 'Gagal'} ({failedCount})</option>
-            <option value="Selesai">{u.completed || 'Selesai'} ({completedCount})</option>
-          </select>
+          <div className="flex items-center gap-2 justify-between sm:justify-start">
+            <div className="relative flex-1 sm:flex-none">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 sm:py-1.5 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 appearance-none cursor-pointer focus:outline-none focus:border-orange-500"
+              >
+                <option value="Semua Status">{u.allStatus || 'Semua Status'}</option>
+                <option value="Berjalan">{u.running || 'Berjalan'} ({runningCount})</option>
+                <option value="Dijeda">{u.paused || 'Dijeda'} ({pausedCount})</option>
+                <option value="Gagal">{u.failed || 'Gagal'} ({failedCount})</option>
+                <option value="Selesai">{u.completed || 'Selesai'} ({completedCount})</option>
+              </select>
+              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
 
-          <div className="flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
-            >
-              <List size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
-            >
-              <Grid size={14} />
-            </button>
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'table' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
+                title="Table View"
+              >
+                <List size={14} />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
+                title="Grid View"
+              >
+                <Grid size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1007,7 +1014,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <FileCode size={20} className="text-orange-500" />
@@ -1218,7 +1225,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Workflow size={20} className="text-orange-500" />
@@ -1394,7 +1401,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {showDocModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -1477,7 +1484,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">

@@ -678,7 +678,7 @@ export function DeploySalesSwarmModal({
         <button
           onClick={handleDeploy}
           disabled={isDeploying}
-          className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold cursor-pointer shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
           <span>{isDeploying ? (u.deployingModelSwarm || 'Deploying Model Swarm...') : (u.deployModelSwarmBtn || 'Deploy Real AI Sales Swarm')}</span>

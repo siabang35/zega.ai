@@ -665,19 +665,20 @@ export const HelpView: React.FC = () => {
     return (
       <div className="space-y-4 max-w-7xl mx-auto pb-24 md:pb-8">
         {/* Sticky Enterprise Header Bar to return to Help Center */}
-        <div className="sticky top-0 z-50 flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-lg">
+        <div className="sticky top-0 z-50 flex items-center justify-between p-2.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-md gap-2">
           <button
             onClick={() => setIsApiDocsOpen(false)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer group"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer group shrink-0 whitespace-nowrap"
           >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            <span>Kembali ke Help Center</span>
+            <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform shrink-0" />
+            <span className="hidden sm:inline">Kembali ke Help Center</span>
+            <span className="sm:hidden">Help Center</span>
           </button>
           
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-            <Code size={16} className="text-blue-500" />
-            <span className="hidden sm:inline">ZEGA Developer Hub —</span>
-            <span className="text-blue-600 dark:text-blue-400">Webhook, SDK & REST API Guides</span>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+            <Code size={16} className="text-blue-500 shrink-0" />
+            <span className="hidden md:inline">ZEGA Developer Hub —</span>
+            <span className="text-blue-600 dark:text-blue-400 truncate">Webhook, SDK & REST API Guides</span>
           </div>
         </div>
 
@@ -813,8 +814,8 @@ export const HelpView: React.FC = () => {
         </div>
 
         {/* Quick Topic Search Pills */}
-        <div className="flex items-center gap-2 flex-wrap text-[11px] pt-1">
-          <span className="text-slate-400 font-bold text-[10.5px] uppercase tracking-wider">Populer:</span>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap text-[11px] pt-1 max-w-full">
+          <span className="text-slate-400 font-bold text-[10.5px] uppercase tracking-wider shrink-0">Populer:</span>
           {[
             { label: 'WhatsApp API', query: 'WhatsApp' },
             { label: 'ZeroClaw', query: 'ZeroClaw' },
@@ -825,7 +826,7 @@ export const HelpView: React.FC = () => {
             <button
               key={pill.label}
               onClick={() => setSearchQuery(pill.query)}
-              className={`px-3 py-1 rounded-xl text-[10.5px] font-bold transition-all cursor-pointer border ${
+              className={`px-3 py-1 rounded-xl text-[10.5px] font-bold transition-all cursor-pointer border shrink-0 whitespace-nowrap ${
                 searchQuery === pill.query
                   ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -838,7 +839,7 @@ export const HelpView: React.FC = () => {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
         {categoriesList.map((cat) => {
           const Icon = cat.icon;
           const isActive = selectedCategory === cat.fallback;
@@ -847,7 +848,7 @@ export const HelpView: React.FC = () => {
             <button
               key={cat.fallback}
               onClick={() => setSelectedCategory(cat.fallback)}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-2 cursor-pointer ${
                 isActive
                   ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md'
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -866,23 +867,23 @@ export const HelpView: React.FC = () => {
       </div>
 
       {/* FAQs Interactive Accordion (Collapsible Enterprise Section - Default Closed) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 md:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
         <div 
           onClick={() => setIsFaqSectionOpen(!isFaqSectionOpen)}
-          className="flex items-center justify-between cursor-pointer group select-none"
+          className="flex items-center justify-between cursor-pointer group select-none gap-3"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform shrink-0">
               <BookOpen size={20} />
             </div>
-            <div>
-              <h3 className="text-sm md:text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm md:text-base font-black text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1.5 leading-snug">
                 <span>{t.helpView?.faqSection?.title || 'Pertanyaan Sering Diajukan (FAQ)'}</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold">
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold shrink-0">
                   {filteredFaqs.length} {activeLang === 'en' ? 'Guides' : activeLang === 'zh' ? '个指南' : 'Panduan'}
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 leading-tight">
                 {isFaqSectionOpen 
                   ? (activeLang === 'en' ? 'Click to collapse questions list' : activeLang === 'zh' ? '点击折叠问题列表' : 'Klik untuk menutup daftar pertanyaan')
                   : (activeLang === 'en' ? 'Click to expand questions & quick solutions' : activeLang === 'zh' ? '点击展开常见问题与快捷解决方案' : 'Klik untuk membuka daftar pertanyaan & solusi cepat')}
@@ -890,7 +891,7 @@ export const HelpView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button 
               type="button"
               className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-orange-500 group-hover:text-white text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs"
@@ -956,23 +957,23 @@ export const HelpView: React.FC = () => {
       </div>
 
       {/* Real-time Support Ticket Status Tracker (Collapsible Enterprise Section - Default Closed) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 md:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
         <div 
           onClick={() => setIsTicketsSectionOpen(!isTicketsSectionOpen)}
-          className="flex items-center justify-between cursor-pointer group select-none"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer group select-none"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform">
+          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform shrink-0">
               <Ticket size={20} />
             </div>
-            <div>
-              <h3 className="text-sm md:text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm md:text-base font-black text-slate-900 dark:text-slate-100 flex flex-wrap items-center gap-1.5 leading-snug">
                 <span>{t.helpView?.ticketSection?.title || 'Riwayat Tiket Bantuan (Realtime)'}</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold">
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-extrabold shrink-0">
                   {tickets.length} {activeLang === 'en' ? 'Tickets' : activeLang === 'zh' ? '工单' : 'Tiket'}
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 leading-tight">
                 {isTicketsSectionOpen 
                   ? (activeLang === 'en' ? 'Click to collapse support tickets history' : activeLang === 'zh' ? '点击折叠支持工单历史' : 'Klik untuk menutup riwayat tiket')
                   : (activeLang === 'en' ? 'Click to expand support ticket history & status' : activeLang === 'zh' ? '点击展开支持工单历史与状态' : 'Klik untuk membuka status riwayat tiket bantuan')}
@@ -980,22 +981,21 @@ export const HelpView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsTicketModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Send size={13} />
-              <span className="hidden sm:inline">{t.helpView?.ticketSection?.newTicketBtn || 'Kirim Tiket Baru'}</span>
-              <span className="sm:hidden">{t.helpView?.ticketSection?.newTicketShort || 'Tiket Baru'}</span>
+              <span>{t.helpView?.ticketSection?.newTicketBtn || 'Kirim Tiket Baru'}</span>
             </button>
 
             <button 
               type="button"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-orange-500 group-hover:text-white text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-orange-500 group-hover:text-white text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs shrink-0"
               aria-label="Toggle Support Tickets Section"
             >
               <ChevronDown 
@@ -1098,7 +1098,7 @@ export const HelpView: React.FC = () => {
       {/* New Support Ticket Modal */}
       {isTicketModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl max-w-md sm:max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in fade-in zoom-in-200">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Ticket className="text-orange-500" size={18} />
@@ -1127,7 +1127,7 @@ export const HelpView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {t.helpView?.ticketModal?.categoryLabel || 'Kategori'}
@@ -1135,7 +1135,7 @@ export const HelpView: React.FC = () => {
                   <select
                     value={ticketForm.category}
                     onChange={(e) => setTicketForm({ ...ticketForm, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 font-medium cursor-pointer"
                   >
                     <option value="Otomatisasi">{getCategoryLabel('automation', 'Otomatisasi')}</option>
                     <option value="AI Employees">{getCategoryLabel('aiEmployees', 'AI Employees')}</option>
@@ -1152,7 +1152,7 @@ export const HelpView: React.FC = () => {
                   <select
                     value={ticketForm.priority}
                     onChange={(e) => setTicketForm({ ...ticketForm, priority: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500 font-medium cursor-pointer"
                   >
                     <option value="Rendah">{t.helpView?.ticketSection?.priorityLow || 'Rendah'}</option>
                     <option value="Sedang">{t.helpView?.ticketSection?.priorityMedium || 'Sedang'}</option>
@@ -1175,18 +1175,18 @@ export const HelpView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsTicketModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   {t.helpView?.ticketModal?.cancelBtn || 'Batal'}
                 </button>
                 <button
                   type="submit"
                   disabled={submittingTicket}
-                  className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {submittingTicket ? (t.helpView?.ticketModal?.submittingBtn || 'Mengirim...') : (t.helpView?.ticketModal?.submitBtn || 'Kirim Tiket')}
                 </button>

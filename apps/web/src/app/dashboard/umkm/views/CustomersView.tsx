@@ -163,20 +163,20 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Sub-Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Globe className="text-orange-500" size={20} />
-            <span>{t.crmView?.regionalTitle || 'Distribusi Wilayah & Demografi (Leaflet Live Mapping)'}</span>
+            <span>{t.crmView?.regionalTitle || 'Distribusi Wilayah & Demografi'}</span>
           </h2>
-          <p className="text-xs text-slate-500 font-medium">{t.crmView?.regionalSubtitle || 'Pemetaan geografis pelanggan interaktif & analisis pendapatan per provinsi.'}</p>
+          <p className="hidden sm:block text-xs text-slate-500 font-medium mt-0.5">{t.crmView?.regionalSubtitle || 'Pemetaan geografis pelanggan & analisis pendapatan per provinsi.'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => triggerToast('Laporan Distribusi Wilayah di-export ke CSV')} className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
+          <button onClick={() => triggerToast('Laporan Distribusi Wilayah di-export ke CSV')} className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs">
             <Upload size={14} /> <span>{t.crmView?.exportRegionalReport || 'Export Laporan Wilayah'}</span>
           </button>
-          <button onClick={() => onTriggerBroadcast('Semua Wilayah Provinsi Indonesia')} className="px-4 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer">
-            <Sparkles size={16} /> <span>{t.crmView?.launchRegionalSwarm || 'Luncurkan AI Swarm Regional'}</span>
+          <button onClick={() => onTriggerBroadcast('Semua Wilayah Provinsi Indonesia')} className="px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs cursor-pointer">
+            <Sparkles size={15} /> <span>{t.crmView?.launchRegionalSwarm || 'Luncurkan AI Swarm'}</span>
           </button>
         </div>
       </div>
@@ -191,11 +191,8 @@ function RegionalCustomerLeafletMap({ onTriggerBroadcast, triggerToast }: { onTr
                 <Globe size={16} className="text-orange-500" />
                 <span>{t.crmView?.mapTitle || 'Peta Sebaran Pelanggan Indonesia'}</span>
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium">{t.crmView?.mapSub || 'Klik pada titik marker atau nama wilayah untuk fokus pemetaan.'}</p>
+              <p className="hidden sm:block text-[11px] text-slate-400 font-medium">{t.crmView?.mapSub || 'Klik pada titik marker atau nama wilayah untuk fokus pemetaan.'}</p>
             </div>
-            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
-              {t.crmView?.realtimeMapping || 'Pemetaan Real-time'}
-            </span>
           </div>
 
           {/* Leaflet Canvas Container */}
@@ -738,9 +735,9 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 pb-28 sm:pb-8">
       {/* Sub-Page Navigation Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 dark:border-slate-800">
+      <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 flex items-center gap-1.5 overflow-x-auto scrollbar-none touch-auto pb-2 border-b border-slate-200 dark:border-slate-800">
         {[
           { id: 'customers', label: t.crmView?.overview || 'Ringkasan CRM', icon: Users },
           { id: 'list_customers', label: t.crmView?.listCustomers || 'Daftar Pelanggan', icon: UserPlus },
@@ -754,13 +751,13 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             <button
               key={tab.id}
               onClick={() => handleTabSwitch(tab.id)}
-              className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 isActive
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                  ? 'bg-orange-500 text-white shadow-2xs'
                   : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
             >
-              <Icon size={14} />
+              <Icon size={13} />
               <span>{tab.label}</span>
             </button>
           );
@@ -1073,7 +1070,7 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 </div>
               )}
 
-            {/* Table Content */}
+            {/* Table Content: Desktop Table + Mobile Cards */}
             {filteredCustomers.length === 0 ? (
               <div className="p-10 text-center space-y-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                 <Users size={32} className="mx-auto text-slate-400" />
@@ -1084,123 +1081,216 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-medium border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="py-2.5 px-3">{t.crmView?.colCustomer || 'PELANGGAN'}</th>
-                      <th className="py-2.5 px-3 text-center">{t.crmView?.colSegment || 'SEGMENT'}</th>
-                      <th className="py-2.5 px-3 text-center">{t.crmView?.colTotalOrders || 'TOTAL ORDER'}</th>
-                      <th className="py-2.5 px-3 text-right">{t.crmView?.colTotalSpend || 'TOTAL SPEND'}</th>
-                      <th className="py-2.5 px-3 text-center">{t.crmView?.colLastOrder || 'LAST ORDER'}</th>
-                      <th className="py-2.5 px-3 text-center">{t.crmView?.colStatus || 'STATUS'}</th>
-                      <th className="py-2.5 px-3 text-right">{t.crmView?.colAction || 'AKSI'}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredCustomers.map((customer: any, idx: number) => {
-                      const avatarSrc = (customer.avatar_url && (
-                        customer.avatar_url.startsWith('http') || 
-                        customer.avatar_url.startsWith('data:') || 
-                        customer.avatar_url.startsWith('blob:')
-                      )) 
-                        ? customer.avatar_url 
-                        : getR2CdnUrl(customer.avatar_url || '', true);
+              <>
+                {/* Desktop View Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs font-medium border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-2.5 px-3">{t.crmView?.colCustomer || 'PELANGGAN'}</th>
+                        <th className="py-2.5 px-3 text-center">{t.crmView?.colSegment || 'SEGMENT'}</th>
+                        <th className="py-2.5 px-3 text-center">{t.crmView?.colTotalOrders || 'TOTAL ORDER'}</th>
+                        <th className="py-2.5 px-3 text-right">{t.crmView?.colTotalSpend || 'TOTAL SPEND'}</th>
+                        <th className="py-2.5 px-3 text-center">{t.crmView?.colLastOrder || 'LAST ORDER'}</th>
+                        <th className="py-2.5 px-3 text-center">{t.crmView?.colStatus || 'STATUS'}</th>
+                        <th className="py-2.5 px-3 text-right">{t.crmView?.colAction || 'AKSI'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredCustomers.map((customer: any, idx: number) => {
+                        const avatarSrc = (customer.avatar_url && (
+                          customer.avatar_url.startsWith('http') || 
+                          customer.avatar_url.startsWith('data:') || 
+                          customer.avatar_url.startsWith('blob:')
+                        )) 
+                          ? customer.avatar_url 
+                          : getR2CdnUrl(customer.avatar_url || '', true);
 
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <img 
-                                src={avatarSrc} 
-                                alt={customer.name}
-                                className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0 cursor-pointer shadow-xs"
-                                onClick={() => {
-                                  setSelectedCustomer(customer);
-                                  setIsDetailModalOpen(true);
-                                }}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = generateInitialsAvatar(customer.name);
-                                }}
-                              />
-                              <div className="min-w-0">
-                                <span 
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img 
+                                  src={avatarSrc} 
+                                  alt={customer.name}
+                                  className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0 cursor-pointer shadow-xs"
                                   onClick={() => {
                                     setSelectedCustomer(customer);
                                     setIsDetailModalOpen(true);
                                   }}
-                                  className="font-extrabold text-slate-900 dark:text-slate-100 block truncate hover:text-orange-500 cursor-pointer text-xs"
-                                >
-                                  {customer.name}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono block truncate">{customer.email} • {customer.phone}</span>
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = generateInitialsAvatar(customer.name);
+                                  }}
+                                />
+                                <div className="min-w-0">
+                                  <span 
+                                    onClick={() => {
+                                      setSelectedCustomer(customer);
+                                      setIsDetailModalOpen(true);
+                                    }}
+                                    className="font-extrabold text-slate-900 dark:text-slate-100 block truncate hover:text-orange-500 cursor-pointer text-xs"
+                                  >
+                                    {customer.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-mono block truncate">{customer.email} • {customer.phone}</span>
+                                </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td className="py-3 px-3 text-center">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
-                              customer.segment === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60' :
-                              customer.segment === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60' :
-                              customer.segment === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60' :
-                              'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60'
-                            }`}>
-                              {customer.segment}
-                            </span>
-                          </td>
+                            <td className="py-3 px-3 text-center">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                                customer.segment === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60' :
+                                customer.segment === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60' :
+                                customer.segment === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60' :
+                                'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60'
+                              }`}>
+                                {customer.segment}
+                              </span>
+                            </td>
 
-                          <td className="py-3 px-3 text-center font-bold text-slate-700 dark:text-slate-300 font-mono">
-                            {customer.total_orders || 1} Pesanan
-                          </td>
+                            <td className="py-3 px-3 text-center font-bold text-slate-700 dark:text-slate-300 font-mono">
+                              {customer.total_orders || 1} Pesanan
+                            </td>
 
-                          <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-slate-100 font-mono">
-                            Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}
-                          </td>
+                            <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-slate-100 font-mono">
+                              Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}
+                            </td>
 
-                          <td className="py-3 px-3 text-center text-slate-500 text-[11px] font-mono">
-                            {customer.last_order_at || 'Hari ini'}
-                          </td>
+                            <td className="py-3 px-3 text-center text-slate-500 text-[11px] font-mono">
+                              {customer.last_order_at || 'Hari ini'}
+                            </td>
 
-                          <td className="py-3 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              customer.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>
-                              {customer.status}
-                            </span>
-                          </td>
+                            <td className="py-3 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                customer.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                              }`}>
+                                {customer.status}
+                              </span>
+                            </td>
 
-                          <td className="py-3 px-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button 
+                            <td className="py-3 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button 
+                                  onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-500 cursor-pointer"
+                                  title="Lihat Telemetri CRM"
+                                >
+                                  <Eye size={13} />
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedCustomer(customer); setIsEditModalOpen(true); }}
+                                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-500 cursor-pointer"
+                                  title="Edit Pelanggan"
+                                >
+                                  <Edit size={13} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteCustomer(customer)}
+                                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-red-500 cursor-pointer"
+                                  title="Hapus Pelanggan"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="block md:hidden space-y-2.5">
+                  {filteredCustomers.map((customer: any, idx: number) => {
+                    const avatarSrc = (customer.avatar_url && (
+                      customer.avatar_url.startsWith('http') || 
+                      customer.avatar_url.startsWith('data:') || 
+                      customer.avatar_url.startsWith('blob:')
+                    )) 
+                      ? customer.avatar_url 
+                      : getR2CdnUrl(customer.avatar_url || '', true);
+
+                    return (
+                      <div key={idx} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img 
+                              src={avatarSrc} 
+                              alt={customer.name}
+                              className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-2xs"
+                              onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = generateInitialsAvatar(customer.name);
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <span 
                                 onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
-                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-500 cursor-pointer"
-                                title="Lihat Telemetri CRM"
+                                className="font-extrabold text-slate-900 dark:text-slate-100 block truncate text-xs hover:text-orange-500 cursor-pointer"
                               >
-                                <Eye size={13} />
-                              </button>
-                              <button 
-                                onClick={() => { setSelectedCustomer(customer); setIsEditModalOpen(true); }}
-                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-500 cursor-pointer"
-                                title="Edit Pelanggan"
-                              >
-                                <Edit size={13} />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteCustomer(customer)}
-                                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-red-500 cursor-pointer"
-                                title="Hapus Pelanggan"
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                                {customer.name}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono block truncate">{customer.email || customer.phone}</span>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border shrink-0 ${
+                            customer.segment === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60' :
+                            customer.segment === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60' :
+                            customer.segment === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60' :
+                            'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60'
+                          }`}>
+                            {customer.segment}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-200/60 dark:border-slate-700/50">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-medium">Total Spend</span>
+                            <span className="font-mono font-black text-slate-900 dark:text-slate-100">Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-slate-400 block text-[10px] font-medium">Orders / Last</span>
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customer.total_orders || 1}x • {customer.last_order_at || 'Hari ini'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
+                            customer.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {customer.status}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <button 
+                              onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                              className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-500 cursor-pointer shadow-2xs"
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedCustomer(customer); setIsEditModalOpen(true); }}
+                              className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-500 cursor-pointer shadow-2xs"
+                            >
+                              <Edit size={13} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteCustomer(customer)}
+                              className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-red-500 cursor-pointer shadow-2xs"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
           </div>
@@ -1498,7 +1588,8 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop View Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs font-medium border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -1608,6 +1699,90 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards View */}
+            <div className="block md:hidden space-y-2.5">
+              {filteredCustomers.map((customer: any, idx: number) => {
+                const avatarSrc = (customer.avatar_url && (
+                  customer.avatar_url.startsWith('http') || 
+                  customer.avatar_url.startsWith('data:') || 
+                  customer.avatar_url.startsWith('blob:')
+                )) 
+                  ? customer.avatar_url 
+                  : getR2CdnUrl(customer.avatar_url || '', true);
+
+                return (
+                  <div key={idx} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img 
+                          src={avatarSrc} 
+                          alt={customer.name}
+                          className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-2xs"
+                          onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = generateInitialsAvatar(customer.name);
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <span 
+                            onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                            className="font-extrabold text-slate-900 dark:text-slate-100 block truncate text-xs hover:text-orange-500 cursor-pointer"
+                          >
+                            {customer.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono block truncate">{customer.email || customer.phone}</span>
+                        </div>
+                      </div>
+
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border shrink-0 ${
+                        customer.segment === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60' :
+                        customer.segment === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60' :
+                        customer.segment === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60' :
+                        'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60'
+                      }`}>
+                        {customer.segment}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-200/60 dark:border-slate-700/50">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] font-medium">Total Spend</span>
+                        <span className="font-mono font-black text-slate-900 dark:text-slate-100">Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 block text-[10px] font-medium">Orders / Last</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customer.total_orders || 1}x • {customer.last_order_at || 'Hari ini'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
+                        customer.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      }`}>
+                        {customer.status}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button 
+                          onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                          className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-500 cursor-pointer shadow-2xs"
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedCustomer(customer); setIsEditModalOpen(true); }}
+                          className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-500 cursor-pointer shadow-2xs"
+                        >
+                          <Edit size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -1638,17 +1813,18 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
       {(currentSubTab === 'customers' || currentSubTab === 'overview') && (
         <>
       {/* 1. Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
             {t.crmView?.title || 'Customer Relationship (CRM)'}
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
+          <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
             {t.crmView?.subtitle || 'Track customer profiles, purchase history, and AI sentiment analysis.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Responsive Control Bar */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           {/* Date Picker Badge (Interactive Selector) */}
           <button
             onClick={() => {
@@ -1657,22 +1833,22 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
               setDateFilterRange(next);
               triggerToast(`Periode Laporan disesuaikan ke: ${next}`);
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-300 shadow-xs hover:border-orange-500 cursor-pointer transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs hover:border-orange-500 cursor-pointer transition-colors"
           >
-            <Calendar size={14} className="text-orange-500" />
-            <span>{dateFilterRange}</span>
+            <Calendar size={13} className="text-orange-500 shrink-0" />
+            <span className="truncate">{dateFilterRange}</span>
           </button>
 
           <button 
             onClick={() => setIsFilterModalOpen(true)}
-            className={`px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+            className={`px-3 py-2 rounded-xl border text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs ${
               crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0
                 ? 'border-orange-500 bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-300'
                 : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
             }`}
           >
-            <Filter size={14} className="text-orange-500" />
-            <span>{t.crmView?.advancedFilter || 'Filter Advanced'}</span>
+            <Filter size={13} className="text-orange-500 shrink-0" />
+            <span className="whitespace-nowrap">{t.crmView?.advancedFilter || 'Filter'}</span>
             {(crmFilters.segment !== 'all' || crmFilters.status !== 'all' || crmFilters.cityRegion !== 'all' || crmFilters.minOrders > 0 || crmFilters.minSpend > 0) && (
               <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
             )}
@@ -1680,114 +1856,109 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
 
           <button 
             onClick={() => setIsImportModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs transition-all"
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs transition-all"
           >
-            <Download size={14} /> <span>{t.crmView?.importCustomers || 'Import Customers'}</span>
+            <Download size={13} /> <span className="whitespace-nowrap">Import</span>
           </button>
 
           <button 
             onClick={() => setIsExportModalOpen(true)}
-            className="px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 shadow-xs transition-all"
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs transition-all"
           >
-            <Upload size={14} /> <span>{t.crmView?.exportData || 'Export Data'}</span>
+            <Upload size={13} /> <span className="whitespace-nowrap">Export</span>
           </button>
 
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+            className="col-span-2 sm:col-span-1 px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all"
           >
-            <Plus size={16} /> <span>{t.crmView?.addCustomer || 'Tambah Customer'}</span>
+            <Plus size={15} /> <span className="whitespace-nowrap">{t.crmView?.addCustomer || 'Tambah Customer'}</span>
           </button>
         </div>
       </div>
 
       {/* 2. Top 5 Metric Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3.5">
         {/* Card 1: Total Customers */}
         <div 
           onClick={() => { setSegmentFilter('Semua Segment'); triggerToast('Menampilkan seluruh basis pelanggan'); }} 
-          className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-orange-500 cursor-pointer transition-all"
+          className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-2xs hover:border-orange-500 cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
+          <div className="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-extrabold">
             <span>{t.crmView?.totalCustomers || 'Total Customers'}</span>
-            <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center">
-              <Users size={16} />
+            <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center">
+              <Users size={14} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
               {customerData.customers.length.toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{customerData.customers.length > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
         {/* Card 2: New Customers */}
         <div 
           onClick={() => { setSegmentFilter('New'); triggerToast('Filter: Pelanggan Baru (New)'); }} 
-          className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-blue-500 cursor-pointer transition-all"
+          className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-2xs hover:border-blue-500 cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
+          <div className="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-extrabold">
             <span>{t.crmView?.newCustomers || 'New Customers'}</span>
-            <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center">
-              <UserPlus size={16} />
+            <div className="size-7 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 flex items-center justify-center">
+              <UserPlus size={14} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{newCount}</div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">{newCount}</div>
           </div>
         </div>
 
         {/* Card 3: Repeat Customers */}
         <div 
           onClick={() => { setSegmentFilter('Repeat'); triggerToast('Filter: Pelanggan Repeat'); }} 
-          className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-purple-500 cursor-pointer transition-all"
+          className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-2xs hover:border-purple-500 cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
+          <div className="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-extrabold">
             <span>{t.crmView?.repeatCustomers || 'Repeat Customers'}</span>
-            <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 flex items-center justify-center">
-              <RefreshCw size={16} />
+            <div className="size-7 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 flex items-center justify-center">
+              <RefreshCw size={14} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{repeatCount}</div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">{repeatCount}</div>
           </div>
         </div>
 
         {/* Card 4: Retention Rate */}
         <div 
           onClick={() => { setIsAIRetentionModalOpen(true); }} 
-          className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs hover:border-pink-500 cursor-pointer transition-all"
+          className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-2xs hover:border-pink-500 cursor-pointer transition-all"
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
+          <div className="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-extrabold">
             <span>{t.crmView?.retentionRate || 'Retention Rate'}</span>
-            <div className="size-8 rounded-xl bg-pink-50 text-pink-600 dark:bg-pink-950/60 dark:text-pink-400 flex items-center justify-center">
-              <Heart size={16} />
+            <div className="size-7 rounded-lg bg-pink-50 text-pink-600 dark:bg-pink-950/60 dark:text-pink-400 flex items-center justify-center">
+              <Heart size={14} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
               {totalCusts > 0 ? Math.round(((vipCount + loyalCount + repeatCount) / totalCusts) * 100) : 0}%
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
 
         {/* Card 5: Avg. Order Value */}
-        <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-xs col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-extrabold">
+        <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1.5 shadow-2xs col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-extrabold">
             <span>{t.crmView?.avgOrderValue || 'Avg. Order Value'}</span>
-            <div className="size-8 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 flex items-center justify-center">
-              <DollarSign size={16} />
+            <div className="size-7 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 flex items-center justify-center">
+              <DollarSign size={14} />
             </div>
           </div>
           <div>
-            <div className="text-xl font-black text-slate-900 dark:text-slate-100">
+            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
               Rp{(totalCusts > 0 ? Math.round(customerData.customers.reduce((acc: number, c: any) => acc + Number(c.total_spend_idr || 0), 0) / totalCusts) : 0).toLocaleString('id-ID')}
             </div>
-            <div className="text-[10px] font-bold text-slate-400 mt-0.5">{totalCusts > 0 ? 'Live DB Telemetry' : (t.crmView?.zeroState || 'Zero-State')}</div>
           </div>
         </div>
       </div>
@@ -2051,8 +2222,8 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
             </div>
           )}
 
-          {/* Table Rendering */}
-          <div className="overflow-x-auto">
+          {/* Table Rendering: Desktop Table + Mobile Cards */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs font-medium border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -2119,11 +2290,11 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                         </span>
                       </td>
 
-                      <td className="py-3 px-3 text-center font-extrabold text-slate-900 dark:text-slate-100">
+                      <td className="py-3 px-3 text-center font-extrabold text-slate-900 dark:text-slate-100 font-mono">
                         {customer.total_orders}
                       </td>
 
-                      <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-slate-100">
+                      <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-slate-100 font-mono">
                         Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}
                       </td>
 
@@ -2182,6 +2353,96 @@ export function CustomersView({ triggerToast, activeSubPage = 'customers', onNav
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="block md:hidden space-y-2.5">
+            {paginatedCustomers.map((customer: any, idx: number) => {
+              const avatarSrc = (customer.avatar_url && (
+                customer.avatar_url.startsWith('http') || 
+                customer.avatar_url.startsWith('data:') || 
+                customer.avatar_url.startsWith('blob:')
+              )) 
+                ? customer.avatar_url 
+                : getR2CdnUrl(customer.avatar_url || '', true);
+
+              return (
+                <div key={idx} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img 
+                        src={avatarSrc} 
+                        alt={customer.name}
+                        className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-2xs"
+                        onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = generateInitialsAvatar(customer.name);
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <span 
+                          onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                          className="font-extrabold text-slate-900 dark:text-slate-100 block truncate text-xs hover:text-orange-500 cursor-pointer"
+                        >
+                          {customer.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono block truncate">{customer.email || customer.phone}</span>
+                      </div>
+                    </div>
+
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border shrink-0 ${
+                      customer.segment === 'VIP' ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/60' :
+                      customer.segment === 'Loyal' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/60' :
+                      customer.segment === 'Repeat' ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/60' :
+                      'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/60'
+                    }`}>
+                      {customer.segment}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-200/60 dark:border-slate-700/50">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-medium">Total Spend</span>
+                      <span className="font-mono font-black text-slate-900 dark:text-slate-100">Rp{(customer.total_spend_idr || 0).toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 block text-[10px] font-medium">Orders / Last</span>
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{customer.total_orders || 1}x • {customer.last_order_at || 'Hari ini'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
+                      customer.status === 'Aktif' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    }`}>
+                      {customer.status}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button 
+                        onClick={() => { setSelectedCustomer(customer); setIsDetailModalOpen(true); }}
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-orange-500 cursor-pointer shadow-2xs"
+                      >
+                        <Eye size={13} />
+                      </button>
+                      <button 
+                        onClick={() => { setSelectedCustomer(customer); setIsEditModalOpen(true); }}
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-500 cursor-pointer shadow-2xs"
+                      >
+                        <Edit size={13} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCustomer(customer)}
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-red-500 cursor-pointer shadow-2xs"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Table Footer & Interactive Pagination */}

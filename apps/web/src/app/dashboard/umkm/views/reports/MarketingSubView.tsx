@@ -260,9 +260,6 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
           <div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <span>{m.headerTitle || 'Intelijen Pemasaran & Otomasi Campaign'}</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1">
-                <Cpu size={12} className="text-orange-500" /> {m.zeroClawEngineActive || 'ZeroClaw Engine Active'}
-              </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
               {m.headerSubtitle || 'Analisis efisiensi channel, konversi campaign, dan eksekusi iklan multi-platform terintegrasi.'}
@@ -777,7 +774,6 @@ export function MarketingSubView({ triggerToast, dateRange }: MarketingSubViewPr
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-                <span className="font-black flex items-center gap-1"><ShieldCheck size={14} /> {m.zeroClawReportEngineActive || 'ZeroClaw Report Engine Active'}</span>
                 <p className="leading-relaxed">
                   {m.reportEngineDesc || 'Laporan akan mengompilasi metrik impresi, CTR, spend IDR, dan revenue IDR terverifikasi dari Supabase.'}
                 </p>

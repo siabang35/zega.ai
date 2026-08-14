@@ -2910,9 +2910,6 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-violet-600 dark:text-violet-400" />
                     <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{k.newAgentsTitle || 'Katalog AI Terbaru'}</h3>
-                    <span className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-bold border border-violet-200/60 dark:border-violet-500/30">
-                      {k.thisWeekRelease || 'Rilis Minggu Ini'}
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                     {k.newAgentsSubtitle || 'Otomatisasi bisnis baru diluncurkan dengan performa 9Router ultra-cepat.'}
@@ -2974,10 +2971,6 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                             <div className="space-y-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{item.title}</h4>
-                                <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[9px] font-black border border-orange-200/60 flex items-center gap-1 shrink-0">
-                                  <Tag size={10} className="text-orange-500" />
-                                  <span>{item.release_tag || k.thisWeekRelease || 'Rilis Minggu Ini'}</span>
-                                </span>
                               </div>
                               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{item.description}</p>
                               <div className="flex items-center gap-3 text-[10px] text-slate-400 font-medium pt-0.5">
@@ -3029,12 +3022,8 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                         className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs hover:border-orange-500/50 transition-all flex flex-col justify-between group"
                       >
                         <div className="space-y-3.5">
-                          {/* Release Tag & Version Header */}
-                          <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black border border-orange-200/60 dark:border-orange-900/50 flex items-center gap-1">
-                              <Tag size={12} className="text-orange-500" />
-                              <span>{item.release_tag || k.thisWeekRelease || 'Rilis Minggu Ini'}</span>
-                            </span>
+                          {/* Version Tag Header */}
+                          <div className="flex items-center justify-end">
                             <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[9px] font-bold">
                               {item.version_tag || 'v3.4.0'}
                             </span>
@@ -3132,9 +3121,6 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
                     <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
                       {k.leaderboardTitle || 'Leaderboard AI Terpopuler'}
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-bold border border-rose-200/60 dark:border-rose-500/30">
-                      {k.realtimeTelemetry || 'Telemetry Real-time'}
-                    </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                     {k.leaderboardDesc || 'Peringkat berdasarkan eksekusi tugas nyata, latency 9Router, dan status AI ZeroClaw.'}

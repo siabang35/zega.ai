@@ -308,7 +308,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 max-w-full">
           <button
             onClick={() => loadCampaigns()}
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-200/80 dark:border-slate-700"
@@ -324,7 +324,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
             className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
           >
             <Plus size={14} />
-            <span>{m.createNewCampaign || '+ Buat Campaign Baru'}</span>
+            <span className="truncate">{m.createNewCampaign || '+ Buat Campaign Baru'}</span>
           </button>
         </div>
       </div>

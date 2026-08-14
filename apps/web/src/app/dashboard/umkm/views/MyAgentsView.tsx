@@ -434,26 +434,23 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {/* EXECUTIVE HEADER: TITLE + QUICK DEPLOY ACTIONS */}
       {/* ========================================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+            <div className="size-8 sm:size-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
               <Bot size={20} />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50">{m.title}</h1>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1.5 border border-emerald-500/20">
-              <Activity size={12} className="animate-pulse text-emerald-500" /> Supabase Realtime Live
-            </span>
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50">{m.title}</h1>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
             {m.subtitle}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto mt-1 md:mt-0">
           <button
             onClick={handleManualRefresh}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0"
             title="Force Refresh Database"
           >
             <RefreshCw size={15} className={refreshing ? 'animate-spin text-orange-500' : ''} />
@@ -461,10 +458,10 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
 
           <button
             onClick={() => setActiveModal('templates')}
-            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none min-w-0 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-2"
           >
-            <Layers size={15} className="text-slate-400" />
-            <span>{m.templates}</span>
+            <Layers size={14} className="text-slate-400 shrink-0" />
+            <span className="truncate">{m.templates}</span>
           </button>
 
           <button
@@ -481,10 +478,10 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
               });
               setActiveModal('deploy');
             }}
-            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+            className="flex-1 sm:flex-none min-w-0 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center gap-1 sm:gap-2 shadow-xs cursor-pointer transition-all"
           >
-            <Plus size={16} />
-            <span>{m.addEmployee}</span>
+            <Plus size={15} className="shrink-0" />
+            <span className="truncate">{m.addEmployee}</span>
           </button>
         </div>
       </div>
@@ -492,7 +489,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {/* METRICS OVERVIEW: 5 HIGH-DENSITY CARDS */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
         {[
           { label: m.totalEmployees, val: employees.length.toString(), change: 'Synced CDN', icon: Bot, color: 'text-orange-500 bg-orange-50 dark:bg-orange-950/60' },
           { label: m.activeNow, val: employees.filter(e => e.status === 'active' || e.status === 'working').length.toString(), change: 'Swarm Live', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60' },
@@ -501,16 +498,22 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
           { label: m.costSavedToday, val: `Rp${(kpis.revenue_generated_today ?? 0).toLocaleString('id-ID')}`, change: 'Live Revenue', icon: DollarSign, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/60' },
         ].map((mItem, i) => {
           const Icon = mItem.icon;
+          const isLastCard = i === 4;
           return (
-            <div key={i} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10.5px] font-semibold text-slate-400 block truncate">{mItem.label}</span>
+            <div
+              key={i}
+              className={`p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-2 ${
+                isLastCard ? 'col-span-2 sm:col-span-1 lg:col-span-1' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] sm:text-[10.5px] font-semibold text-slate-400 block truncate">{mItem.label}</span>
                 <div className={`size-7 rounded-lg ${mItem.color} flex items-center justify-center flex-shrink-0`}>
                   <Icon size={14} />
                 </div>
               </div>
               <div>
-                <div className="text-lg font-black text-slate-900 dark:text-slate-100">{mItem.val}</div>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">{mItem.val}</div>
                 <div className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-0.5">
                   <span>▲</span> <span>{mItem.change}</span>
                 </div>
@@ -526,7 +529,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
 
         {/* TABS */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none font-bold text-xs">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1.5 lg:pb-0 scrollbar-none font-bold text-xs -mx-1 px-1">
           {[
             { label: `${m.filterAll} (${employees.length})`, key: 'Semua' },
             { label: `${m.filterActive} (${employees.filter(e => e.status === 'active').length})`, key: 'Aktif' },
@@ -536,7 +539,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
             <button
               key={tab.key}
               onClick={() => setFilterTab(tab.key)}
-              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${filterTab === tab.key
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap text-[11px] sm:text-xs ${filterTab === tab.key
                   ? 'bg-orange-500 text-white shadow-xs font-black'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
@@ -547,7 +550,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
         </div>
 
         {/* SEARCH & TOGGLE SWITCHER */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="relative flex-1 sm:w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -555,42 +558,44 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={m.searchPlaceholder}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:border-orange-500 font-medium"
+              className="w-full pl-8 pr-3 py-2 sm:py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:border-orange-500 font-medium"
             />
           </div>
 
-          {/* DYNAMIC CATEGORY DROPDOWN */}
-          <div className="relative">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-1.5 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 appearance-none cursor-pointer focus:outline-none focus:border-orange-500"
-            >
-              <option value="All Categories">All Categories</option>
-              <option value="Support & Ops">Support & Ops</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Finance">Finance</option>
-              <option value="E-Commerce">E-Commerce</option>
-              <option value="Sales">Sales</option>
-            </select>
-            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          <div className="flex items-center gap-2 justify-between sm:justify-start">
+            {/* DYNAMIC CATEGORY DROPDOWN */}
+            <div className="relative flex-1 sm:flex-none">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 sm:py-1.5 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 appearance-none cursor-pointer focus:outline-none focus:border-orange-500"
+              >
+                <option value="All Categories">All Categories</option>
+                <option value="Support & Ops">Support & Ops</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Finance">Finance</option>
+                <option value="E-Commerce">E-Commerce</option>
+                <option value="Sales">Sales</option>
+              </select>
+              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
 
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
-              title="Grid View"
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
-              title="List View"
-            >
-              <List size={14} />
-            </button>
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
+                title="Grid View"
+              >
+                <LayoutGrid size={14} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-white dark:bg-slate-900 text-orange-500 shadow-xs' : 'text-slate-400'}`}
+                title="List View"
+              >
+                <List size={14} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -795,7 +800,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {activeModal === 'config' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
@@ -915,7 +920,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {activeModal === 'deploy' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
@@ -1076,7 +1081,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       {/* ========================================================================= */}
       {activeModal === 'templates' && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
