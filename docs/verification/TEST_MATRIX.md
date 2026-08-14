@@ -12,7 +12,7 @@
 
 Existing documentation referenced various numbers which represented specific sub-scopes rather than disjoint counts:
 * **"30 / 30 Test Suites"**: Refers to the `30` distinct test files enumerated below.
-* **"89 Platform Security Integration Tests"**: Refers to the security integration test subset (`foundation-hardening.test.ts` [47 tests] + `adversarial-security.test.ts` [43 tests] = 90 test cases).
+* **"89 Platform Security Integration Tests"**: Historical documentation previously stated 89. Current executable inventory identifies 90 (`foundation-hardening.test.ts` [47 tests] + `adversarial-security.test.ts` [43 tests] = 90 test cases). The origin of the historical discrepancy could not be independently established. Current canonical count is 90.
 * **"18 Tests"**: Refers specifically to `apps/api/src/__tests__/zeroclaw-privy-signing.test.ts` (18 tests).
 * **"7 Adversarial Probes"**: Refers to the cross-tenant probe suite executed via `scripts/run_cross_tenant_security_probe.py`.
 

@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Use Case
 
-**ZEGA AI** turns any self-hosted ZeroClaw Rust agent into an autonomous, enterprise-grade **Solana Pay QRIS Payment & Settlement Terminal**.
+**ZEGA AI** turns any self-hosted ZeroClaw Rust agent into an autonomous **Solana Pay QRIS Payment & Settlement Terminal** with 5-layer deterministic verification, multi-provider RPC failover, and persistent replay protection.
 
 ### Real-World Merchant Workflow
 Customer or cashier sends a message to the shop's Telegram / Web POS channel:

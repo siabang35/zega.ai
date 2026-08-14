@@ -1,6 +1,6 @@
 # ZEGA.AI Canonical Payment Infrastructure & Settlement Matrix (`x402`)
 
-**Executive Certification Status:** `LEVEL A+ — PRODUCTION OPERATIONALLY VERIFIED`  
+**Status:** `IMPLEMENTED` | **Evidence Level:** E2/E3/E4 | **Scope:** Settlement pipeline, withdrawal atomicity, and Privy signing as tested in `apps/api/src/__tests__/`  
 **Monorepo Packages:** `@zega/api`, `@zega/web`, `@zega/shared`, `@zega/supabase`  
 **Authoritative Source of Truth:** `docs/payments/x402_PAYMENT_INFRASTRUCTURE.md`  
 **Verification Date:** August 11, 2026  

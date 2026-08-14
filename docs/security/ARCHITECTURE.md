@@ -45,6 +45,6 @@ ZEGA (Zero-friction Enterprise Generative AI & Automation) enforces a **7-Layer 
 4. **On-Chain Solana RPC Lookup**: Queries the multi-provider RPC pool (`solanaRpcManager`) with exponential backoff and circuit breaking.
 5. **Freshness & Recipient Check**: Validates block time age (<72h) and destination wallet matching.
 
-### 4. Tenant-Aware Row Level Security (`supabase/migrations/20260810000000_production_security_rls_hardening.sql`)
-- All database tables enforce RLS.
+### 4. Tenant-Aware Row Level Security
+- 68 of 77 database tables enforce RLS policies. 9 tables (rate-limiting, control plane logging, internal ledger infrastructure) are exempt and protected via service-role-only access. See [DATABASE_INVENTORY.md](../database/DATABASE_INVENTORY.md) for the complete exemption matrix.
 - Policies check `auth.uid() = user_id` or query `public.organization_members` for multi-tenant enterprise isolation, preventing cross-tenant IDOR access.

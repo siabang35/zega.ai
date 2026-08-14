@@ -120,8 +120,13 @@ Enterprise Organization (e.g., Global Retail Corp)
     └── Dedicated Cloud Deployment (deployment_dep_987)
 ```
 
-### Table Scope Standardization (`org_id` -> `organization_id`)
-All enterprise tables are migrated to use `organization_id` as the standard foreign key column. Enterprise tables lacking tenant columns are assigned explicit ownership (`organization_id` or `workspace_id`) or reclassified as `GLOBAL` system catalogs.
+### Tenant Identifier Security Boundary & Reconciliation (`organization_id` vs `org_id`)
+
+The platform's tenant isolation framework classifies tenant identity attributes as follows:
+
+* **Canonical Tenant Identifier**: `organization_id` (Primary UUID foreign key referencing `public.organizations(id)` across core and UMKM tables).
+* **Transitional / Legacy Identifier**: `org_id` (Legacy attribute coexisting in enterprise-tier tables).
+* **Migration & Standardization State**: **Transitional coexistence / incomplete standardization**. Migration `20260812235900` backfills `organization_id` from valid `org_id` values and enforces `CHECK (org_id IS NULL OR organization_id IS NULL OR org_id = organization_id)` where applicable. Full standardization remains in progress until remaining legacy dependencies are completely migrated or explicitly reclassified.
 
 ---
 

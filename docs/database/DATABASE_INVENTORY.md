@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS public.data_migration_exceptions (
 ## 5. Database Schema & Data Integrity Evaluation
 
 ### Schema Drift Evaluation
-1. **Naming Standardization**: Enterprise tables standardized from `org_id` to `organization_id`.
+1. **Naming Convention**: `organization_id` (FK → `public.organizations`) is the canonical tenant identifier. `org_id` is a legacy/transitional identifier coexisting in enterprise-tier tables. Current state is classified as **Transitional coexistence / incomplete standardization**. Migration `20260812235900` backfills `organization_id` from valid `org_id` values and enforces `CHECK (org_id IS NULL OR organization_id IS NULL OR org_id = organization_id)` where applicable.
 2. **Composite Tenancy Indexes**: High-traffic query patterns require composite tenant indexes:
    - `CREATE INDEX idx_sales_products_org_ws ON public.umkm_sales_products(organization_id, store_id);`
    - `CREATE INDEX idx_invoices_org_created ON public.umkm_invoices(organization_id, created_at DESC);`

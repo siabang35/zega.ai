@@ -28,7 +28,7 @@ ZEGA.AI is an AI-native enterprise platform structured around three distinct, de
 
 ## 2. Monorepo Workspace Structure & Deployment Architecture
 
-ZEGA AI uses an enterprise-grade monorepo architecture built with **pnpm workspaces** and **Turborepo** build orchestration:
+ZEGA AI uses a monorepo architecture built with **pnpm workspaces** and **Turborepo** build orchestration:
 
 ```text
 ZEGA/

@@ -22,10 +22,10 @@ Evidence Legend:
 
 | Claim ID | Category | Documented Assertion | Repository Evidence Reference | Evidence Level | Verification Command | Status |
 |---|---|---|---|---|---|---|
-| **CLM-DB-01** | Database | "397 database tables audited" | `supabase/migrations/*.sql` (56 files) | **E3 / E6** | `python3 /tmp/generate_db_inventory.py` | `RECONCILED` (77 tables exist) |
+| **CLM-DB-01** | Database | "397 database tables audited" | `supabase/migrations/*.sql` (56 files) | **E3 / E6** | `python3 scripts/verification/generate_db_inventory.py` | `RECONCILED` (77 tables exist) |
 | **CLM-DB-02** | Database | "100% RLS tenant isolation" | 68/77 tables enabled; 9 system tables exempt | **E3 / E4** | `DATABASE_INVENTORY.md` | `PARTIALLY_VERIFIED` |
 | **CLM-TST-01**| Verification| "30/30 test suites" | 30 test files in `apps/api` & `packages` | **E4 / E6** | `pnpm --filter @zega/api test` | `VERIFIED` (366 test cases) |
-| **CLM-TST-02**| Verification| "89 platform security integration tests" | `foundation-hardening.test.ts` & `adversarial-security.test.ts` | **E4** | `TEST_MATRIX.md` | `RECONCILED` (89 subset tests) |
+| **CLM-TST-02**| Verification| "89 platform security integration tests" | `foundation-hardening.test.ts` (47) & `adversarial-security.test.ts` (43) | **E4** | `TEST_MATRIX.md` | `RECONCILED` (Historical citation cited 89; current executable inventory proves 90. Origin of historical discrepancy could not be independently established; canonical count is 90) |
 | **CLM-SOL-01**| Solana Pay | "Replay attack protection" | Unique index on signature in `zeroclaw_solana_settlements` | **E3 / E4** | `settlement-integration.test.ts` | `VERIFIED` |
 | **CLM-SOL-02**| Solana Pay | "Mint & recipient verification" | `settlementValidation.ts` & `settlementVerificationService.ts` | **E2 / E4** | `check-payment-strictness.test.ts` | `VERIFIED` |
 | **CLM-WTH-01**| Withdrawals | "Atomic concurrency lock" | Row-level `FOR UPDATE` lock in `WithdrawalService.ts` | **E2 / E4** | `withdrawal-concurrency-remediation.test.ts` | `VERIFIED` |

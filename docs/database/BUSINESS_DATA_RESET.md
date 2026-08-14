@@ -1,7 +1,7 @@
 # ZEGA Business Data Reset Standard Operating Procedure (SOP)
 
 ## Purpose
-This document defines the production-grade operational workflow and governance rules for resetting ZEGA's customer business data. The objective is to achieve a clean zero-state for all business metrics (Revenue, Orders, Products, Customers, Inventory, Financials, AI/RAG Memory, Reports, and Analytics) while preserving platform identity, multi-tenant hierarchy, authorization structures, and global configuration.
+This document defines the documented and governed operational workflow and governance rules for resetting ZEGA's customer business data. The objective is to achieve a clean zero-state for all business metrics (Revenue, Orders, Products, Customers, Inventory, Financials, AI/RAG Memory, Reports, and Analytics) while preserving platform identity, multi-tenant hierarchy, authorization structures, and global configuration.
 
 ## Scope & Safety Invariants
 

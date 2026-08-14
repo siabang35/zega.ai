@@ -26,5 +26,5 @@ Rather than relying on uncertified numeric scores, system quality and security s
 
 1. **Database RLS Integrity**: `68 / 77` tables protected by RLS; `9` system control plane tables explicitly exempt (`DATABASE_INVENTORY.md`).
 2. **Automated Test Coverage**: `30` test files, `366` individual test cases passing (`TEST_MATRIX.md`).
-3. **Solana Settlement Verification**: Signature freshness, mint verification, recipient validation, and replay protection enforced in API routes (`SOLANA_PAYMENT_SECURITY_MATRIX.md`).
+3. **Solana Settlement Verification**: Signature freshness, mint verification, recipient validation, and replay protection enforced in API routes (`x402_PAYMENT_INFRASTRUCTURE.md`).
 4. **ZeroClaw Bridge Verification**: Daemon harness and Privy signature bridge verified (`ZEROCLAW_INTEGRATION_MATRIX.md`).

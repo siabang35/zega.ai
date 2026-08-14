@@ -23,14 +23,31 @@ FORBIDDEN_RHETORIC = [
     (r'battle-tested', 'battle-tested'),
     (r'bulletproof', 'bulletproof'),
     (r'unbreakable', 'unbreakable'),
-    (r'enterprise-grade\s*security', 'enterprise-grade security'),
+    (r'enterprise-grade', 'enterprise-grade'),
+    (r'production-grade', 'production-grade'),
+    (r'certified', 'certified'),
+    (r'fully\s*hardened', 'fully hardened'),
+    (r'completely\s*hardened', 'completely hardened'),
 ]
 
-# Rule definition files where forbidden terms are defined as rules, not used as hype
+# Rule definition files, historical reports, and E1 specifications
+# where forbidden terms appear as rule definitions, historical fidelity, or design goals
 RULE_DEFINITION_FILES = {
     'governance/EVIDENCE_STANDARD.md',
     'audit/CLAIM_EVIDENCE_RECONCILIATION.md',
+    'audit/AUDIT_SCORE_RECONCILIATION.md',
+    'ZEGA_FINAL_HARDENING_REPORT.md',           # HISTORICAL
+    'ZEGA_FINAL_REMEDIATION_REPORT.md',          # HISTORICAL
+    'ZEROCLAW_FORENSIC_AUDIT.md',                # HISTORICAL
+    'REMEDIATION_BASELINE.md',                   # HISTORICAL
+    'audit/ZEGA_ENTERPRISE_PRODUCTION_READINESS_AUDIT.md',  # HISTORICAL
+    'audit/ZEGA_FINAL_ENTERPRISE_PRODUCTION_HARDENING_REPORT.md',  # HISTORICAL
+    'audit/ZEGA_PRODUCTION_HARDENING_REPORT.md', # HISTORICAL
 }
+
+# Directories containing E1 specification or grant submission documents
+# where terms like 'enterprise-grade' describe design goals, not security claims
+SPECIFICATION_DIRECTORIES = ('PRD/', 'superteam/')
 
 # Known external, planned, or upstream-referenced paths in specs/guides
 PLANNED_OR_EXTERNAL_PATHS_PREFIXES = (
@@ -67,6 +84,8 @@ DELETED_SUPERSEDED_DOCS = [
     'MONOREPO_ARCHITECTURE.md',
     'ARCHITECTURE_ZEROCLAW_PRIVY_REALTIME.md',
     'ZEGA_PRIVY_WITHDRAWAL_ARCHITECTURE.md',
+    'RLS.md',
+    'PII_AUDIT.md',
 ]
 
 def strip_code_blocks(text):
@@ -138,8 +157,8 @@ def run_docs_integrity_audit(repo_root=None):
                     line_no = content[:idx].count('\n') + 1
                     invalid_repo_paths.append((rel_doc, line_no, f"Reference to superseded doc '{deleted_doc}'"))
 
-        # Check rhetoric (skip rule definition files)
-        if rel_doc not in RULE_DEFINITION_FILES:
+        # Check rhetoric (skip rule definition files and specification directories)
+        if rel_doc not in RULE_DEFINITION_FILES and not any(rel_doc.startswith(d) for d in SPECIFICATION_DIRECTORIES):
             for pattern, label in FORBIDDEN_RHETORIC:
                 for m in re.finditer(pattern, content, re.IGNORECASE):
                     line_no = content[:m.start()].count('\n') + 1

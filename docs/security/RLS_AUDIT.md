@@ -1,3 +1,9 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records pre-remediation RLS findings. The 295-table inventory and 36-table anonymous exposure reflect the state **BEFORE** migrations `20260812235900` and `20260810000000`. For current RLS status, refer to [DATABASE_INVENTORY.md](../database/DATABASE_INVENTORY.md) (68/77 RLS-enabled, 9 exempt, 148 policies).
+
+---
+
 # PostgreSQL Row Level Security (RLS) Comprehensive Security Audit
 
 ## 1. Executive Forensic RLS Summary

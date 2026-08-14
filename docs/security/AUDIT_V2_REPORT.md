@@ -16,7 +16,7 @@
   - Fail-closed sliding window rate limiting prevents database outage brute-forcing.
   - Canonical Solana 5-Layer Settlement Verification Service operates deterministically.
 - **Production Readiness Status**: **CONDITIONALLY READY**
-  - Core security boundaries, settlement verification, and RLS policies are production-grade. Operational controls (multi-instance Redis rate limiter, environment-based superadmin bootstrap) are recommended before enterprise scale deployment.
+  - Core security boundaries, settlement verification, and RLS policies are implemented and tested (E2/E4). Operational controls (multi-instance Redis rate limiter, environment-based superadmin bootstrap) are recommended before enterprise scale deployment.
 
 ---
 
