@@ -46,7 +46,7 @@ interface StoreViewProps {
 }
 
 export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigateTab }: StoreViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const s = (t.storeView || {}) as any;
   const [storeData, setStoreData] = useState<any>({
     metrics: {
@@ -822,7 +822,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
               onClick={() => onNavigateTab ? onNavigateTab('top_selling') : handleShowTopSelling()} 
               className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[10px] font-black cursor-pointer flex items-center gap-1 transition-all"
             >
-              <span>{s.seeAll || 'Lihat Semua'}</span>
+              <span>{s.seeAll || (language === 'en' ? 'See All' : language === 'zh' ? '查看全部' : 'Lihat Semua')}</span>
               <ChevronRight size={11} />
             </button>
           </div>
@@ -879,7 +879,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 onClick={() => onNavigateTab ? onNavigateTab('manage_stock_limit') : handleShowLowStock()} 
                 className="px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/60 text-[10px] font-black cursor-pointer flex items-center gap-1 transition-all"
               >
-                <span>{s.seeAll || 'Lihat Semua'}</span>
+                <span>{s.seeAll || (language === 'en' ? 'See All' : language === 'zh' ? '查看全部' : 'Lihat Semua')}</span>
                 <ChevronRight size={11} />
               </button>
             </div>
@@ -1175,7 +1175,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 onClick={() => { setCategoryFilter('Semua Kategori'); setLowStockFilter(false); triggerToast('Semua kategori ditampilkan'); }} 
                 className="text-[10px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                {s.seeAll || 'Lihat Semua'}
+                {s.seeAll || (language === 'en' ? 'See All' : language === 'zh' ? '查看全部' : 'Lihat Semua')}
               </button>
             </div>
 

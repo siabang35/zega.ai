@@ -7,7 +7,8 @@ import {
   MessageSquare, FileText, BarChart3, DollarSign, Database, ShieldAlert,
   Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Calendar,
   Megaphone, ShoppingBag, BookOpen, Building, HelpCircle, PanelLeftClose, PanelLeftOpen, Send,
-  Maximize2, Minimize2, Plus, History, ArrowLeft, Trash2
+  Maximize2, Minimize2, Plus, History, ArrowLeft, Trash2, TrendingUp, FileCode, Award,
+  Printer, Upload, Code, User, Cpu
 } from 'lucide-react';
 
 import { UmkmDashboardView } from './UmkmDashboard';
@@ -251,6 +252,235 @@ export function UmkmDashboardContainer({
   const [liveTime, setLiveTime] = useState(new Date().toLocaleTimeString('id-ID'));
   const [calendarCurrentMonth, setCalendarCurrentMonth] = useState(new Date());
   const [realtimeTodayDate, setRealtimeTodayDate] = useState(new Date());
+
+  // Global Command Palette Search Modal State (Ctrl + K / Cmd + K)
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [searchSelectedIndex, setSearchSelectedIndex] = useState(0);
+
+  // Keyboard shortcut listener (Ctrl + K or Cmd + K)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  // Multi-Language Search Placeholder & Catalog Generator
+  const getSearchPlaceholder = () => {
+    if (language === 'en') return 'Search anything... (Ctrl + K)';
+    if (language === 'zh') return '搜索任意内容... (Ctrl + K)';
+    return 'Cari apa saja... (Ctrl + K)';
+  };
+
+  const getSearchItems = () => {
+    const isEn = language === 'en';
+    const isZh = language === 'zh';
+
+    const modules = [
+      { id: 'home', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Home & Dashboard Overview' : isZh ? '首页与仪表板概览' : 'Beranda & Ringkasan Dashboard', icon: LayoutDashboard, keywords: 'home beranda overview dashboard' },
+      { id: 'my_agents', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'AI Employees Workforce' : isZh ? 'AI 员工团队' : 'Karyawan AI & Workforce', icon: Bot, keywords: 'ai employees workforce agent bot' },
+      { id: 'sandbox', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Automation Workflows Engine' : isZh ? '自动化工作流引擎' : 'Alur Kerja Otomatisasi', icon: Workflow, keywords: 'automation workflow otomatisasi trigger' },
+      { id: 'wa_bot', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Multi-Channel Inbox (WhatsApp)' : isZh ? '多渠道收件箱 (WhatsApp)' : 'Kotak Masuk (WhatsApp & DM)', icon: MessageSquare, keywords: 'inbox whatsapp chat dm instagram' },
+      { id: 'sales_rekap', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Sales Analytics & Transactions' : isZh ? '销售分析与交易记录' : 'Analitik & Rekap Penjualan', icon: BarChart3, keywords: 'sales rekap penjualan transaksi revenue' },
+      { id: 'ai_copywriter', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'AI Marketing & Copywriter' : isZh ? 'AI 营销与文案生成' : 'Pemasaran & AI Copywriter', icon: Megaphone, keywords: 'marketing pemasaran promo copywriter content' },
+      { id: 'invoice_gen', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Finance & Invoices' : isZh ? '财务与发票管理' : 'Keuangan, Cashflow & Invoice', icon: DollarSign, keywords: 'finance keuangan invoice tax e-faktur qris' },
+      { id: 'store', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Store Management & Products' : isZh ? '店铺管理与商品目录' : 'Manajemen Toko & Produk', icon: Store, keywords: 'store toko produk catalog stock barang' },
+      { id: 'customers', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Customer CRM & Segmentations' : isZh ? '客户 CRM 与客群细分' : 'Pelanggan & CRM Segmentasi', icon: Users, keywords: 'customer pelanggan crm buyer segmentation' },
+      { id: 'reports', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'AI Executive Reports' : isZh ? 'AI 高管报告' : 'Laporan AI & Analytics', icon: PieChart, keywords: 'reports laporan pdf executive analytics' },
+      { id: 'knowledge', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Knowledge Base Studio' : isZh ? '知识库与文档中心' : 'Basis Pengetahuan & Dokumen', icon: BookOpen, keywords: 'knowledge basis pengetahuan docs studio' },
+      { id: 'integrations', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Marketplace & Integrations' : isZh ? '插件市场与 API 集成' : 'Marketplace & Integrasi System', icon: Building, keywords: 'marketplace integrasi plugins webhook API' },
+      { id: 'billing', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Billing & Plan Upgrades' : isZh ? '账单与套餐升级' : 'Tagihan, Paket & Billing', icon: CreditCard, keywords: 'billing tagihan plan upgrade invoice credits' },
+      { id: 'settings', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'System Settings & Security' : isZh ? '系统设置与安全配置' : 'Pengaturan Sistem & Keamanan', icon: Settings, keywords: 'settings pengaturan profile team security' },
+      { id: 'help', category: isEn ? 'Modules' : isZh ? '模块' : 'Modul Utama', label: isEn ? 'Help Center & API Docs' : isZh ? '帮助中心与 API 文档' : 'Pusat Bantuan & Dokumen API', icon: HelpCircle, keywords: 'help bantuan support faq webhook SDK' }
+    ];
+
+    const actions = [
+      {
+        id: 'action_invoice',
+        category: isEn ? 'Quick Actions' : isZh ? '快捷操作' : 'Tindakan Cepat',
+        label: isEn ? 'Create New Invoice' : isZh ? '创建新发票' : 'Buat Invoice Baru',
+        icon: Plus,
+        keywords: 'buat invoice create new invoice bill',
+        handler: () => {
+          setActiveTab('invoice_gen');
+          triggerToast(isEn ? '✓ Opening Invoice Creator...' : isZh ? '✓ 打开发票创建工具...' : '✓ Membuka Pembuat Invoice...');
+        }
+      },
+      {
+        id: 'action_broadcast',
+        category: isEn ? 'Quick Actions' : isZh ? '快捷操作' : 'Tindakan Cepat',
+        label: isEn ? 'Send WhatsApp Promo Broadcast' : isZh ? '发送 WhatsApp 促销广播' : 'Kirim Broadcast Promo WhatsApp',
+        icon: Send,
+        keywords: 'broadcast whatsapp promo messaging',
+        handler: () => {
+          setActiveTab('wa_bot');
+          triggerToast(isEn ? '✓ Opening WhatsApp Broadcast...' : isZh ? '✓ 打开 WhatsApp 广播...' : '✓ Membuka Broadcast WhatsApp...');
+        }
+      },
+      {
+        id: 'action_product',
+        category: isEn ? 'Quick Actions' : isZh ? '快捷操作' : 'Tindakan Cepat',
+        label: isEn ? 'Add New Product to Catalog' : isZh ? '添加新商品到目录' : 'Tambah Produk Baru ke Katalog',
+        icon: ShoppingBag,
+        keywords: 'tambah produk add product catalog item',
+        handler: () => {
+          setActiveTab('store');
+          triggerToast(isEn ? '✓ Opening Store Catalog...' : isZh ? '✓ 打开商品目录...' : '✓ Membuka Katalog Toko...');
+        }
+      },
+      {
+        id: 'action_upgrade',
+        category: isEn ? 'Quick Actions' : isZh ? '快捷操作' : 'Tindakan Cepat',
+        label: isEn ? 'Upgrade to Scale Enterprise Plan' : isZh ? '升级到 Scale 企业套餐' : 'Upgrade ke Paket Scale Enterprise',
+        icon: Zap,
+        keywords: 'upgrade plan scale enterprise credit',
+        handler: () => {
+          setActiveTab('billing');
+          triggerToast(isEn ? '✓ Opening Billing & Upgrade Plan...' : isZh ? '✓ 打开账单与套餐升级...' : '✓ Membuka Langganan & Upgrade...');
+        }
+      },
+      {
+        id: 'action_lang_id',
+        category: isEn ? 'Language Preferences' : isZh ? '语言偏好设置' : 'Pengaturan Bahasa',
+        label: 'Switch UI Language to Bahasa Indonesia 🇮🇩',
+        icon: Sparkles,
+        keywords: 'bahasa indonesia id indonesian language',
+        handler: () => {
+          setLanguage('id');
+          triggerToast('✓ Bahasa antarmuka diubah ke Bahasa Indonesia 🇮🇩');
+        }
+      },
+      {
+        id: 'action_lang_en',
+        category: isEn ? 'Language Preferences' : isZh ? '语言偏好设置' : 'Pengaturan Bahasa',
+        label: 'Switch UI Language to English 🇺🇸',
+        icon: Sparkles,
+        keywords: 'english en us language',
+        handler: () => {
+          setLanguage('en');
+          triggerToast('✓ Interface language switched to English 🇺🇸');
+        }
+      },
+      {
+        id: 'action_lang_zh',
+        category: isEn ? 'Language Preferences' : isZh ? '语言偏好设置' : 'Pengaturan Bahasa',
+        label: 'Switch UI Language to Chinese 中文 🇨🇳',
+        icon: Sparkles,
+        keywords: 'chinese zh mandarin 中文 language',
+        handler: () => {
+          setLanguage('zh');
+          triggerToast('✓ 界面语言已切换为中文 (简体) 🇨🇳');
+        }
+      }
+    ];
+
+    return [...modules, ...actions];
+  };
+
+  // Live Database Search State (Debounced Supabase GIN Trigram RPC)
+  const [dbSearchResults, setDbSearchResults] = useState<any[]>([]);
+  const [isDbSearching, setIsDbSearching] = useState(false);
+
+  // Debounced Supabase GIN Trigram Search Effect (300ms anti-throttling delay)
+  useEffect(() => {
+    const q = globalSearchQuery.trim();
+    if (!q || q.length < 2) {
+      setDbSearchResults([]);
+      setIsDbSearching(false);
+      return;
+    }
+
+    setIsDbSearching(true);
+    const handler = setTimeout(async () => {
+      try {
+        const { data } = await SupabaseDashboardService.executeGlobalSearch(q, 15, 0);
+        if (data && Array.isArray(data)) {
+          const iconMap: Record<string, any> = {
+            LayoutDashboard,
+            Bot,
+            Workflow,
+            MessageSquare,
+            BarChart3,
+            Megaphone,
+            DollarSign,
+            Store,
+            Users,
+            PieChart,
+            BookOpen,
+            Building,
+            CreditCard,
+            Settings,
+            HelpCircle,
+            ShoppingBag,
+            FileText,
+            Zap,
+            Activity,
+            TrendingUp,
+            Sparkles,
+            FileCode,
+            Send,
+            Target,
+            Award,
+            Printer,
+            Upload,
+            Code,
+            User,
+            Cpu,
+            Key
+          };
+
+          const mapped = data.map((item: any) => {
+            const itemTypeTag = item.metadata?.item_type === 'menu'
+              ? '[Menu]'
+              : item.metadata?.item_type === 'submenu'
+              ? '[Submenu]'
+              : item.metadata?.item_type === 'quick_action'
+              ? '[Tindakan]'
+              : '[Data]';
+
+            return {
+              id: `db_${item.id}`,
+              category: `${itemTypeTag} ${item.category}`,
+              label: item.title,
+              subtitle: item.subtitle,
+              icon: iconMap[item.icon_type] || Sparkles,
+              handler: () => {
+                setActiveTab(item.target_tab);
+                const subMsg = item.metadata?.target_subitem ? ` • ${item.metadata.target_subitem}` : '';
+                triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.title}${subMsg}`);
+              }
+            };
+          });
+          setDbSearchResults(mapped);
+        } else {
+          setDbSearchResults([]);
+        }
+      } catch (err) {
+        setDbSearchResults([]);
+      } finally {
+        setIsDbSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [globalSearchQuery]);
+
+  const filteredCatalogItems = getSearchItems().filter((item) => {
+    const q = globalSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      item.label.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      (item.keywords && item.keywords.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredSearchItems = [...dbSearchResults, ...filteredCatalogItems];
 
   // Live ticking real-time clock & date auto-updater for enterprise calendar header
   useEffect(() => {
@@ -1007,17 +1237,17 @@ const stripMarkdown = (text?: string): string => {
         className={`border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 ease-in-out relative ${isCollapsed ? 'w-20' : 'w-64'
           }`}
       >
-        <div className="p-4 space-y-4 overflow-y-auto overflow-x-hidden">
-          {/* Logo Header & Collapse Toggle */}
+        {/* Fixed Header aligned with Top Navbar (h-16 / min-h-16) */}
+        <div className="min-h-16 h-16 px-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
           {!isCollapsed ? (
-            <div className="flex items-center justify-between pb-2">
-              <div className="flex flex-col justify-center">
+            <>
+              <div className="flex flex-col justify-center min-w-0">
                 <img
                   src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                   alt="ZEGA AI Platform"
-                  className="h-11 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
+                  className="h-8 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
                 />
-                <span className="text-[9.5px] text-slate-400 font-semibold block mt-0.5 whitespace-nowrap">
+                <span className="text-[9px] text-slate-400 font-semibold block mt-0.5 whitespace-nowrap truncate">
                   {t.umkmWidget?.subtitle || 'AI Platform untuk UMKM'}
                 </span>
               </div>
@@ -1029,50 +1259,24 @@ const stripMarkdown = (text?: string): string => {
               >
                 <PanelLeftClose size={18} />
               </button>
-            </div>
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-2.5 pb-2">
+            <div className="w-full flex items-center justify-center">
               <button
                 onClick={toggleSidebar}
                 title={t.umkmWidget?.expandSidebar || 'Perluas Sidebar'}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/50 transition-all cursor-pointer flex items-center justify-center"
               >
                 <PanelLeftOpen size={20} />
               </button>
-              <img
-                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                alt="ZEGA AI Platform"
-                className="h-12 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
-              />
             </div>
           )}
+        </div>
 
-          {/* User Profile Card below logo */}
-          <div className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 transition-all duration-300 ${isCollapsed ? 'p-2 flex justify-center' : 'p-3 flex items-center justify-between'
-            }`}>
-            <div className="flex items-center gap-2.5 truncate">
-              <img
-                src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
-                alt="Profile Avatar"
-                className="size-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-              />
-              {!isCollapsed && (
-                <div className="truncate transition-all duration-300">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
-                      Owner
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{userEmail}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
+        {/* Scrollable Nav Body */}
+        <div className="p-4 space-y-4 overflow-y-auto overflow-x-hidden flex-1">
           {/* 3 Categorized Menu Sections */}
-          <nav className="space-y-4 pt-1">
+          <nav className="space-y-4">
             {renderNavGroup(t.umkmCategories?.overview || 'OVERVIEW', menuOverview)}
             {renderNavGroup(t.umkmCategories?.business || 'BISNIS', menuBusiness)}
             {renderNavGroup(t.umkmCategories?.settings || 'PENGATURAN', menuSettings)}
@@ -1080,44 +1284,42 @@ const stripMarkdown = (text?: string): string => {
         </div>
 
         {/* Sidebar Bottom Widgets */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
-          {/* Paket Anda Card (Expanded vs Collapsed Compact Mode) */}
+        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 bg-white dark:bg-slate-900">
+          {/* Unified Enterprise User & Plan Card */}
           {!isCollapsed ? (
-            <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2 transition-all duration-300">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-bold text-slate-400">{t.umkmWidget?.yourPlan || 'Paket Anda'}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${billingOverview?.plan?.status === 'Aktif'
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                  }`}>
-                  {billingOverview?.plan?.status === 'Aktif' ? (t.umkmWidget?.active || 'Aktif') : (t.umkmWidget?.inactive || 'Inaktif')}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2.5">
+            <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2.5 transition-all duration-300">
+              {/* User Profile Info */}
+              <div className="flex items-center gap-2.5 min-w-0">
                 <img
-                  src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                  alt="Rocket Upgrade"
-                  className="h-7 w-auto object-contain shrink-0"
+                  src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                  alt="Profile Avatar"
+                  className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                 />
-                <div>
-                  <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">{billingOverview?.plan?.plan_name || 'Free'}</h5>
-                  <p className="text-[9.5px] text-slate-400 font-medium">
-                    {billingOverview?.plan?.expires_at ? `${t.umkmWidget?.expiresOn || 'Berakhir pada'} ${new Date(billingOverview.plan.expires_at).toLocaleDateString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : (t.umkmWidget?.noActivePlan || 'Tidak ada paket aktif')}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 shrink-0">
+                      Owner
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{userEmail}</p>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between text-[9.5px] font-bold text-slate-500">
-                  <span>AI Credits</span>
-                  <span className="text-slate-900 dark:text-slate-100">
+              {/* Plan & AI Credits Progress */}
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-bold">
+                  <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {billingOverview?.plan?.plan_name || 'Growth'} Plan
+                  </span>
+                  <span className="text-slate-900 dark:text-slate-100 font-mono text-[9.5px]">
                     {(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')}
                   </span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${billingOverview?.plan?.credits_pct || 0}%` }} />
+                  <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${billingOverview?.plan?.credits_pct || 0}%` }} />
                 </div>
               </div>
 
@@ -1126,7 +1328,7 @@ const stripMarkdown = (text?: string): string => {
                   setActiveTab('billing');
                   triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.billing || 'Billing'}...`);
                 }}
-                className="w-full py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-800 dark:text-slate-200 text-[11px] font-bold transition-colors cursor-pointer"
+                className="w-full py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold transition-colors cursor-pointer"
               >
                 {t.umkmWidget?.managePlan || 'Kelola Paket'}
               </button>
@@ -1134,16 +1336,16 @@ const stripMarkdown = (text?: string): string => {
           ) : (
             <div
               onClick={() => setActiveTab('billing')}
-              className="p-2 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
-              title={`${billingOverview?.plan?.plan_name || 'Free'} Plan: ${(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / ${(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} AI Credits`}
+              className="p-2 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
+              title={`${userName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
             >
               <img
-                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
-                onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                alt="Rocket"
-                className="h-6 w-auto object-contain shrink-0"
+                src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                alt="Profile Avatar"
+                className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
               />
-              <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 mt-0.5">{billingOverview?.plan?.credits_pct || 0}%</span>
+              <span className="text-[8.5px] font-black text-orange-600 dark:text-orange-400 mt-1">{billingOverview?.plan?.credits_pct || 0}%</span>
             </div>
           )}
 
@@ -1205,12 +1407,17 @@ const stripMarkdown = (text?: string): string => {
               className="h-6.5 sm:h-7 w-auto object-contain md:hidden shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] ml-0.5"
             />
 
-            <div className="relative w-full hidden sm:block">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div
+              onClick={() => setIsSearchOpen(true)}
+              className="relative w-full hidden sm:block cursor-pointer group"
+            >
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-orange-500 transition-colors" />
               <input
                 type="text"
-                placeholder="Cari apa saja... (Ctrl + K)"
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-orange-500 transition-all font-medium"
+                readOnly
+                placeholder={getSearchPlaceholder()}
+                onClick={() => setIsSearchOpen(true)}
+                className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-orange-500 transition-all font-medium cursor-pointer shadow-2xs"
               />
             </div>
           </div>
@@ -1238,10 +1445,10 @@ const stripMarkdown = (text?: string): string => {
             </button>
 
             {/* 2. REAL-TIME ENTERPRISE CALENDAR & SCHEDULE POPUP */}
-            <div className="relative hidden sm:block shrink-0">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setCalendarOpen(!calendarOpen)}
-                className="p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors relative"
+                className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors relative"
                 title="Kalender & Jadwal Real-Time"
               >
                 <Calendar size={16} />
@@ -1251,24 +1458,24 @@ const stripMarkdown = (text?: string): string => {
               {calendarOpen && (
                 <>
                   <div
-                    className="fixed inset-0 z-40 bg-transparent"
+                    className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-xs"
                     onClick={() => setCalendarOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-[70] p-3.5 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200 max-w-[328px] mx-auto sm:mx-0">
+                    <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
-                        <Calendar size={16} className="text-orange-500" />
+                        <Calendar size={15} className="text-orange-500 shrink-0" />
                         <div>
                           <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">
                             {calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
                           </h4>
-                          <p className="text-[10px] text-orange-500 font-bold flex items-center gap-1">
+                          <p className="text-[9.5px] text-orange-500 font-bold flex items-center gap-1">
                             <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
-                            <span>{liveTime} WIB • Live Real-Time</span>
+                            <span>{liveTime} WIB • Live</span>
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => {
                             const prev = new Date(calendarCurrentMonth);
@@ -1290,6 +1497,14 @@ const stripMarkdown = (text?: string): string => {
                           title="Bulan Berikutnya"
                         >
                           <ChevronRight size={14} />
+                        </button>
+                        {/* Explicit Mobile Close Button */}
+                        <button
+                          onClick={() => setCalendarOpen(false)}
+                          className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer ml-1"
+                          title="Tutup Kalender"
+                        >
+                          <X size={15} />
                         </button>
                       </div>
                     </div>
@@ -1524,27 +1739,25 @@ const stripMarkdown = (text?: string): string => {
 
                     {/* Seamless Quick Utility Icon Bar (Apple Control Center Style) */}
                     <div className="p-1 bg-slate-100/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-3 gap-1.5 items-center">
-                      {/* Theme Toggle Pill */}
+                      {/* Theme Toggle Pill (Icon Only for Mobile Best Practices) */}
                       <button
                         onClick={() => setDark(!dark)}
-                        className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                        className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                         title={dark ? 'Mode Terang' : 'Mode Gelap'}
                       >
-                        {dark ? <Sun size={14} className="text-amber-400 shrink-0" /> : <Moon size={14} className="text-indigo-400 shrink-0" />}
-                        <span className="text-[10.5px] font-black">{dark ? 'Dark' : 'Light'}</span>
+                        {dark ? <Sun size={15} className="text-amber-400 shrink-0" /> : <Moon size={15} className="text-indigo-400 shrink-0" />}
                       </button>
 
-                      {/* Real-time Calendar Trigger Pill */}
+                      {/* Real-time Calendar Trigger Pill (Icon Only for Mobile Best Practices) */}
                       <button
                         onClick={() => {
                           setCalendarOpen(true);
                           setProfileDropdownOpen(false);
                         }}
-                        className="h-8.5 px-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs relative"
+                        className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative"
                         title="Kalender Real-Time"
                       >
-                        <Calendar size={14} className="text-orange-500 shrink-0" />
-                        <span className="text-[10.5px] font-black">Kalender</span>
+                        <Calendar size={15} className="text-orange-500 shrink-0" />
                         <span className="size-1.5 rounded-full bg-orange-500 animate-ping absolute top-1 right-1" />
                       </button>
 
@@ -1617,6 +1830,7 @@ const stripMarkdown = (text?: string): string => {
             userEmail={userEmail}
             isGuest={isGuest}
             onNavigateTab={setActiveTab}
+            onOpenSearch={() => setIsSearchOpen(true)}
             onUpdateAvatar={(newUrl) => {
               setCurrentAvatar(newUrl);
               if (typeof window !== 'undefined') {
@@ -2111,6 +2325,156 @@ const stripMarkdown = (text?: string): string => {
           </div>
         </button>
       </div>
+      {/* GLOBAL SEARCH COMMAND PALETTE MODAL (Ctrl + K / Cmd + K) */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0"
+            onClick={() => setIsSearchOpen(false)}
+          />
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 space-y-0">
+            {/* Search Input Bar */}
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+              <Search size={20} className="text-orange-500 shrink-0" />
+              <input
+                type="text"
+                autoFocus
+                value={globalSearchQuery}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value);
+                  setSearchSelectedIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  const filtered = filteredSearchItems;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setSearchSelectedIndex((prev) => (prev + 1) % (filtered.length || 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setSearchSelectedIndex((prev) => (prev - 1 + filtered.length) % (filtered.length || 1));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (filtered[searchSelectedIndex]) {
+                      const item = filtered[searchSelectedIndex];
+                      if ('handler' in item && typeof item.handler === 'function') {
+                        item.handler();
+                      } else if ('id' in item) {
+                        setActiveTab(item.id);
+                        triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.label}`);
+                      }
+                      setIsSearchOpen(false);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setIsSearchOpen(false);
+                  }
+                }}
+                placeholder={
+                  language === 'en'
+                    ? 'Type a command or search modules, items, invoices...'
+                    : language === 'zh'
+                    ? '输入命令或搜索模块、商品、发票...'
+                    : 'Ketik perintah atau cari modul, produk, invoice...'
+                }
+                className="w-full bg-transparent text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden"
+              />
+              {isDbSearching && (
+                <div className="size-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+              )}
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(false)}
+                className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-mono px-2 py-1 border border-slate-200 dark:border-slate-700 cursor-pointer shrink-0"
+              >
+                ESC
+              </button>
+            </div>
+
+            {/* Results List */}
+            <div className="max-h-96 overflow-y-auto p-2 space-y-1">
+              {filteredSearchItems.length > 0 ? (
+                filteredSearchItems.map((item, idx) => {
+                  const Icon = item.icon;
+                  const isSelected = idx === searchSelectedIndex;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if ('handler' in item && typeof item.handler === 'function') {
+                          item.handler();
+                        } else {
+                          setActiveTab(item.id);
+                          triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.label}`);
+                        }
+                        setIsSearchOpen(false);
+                      }}
+                      onMouseEnter={() => setSearchSelectedIndex(idx)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer ${
+                        isSelected
+                          ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-orange-500'}`}>
+                          <Icon size={16} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="block font-black text-xs truncate">{item.label}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] ${isSelected ? 'text-orange-100' : 'text-slate-400'}`}>{item.category}</span>
+                            {item.subtitle && (
+                              <span className={`text-[10px] font-normal truncate max-w-xs ${isSelected ? 'text-orange-100/90' : 'text-slate-500 dark:text-slate-400'}`}>• {item.subtitle}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono shrink-0 ml-2">
+                        <span className={`px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          ↵ {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-slate-400 space-y-2">
+                  <Search size={32} className="mx-auto text-slate-300 dark:text-slate-600 animate-pulse" />
+                  <p className="text-xs font-bold">
+                    {language === 'en'
+                      ? `No results found for "${globalSearchQuery}"`
+                      : language === 'zh'
+                      ? `未找到 "${globalSearchQuery}" 的相关结果`
+                      : `Tidak ada hasil ditemukan untuk "${globalSearchQuery}"`}
+                  </p>
+                  <p className="text-[10px]">
+                    {language === 'en' ? 'Try searching for modules, invoice, WhatsApp, or settings' : language === 'zh' ? '尝试搜索模块、发票、WhatsApp 或设置' : 'Coba cari nama modul, invoice, whatsapp, atau pengaturan'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Instructions */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between text-[10px] font-medium text-slate-400 px-4">
+              <div className="hidden sm:flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↑↓</kbd> {language === 'en' ? 'Navigate' : language === 'zh' ? '导航' : 'Navigasi'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↵</kbd> {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">ESC</kbd> {language === 'en' ? 'Close' : language === 'zh' ? '关闭' : 'Tutup'}
+                </span>
+              </div>
+              <div className="sm:hidden text-[10px] text-slate-400 font-medium">
+                {language === 'en' ? 'Tap result to open' : language === 'zh' ? '点击结果以打开' : 'Ketuk hasil untuk membuka'}
+              </div>
+              <span className="font-extrabold text-orange-500 text-[10px] shrink-0">ZEGA AI Search</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

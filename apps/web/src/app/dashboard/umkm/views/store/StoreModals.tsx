@@ -741,28 +741,28 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
       name: '9Router Layer 5 Model Router',
       provider: '9Router Model Router',
       logo: getR2CdnUrl('/assets/logo/9router.png'),
-      desc: 'Optimasi biaya inference & auto-routing multi-llm terendah untuk analisis stok'
+      desc: s.modelDesc9Router || 'Optimasi biaya inference & auto-routing multi-llm terendah untuk analisis stok'
     },
     {
       id: 'deepseek/deepseek-r1-distill-llama-70b',
       name: 'DeepSeek R1 Demand Forecaster',
       provider: 'DeepSeek AI',
       logo: getR2CdnUrl('/assets/logo/deepseek.webp'),
-      desc: 'Penalar tingkat tinggi untuk prediksi lonjakan permintaan produk akhir pekan'
+      desc: s.modelDescDeepSeek || 'Penalar tingkat tinggi untuk prediksi lonjakan permintaan produk akhir pekan'
     },
     {
       id: 'ZeroClaw-Edge-Gateway',
       name: 'ZeroClaw Realtime Inventory Audit',
       provider: 'ZeroClaw Edge',
       logo: getR2CdnUrl('/assets/logo/zeroclaw.jpeg'),
-      desc: 'Agen ultra-ringan Rust murni untuk monitoring stok real-time ultra-rendah latency'
+      desc: s.modelDescZeroClaw || 'Agen ultra-ringan Rust murni untuk monitoring stok real-time ultra-rendah latency'
     },
     {
       id: 'anthropic/claude-3.5-sonnet',
       name: 'Claude 3.5 Sonnet Inventory Assistant',
       provider: 'Anthropic AI',
       logo: getR2CdnUrl('/assets/logo/claude.webp'),
-      desc: 'Model multimodal unggulan untuk penyusunan deskripsi & copywriting produk'
+      desc: s.modelDescClaude || 'Model multimodal unggulan untuk penyusunan deskripsi & copywriting produk'
     }
   ];
 
@@ -780,11 +780,11 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
         latency_ms: 110
       });
 
-      triggerToast(`✓ Swarm Model "${activeModelObj.name}" Berhasil Di-deploy!`);
+      triggerToast(`${s.deploySuccess || '✓ Swarm Model'} "${activeModelObj.name}" ${s.deployedSuccessfully || 'Berhasil Di-deploy!'}`);
       if (onRefresh) onRefresh();
       onClose();
     } catch (e) {
-      triggerToast('⚠️ Gagal men-deploy AI Swarm');
+      triggerToast(s.deployFailed || '⚠️ Gagal men-deploy AI Swarm');
     } finally {
       setSubmitting(false);
     }
@@ -799,7 +799,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
               <span className="size-2 rounded-full bg-emerald-500" />
               <span>{s.deploySwarmTitle || 'Deploy AI Inventory Swarm Engine'}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Pilih mesin AI mutakhir untuk otomatisasi katalog dan inventaris toko.</p>
+            <p className="text-xs text-slate-400 font-medium">{s.deployModalSubtitle || 'Pilih mesin AI mutakhir untuk otomatisasi katalog dan inventaris toko.'}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
             <X size={18} />
@@ -808,7 +808,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
 
         <div className="space-y-4 text-xs font-semibold">
           <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1">Nama Agent Swarm</label>
+            <label className="block text-slate-600 dark:text-slate-400 mb-1">{s.swarmNameLabel || 'Nama Agent Swarm'}</label>
             <input
               type="text"
               value={swarmName}

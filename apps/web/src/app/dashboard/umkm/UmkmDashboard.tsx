@@ -30,9 +30,10 @@ export interface UmkmDashboardProps {
   isGuest?: boolean;
   onNavigateTab?: (tab: string) => void;
   onUpdateAvatar?: (avatarUrl: string) => void;
+  onOpenSearch?: () => void;
 }
 
-export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab, onUpdateAvatar }: UmkmDashboardProps) {
+export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab, onUpdateAvatar, onOpenSearch }: UmkmDashboardProps) {
   const [internalTab, setInternalTab] = useState('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -93,6 +94,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
           displayName={displayName}
           onNavigateTab={handleTabChange}
           triggerToast={triggerToast}
+          onOpenSearch={onOpenSearch}
         />
       )}
       {currentTab === 'my_agents' && <MyAgentsView triggerToast={triggerToast} />}

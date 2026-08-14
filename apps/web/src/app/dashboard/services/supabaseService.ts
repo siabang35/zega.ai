@@ -9835,7 +9835,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * Fetch recent chat history across modules (Copilot, Ops Specialist, & Live Help)
    */
-  async getUmkmRecentChatHistory(userId: string = 'demo-owner', chatType: 'all' | 'copilot' | 'zega_copilot' | 'help' | 'ops_specialist' | 'live_help' | 'ai_assistant' = 'all') {
+  async getUmkmRecentChatHistory(userId: string = 'demo-owner', chatType: 'all' | 'copilot' | 'zega_copilot' | 'help' | 'ops_specialist' | 'live_help' | 'ai_assistant' | 'finance_ai' = 'all') {
     try {
       const { data, error } = await supabase.rpc('get_umkm_recent_chat_history', { 
         p_user_id: userId,
@@ -9908,6 +9908,137 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return true;
     } catch (e) {
       console.warn('Failed deleteUmkmLiveHelpChat:', e);
+      return false;
+    }
+  },
+
+  /**
+   * =========================================================================
+   * MODULE 4: AI FINANCE ASSISTANT (umkm_finance_ai_chats & umkm_finance_ai_messages)
+   * =========================================================================
+   */
+  async getUmkmFinanceAiChats(storeId: string = '11111111-1111-1111-1111-111111111111', userId: string = 'demo-owner') {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_finance_ai_chats')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Error fetching AI Finance chats:', error);
+        return [];
+      }
+      return data || [];
+    } catch (e) {
+      console.warn('Failed getUmkmFinanceAiChats:', e);
+      return [];
+    }
+  },
+
+  async createUmkmFinanceAiChat(
+    storeId: string = '11111111-1111-1111-1111-111111111111', 
+    userId: string = 'demo-owner', 
+    title: string = 'Konsultasi Keuangan & Solana Pay AI'
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_finance_ai_chats')
+        .insert([{
+          store_id: storeId,
+          user_id: userId,
+          title,
+          agent_role: 'ZeroClaw Finance Specialist',
+          model_engine: 'DeepSeek-R1-Distill-Qwen-32B',
+          status: 'active'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('Error creating AI Finance chat session:', error);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.warn('Failed createUmkmFinanceAiChat:', e);
+      return null;
+    }
+  },
+
+  async getUmkmFinanceAiMessages(chatId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_finance_ai_messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.warn('Error fetching AI Finance messages:', error);
+        return [];
+      }
+      return data || [];
+    } catch (e) {
+      console.warn('Failed getUmkmFinanceAiMessages:', e);
+      return [];
+    }
+  },
+
+  async saveUmkmFinanceAiMessage(payload: {
+    chat_id: string;
+    user_id?: string;
+    sender: 'user' | 'ai' | 'system' | 'assistant';
+    sender_name?: string;
+    text: string;
+    inference_ms?: number;
+    tokens?: number;
+    model_engine?: string;
+    execution_gateway?: string;
+  }) {
+    try {
+      const { data, error } = await supabase
+        .from('umkm_finance_ai_messages')
+        .insert([{
+          chat_id: payload.chat_id,
+          user_id: payload.user_id || 'demo-owner',
+          sender: payload.sender,
+          sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZeroClaw Finance AI'),
+          text: payload.text,
+          inference_ms: payload.inference_ms || 112,
+          tokens: payload.tokens || 128,
+          model_engine: payload.model_engine || 'DeepSeek-R1-Distill-Qwen-32B',
+          execution_gateway: payload.execution_gateway || 'ZeroClaw-Edge-Gateway',
+          security_status: 'verified'
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('Error saving AI Finance message:', error);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      console.warn('Failed saveUmkmFinanceAiMessage:', e);
+      return null;
+    }
+  },
+
+  async deleteUmkmFinanceAiChat(chatId: string) {
+    try {
+      const { error } = await supabase
+        .from('umkm_finance_ai_chats')
+        .delete()
+        .eq('id', chatId);
+      if (error) {
+        console.warn('Error deleting AI Finance chat:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn('Failed deleteUmkmFinanceAiChat:', e);
       return false;
     }
   }

@@ -16,6 +16,7 @@ interface HomeViewProps {
   displayName: string;
   onNavigateTab: (tab: string) => void;
   triggerToast: (msg: string) => void;
+  onOpenSearch?: () => void;
 }
 
 // Helper to strip markdown formatting symbols and excessive emojis from plain text previews
@@ -92,7 +93,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewProps) {
+export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearch }: HomeViewProps) {
   const { t } = useLanguage();
   const u = t.umkmHome || {
     greeting: 'Good morning',
@@ -936,6 +937,20 @@ export function HomeView({ displayName, onNavigateTab, triggerToast }: HomeViewP
           <Bot size={18} className="animate-pulse" />
           <span>{u.chatWithAi || 'Chat AI Assistant'}</span>
         </button>
+      </div>
+
+      {/* Mobile Dedicated Home Search Bar Widget */}
+      <div
+        onClick={() => onOpenSearch && onOpenSearch()}
+        className="sm:hidden w-full bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 flex items-center gap-3 cursor-pointer group active:scale-[0.98] transition-all shadow-2xs backdrop-blur-md"
+      >
+        <Search size={18} className="text-orange-500 group-hover:scale-110 transition-transform shrink-0 ml-1" />
+        <span className="text-xs font-medium text-slate-400 dark:text-slate-400 flex-1 truncate select-none">
+          {getUiLang() === 'en' ? 'Search features, products, invoices...' : getUiLang() === 'zh' ? '搜索功能、商品、发票...' : 'Cari fitur, produk, invoice, AI...'}
+        </span>
+        <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10.5px] font-bold border border-slate-200/80 dark:border-slate-600/80 shadow-2xs shrink-0 select-none group-hover:border-orange-500 transition-colors">
+          {getUiLang() === 'en' ? 'Search' : getUiLang() === 'zh' ? '搜索' : 'Cari'}
+        </span>
       </div>
 
       {/* ========================================================================= */}

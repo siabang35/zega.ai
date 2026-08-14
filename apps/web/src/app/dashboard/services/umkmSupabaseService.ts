@@ -705,5 +705,26 @@ export const umkmSupabaseService = {
     } catch (e: any) {
       return { data: null, error: e };
     }
+  },
+
+  // 16. Enterprise Zero-Lag Anti-Throttling Global Search RPC
+  async executeGlobalSearch(query: string, limit: number = 20, offset: number = 0, providedStoreId?: string) {
+    try {
+      const trimmedQuery = (query || '').trim();
+      if (trimmedQuery.length < 2) return { data: [], error: null };
+
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId);
+      const { data, error } = await supabase.rpc('umkm_global_search_all', {
+        p_store_id: storeId,
+        p_query: trimmedQuery,
+        p_limit: limit,
+        p_offset: offset
+      });
+
+      if (error) throw error;
+      return { data: data || [], error: null };
+    } catch (err: any) {
+      return { data: [], error: err?.message || 'Failed to execute global search' };
+    }
   }
 };
