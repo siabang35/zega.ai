@@ -33,6 +33,12 @@ import {
   INJECTION_PATTERNS,
   VALID_USDC_MINTS,
 } from '../../utils/settlementValidation.js';
+import {
+  getTelegramTranslations,
+  resolveTelegramLanguage,
+  TelegramLanguage,
+} from '../../i18n/telegramTranslations.js';
+
 
 export function generateSolanaPayReferenceKey(): string {
   try {
@@ -918,20 +924,23 @@ export function buildTelegramReceiptHtml(params: {
   slot: number | string;
   referenceKey?: string | null;
   memo?: string | null;
+  lang?: string;
 }): string {
   const modeUpper = (params.statusMode || 'EXACT').toUpperCase();
   const isExact = modeUpper === 'EXACT' || modeUpper === 'SETTLED_EXACT';
   const isUnderpaid = modeUpper === 'UNDERPAID' || modeUpper === 'SETTLED_UNDERPAID';
 
-  let headerBadge = '⚡ <b>SOLANA DEVNET RECONCILED (100% PAS)</b> ⚡';
-  let statusTitle = '🎉 <b>Pembayaran Lunas!</b>';
+  const t = getTelegramTranslations(params.lang);
+
+  let headerBadge = t.receipt.exact.badge;
+  let statusTitle = t.receipt.exact.title;
 
   if (isUnderpaid) {
-    headerBadge = '⚠️ <b>SOLANA DEVNET RECONCILED (UNDERPAID)</b> ⚠️';
-    statusTitle = '⚠️ <b>Pembayaran Belum Lunas (Kurang)</b>';
+    headerBadge = t.receipt.underpaid.badge;
+    statusTitle = t.receipt.underpaid.title;
   } else if (!isExact) {
-    headerBadge = '🎉 <b>SOLANA DEVNET RECONCILED (OVERPAID)</b> 🎉';
-    statusTitle = '🎉 <b>Pembayaran Lunas (Kelebihan Nominal)!</b>';
+    headerBadge = t.receipt.overpaid.badge;
+    statusTitle = t.receipt.overpaid.title;
   }
 
   const recAmtFormatted = (typeof params.recAmt === 'number' ? params.recAmt : parseFloat(params.recAmt || '0')).toFixed(2);
@@ -942,17 +951,16 @@ export function buildTelegramReceiptHtml(params: {
 
   return `${headerBadge}\n` +
     `${statusTitle}\n` +
-    `Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `• <b>Total Tagihan (Target):</b> <code>${expectedAmtFormatted} USDC</code>\n` +
-    `• <b>Nominal Masuk (On-Chain):</b> <code>+${recAmtFormatted} USDC</code>\n` +
-    `• <b>Order / Memo:</b> <code>${cleanMemo}</code>\n` +
-    `• <b>Reference Key:</b> <code>${cleanRef}</code>\n` +
-    `• <b>Tx Hash:</b> <code>${params.txSignature}</code>\n` +
-    `• <b>Devnet Slot:</b> <code>${params.slot}</code>\n` +
+    `• <b>${t.receipt.labels.targetAmount}:</b> <code>${expectedAmtFormatted} USDC</code>\n` +
+    `• <b>${t.receipt.labels.paidAmount}:</b> <code>+${recAmtFormatted} USDC</code>\n` +
+    `• <b>${t.receipt.labels.orderMemo}:</b> <code>${cleanMemo}</code>\n` +
+    `• <b>${t.receipt.labels.refKey}:</b> <code>${cleanRef}</code>\n` +
+    `• <b>${t.receipt.labels.txHash}:</b> <code>${params.txSignature}</code>\n` +
+    `• <b>${t.receipt.labels.slot}:</b> <code>${params.slot}</code>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🌐 <a href="${explorerUrl}"><b>Lihat Real Tx Explorer</b></a>\n\n` +
-    `✅ Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis via ZeroClaw Real-Time Signature Monitor.`;
+    `🌐 <a href="${explorerUrl}"><b>${t.receipt.labels.explorerBtn}</b></a>\n\n` +
+    `${t.receipt.exact.notice}`;
 }
 
 /**
@@ -978,6 +986,7 @@ export async function dispatchTelegramReceipt(params: {
   slot: number | string;
   referenceKey?: string | null;
   memo?: string | null;
+  lang?: string;
 }): Promise<boolean> {
   if (!params.botToken || params.botToken.trim().length < 10 || !params.chatIdOrTarget) return false;
 
@@ -995,60 +1004,58 @@ export async function dispatchTelegramReceipt(params: {
   const cleanRef = params.referenceKey && params.referenceKey.trim() ? params.referenceKey.trim() : 'N/A';
   const explorerUrl = `https://explorer.solana.com/tx/${encodeURIComponent(params.txSignature)}?cluster=devnet`;
 
+  const t = getTelegramTranslations(params.lang);
+
   // ── SCENARIO 1: UNDERPAID (KURANG BAYAR) ──
   // Rule: Send ONLY 1 Warning Message. DO NOT send a "Pembayaran Lunas" receipt!
   if (isUnderpaid) {
     const shortfall = Math.max(0, expectedAmtNum - recAmtNum).toFixed(2);
     const textUnderpaid =
-      `⚠️ <b>SOLANA DEVNET RECONCILED (PEMBAYARAN KURANG)</b> ⚠️\n` +
-      `⚠️ <b>Pembayaran Belum Lunas (Terdeteksi Kurang Bayar)</b>\n` +
-      `<i>Transaksi terdeteksi di on-chain, namun nominal kurang dari total tagihan.</i>\n` +
+      `${t.receipt.underpaid.badge}\n` +
+      `${t.receipt.underpaid.title}\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• <b>Total Tagihan (Target):</b> <code>${expectedAmtFormatted} USDC</code>\n` +
-      `• <b>Nominal Masuk (On-Chain):</b> <code>+${recAmtFormatted} USDC</code>\n` +
-      `• <b>Sisa Kekurangan:</b> <code>⚠️ ${shortfall} USDC</code>\n` +
-      `• <b>Status Pembayaran:</b> <code>⚠️ KURANG BAYAR (BELUM LUNAS)</code>\n` +
-      `• <b>Order / Memo:</b> <code>${cleanMemo}</code>\n` +
-      `• <b>Reference Key:</b> <code>${cleanRef}</code>\n` +
-      `• <b>Tx Hash:</b> <code>${params.txSignature}</code>\n` +
-      `• <b>Devnet Slot:</b> <code>${params.slot}</code>\n` +
+      `• <b>${t.receipt.labels.targetAmount}:</b> <code>${expectedAmtFormatted} USDC</code>\n` +
+      `• <b>${t.receipt.labels.paidAmount}:</b> <code>+${recAmtFormatted} USDC</code>\n` +
+      `• <b>${t.receipt.labels.shortageAmount}:</b> <code>⚠️ ${shortfall} USDC</code>\n` +
+      `• <b>${t.receipt.labels.orderMemo}:</b> <code>${cleanMemo}</code>\n` +
+      `• <b>${t.receipt.labels.refKey}:</b> <code>${cleanRef}</code>\n` +
+      `• <b>${t.receipt.labels.txHash}:</b> <code>${params.txSignature}</code>\n` +
+      `• <b>${t.receipt.labels.slot}:</b> <code>${params.slot}</code>\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 <b>Instruksi Penyelesaian:</b> Silakan melakukan transfer kekurangannya sebesar <b>${shortfall} USDC</b> ke reference key / QRIS agar pesanan dapat dilunasi secara otomatis.\n\n` +
-      `🌐 <a href="${explorerUrl}"><b>Lihat Real Tx Explorer</b></a>\n\n` +
-      `✅ Terdeteksi & tercatat otomatis via ZeroClaw Real-Time Signature Monitor.`;
+      `${t.receipt.underpaid.instruction(shortfall)}\n\n` +
+      `🌐 <a href="${explorerUrl}"><b>${t.receipt.labels.explorerBtn}</b></a>`;
 
     return sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textUnderpaid);
   }
 
   // ── SCENARIO 2 & 3: EXACT OR OVERPAID (PEMBAYARAN LUNAS - EXACT OR OVERPAID) ──
   // Rule: Send EXACTLY 1 High-Fidelity Receipt per Transaction Signature.
-  const exactStatusTitle = isOverpaid ? '🎉 <b>Pembayaran Lunas (Kelebihan Bayar)!</b>' : '🎉 <b>Pembayaran Lunas!</b>';
-  const headerBadge = isOverpaid ? '🎉 <b>SOLANA DEVNET RECONCILED (KELEBIHAN BAYAR)</b> 🎉' : '⚡ <b>SOLANA DEVNET RECONCILED (100% PAS)</b> ⚡';
+  const exactStatusTitle = isOverpaid ? t.receipt.overpaid.title : t.receipt.exact.title;
+  const headerBadge = isOverpaid ? t.receipt.overpaid.badge : t.receipt.exact.badge;
 
   const surplusAmount = isOverpaid ? Math.max(0, recAmtNum - expectedAmtNum).toFixed(2) : '0.00';
-  const surplusLine = isOverpaid ? `• <b>Nominal Kelebihan Bayar:</b> <code>🎁 +${surplusAmount} USDC</code>\n` : '';
-  const statusBadgeStr = isOverpaid ? '<code>✅ LUNAS (SETTLED_OVERPAID)</code>' : '<code>✅ LUNAS (SETTLED_EXACT)</code>';
+  const surplusLine = isOverpaid ? `• <b>${t.receipt.labels.excessAmount}:</b> <code>🎁 +${surplusAmount} USDC</code>\n` : '';
+  const statusBadgeStr = isOverpaid ? '<code>✅ SETTLED_OVERPAID</code>' : `<code>✅ ${t.receipt.labels.statusExactVal}</code>`;
   const notesLine = isOverpaid
-    ? `💡 <b>Informasi Kelebihan Bayar:</b> Tagihan Anda telah <b>LUNAS</b>. Kelebihan pembayaran sebesar <b>+${surplusAmount} USDC</b> telah dicatat oleh sistem kasir merchant. Anda dapat menghubungi merchant untuk refund atau penyesuaian pesanan.\n\n`
+    ? `${t.receipt.overpaid.info(surplusAmount)}\n\n`
     : '';
 
   const textSuccess =
     `${headerBadge}\n` +
     `${exactStatusTitle}\n` +
-    `Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `• <b>Total Tagihan (Target):</b> <code>${expectedAmtFormatted} USDC</code>\n` +
-    `• <b>Nominal Masuk (On-Chain):</b> <code>+${recAmtFormatted} USDC</code>\n` +
+    `• <b>${t.receipt.labels.targetAmount}:</b> <code>${expectedAmtFormatted} USDC</code>\n` +
+    `• <b>${t.receipt.labels.paidAmount}:</b> <code>+${recAmtFormatted} USDC</code>\n` +
     surplusLine +
-    `• <b>Status Pembayaran:</b> ${statusBadgeStr}\n` +
-    `• <b>Order / Memo:</b> <code>${cleanMemo}</code>\n` +
-    `• <b>Reference Key:</b> <code>${cleanRef}</code>\n` +
-    `• <b>Tx Hash:</b> <code>${params.txSignature}</code>\n` +
-    `• <b>Devnet Slot:</b> <code>${params.slot}</code>\n` +
+    `• <b>${t.receipt.labels.status}:</b> ${statusBadgeStr}\n` +
+    `• <b>${t.receipt.labels.orderMemo}:</b> <code>${cleanMemo}</code>\n` +
+    `• <b>${t.receipt.labels.refKey}:</b> <code>${cleanRef}</code>\n` +
+    `• <b>${t.receipt.labels.txHash}:</b> <code>${params.txSignature}</code>\n` +
+    `• <b>${t.receipt.labels.slot}:</b> <code>${params.slot}</code>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     notesLine +
-    `🌐 <a href="${explorerUrl}"><b>Lihat Real Tx Explorer</b></a>\n\n` +
-    `✅ Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis via ZeroClaw Real-Time Signature Monitor.`;
+    `🌐 <a href="${explorerUrl}"><b>${t.receipt.labels.explorerBtn}</b></a>\n\n` +
+    `${t.receipt.exact.notice}`;
 
   return sendTelegramMessageWithRetry(params.botToken, params.chatIdOrTarget, textSuccess);
 }
@@ -2233,9 +2240,11 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       txSignature?: string;
       signature?: string;
       tx_signature?: string;
+      lang?: string;
     };
   }>('/settlement/check-payment', async (request, reply) => {
-    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel, merchantPubkey, txSignature, signature, tx_signature } = request.body || {};
+    const { referenceKey, expectedAmountUsdc, userEmail, telegramChannel, merchantPubkey, txSignature, signature, tx_signature, lang } = request.body || {};
+    const requestLang = resolveTelegramLanguage(lang || (request.query as any)?.lang || (request.headers as any)['x-language']);
 
     const validExpectedAmountUsdc = parseFloat(String(expectedAmountUsdc || 0));
 
@@ -2346,17 +2355,29 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
             let settlementStatus = 'settled_exact';
             let modeStr = 'EXACT';
-            let statusLabel = '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)';
+            let statusLabel = requestLang === 'zh'
+              ? '✅ 链上支付验证成功 (完全匹配)'
+              : requestLang === 'en'
+                ? '✅ ON-CHAIN PAYMENT VERIFIED (EXACT)'
+                : '✅ PEMBAYARAN TERVERIFIKASI ON-CHAIN (EXACT)';
 
             if (validExpectedAmountUsdc > 0) {
               if (recAmt < validExpectedAmountUsdc - 0.001) {
                 settlementStatus = 'settled_underpaid';
                 modeStr = 'UNDERPAID';
-                statusLabel = '⚠️ PEMBAYARAN KURANG (UNDERPAID)';
+                statusLabel = requestLang === 'zh'
+                  ? '⚠️ 支付金额不足 (UNDERPAID)'
+                  : requestLang === 'en'
+                    ? '⚠️ INSUFFICIENT PAYMENT (UNDERPAID)'
+                    : '⚠️ PEMBAYARAN KURANG (UNDERPAID)';
               } else if (recAmt > validExpectedAmountUsdc + 0.001) {
                 settlementStatus = 'settled_overpaid';
                 modeStr = 'OVERPAID';
-                statusLabel = '🎉 PEMBAYARAN LEBIH (OVERPAID)';
+                statusLabel = requestLang === 'zh'
+                  ? '🎉 超额支付已确认 (OVERPAID)'
+                  : requestLang === 'en'
+                    ? '🎉 OVERPAYMENT CONFIRMED (OVERPAID)'
+                    : '🎉 PEMBAYARAN LEBIH (OVERPAID)';
               }
             }
 
@@ -2412,6 +2433,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                   slot: directParsed.slot || 480856112,
                   referenceKey: effectiveRefKey,
                   memo: directParsed.memo || `On-Chain Tx Verified (${providedTxSig.substring(0, 8)}...)`,
+                  lang: requestLang
                 });
               }
             }).catch(() => { });
@@ -2622,6 +2644,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                     slot: parsed.slot || sItem.slot || 480856112,
                     referenceKey: effectiveRefKey,
                     memo: parsed.memo || `On-Chain Tx Verified (${candSig.substring(0, 8)}...)`,
+                    lang: requestLang
                   });
                 }
               }).catch(() => { });
@@ -2826,6 +2849,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
                         slot: parsed.slot || 480856112,
                         referenceKey: effectiveRefKey,
                         memo: parsed.memo || `On-Chain Tx Verified (${candSig.substring(0, 8)}...)`,
+                        lang: requestLang
                       });
                     }
                   }).catch(() => { });
@@ -3028,28 +3052,31 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             globalTelegramDispatchDeduplicationMap.set(dedupKey, Date.now());
             globalTelegramDispatchDeduplicationMap.set(`ref_${referenceKey}`, Date.now());
 
+            const reqLang = (request.body as any)?.lang || (request.body as any)?.language || (request.query as any)?.lang || (request.query as any)?.language;
+            const t = getTelegramTranslations(reqLang);
             const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
             const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
             const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;
             const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}&description=${encodeURIComponent(memo || 'Solana Pay Invoice')}`;
             const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const captionText =
-              `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
+              `${t.invoiceCaption.headerTitle}\n` +
+              `${t.invoiceCaption.headerSubtitle}\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
               `• <b>Merchant:</b> ZEGA AI Enterprise Terminal\n` +
-              `• <b>Detail Pesanan:</b> ${escHtml(memo || 'Solana Pay Invoice')}\n` +
-              `• <b>Tagihan:</b> <code>${amountUsdc.toFixed(2)} USDC</code>\n` +
-              `• <b>Ref Key:</b> <code>${referenceKey}</code>\n` +
-              `💳 <b>Copy Merchant Wallet:</b>\n<code>${effectiveWallet}</code>\n` +
-              `🛡️ <b>OWASP Checksum:</b> <code>${checksumBadge}</code>\n` +
-              `• <b>R2 CDN Audit:</b> <a href="${r2CdnUrl}">Audit Certificate</a>\n` +
+              `• <b>${t.invoiceCaption.orderDetailsLabel}:</b> ${escHtml(memo || 'Solana Pay Invoice')}\n` +
+              `• <b>${t.invoiceCaption.amountLabel}:</b> <code>${amountUsdc.toFixed(2)} USDC</code>\n` +
+              `• <b>${t.invoiceCaption.refKeyLabel}:</b> <code>${referenceKey}</code>\n` +
+              `💳 <b>${t.invoiceCaption.merchantWalletLabel}:</b>\n<code>${effectiveWallet}</code>\n` +
+              `🛡️ <b>${t.invoiceCaption.owaspChecksumLabel}:</b> <code>${checksumBadge}</code>\n` +
+              `• <b>${t.invoiceCaption.r2CdnAuditLabel}:</b> <a href="${r2CdnUrl}">Audit Certificate</a>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `📱 <b>Solana Pay URI:</b>\n<code>${solanaPayUrl}</code>\n\n` +
-              `📌 <b>PETUNJUK PEMBAYARAN:</b>\n` +
-              `1. <b>Scan QR Code:</b> Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
-              `2. <b>Copy Wallet / URI:</b> Copy wallet atau URI di atas &amp; paste ke Phantom App.\n` +
-              `3. <b>Web Checkout:</b> Tap tombol di bawah untuk membayar via Web Checkout.\n\n` +
-              `⚡ <b>Status:</b> <code>PENGIRIMAN DANA DITUNGGU (PENDING)</code>`;
+              `📱 <b>${t.invoiceCaption.solanaPayUriLabel}:</b>\n<code>${solanaPayUrl}</code>\n\n` +
+              `${t.invoiceCaption.instructionsTitle}\n` +
+              `${t.invoiceCaption.instruction1}\n` +
+              `${t.invoiceCaption.instruction2}\n` +
+              `${t.invoiceCaption.instruction3}\n\n` +
+              `${t.invoiceCaption.statusPending}`;
 
             sendTelegramInvoiceWithFallback({
               botToken,
@@ -3057,7 +3084,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               qrImageUrl,
               captionHtml: captionText,
               checkoutUrl,
-              checkoutButtonText: `⚡ Bayar ${amountUsdc.toFixed(2)} USDC (Web Checkout)`
+              checkoutButtonText: t.invoiceCaption.payButtonText(amountUsdc.toFixed(2))
             }).then((dispatchRes) => {
               logger.info({ resolvedTarget, referenceKey, deliveryType: dispatchRes.deliveryType, ok: dispatchRes.ok }, '⚡ Resilient Telegram invoice dispatch executed in /invoice/create');
             }).catch((err) => {
@@ -6446,26 +6473,29 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         ? rawEnvToken.trim()
         : '';
 
+      const reqLang = (request.body as any)?.lang || (request.body as any)?.language;
+      const t = getTelegramTranslations(reqLang);
       const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
       // Use HTML parse_mode to avoid underscore issues in usernames like @Soft_yee
       const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checksumBadge = `${recipient.slice(0, 4)}...${recipient.slice(-4)}`;
       const formattedCaption =
-        `🧾 <b>INVOICE SOLANA PAY DITERIMA</b>\n` +
+        `${t.invoiceCaption.headerTitle}\n` +
+        `${t.invoiceCaption.headerSubtitle}\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `• <b>Merchant:</b> ZEGA AI Enterprise Terminal\n` +
-        `• <b>Detail Pesanan:</b> ${escHtml(description || 'Pesanan Produk')}\n` +
-        `• <b>Tagihan:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
-        `• <b>Ref Key:</b> <code>${escHtml(referenceKey)}</code>\n` +
-        `💳 <b>Copy Merchant Wallet:</b>\n<code>${escHtml(recipient)}</code>\n` +
-        `🛡️ <b>OWASP Checksum:</b> <code>${checksumBadge}</code>\n` +
+        `• <b>${t.invoiceCaption.orderDetailsLabel}:</b> ${escHtml(description || 'Pesanan Produk')}\n` +
+        `• <b>${t.invoiceCaption.amountLabel}:</b> <code>${numericAmount.toFixed(2)} USDC</code>\n` +
+        `• <b>${t.invoiceCaption.refKeyLabel}:</b> <code>${escHtml(referenceKey)}</code>\n` +
+        `💳 <b>${t.invoiceCaption.merchantWalletLabel}:</b>\n<code>${escHtml(recipient)}</code>\n` +
+        `🛡️ <b>${t.invoiceCaption.owaspChecksumLabel}:</b> <code>${checksumBadge}</code>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `📱 <b>Solana Pay URI:</b>\n<code>${escHtml(solanaPayUrl)}</code>\n\n` +
-        `📌 <b>PETUNJUK PEMBAYARAN:</b>\n` +
-        `1. <b>Scan QR Code:</b> Pindai gambar QR Code di atas via Phantom / Solflare Mobile.\n` +
-        `2. <b>Copy Wallet / URI:</b> Copy wallet atau URI di atas &amp; paste ke Phantom App.\n` +
-        `3. <b>Web Checkout:</b> Tap tombol di bawah untuk membayar via Web Checkout.\n\n` +
-        `⚡ <b>Status:</b> <code>PENGIRIMAN DANA DITUNGGU (PENDING)</code>`;
+        `📱 <b>${t.invoiceCaption.solanaPayUriLabel}:</b>\n<code>${escHtml(solanaPayUrl)}</code>\n\n` +
+        `${t.invoiceCaption.instructionsTitle}\n` +
+        `${t.invoiceCaption.instruction1}\n` +
+        `${t.invoiceCaption.instruction2}\n` +
+        `${t.invoiceCaption.instruction3}\n\n` +
+        `${t.invoiceCaption.statusPending}`;
 
       if (telegramBotToken) {
         try {
@@ -6485,7 +6515,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             qrImageUrl,
             captionHtml: formattedCaption,
             checkoutUrl: zegaCheckoutUrl,
-            checkoutButtonText: `⚡ Bayar ${numericAmount.toFixed(2)} USDC (Web Checkout)`
+            checkoutButtonText: t.invoiceCaption.payButtonText(numericAmount.toFixed(2))
           });
 
           if (dispatchResult.ok) {

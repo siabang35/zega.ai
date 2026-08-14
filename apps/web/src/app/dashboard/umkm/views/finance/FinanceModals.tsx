@@ -5,6 +5,7 @@ import {
   Bot, ExternalLink
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -449,6 +450,9 @@ export function DeployFinanceSwarmModal({
   onDeploy: (swarm: any) => Promise<void>;
   triggerToast: (msg: string) => void;
 }) {
+  const { t } = useLanguage();
+  const f = (t.financeView || {}) as any;
+
   const [selectedModel, setSelectedModel] = useState('9Router-Auto-Cost-Optimizer');
   const [isDeploying, setIsDeploying] = useState(false);
 
@@ -458,7 +462,7 @@ export function DeployFinanceSwarmModal({
       name: '9Router-Auto-Cost-Optimizer',
       provider: '9Router Layer 5 Engine',
       logo: getR2CdnUrl('/assets/logo/9router.png'),
-      desc: 'Layer 5 Router Engine memprediksi & memangkas pengeluaran Gas Fee Solana Pay hingga 35%.',
+      desc: f.model9RouterDesc || 'Layer 5 Router Engine memprediksi & memangkas pengeluaran Gas Fee Solana Pay hingga 35%.',
       speed: '115ms',
       accuracy: '99.9%'
     },
@@ -467,7 +471,7 @@ export function DeployFinanceSwarmModal({
       name: 'ZeroClaw-Edge-Gateway',
       provider: 'ZeroClaw Edge Swarm',
       logo: getR2CdnUrl('/assets/logo/zeroclaw.jpeg'),
-      desc: 'Daemon Edge Agent untuk rekonsiliasi arus kas & otomatisasi invoice jatuh tempo secara atomic.',
+      desc: f.modelZeroClawDesc || 'Daemon Edge Agent untuk rekonsiliasi arus kas & otomatisasi invoice jatuh tempo secara atomic.',
       speed: '85ms',
       accuracy: '99.8%'
     },
@@ -476,7 +480,7 @@ export function DeployFinanceSwarmModal({
       name: 'DeepSeek R1 Reasoning AI',
       provider: 'DeepSeek Reasoning AI',
       logo: getR2CdnUrl('/assets/logo/deepseek.webp'),
-      desc: 'Reasoning AI menganalisis margin keuntungan & memprediksi pola arus kas 30 hari ke depan.',
+      desc: f.modelDeepSeekDesc || 'Reasoning AI menganalisis margin keuntungan & memprediksi pola arus kas 30 hari ke depan.',
       speed: '240ms',
       accuracy: '99.5%'
     },
@@ -485,7 +489,7 @@ export function DeployFinanceSwarmModal({
       name: 'Claude 3.5 Sonnet',
       provider: 'Anthropic AI',
       logo: getR2CdnUrl('/assets/logo/claude.webp'),
-      desc: 'Advanced Financial Analyst AI untuk audit SOP cadangan kas & rekomendasi penghematan operasional.',
+      desc: f.modelClaudeDesc || 'Advanced Financial Analyst AI untuk audit SOP cadangan kas & rekomendasi penghematan operasional.',
       speed: '190ms',
       accuracy: '99.7%'
     }
@@ -505,15 +509,16 @@ export function DeployFinanceSwarmModal({
       latency_ms: parseInt(target.speed)
     });
     setIsDeploying(false);
-    triggerToast(`Berhasil deploy AI Finance Swarm (${target.name})!`);
+    const toastPattern = f.swarmDeployedToast || '🚀 Berhasil deploy AI Finance Swarm ({name})!';
+    triggerToast(toastPattern.replace('{name}', target.name));
     onClose();
   };
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title="Deploy AI Finance Swarm Engine">
+    <ModalBase isOpen={isOpen} onClose={onClose} title={f.deploySwarmModalTitle || 'Deploy AI Finance Swarm Engine'}>
       <div className="space-y-4 text-xs font-sans">
         <p className="text-slate-500 dark:text-slate-400">
-          Pilih model AI terdepan untuk di-deploy ke infrastruktur pembayaran & treasury Solana Pay bisnis Anda:
+          {f.deploySwarmModalDesc || 'Pilih model AI terdepan untuk di-deploy ke infrastruktur pembayaran & treasury Solana Pay bisnis Anda:'}
         </p>
 
         <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
@@ -547,9 +552,9 @@ export function DeployFinanceSwarmModal({
           className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold cursor-pointer shadow-md transition-all flex items-center justify-center gap-2"
         >
           {isDeploying ? (
-            <span>Deploying AI Finance Swarm...</span>
+            <span>{f.deployingSwarm || 'Men-deploy AI Finance Swarm...'}</span>
           ) : (
-            <span>🚀 Deploy Real AI Finance Swarm</span>
+            <span>🚀 {f.deploySwarmBtn || 'Deploy Real AI Finance Swarm'}</span>
           )}
         </button>
       </div>

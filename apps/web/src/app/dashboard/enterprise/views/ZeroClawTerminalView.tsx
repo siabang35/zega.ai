@@ -525,7 +525,7 @@ export function ZeroClawTerminalView({
       verificationInProgressRef.current = false;
     }
   };
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const zv = t?.enterpriseViews?.zeroclaw || {
     title: 'ZeroClaw Solana Bridge Terminal',
     subtitle: 'Real-time ledger, automated settlement, keyless vault transactions, and Telegram bot dispatches.',
@@ -636,7 +636,7 @@ export function ZeroClawTerminalView({
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const [showQrScannerModal, setShowQrScannerModal] = useState(false);
-  const [isVaultSectionExpanded, setIsVaultSectionExpanded] = useState(true);
+  const [isVaultSectionExpanded, setIsVaultSectionExpanded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -839,7 +839,8 @@ export function ZeroClawTerminalView({
           description: descriptionText,
           customerName: userEmail ? userEmail.split('@')[0] : 'Pelanggan',
           merchantTier: userRole === 'individual' ? 'umkm' : 'enterprise',
-          recipient: activeMerchantWallet
+          recipient: activeMerchantWallet,
+          lang: language
         })
       });
 
@@ -2198,8 +2199,8 @@ export function ZeroClawTerminalView({
   } | null>(null);
 
   // Overview Layout Controls (Collapsible Solana Pay Generator & Multi-LLM Terminal & Swappable Column Order)
-  const [isSolanaPayCollapsed, setIsSolanaPayCollapsed] = useState(false);
-  const [isMultiLlmCollapsed, setIsMultiLlmCollapsed] = useState(false);
+  const [isSolanaPayCollapsed, setIsSolanaPayCollapsed] = useState(true);
+  const [isMultiLlmCollapsed, setIsMultiLlmCollapsed] = useState(true);
   const [isOverviewSwapped, setIsOverviewSwapped] = useState(true);
 
   // Dedicated Open QR Modal & Check Payments Verification State
@@ -2248,7 +2249,8 @@ export function ZeroClawTerminalView({
           userEmail,
           telegramChannel: targetChannel,
           merchantPubkey: inv.merchantWallet || activeMerchantWallet,
-          txSignature: sigToVerify.length >= 70 ? sigToVerify : (inv.tx_signature && inv.tx_signature.length >= 70 ? inv.tx_signature : undefined)
+          txSignature: sigToVerify.length >= 70 ? sigToVerify : (inv.tx_signature && inv.tx_signature.length >= 70 ? inv.tx_signature : undefined),
+          lang: language
         })
       });
 
@@ -2267,16 +2269,16 @@ export function ZeroClawTerminalView({
           setGeneratedInvoicesHistory((prev: GeneratedInvoice[]) =>
             prev.map(item => item.id === inv.id || item.referenceKey === inv.referenceKey ? { ...item, status: 'paid', tx_signature: foundSig || item.tx_signature } : item)
           );
-          onTriggerToast(`${json.statusLabel || '✅ PEMBAYARAN TERVERIFIKASI'}`);
+          onTriggerToast(`${json.statusLabel || (language === 'zh' ? '✅ 支付验证成功 (完全匹配)' : language === 'id' ? '✅ PEMBAYARAN TERVERIFIKASI' : '✅ PAYMENT VERIFIED')}`);
           fetchDbInvoices();
         } else {
-          onTriggerToast('ℹ️ Belum ada pembayaran terdeteksi di Solana Devnet');
+          onTriggerToast(language === 'zh' ? 'ℹ️ Solana Devnet 上尚未检测到付款' : language === 'id' ? 'ℹ️ Belum ada pembayaran terdeteksi di Solana Devnet' : 'ℹ️ No payment detected on Solana Devnet yet');
         }
       } else {
-        onTriggerToast(`⚠️ Verifikasi gagal: ${json.error || json.message}`);
+        onTriggerToast(`${language === 'zh' ? '⚠️ 验证失败: ' : language === 'id' ? '⚠️ Verifikasi gagal: ' : '⚠️ Verification failed: '}${json.error || json.message}`);
       }
     } catch (err: any) {
-      onTriggerToast('⚠️ Gagal terhubung ke server verifikasi pembayaran');
+      onTriggerToast(language === 'zh' ? '⚠️ 无法连接到支付验证服务器' : language === 'id' ? '⚠️ Gagal terhubung ke server verifikasi pembayaran' : '⚠️ Failed to connect to payment verification server');
     } finally {
       setCheckingPayment(false);
     }
@@ -3354,10 +3356,10 @@ export function ZeroClawTerminalView({
                     type="button"
                     onClick={() => setIsSolanaPayCollapsed(!isSolanaPayCollapsed)}
                     className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-[11px] transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
-                    title={isSolanaPayCollapsed ? 'Open Generator Form' : 'Close Generator Form'}
+                    title={isSolanaPayCollapsed ? ((zv as any)?.show || (language === 'zh' ? '显示' : language === 'id' ? 'Tampilkan' : 'Show')) : ((zv as any)?.hide || (language === 'zh' ? '隐藏' : language === 'id' ? 'Sembunyikan' : 'Hide'))}
                   >
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isSolanaPayCollapsed ? 'rotate-180' : ''}`} />
-                    <span>{isSolanaPayCollapsed ? 'Open' : 'Close'}</span>
+                    <span>{isSolanaPayCollapsed ? ((zv as any)?.show || (language === 'zh' ? '显示' : language === 'id' ? 'Tampilkan' : 'Show')) : ((zv as any)?.hide || (language === 'zh' ? '隐藏' : language === 'id' ? 'Sembunyikan' : 'Hide'))}</span>
                   </button>
                 </div>
               </div>
@@ -3723,7 +3725,13 @@ export function ZeroClawTerminalView({
                               {isSettled ? (
                                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-600 text-white font-extrabold text-[10.5px] shadow-sm animate-pulse">
                                   <CheckCircle2 size={13} className="text-white" />
-                                  <span>FINISHED & LUNAS (EXACT RECONCILED)</span>
+                                  <span>
+                                    {language === 'zh'
+                                      ? '已完成并结清 (完全对账)'
+                                      : language === 'id'
+                                        ? 'LUNAS (REKONSILIASI PAS)'
+                                        : 'SETTLED & PAID (EXACT RECONCILED)'}
+                                  </span>
                                 </div>
                               ) : (
                                 <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[9.5px]">
@@ -4109,10 +4117,10 @@ export function ZeroClawTerminalView({
                     type="button"
                     onClick={() => setIsMultiLlmCollapsed(!isMultiLlmCollapsed)}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shrink-0"
-                    title={isMultiLlmCollapsed ? 'Open Terminal Form' : 'Close Terminal Form'}
+                    title={isMultiLlmCollapsed ? ((zv as any)?.show || (language === 'zh' ? '显示' : language === 'id' ? 'Tampilkan' : 'Show')) : ((zv as any)?.hide || (language === 'zh' ? '隐藏' : language === 'id' ? 'Sembunyikan' : 'Hide'))}
                   >
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isMultiLlmCollapsed ? 'rotate-180' : ''}`} />
-                    <span>{isMultiLlmCollapsed ? 'Open' : 'Close'}</span>
+                    <span>{isMultiLlmCollapsed ? ((zv as any)?.show || (language === 'zh' ? '显示' : language === 'id' ? 'Tampilkan' : 'Show')) : ((zv as any)?.hide || (language === 'zh' ? '隐藏' : language === 'id' ? 'Sembunyikan' : 'Hide'))}</span>
                   </button>
 
                   <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">Engine:</span>
@@ -4414,16 +4422,16 @@ export function ZeroClawTerminalView({
                   </button>
 
                   <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Live
+                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> {(zv as any)?.liveStatus || (t as any)?.zeroclaw?.liveStatus || 'Live'}
                   </span>
 
                   <button
                     type="button"
                     onClick={() => setIsVaultSectionExpanded(!isVaultSectionExpanded)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10.5px] cursor-pointer transition-all border border-slate-200 dark:border-slate-700 ml-1"
-                    title={isVaultSectionExpanded ? 'Minimize Vault Panel' : 'Expand Vault Panel'}
+                    title={isVaultSectionExpanded ? ((zv as any)?.hide || (t as any)?.zeroclaw?.hide || 'Hide') : ((zv as any)?.show || (t as any)?.zeroclaw?.show || 'Show')}
                   >
-                    <span>{isVaultSectionExpanded ? 'Sembunyikan' : 'Tampilkan'}</span>
+                    <span>{isVaultSectionExpanded ? ((zv as any)?.hide || (t as any)?.zeroclaw?.hide || 'Sembunyikan') : ((zv as any)?.show || (t as any)?.zeroclaw?.show || 'Tampilkan')}</span>
                     <ChevronDown size={13} className={`transition-transform duration-200 ${isVaultSectionExpanded ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
@@ -5378,39 +5386,39 @@ checkpoint = "human_approval_on_refund"`}
                 <>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold text-xs">
                     <AlertTriangle size={12} />
-                    <span>KURANG BAYAR (PARTIAL SETTLEMENT)</span>
+                    <span>{language === 'zh' ? '欠款 (部分结算)' : language === 'id' ? 'KURANG BAYAR (PARTIAL SETTLEMENT)' : 'UNDERPAID (PARTIAL SETTLEMENT)'}</span>
                   </span>
                   <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    {zv.paymentPendingTitle || 'Pembayaran Belum Lunas ⚠️'}
+                    {zv.paymentPendingTitle || (language === 'zh' ? '付款未结清 ⚠️' : language === 'id' ? 'Pembayaran Belum Lunas ⚠️' : 'Payment Incomplete ⚠️')}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Nominal pembayaran kurang dari total tagihan. Silakan lengkapi sisa kekurangannya.
+                    {language === 'zh' ? '支付金额少于账单总额。请补齐剩余欠款。' : language === 'id' ? 'Nominal pembayaran kurang dari total tagihan. Silakan lengkapi sisa kekurangannya.' : 'Payment amount is less than total invoice. Please pay the remaining balance.'}
                   </p>
                 </>
               ) : paymentSuccessModal.mode === 'overpaid' ? (
                 <>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-xs">
                     <ShieldCheck size={12} />
-                    <span>LEBIH BAYAR (OVERPAYMENT DETECTED)</span>
+                    <span>{language === 'zh' ? '检测到超额支付' : language === 'id' ? 'LEBIH BAYAR (OVERPAYMENT DETECTED)' : 'OVERPAYMENT DETECTED'}</span>
                   </span>
                   <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    {zv.overpaymentDetectedTitle || 'Kelebihan Pembayaran Terdeteksi 🛡️'}
+                    {zv.overpaymentDetectedTitle || (language === 'zh' ? '检测到超额付款 🛡️' : language === 'id' ? 'Kelebihan Pembayaran Terdeteksi 🛡️' : 'Overpayment Detected 🛡️')}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Pembayaran melebihi total tagihan. Fitur Auto-Refund aman aktif untuk mengembalikan selisih ke wallet pelanggan.
+                    {language === 'zh' ? '付款超过账单总额。自动退款功能已激活，以将差额退还至客户钱包。' : language === 'id' ? 'Pembayaran melebihi total tagihan. Fitur Auto-Refund aman aktif untuk mengembalikan selisih ke wallet pelanggan.' : 'Payment exceeds invoice total. Safe Auto-Refund is active to return the excess to customer wallet.'}
                   </p>
                 </>
               ) : (
                 <>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs">
                     <img src={getR2CdnUrl('/assets/logo/solana.png')} alt="Solana" className="size-3.5 object-contain" />
-                    <span>SOLANA DEVNET RECONCILED (100% PAS)</span>
+                    <span>{language === 'zh' ? 'SOLANA DEVNET 已对账 (100% 完全匹配)' : language === 'id' ? 'SOLANA DEVNET RECONCILED (100% LUNAS)' : 'SOLANA DEVNET RECONCILED (100% EXACT)'}</span>
                   </span>
                   <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                    {zv.paymentSettledTitle || 'Pembayaran Lunas! 🎉'}
+                    {zv.paymentSettledTitle || (language === 'zh' ? '付款已结清！ 🎉' : language === 'id' ? 'Pembayaran Lunas! 🎉' : 'Payment Settled! 🎉')}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis.
+                    {language === 'zh' ? 'Solana Pay 二维码交易已自动完成链上验证。' : language === 'id' ? 'Transaksi QRIS Solana Pay telah diverifikasi secara *on-chain* secara otomatis.' : 'Solana Pay QR transaction has been automatically verified on-chain.'}
                   </p>
                 </>
               )}
@@ -5419,11 +5427,11 @@ checkpoint = "human_approval_on_refund"`}
             {/* ITEMIZATION & MATH BREAKDOWN CARD */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-left text-xs font-mono space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Total Tagihan (Target):</span>
+                <span className="text-slate-400">{language === 'zh' ? '目标账单总额:' : language === 'id' ? 'Total Tagihan (Target):' : 'Target Invoice Amount:'}</span>
                 <span className="font-bold text-slate-900 dark:text-slate-100">{(paymentSuccessModal.targetAmount || paymentSuccessModal.amount).toFixed(2)} USDC</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
-                <span className="text-slate-400">Nominal Masuk (On-Chain):</span>
+                <span className="text-slate-400">{language === 'zh' ? '链上实收金额:' : language === 'id' ? 'Nominal Masuk (On-Chain):' : 'Received Amount (On-Chain):'}</span>
                 <span className={`text-base font-bold ${paymentSuccessModal.mode === 'underpaid' ? 'text-amber-500' : paymentSuccessModal.mode === 'overpaid' ? 'text-blue-500' : 'text-emerald-500'}`}>
                   +{paymentSuccessModal.amount.toFixed(2)} USDC
                 </span>
@@ -5432,13 +5440,13 @@ checkpoint = "human_approval_on_refund"`}
               {/* SPECIFIC MODE CALCULATION */}
               {paymentSuccessModal.mode === 'underpaid' && (
                 <div className="flex justify-between items-center text-amber-600 dark:text-amber-400 font-bold">
-                  <span>Sisa Kekurangan Tagihan:</span>
+                  <span>{language === 'zh' ? '剩余未付欠款:' : language === 'id' ? 'Sisa Kekurangan Tagihan:' : 'Remaining Shortage Amount:'}</span>
                   <span>{((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2)} USDC</span>
                 </div>
               )}
               {paymentSuccessModal.mode === 'overpaid' && (
                 <div className="flex justify-between items-center text-blue-600 dark:text-blue-400 font-bold">
-                  <span>Kelebihan (Siap Refund):</span>
+                  <span>{language === 'zh' ? '超额金额 (可退款):' : language === 'id' ? 'Kelebihan (Siap Refund):' : 'Excess Amount (Refund Ready):'}</span>
                   <span>+{(paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2)} USDC</span>
                 </div>
               )}
@@ -5461,12 +5469,14 @@ checkpoint = "human_approval_on_refund"`}
               <div className="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/80 text-[10px] text-blue-300 text-left space-y-1">
                 <div className="flex items-center gap-1 font-bold text-blue-400">
                   <ShieldCheck size={12} />
-                  <span>OWASP Anti-Fraud & Anti-Crash Guard ACTIVE</span>
+                  <span>{language === 'zh' ? 'OWASP 防欺诈与防崩溃保护 已激活' : language === 'id' ? 'OWASP Anti-Fraud & Anti-Crash Guard ACTIVE' : 'OWASP Anti-Fraud & Anti-Crash Guard ACTIVE'}</span>
                 </div>
                 <p className="text-[9.5px] text-blue-300/80 leading-relaxed">
-                  • Verifikasi signature valid di Solana RPC Devnet.<br />
-                  • Refund otomatis dikembalikan tepat ke wallet pengirim (Zero Custody Leak).<br />
-                  • Tidak ada crash transaksi atau duplikasi settlement.
+                  {language === 'zh'
+                    ? '• Solana RPC Devnet 上的签名验证有效。\n• 自动退款准确返回至发送者钱包。\n• 无交易崩溃或重复结算。'
+                    : language === 'id'
+                      ? '• Verifikasi signature valid di Solana RPC Devnet.\n• Refund otomatis dikembalikan tepat ke wallet pengirim.\n• Tidak ada crash transaksi atau duplikasi settlement.'
+                      : '• Valid signature verification on Solana RPC Devnet.\n• Automated refund safely returned to sender wallet.\n• Zero transaction crashes or duplicate settlements.'}
                 </p>
               </div>
             )}
@@ -5481,12 +5491,24 @@ checkpoint = "human_approval_on_refund"`}
                     setInvoiceMessage(`Pelunasan Kekurangan ${paymentSuccessModal.memo}`);
                     setGeneratedUrl(`solana:${activeMerchantWallet}?amount=${diff}`);
                     setPaymentSuccessModal(null);
-                    onTriggerToast(`💳 Top-Up QR Dibuat untuk sisa ${diff} USDC!`);
+                    onTriggerToast(
+                      language === 'zh'
+                        ? `💳 已为剩余 ${diff} USDC 创建补交 QR！`
+                        : language === 'id'
+                          ? `💳 Top-Up QR Dibuat untuk sisa ${diff} USDC!`
+                          : `💳 Top-Up QR generated for remaining ${diff} USDC!`
+                    );
                   }}
                   className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 font-bold text-xs text-white cursor-pointer transition-colors shadow-md flex items-center justify-center gap-1.5"
                 >
                   <QrCode size={14} />
-                  <span>Buat QR Pelunasan Kekurangan ({((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2)} USDC)</span>
+                  <span>
+                    {language === 'zh'
+                      ? `创建欠款补交 QR (${((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2)} USDC)`
+                      : language === 'id'
+                        ? `Buat QR Pelunasan Kekurangan (${((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2)} USDC)`
+                        : `Generate Top-Up QR (${((paymentSuccessModal.targetAmount || 15) - paymentSuccessModal.amount).toFixed(2)} USDC)`}
+                  </span>
                 </button>
               )}
 
@@ -5494,13 +5516,25 @@ checkpoint = "human_approval_on_refund"`}
                 <button
                   onClick={() => {
                     const excess = (paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2);
-                    onTriggerToast(`🛡️ AUTO-REFUND SUCCESSFUL! ${excess} USDC telah dikembalikan ke wallet pembayar.`);
+                    onTriggerToast(
+                      language === 'zh'
+                        ? `🛡️ 自动退款成功！${excess} USDC 已退还给付款钱包。`
+                        : language === 'id'
+                          ? `🛡️ AUTO-REFUND SUCCESSFUL! ${excess} USDC telah dikembalikan ke wallet pembayar.`
+                          : `🛡️ AUTO-REFUND SUCCESSFUL! ${excess} USDC returned to payer wallet.`
+                    );
                     setPaymentSuccessModal(null);
                   }}
                   className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-xs text-white cursor-pointer transition-colors shadow-md flex items-center justify-center gap-1.5"
                 >
                   <RefreshCw size={14} />
-                  <span>Proses Auto-Refund Safe ({(paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2)} USDC)</span>
+                  <span>
+                    {language === 'zh'
+                      ? `处理安全自动退款 (${(paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2)} USDC)`
+                      : language === 'id'
+                        ? `Proses Auto-Refund Safe (${(paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2)} USDC)`
+                        : `Process Safe Auto-Refund (${(paymentSuccessModal.amount - (paymentSuccessModal.targetAmount || 15)).toFixed(2)} USDC)`}
+                  </span>
                 </button>
               )}
 

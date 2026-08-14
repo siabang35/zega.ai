@@ -29,6 +29,7 @@ export interface MonitoredAddress {
   customerTarget?: string;
   channelType?: string;
   addedAt: number;
+  lang?: string;
 }
 
 /**
@@ -63,7 +64,8 @@ export class ZeroClawSignatureMonitorService {
     userId?: string,
     expectedAmountUsdc?: number,
     customerTarget?: string,
-    channelType?: string
+    channelType?: string,
+    lang?: string
   ) {
     if (!address || address.length < 32) return;
     this.monitoredAddresses.set(address, {
@@ -74,8 +76,9 @@ export class ZeroClawSignatureMonitorService {
       customerTarget,
       channelType,
       addedAt: Date.now(),
+      lang,
     });
-    logger.info({ address, type, userId }, 'Registered address in ZeroClaw Signature Monitor');
+    logger.info({ address, type, userId, lang }, 'Registered address in ZeroClaw Signature Monitor');
   }
 
   /**
@@ -601,6 +604,7 @@ export class ZeroClawSignatureMonitorService {
             slot: tx.slot,
             referenceKey: monitored.address,
             memo: tx.memo || `On-Chain Real-Time Verified (${tx.amountUsdc.toFixed(2)} USDC)`,
+            lang: monitored.lang
           });
         }
       }
