@@ -181,6 +181,26 @@ export class PrivyWalletSigningReadinessService {
   }
 
   private logReport(report: SigningReadinessReport): void {
+    if (envConfig.NODE_ENV === 'production') {
+      logger.info(
+        {
+          walletId: report.walletId,
+          walletAddress: report.walletAddress,
+          signingReady: report.overallSigningReady,
+          authorizationKeyConfigured: report.authorizationKeyConfigured,
+          apiConnected: report.apiConnected,
+          error: report.error || undefined,
+        },
+        '[PrivyWalletSigningReadinessService] Privy signing readiness check completed'
+      );
+      return;
+    }
+
+    const maskId = (val: string | null): string => {
+      if (!val || val.length <= 10) return val || 'NONE';
+      return `${val.slice(0, 5)}...${val.slice(-4)}`;
+    };
+
     logger.info('====================================================');
     logger.info('   ZEGA AI — PRIVY SIGNING READINESS DIAGNOSTIC     ');
     logger.info('====================================================');
@@ -189,9 +209,9 @@ export class PrivyWalletSigningReadinessService {
     logger.info(`Authorization Key Configured  : ${report.authorizationKeyConfigured ? 'YES' : 'NO'}`);
     logger.info(`Authorization Key Fingerprint : ${report.authorizationKeyFingerprint || 'NONE'}`);
     logger.info(`Privy API Connected           : ${report.apiConnected ? 'YES' : 'NO'}`);
-    logger.info(`Target Wallet ID              : ${report.walletId || 'UNKNOWN'}`);
-    logger.info(`Target Wallet Address         : ${report.walletAddress || 'UNKNOWN'}`);
-    logger.info(`Wallet Owner Quorum ID        : ${report.ownerId || 'NONE'}`);
+    logger.info(`Target Wallet ID              : ${maskId(report.walletId)}`);
+    logger.info(`Target Wallet Address         : ${maskId(report.walletAddress)}`);
+    logger.info(`Wallet Owner Quorum ID        : ${maskId(report.ownerId)}`);
     logger.info(`Additional Signers Count      : ${report.additionalSigners.length}`);
     logger.info(`Signer Authorized             : ${report.signerAuthorized ? 'YES' : 'NO'}`);
     logger.info(`Overall Signing Ready         : ${report.overallSigningReady ? 'READY' : 'NOT READY'}`);
