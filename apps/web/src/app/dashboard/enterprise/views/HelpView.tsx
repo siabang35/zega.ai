@@ -3,7 +3,7 @@ import {
   HelpCircle, Search, BookOpen, MessageSquare, Ticket, 
   Send, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle,
   Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X, RefreshCw,
-  Activity, ArrowUpRight, Bot, User, Check
+  Activity, ArrowUpRight, Bot, User, Check, Plus, Maximize2, Minimize2
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
 import { getApiBase } from '../../../../config/api';
@@ -25,6 +25,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   // Modal & Live Chat Drawer State
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
+  const [isLiveChatFullScreen, setIsLiveChatFullScreen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
@@ -161,17 +162,40 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     }
   };
 
+  // AI Language Preference helper
+  const getAiLang = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+    }
+    return 'en';
+  };
+
   const handleOpenLiveChat = (ticket?: any) => {
     setSelectedTicket(ticket || null);
     setIsLiveChatOpen(true);
+    const lang = getAiLang();
+    let seedMsg = '';
+    if (ticket) {
+      seedMsg = lang === 'en'
+        ? `Hello! I am ZEGA AI Specialist connected to real-time inference. I am monitoring ticket #${ticket.ticket_code} (${ticket.subject}). Is there any additional information you would like to share?`
+        : lang === 'zh'
+        ? `你好！我是连接实时推理的 ZEGA AI 专家。我正在监控工单 #${ticket.ticket_code} (${ticket.subject})。您有什么补充信息要提交吗？`
+        : `Halo! Saya AI Specialist ZEGA terhubung dengan model inference real-time. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?`;
+    } else {
+      seedMsg = lang === 'en'
+        ? 'Hello Enterprise Admin! Welcome to ZEGA Live Chat Direct. How can I assist your workflow, AI infrastructure, or APIs today?'
+        : lang === 'zh'
+        ? '您好，企业管理员！欢迎来到 ZEGA 实时在线客服。今天在工作流、AI 基础设施或 API 方面有什么可以帮您？'
+        : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow, infrastruktur AI, atau API Anda hari ini?';
+    }
+
     setChatMessages([
       {
         id: '1',
         sender_type: 'ai_specialist',
         sender_name: 'ZEGA AI Support Specialist',
-        message: ticket 
-          ? `Halo! Saya AI Specialist ZEGA terhubung dengan model inference real-time. Saya sedang memantau tiket #${ticket.ticket_code} (${ticket.subject}). Ada info tambahan yang ingin Anda sampaikan?` 
-          : 'Halo Enterprise Admin! Selamat datang di ZEGA Live Chat Direct. Bagaimana saya bisa membantu workflow, infrastruktur AI, atau API Anda hari ini?',
+        message: seedMsg,
         created_at: new Date().toISOString()
       }
     ]);
@@ -182,6 +206,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
     if (!chatInput.trim() || isAiThinking) return;
 
     const userMsg = chatInput;
+    const currentAiLang = getAiLang();
     setChatInput('');
 
     const newMsg = {
@@ -204,7 +229,8 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         body: JSON.stringify({
           message: selectedTicket 
             ? `[Tiket #${selectedTicket.ticket_code} - ${selectedTicket.subject}] ${userMsg}`
-            : userMsg
+            : userMsg,
+          language: currentAiLang
         })
       });
 
@@ -215,7 +241,11 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
       }
 
       if (!aiReply) {
-        aiReply = `Terima kasih atas pesan Anda mengenai "${userMsg}". Permintaan Anda telah kami terima dan akan langsung diproses oleh AI Support Specialist.`;
+        aiReply = currentAiLang === 'en'
+          ? `Thank you for your message regarding "${userMsg}". Your request has been received and will be processed by an AI Support Specialist.`
+          : currentAiLang === 'zh'
+          ? `感谢您关于 "${userMsg}" 的消息。我们已收到您的请求，AI 支持专家将立即进行处理。`
+          : `Terima kasih atas pesan Anda mengenai "${userMsg}". Permintaan Anda telah kami terima dan akan langsung diproses oleh AI Support Specialist.`;
       }
 
       setChatMessages(prev => [
@@ -237,13 +267,19 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
         message: userMsg
       });
     } catch (err) {
+      const lang = getAiLang();
+      const fallbackMsg = lang === 'en'
+        ? `Thank you! Information "${userMsg}" has been synced to the agent support queue.`
+        : lang === 'zh'
+        ? `感谢您！信息 "${userMsg}" 已同步到支持代理队列。`
+        : `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue.`;
       setChatMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender_type: 'ai_specialist',
           sender_name: 'ZEGA AI Support Specialist',
-          message: `Terima kasih! Informasi "${userMsg}" telah disinkronkan ke agent support queue.`,
+          message: fallbackMsg,
           created_at: new Date().toISOString()
         }
       ]);
@@ -656,27 +692,58 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
 
       {/* LIVE CHAT DRAWER */}
       {isLiveChatOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex justify-end">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md h-full flex flex-col border-l border-slate-200 dark:border-slate-800 shadow-2xl animate-in slide-in-from-right duration-250">
+        <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex justify-end p-2 sm:p-4">
+          <div className={
+            isLiveChatFullScreen
+              ? 'fixed inset-2 sm:inset-6 z-[60] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200'
+              : 'bg-white dark:bg-slate-900 w-full max-w-md h-full flex flex-col border-l border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl animate-in slide-in-from-right duration-250 overflow-hidden'
+          }>
             {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shadow-sm">
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-8 sm:size-9 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shadow-sm shrink-0">
                   <Bot size={18} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">ZEGA AI Specialist Direct</h4>
-                  <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> 24/7 Live Agent Queue
+                <div className="min-w-0">
+                  <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">ZEGA AI Specialist Direct</h4>
+                  <span className="text-[10px] font-mono text-emerald-500 font-bold flex items-center gap-1 truncate">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" /> 24/7 Live Agent Queue
                   </span>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsLiveChatOpen(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+
+              {/* Action Buttons: New Chat, Maximize, Close */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleOpenLiveChat()}
+                  className="px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                  title={getAiLang() === 'en' ? 'Start New Chat Session' : getAiLang() === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
+                >
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">
+                    {getAiLang() === 'en' ? 'New Chat' : getAiLang() === 'zh' ? '新对话' : 'Sesi Baru'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsLiveChatFullScreen(!isLiveChatFullScreen)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isLiveChatFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
+                >
+                  {isLiveChatFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => setIsLiveChatOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Tutup Modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Messages Body */}

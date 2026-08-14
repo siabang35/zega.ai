@@ -1,7 +1,7 @@
 const API_BASE = 'http://127.0.0.1:3001';
 const TEST_USER_EMAIL = 'siabang35@gmail.com';
 const MERCHANT_WALLET = 'DwMUjkFPpHVV9zLPJA2iDMvfZiHZ1uUcCnVAdKu73bUK';
-const TEST_TX_SIGNATURE = '3ZbjPvgeYjxmcChZPXUDr5NyJ9YqZw2ydu8kVFGPD1hEunKGdV8h8S1nMLsjc1AL5sRoy8pnzAmqHrj4eRCXdkEq';
+const TEST_TX_SIGNATURE = 'gt8XCbbo36uhsvKCkwoTE417cKdMEn9LJGMtzLz8QZYD3yCF1Xg1bzyvcdvkYh24bykS9GmSFSM2icFJCBS6KH9';
 
 async function runFullE2ESynchronizationTest() {
   console.log('===========================================================');
@@ -9,7 +9,7 @@ async function runFullE2ESynchronizationTest() {
   console.log('===========================================================');
 
   try {
-    const testAmount = 25.50;
+    const testAmount = 0.35;
     const testMemo = `Testing AI Invoice ${Date.now()}`;
     const refKey = `RefKeyE2E_${Date.now()}`;
     const solanaPayUrl = `solana:${MERCHANT_WALLET}?amount=${testAmount.toFixed(2)}&reference=${refKey}`;
@@ -26,7 +26,7 @@ async function runFullE2ESynchronizationTest() {
         memo: testMemo,
         solanaPayUrl: solanaPayUrl,
         referenceKey: refKey,
-        buyerEmail: 'customer_e2e@example.com',
+        buyerEmail: '@customer_e2e',
         isDemo: false,
       }),
     });
@@ -62,7 +62,7 @@ async function runFullE2ESynchronizationTest() {
         txSignature: TEST_TX_SIGNATURE,
         network: 'solana-devnet',
         memo: `${testMemo} (E2E Settlement Test)`,
-        isDemo: false,
+        isDemo: true,
       }),
     });
 
@@ -71,7 +71,7 @@ async function runFullE2ESynchronizationTest() {
 
     // ── STEP 4: VERIFY RECONCILIATION SYNCHRONIZATION ──
     console.log('[4/4] Auditing Reconciliation Stream Synchronization...');
-    const statusRes = await fetch(`${API_BASE}/v1/zeroclaw/settlement/list?isDemo=false&userId=${encodeURIComponent(TEST_USER_EMAIL)}`);
+    const statusRes = await fetch(`${API_BASE}/v1/zeroclaw/settlement/list?isDemo=true&userId=${encodeURIComponent(TEST_USER_EMAIL)}`);
     const statusJson = (await statusRes.json()) as any;
     const reconciledEvents = statusJson.data || [];
 

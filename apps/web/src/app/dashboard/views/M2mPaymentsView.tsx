@@ -97,7 +97,7 @@ export function M2mPaymentsView() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">x402 Payment Required Telemetry</h3>
               <p className="text-xs text-slate-500">Machine-readable paywall for AI-to-AI agent API calls.</p>
             </div>
-            <span className="font-mono text-xs text-slate-400">Endpoint: https://api.zega.ai/x402/v1</span>
+            <span className="font-mono text-xs text-slate-400">Endpoint: https://zega-ai.onrender.com/x402/v1</span>
           </div>
 
           <div className="space-y-3">

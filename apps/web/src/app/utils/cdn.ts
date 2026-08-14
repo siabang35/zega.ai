@@ -41,12 +41,8 @@ export function getR2CdnUrl(assetPath: string, preferRemote = false): string {
     cleanPath = `/assets${cleanPath}`;
   }
 
-  // In production builds, or when preferRemote is requested, or when VITE_USE_REMOTE_CDN is enabled
-  if (preferRemote || import.meta.env.PROD || import.meta.env.VITE_USE_REMOTE_CDN === 'true') {
-    return `${R2_PUBLIC_CDN_DOMAIN}${cleanPath}`;
-  }
-
-  return cleanPath;
+  // Always force Cloudflare R2 CDN URL resolution (https://cdn.zegaai.site)
+  return `${R2_PUBLIC_CDN_DOMAIN}${cleanPath}`;
 }
 
 /**

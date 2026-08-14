@@ -22,6 +22,7 @@ function resolveLogoUrl(ig: any): string {
   if (nameLower.includes('stripe') || domainLower.includes('stripe')) return `${CDN_BASE}/stripe.webp`;
   if (nameLower.includes('slack') || domainLower.includes('slack')) return `${CDN_BASE}/webhook.webp`;
   if (nameLower.includes('whatsapp') || domainLower.includes('whatsapp')) return `${CDN_BASE}/whatsapp-for-business.webp`;
+  if (nameLower.includes('x402') || domainLower.includes('x402')) return `${CDN_BASE}/x402.png`;
   if (nameLower.includes('telegram') || domainLower.includes('telegram')) return `${CDN_BASE}/telegram.webp`;
   if (nameLower.includes('google') || nameLower.includes('workspace') || domainLower.includes('google')) return `${CDN_BASE}/google_drive.png`;
   if (nameLower.includes('hubspot') || domainLower.includes('hubspot')) return `${CDN_BASE}/hubspot.png`;
@@ -77,7 +78,7 @@ export function IntegrationsTab({ integrations, setShowAddIntegrationModal, onTr
   // Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedInteg, setSelectedInteg] = useState<any>(null);
-  const [configSecretKey, setConfigSecretKey] = useState('sk_live_99847291847129487');
+  const [configSecretKey, setConfigSecretKey] = useState('');
 
   // Default rich fallback list if DB is empty
   const defaultIntegrationsList = [

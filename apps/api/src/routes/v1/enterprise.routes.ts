@@ -1,8 +1,24 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { envConfig } from '../../config/env.js';
 import { SupabaseService } from '../../services/supabaseService.js';
+import { populatePrincipal } from '../../middleware/requestContext.js';
 
 export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
+  // SECURITY (F-15/F-16 FIX): Require authentication for ALL enterprise routes
+  fastify.addHook('onRequest', async (request, reply) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for enterprise endpoints.', statusCode: 401 },
+      });
+    }
+  });
+
+  // EA-01 FIX: Populate principal context for authorization decisions
+  fastify.addHook('preHandler', populatePrincipal);
+
   /**
    * GET /v1/enterprise/copilot/health
    */
@@ -12,14 +28,15 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
     const openrouterKey = envConfig.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
     const geminiKey = envConfig.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
+    // SECURITY (F-15 FIX): Do NOT expose API key prefixes — only report configured/missing status
     return reply.send({
       success: true,
       service: 'zega-enterprise-copilot',
       providers: {
-        huggingface_deepseek: { configured: hfKey.length > 5, keyPrefix: hfKey ? `${hfKey.substring(0, 5)}...` : 'MISSING' },
-        groq: { configured: groqKey.length > 5, keyPrefix: groqKey ? `${groqKey.substring(0, 6)}...` : 'MISSING' },
-        openrouter: { configured: openrouterKey.length > 5, keyPrefix: openrouterKey ? `${openrouterKey.substring(0, 8)}...` : 'MISSING' },
-        gemini: { configured: geminiKey.length > 5, keyPrefix: geminiKey ? `${geminiKey.substring(0, 6)}...` : 'MISSING' },
+        huggingface_deepseek: { configured: hfKey.length > 5 },
+        groq: { configured: groqKey.length > 5 },
+        openrouter: { configured: openrouterKey.length > 5 },
+        gemini: { configured: geminiKey.length > 5 },
       },
       timestamp: new Date().toISOString(),
     });
@@ -34,6 +51,11 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
       message: string;
       userId?: string;
       orgId?: string;
+      language?: string;
+      response_style?: string;
+      response_length?: string;
+      response_format?: string;
+      default_model?: string;
     };
 
     // ── LAYER 1: Input Validation & Sanitization ──
@@ -84,7 +106,21 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
 
     const startTime = Date.now();
     const now = new Date();
-    const currentDateFormatted = now.toLocaleDateString('id-ID', {
+
+    // Resolve Language Preference
+    const rawLang = (body.language || 'id').toLowerCase();
+    let targetLangCode = 'id';
+    let langInstruction = 'Berikan jawaban dalam Bahasa Indonesia yang sangat profesional, ramah, dan natural seperti seorang Konsultan/Executive AI Officer enterprise.';
+
+    if (rawLang === 'en' || rawLang.includes('english')) {
+      targetLangCode = 'en';
+      langInstruction = 'CRITICAL LANGUAGE REQUIREMENT: Output response 100% strictly in fluent, natural, professional English language. Do NOT use any Indonesian words.';
+    } else if (rawLang === 'zh' || rawLang.includes('mandarin') || rawLang.includes('chinese')) {
+      targetLangCode = 'zh';
+      langInstruction = 'CRITICAL LANGUAGE REQUIREMENT: Output response 100% strictly in fluent, professional Mandarin Chinese (Simplified).';
+    }
+
+    const currentDateFormatted = now.toLocaleDateString(targetLangCode === 'en' ? 'en-US' : targetLangCode === 'zh' ? 'zh-CN' : 'id-ID', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -98,11 +134,11 @@ KONTEKS REAL-TIME:
 - Sistem: ZEGA Enterprise AI Infrastructure (8 Nodes, OWASP Level 3 Security, Supabase Realtime Telemetry)
 
 ATURAN UTAMA BAHASA & FORMAT:
-1. Berikan jawaban dalam Bahasa Indonesia yang sangat profesional, ramah, dan natural seperti seorang Konsultan/Executive AI Officer enterprise.
+1. ${langInstruction}
 2. DILARANG MUTLAK menyebutkan nama model AI internal (seperti DeepSeek, Llama, Gemini, OpenAI, Claude, dsb.), nama penyedia API, atau teknis backend internal. Jika ditanya identitas, nyatakan Anda adalah "ZEGA Enterprise Copilot".
 3. JANGAN mengggunakan emoji berlebihan (maksimal 1-2 ikon profesional jika sangat diperlukan) dan hindari penggunaan tanda cetak tebal (asterisk **) secara acak pada setiap kata.
 4. Jangan menyertakan tag penalaran internal seperti <think>...</think>.
-5. Jika disapa (misal "hi", "halo", "selamat pagi"), sapa kembali secara hangat, sopan, dan tawarkan bantuan operasional kluster enterprise secara ringkas.
+5. Jika disapa, sapa kembali secara hangat, sopan, dan tawarkan bantuan operasional kluster enterprise secara ringkas.
 6. DILARANG MEMOTONG KALIMAT atau kata di tengah jalan. Pastikan setiap daftar poin atau kalimat diselesaikan secara utuh sampai tanda titik (.). Gunakan format poin - yang rapi.`;
 
     const hfApiKey = envConfig.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY;

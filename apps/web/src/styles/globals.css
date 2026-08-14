@@ -407,6 +407,12 @@ code, pre, .font-mono, .console-mono {
 }
 .hero-text-reveal-delay-1 { animation-delay: 0.15s; }
 .hero-text-reveal-delay-2 { animation-delay: 0.3s; }
-.hero-text-reveal-delay-3 { animation-delay: 0.45s; }
-.hero-text-reveal-delay-4 { animation-delay: 0.6s; }
 
+/* ── Hide scrollbars for clean mobile horizontal scroll ── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

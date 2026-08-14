@@ -91,3 +91,6 @@ apps/web/public/design/
 *.mov
 *.avi
 
+
+# Agent session evidence
+codex-session*.jsonl

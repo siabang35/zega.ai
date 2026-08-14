@@ -129,6 +129,16 @@ export function EnterpriseCopilot({
     let totalTokens = promptTokens + completionTokens;
     let latencyMs = 180;
 
+    // Read AI Language Preference
+    const getAiLang = () => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('zega_ai_default_language');
+        if (saved && (saved === 'en' || saved === 'id' || saved === 'zh')) return saved;
+      }
+      return 'en';
+    };
+    const currentAiLang = getAiLang();
+
     // Try calling backend real AI inference endpoint first with 25s timeout for DeepSeek R1 reasoning
     try {
       const apiHost = getApiBase();
@@ -138,7 +148,7 @@ export function EnterpriseCopilot({
       const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: textToSend.trim() }),
+        body: JSON.stringify({ message: textToSend.trim(), language: currentAiLang }),
         signal: controller.signal,
       });
 
@@ -213,18 +223,15 @@ export function EnterpriseCopilot({
     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2">
       {/* Copilot Floating Chat Panel */}
       {copilotOpen && (
-        <div className="w-[94vw] sm:w-[440px] h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
+        <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
           {/* Header */}
           <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl bg-indigo-950 border-2 border-indigo-500/50 p-1 shrink-0 shadow-md">
+              <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
                 <img
                   src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                  alt="ZEGA Enterprise Copilot"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                  }}
+                  alt="ZEGA Copilot"
+                  className="w-full h-full object-contain p-1"
                 />
               </div>
               <div>
@@ -286,14 +293,11 @@ export function EnterpriseCopilot({
               >
                 <div className="flex items-end gap-2 max-w-[90%]">
                   {msg.sender === 'copilot' && (
-                    <div className="size-7 rounded-xl bg-slate-900 border border-indigo-500/40 p-1 shrink-0 shadow-sm">
+                    <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
                       <img
                         src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                        alt="AI"
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-                        }}
+                        alt="ZEGA Copilot"
+                        className="w-full h-full object-contain p-0.5"
                       />
                     </div>
                   )}
@@ -344,23 +348,20 @@ export function EnterpriseCopilot({
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button (Icon only on mobile) */}
       <button
         onClick={() => setCopilotOpen(!copilotOpen)}
-        className="group flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
+        className="group flex items-center gap-2 p-1 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 text-white font-extrabold text-xs shadow-2xl hover:scale-105 transition-all cursor-pointer border border-indigo-400/40"
       >
-        <div className="size-6 rounded-full bg-white/20 p-0.5 flex items-center justify-center">
+        <div className="size-9.5 sm:size-10 rounded-full bg-white/20 p-0.5 flex items-center justify-center overflow-hidden">
           <img
             src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-            alt="Copilot Icon"
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/assets/logo/zega_copilot.png';
-            }}
+            alt="ZEGA Copilot"
+            className="w-full h-full object-contain p-0 scale-125"
           />
         </div>
-        <span>Enterprise Copilot</span>
-        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="hidden sm:inline">Enterprise Copilot</span>
+        <span className="hidden sm:block size-2 rounded-full bg-emerald-400 animate-pulse" />
       </button>
     </div>
   );

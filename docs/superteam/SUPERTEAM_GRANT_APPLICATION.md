@@ -1,3 +1,10 @@
+> **Status:** HISTORICAL / SUPERSEDED
+>
+> This document records a previous audit state or historical submission.
+> Refer to [current canonical documentation](../README.md) for the current system state.
+
+---
+
 # 🚀 Superteam Agentic Engineering Grant Application: ZEGA AI
 **Enterprise Autonomous Agent Orchestration Platform on Solana**
 

@@ -3,6 +3,8 @@ import { envConfig } from './config/env.js';
 import { registerPlugins } from './plugins/index.js';
 import { registerRoutes } from './routes/index.js';
 import { logger } from './utils/logger.js';
+import { reconciliationScheduler } from './services/ReconciliationScheduler.js';
+import { checkPrivySigningReadiness } from './services/privyService.js';
 
 /**
  * ZEGA AI — Enterprise Backend Server
@@ -36,6 +38,7 @@ async function bootstrap() {
   for (const signal of signals) {
     process.on(signal, async () => {
       app.log.info({ signal }, 'Received shutdown signal, closing server...');
+      reconciliationScheduler.stop();
       await app.close();
       process.exit(0);
     });
@@ -48,6 +51,12 @@ async function bootstrap() {
       host: '0.0.0.0',
     });
     app.log.info(`🚀 ZEGA AI API Server running at ${address}`);
+
+    // ── Check Privy Server Signing Readiness Health Diagnostic ──
+    checkPrivySigningReadiness();
+
+    // ── Start background reconciliation scheduler ──
+    reconciliationScheduler.start();
   } catch (err) {
     app.log.fatal(err, 'Failed to start server');
     process.exit(1);

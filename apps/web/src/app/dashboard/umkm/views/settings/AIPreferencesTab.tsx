@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Bot, Check, Database, Sliders, Cpu, RefreshCw } from 'lucide-react';
+import { 
+  Sparkles, Check, Database, Sliders, Cpu, Zap, ShieldCheck, FileText, Globe, Volume2, HardDrive
+} from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface AIPreferencesTabProps {
   triggerToast: (msg: string) => void;
@@ -42,22 +45,32 @@ const ModelBrandLogo = ({ modelKey, defaultName }: { modelKey: string; defaultNa
         }
       }}
       alt={defaultName}
-      className="size-7 object-contain rounded-lg"
+      className="size-6 object-contain rounded-md"
     />
   );
 };
 
 export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
+  const { t } = useLanguage();
+  const prefT = t.settingsView?.aiPreferencesTab;
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // States matching design mockup 1
+  // AI Preferences States
   const [selectedModel, setSelectedModel] = useState('GPT-4o (Recommended)');
   const [responseStyle, setResponseStyle] = useState('Profesional');
   const [useDataForTraining, setUseDataForTraining] = useState(true);
   const [autoInsights, setAutoInsights] = useState(true);
   const [webSearchAccess, setWebSearchAccess] = useState(true);
-  const [defaultLanguage, setDefaultLanguage] = useState('Bahasa Indonesia');
+  const [defaultLanguage, setDefaultLanguage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zega_ai_default_language');
+      if (saved === 'en') return 'English';
+      if (saved === 'zh') return 'Mandarin';
+    }
+    return 'Bahasa Indonesia';
+  });
   const [responseLength, setResponseLength] = useState('Sedang');
   const [showSources, setShowSources] = useState(true);
   const [responseFormat, setResponseFormat] = useState('Ringkas');
@@ -67,37 +80,44 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
       id: 'GPT-4o (Recommended)',
       name: 'GPT-4o (Recommended)',
       badge: 'Recommended',
-      badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800',
-      desc: 'Akurat, cepat, dan seimbang'
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800',
+      desc: prefT?.gptDesc || 'Akurat, cepat, dan seimbang untuk semua jenis agent'
     },
     {
       id: 'Claude 3.5 Sonnet',
       name: 'Claude 3.5 Sonnet',
-      badge: '',
-      desc: 'Lebih baik untuk analisis & penulisan panjang'
+      badge: 'Pro Reasoning',
+      badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-400 dark:border-purple-800',
+      desc: prefT?.claudeDesc || 'Lebih baik untuk analisis & penulisan narasi panjang'
     },
     {
       id: 'Gemini 1.5 Pro',
       name: 'Gemini 1.5 Pro',
-      badge: '',
-      desc: 'Kuat untuk data & reasoning'
+      badge: '1M Context',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-800',
+      desc: prefT?.geminiDesc || 'Kuat untuk pemrosesan dokumen besar & reasoning'
     },
     {
       id: 'Llama 3 70B',
       name: 'Llama 3 70B',
-      badge: '',
-      desc: 'Open source, cocok untuk privasi'
+      badge: 'Zero-Trust Private',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-800',
+      desc: prefT?.llamaDesc || 'Open source, privasi maksimal & hosting terisolasi'
     }
   ];
 
   const styles = [
-    { id: 'Profesional', name: 'Profesional', desc: 'Formal, jelas, dan to the point' },
-    { id: 'Ramah', name: 'Ramah', desc: 'Hangat, sopan, dan mudah dipahami' },
-    { id: 'Kasual', name: 'Kasual', desc: 'Santai, ringan, dan akrab' },
-    { id: 'Teknis', name: 'Teknis', desc: 'Detail, analitis, dan berbasis data' }
+    { id: 'Profesional', name: prefT?.styleProf || 'Profesional', desc: prefT?.styleProfDesc || 'Formal, jelas, dan to the point.' },
+    { id: 'Ramah', name: prefT?.styleFriendly || 'Ramah', desc: prefT?.styleFriendlyDesc || 'Hangat, sopan, dan mudah dipahami.' },
+    { id: 'Kasual', name: prefT?.styleCasualTitle || 'Kasual', desc: prefT?.styleCasualDesc || 'Santai, ringan, dan akrab.' },
+    { id: 'Teknis', name: prefT?.styleTech || 'Teknis', desc: prefT?.styleTechDesc || 'Detail, analitis, dan berbasis data.' }
   ];
 
-  const formats = ['Ringkas', 'Terstruktur', 'Detail'];
+  const formats = [
+    { id: 'Ringkas', label: prefT?.fmtConcise || 'Ringkas' },
+    { id: 'Terstruktur', label: prefT?.fmtStructured || 'Terstruktur' },
+    { id: 'Detail', label: prefT?.fmtDetailed || 'Detail' }
+  ];
 
   const loadPreferences = async () => {
     try {
@@ -109,7 +129,25 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
         if (data.use_data_for_training !== undefined) setUseDataForTraining(data.use_data_for_training);
         if (data.auto_insights !== undefined) setAutoInsights(data.auto_insights);
         if (data.web_search_access !== undefined) setWebSearchAccess(data.web_search_access);
-        if (data.default_language) setDefaultLanguage(data.default_language);
+        if (data.default_language) {
+          const langVal = data.default_language;
+          let normalizedLang = 'Bahasa Indonesia';
+          let aiLangCode = 'id';
+          if (langVal.toLowerCase().includes('english') || langVal === 'en') {
+            normalizedLang = 'English';
+            aiLangCode = 'en';
+          } else if (langVal.toLowerCase().includes('mandarin') || langVal.toLowerCase().includes('chinese') || langVal === 'zh') {
+            normalizedLang = 'Mandarin';
+            aiLangCode = 'zh';
+          } else if (langVal.toLowerCase().includes('indonesia') || langVal === 'id') {
+            normalizedLang = 'Bahasa Indonesia';
+            aiLangCode = 'id';
+          } else {
+            normalizedLang = langVal;
+          }
+          setDefaultLanguage(normalizedLang);
+          localStorage.setItem('zega_ai_default_language', aiLangCode);
+        }
         if (data.response_length) setResponseLength(data.response_length);
         if (data.show_sources !== undefined) setShowSources(data.show_sources);
         if (data.response_format) setResponseFormat(data.response_format);
@@ -123,6 +161,10 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
 
   useEffect(() => {
     loadPreferences();
+    const unsub = SupabaseDashboardService.subscribeToAiPreferencesRealtime('11111111-1111-1111-1111-111111111111', () => {
+      loadPreferences();
+    });
+    return () => unsub();
   }, []);
 
   const handleSave = async (overrides?: any) => {
@@ -140,323 +182,335 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
         response_format: overrides?.response_format ?? responseFormat
       };
       await SupabaseDashboardService.updateUmkmAiPreferences(payload);
-      triggerToast('✓ Preferences AI berhasil diperbarui!');
+      triggerToast(`✓ ${prefT?.toastSuccess || 'AI preferences saved successfully!'}`);
     } catch (e) {
-      triggerToast('✕ Gagal menyegarkan AI Preferences.');
+      triggerToast(`✕ ${prefT?.toastError || 'Failed to save AI preferences.'}`);
     } finally {
       setSaving(false);
     }
   };
 
+  const renderToggle = (checked: boolean, onChange: (val: boolean) => void) => (
+    <button
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+        checked ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
+      }`}
+    >
+      <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-200 ease-in-out ${
+        checked ? 'translate-x-3.5' : 'translate-x-0'
+      }`} />
+    </button>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* 1. Model AI Default & Gaya Respon AI */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Model AI Default */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Cpu size={16} className="text-orange-500" /> Model AI Default
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pilih model AI yang digunakan secara default oleh AI Employees.
-            </p>
+    <div className="max-w-6xl space-y-4 font-sans">
+      {/* Executive Overview Banner */}
+      <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 dark:border-orange-500/30 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="size-8.5 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0">
+            <Sparkles size={16} />
           </div>
-
-          <div className="space-y-2.5">
-            {models.map((m) => {
-              const isSelected = selectedModel === m.id;
-              return (
-                <div
-                  key={m.id}
-                  onClick={() => {
-                    setSelectedModel(m.id);
-                    handleSave({ default_model: m.id });
-                  }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                    isSelected
-                      ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-2 ring-orange-500/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-orange-500/40 bg-slate-50/30 dark:bg-slate-950/40'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-1 shrink-0">
-                      <ModelBrandLogo modelKey={m.id} defaultName={m.name} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          {m.name}
-                        </h4>
-                        {m.badge && (
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>
-                            {m.badge}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                        {m.desc}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
-                    isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
-                  }`}>
-                    {isSelected && <Check size={10} />}
-                  </div>
-                </div>
-              );
-            })}
+          <div>
+            <h2 className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              {prefT?.bannerTitle || 'Konfigurasi Model & Intelligence AI'}
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              {prefT?.bannerSub || 'Kelola arsitektur AI, gaya percakapan, dan akses data ZEGA AI.'}
+            </p>
           </div>
         </div>
 
-        {/* Gaya Respon AI */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Sliders size={16} className="text-orange-500" /> Gaya Respon AI
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Pilih gaya komunikasi AI saat berinteraksi.
-            </p>
-          </div>
+        <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-200/80 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs">
+          <Zap size={13} className="text-orange-500" />
+          <span className="text-[11px]">{prefT?.activeModel || 'Model Aktif'}: <strong className="text-orange-600 dark:text-orange-400 font-mono">{selectedModel.split(' ')[0]}</strong></span>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {styles.map((s) => {
-              const isSelected = responseStyle === s.id;
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => {
-                    setResponseStyle(s.id);
-                    handleSave({ response_style: s.id });
-                  }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-1.5 ${
-                    isSelected
-                      ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-2 ring-orange-500/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-orange-500/40 bg-slate-50/30 dark:bg-slate-950/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                      {s.name}
-                    </h4>
-                    <div className={`size-3.5 rounded-full border flex items-center justify-center ${
+      {/* Grid Layout (Matched Heights & Structured Alignments) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        
+        {/* Card 1: Default AI Model */}
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div>
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <Cpu size={14} className="text-orange-500" /> {prefT?.defaultModelTitle || 'Model AI Default'}
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {prefT?.defaultModelSub || 'Pilih model LLM utama yang mengeksekusi tugas AI Employees.'}
+                </p>
+              </div>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                4 Available
+              </span>
+            </div>
+
+            <div className="space-y-2 mt-3">
+              {models.map((m) => {
+                const isSelected = selectedModel === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => {
+                      setSelectedModel(m.id);
+                      handleSave({ default_model: m.id });
+                    }}
+                    className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-1 ring-orange-500/20'
+                        : 'border-slate-100 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/60 dark:bg-slate-950/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-7 rounded-md bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                        <ModelBrandLogo modelKey={m.id} defaultName={m.name} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                            {m.name}
+                          </h4>
+                          {m.badge && (
+                            <span className={`px-1.5 py-0.2 rounded-md text-[8px] font-extrabold ${m.badgeClass}`}>
+                              {m.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                          {m.desc}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`size-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                       isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
                     }`}>
                       {isSelected && <Check size={8} />}
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                    {s.desc}
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: AI Response Style */}
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div>
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <Sliders size={14} className="text-orange-500" /> {prefT?.responseStyleTitle || 'Gaya Respon AI'}
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {prefT?.responseStyleSub || 'Pilih gaya komunikasi AI saat berinteraksi dengan pengguna & pelanggan.'}
+                </p>
+              </div>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                Persona
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+              {styles.map((s) => {
+                const isSelected = responseStyle === s.id;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      setResponseStyle(s.id);
+                      handleSave({ response_style: s.id });
+                    }}
+                    className={`p-2.5 rounded-lg border transition-all cursor-pointer flex flex-col justify-between space-y-1.5 ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-1 ring-orange-500/20'
+                        : 'border-slate-100 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/60 dark:bg-slate-950/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        {s.name}
+                      </h4>
+                      <div className={`size-3.5 rounded-full border flex items-center justify-center ${
+                        isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
+                      }`}>
+                        {isSelected && <Check size={8} />}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium leading-tight">
+                      {s.desc}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Data Usage for AI */}
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div>
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <Database size={14} className="text-orange-500" /> {prefT?.dataUsageTitle || 'Penggunaan Data untuk AI'}
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {prefT?.dataUsageSub || 'Kontrol bagaimana data bisnis Anda digunakan untuk meningkatkan layanan AI.'}
+                </p>
+              </div>
+              <ShieldCheck size={14} className="text-emerald-500" />
+            </div>
+
+            <div className="space-y-2 mt-3">
+              <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {prefT?.trainData || 'Gunakan data saya untuk meningkatkan akurasi AI'}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                    {prefT?.trainDataDesc || 'AI akan belajar dari interaksi dan data Anda.'}
                   </p>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Penggunaan Data untuk AI & AI Output Preference */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Penggunaan Data untuk AI */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Database size={16} className="text-orange-500" /> Penggunaan Data untuk AI
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Kontrol bagaimana data bisnis Anda digunakan untuk meningkatkan layanan AI.
-            </p>
-          </div>
-
-          <div className="space-y-4 pt-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Gunakan data saya untuk meningkatkan akurasi AI
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                  AI akan belajar dari interaksi dan data Anda.
-                </p>
+                {renderToggle(useDataForTraining, (val) => {
+                  setUseDataForTraining(val);
+                  handleSave({ use_data_for_training: val });
+                })}
               </div>
-              <button
-                onClick={() => {
-                  const next = !useDataForTraining;
-                  setUseDataForTraining(next);
-                  handleSave({ use_data_for_training: next });
-                }}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  useDataForTraining ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  useDataForTraining ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </button>
-            </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Izinkan AI membuat insight otomatis
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                  AI akan secara proaktif memberikan insight dan rekomendasi.
-                </p>
+              <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {prefT?.autoInsightsTitle || 'Izinkan AI membuat insight otomatis'}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                    {prefT?.autoInsightsDesc || 'AI akan secara proaktif memberikan insight dan rekomendasi.'}
+                  </p>
+                </div>
+                {renderToggle(autoInsights, (val) => {
+                  setAutoInsights(val);
+                  handleSave({ auto_insights: val });
+                })}
               </div>
-              <button
-                onClick={() => {
-                  const next = !autoInsights;
-                  setAutoInsights(next);
-                  handleSave({ auto_insights: next });
-                }}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  autoInsights ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  autoInsights ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </button>
-            </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Izinkan AI mengakses data eksternal (web search)
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                  AI dapat mencari informasi publik untuk jawaban lebih akurat.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  const next = !webSearchAccess;
-                  setWebSearchAccess(next);
-                  handleSave({ web_search_access: next });
-                }}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  webSearchAccess ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  webSearchAccess ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Output Preference */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-              AI Output Preference
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-700 dark:text-slate-300">Bahasa Default</span>
-              <select
-                value={defaultLanguage}
-                onChange={(e) => {
-                  setDefaultLanguage(e.target.value);
-                  handleSave({ default_language: e.target.value });
-                }}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 cursor-pointer"
-              >
-                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-                <option value="English">English</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
-              <span className="font-bold text-slate-700 dark:text-slate-300">Panjang Jawaban Default</span>
-              <select
-                value={responseLength}
-                onChange={(e) => {
-                  setResponseLength(e.target.value);
-                  handleSave({ response_length: e.target.value });
-                }}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 cursor-pointer"
-              >
-                <option value="Singkat">Singkat</option>
-                <option value="Sedang">Sedang</option>
-                <option value="Panjang">Panjang</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Tampilkan Sumber Jawaban
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium">Tampilkan referensi & sumber informasi.</p>
-              </div>
-              <button
-                onClick={() => {
-                  const next = !showSources;
-                  setShowSources(next);
-                  handleSave({ show_sources: next });
-                }}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                  showSources ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  showSources ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </button>
-            </div>
-
-            <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3 text-xs">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block">Format Jawaban Default</span>
-              <div className="grid grid-cols-3 gap-2">
-                {formats.map((fmt) => {
-                  const isSelected = responseFormat === fmt;
-                  return (
-                    <button
-                      key={fmt}
-                      onClick={() => {
-                        setResponseFormat(fmt);
-                        handleSave({ response_format: fmt });
-                      }}
-                      className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-orange-500 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                      }`}
-                    >
-                      {fmt}
-                    </button>
-                  );
+              <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {prefT?.webSearch || 'Izinkan AI mengakses data eksternal (web search)'}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                    {prefT?.webSearchDesc || 'AI dapat mencari informasi publik untuk jawaban lebih akurat.'}
+                  </p>
+                </div>
+                {renderToggle(webSearchAccess, (val) => {
+                  setWebSearchAccess(val);
+                  handleSave({ web_search_access: val });
                 })}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 3. AI Memory */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
-            AI Memory
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            AI akan mengingat konteks bisnis Anda untuk memberikan jawaban yang lebih relevan.
-          </p>
+        {/* Card 4: AI Output Preferences */}
+        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div>
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <FileText size={14} className="text-orange-500" /> {prefT?.outputPrefTitle || 'AI Output Preferences'}
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  {prefT?.outputPrefSub || 'Sesuaikan format dan tingkat kedalaman keluaran AI.'}
+                </p>
+              </div>
+              <Globe size={14} className="text-slate-400" />
+            </div>
+
+            <div className="space-y-2 mt-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">{prefT?.defaultLang || 'Bahasa Default'}</span>
+                  <select
+                    value={defaultLanguage}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDefaultLanguage(val);
+                      let aiCode = 'id';
+                      if (val.toLowerCase().includes('english') || val === 'en') aiCode = 'en';
+                      else if (val.toLowerCase().includes('mandarin') || val === 'zh') aiCode = 'zh';
+                      else aiCode = 'id';
+                      localStorage.setItem('zega_ai_default_language', aiCode);
+                      handleSave({ default_language: val });
+                    }}
+                    className="px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                    <option value="English">English</option>
+                    <option value="Mandarin">Mandarin</option>
+                  </select>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">{prefT?.defaultLen || 'Panjang Jawaban'}</span>
+                  <select
+                    value={responseLength}
+                    onChange={(e) => {
+                      setResponseLength(e.target.value);
+                      handleSave({ response_length: e.target.value });
+                    }}
+                    className="px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="Singkat">{prefT?.lenShort || 'Singkat'}</option>
+                    <option value="Sedang">{prefT?.lenMedium || 'Sedang'}</option>
+                    <option value="Panjang">{prefT?.lenLong || 'Panjang'}</option>
+                    <option value="Detail">{prefT?.lenDetail || 'Detail'}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {prefT?.showSourcesTitle || 'Tampilkan Sumber Jawaban'}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{prefT?.showSourcesDesc || 'Tampilkan referensi & sumber informasi.'}</p>
+                </div>
+                {renderToggle(showSources, (val) => {
+                  setShowSources(val);
+                  handleSave({ show_sources: val });
+                })}
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-slate-50/60 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                <span className="font-bold text-slate-700 dark:text-slate-300 block text-[11px]">{prefT?.defaultFmt || 'Format Jawaban Default'}</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {formats.map((fmt) => {
+                    const isSelected = responseFormat === fmt.id;
+                    return (
+                      <button
+                        key={fmt.id}
+                        onClick={() => {
+                          setResponseFormat(fmt.id);
+                          handleSave({ response_format: fmt.id });
+                        }}
+                        className={`py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {fmt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <button
-          onClick={() => triggerToast('✓ Membuka Manajer AI Memory...')}
-          className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
-        >
-          Kelola Memory
-        </button>
       </div>
     </div>
   );

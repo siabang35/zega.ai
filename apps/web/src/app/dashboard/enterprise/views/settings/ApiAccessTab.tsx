@@ -304,7 +304,7 @@ export function ApiAccessTab({ apiKeys, setShowApiKeyModal, onTriggerToast }: Ap
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 space-y-1">
                 <span className="font-bold text-indigo-600 block">cURL Quickstart</span>
                 <pre className="p-2 rounded-lg bg-slate-900 text-slate-100 font-mono text-[10px] overflow-x-auto">
-{`curl -X POST https://api.zega.ai/v1/chat/completions \\
+{`curl -X POST https://zega-ai.onrender.com/v1/chat/completions \\
   -H "Authorization: Bearer zga_live_••••••••••••" \\
   -H "Content-Type: application/json" \\
   -d '{"model": "zega-swarm-v2.4", "messages": [{"role": "user", "content": "Hello"}]}'`}

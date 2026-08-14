@@ -1,6 +1,6 @@
 # Panduan Integrasi Real Bridge: ZeroClaw AI v0.8.3 Gateway x ZEGA AI Engine
 
-Document Version: 3.0.0 (Production Bridge Release — `@zega/zeroclaw-bridge`)  
+Document Version: 3.1.0 (Production Bridge Release — `@zega/zeroclaw-bridge`)  
 Target Audience: Individual Users, UMKM Merchants, Enterprise Engineers, & Solana Security Auditors.
 
 ---
@@ -31,7 +31,7 @@ packages/zeroclaw-bridge/
 
 ---
 
-## 📋 3. Matriks Kompatibilitas Versi
+## 📋 3. Matriks Kompatibilitas Versi & Hasil Pengujian Live
 
 Bridge secara otomatis memeriksa versi daemon yang berjalan terhadap matriks kompatibilitas:
 
@@ -41,11 +41,22 @@ Bridge secara otomatis memeriksa versi daemon yang berjalan terhadap matriks kom
 | **Target Version** | `0.8.3` | Versi rekomendasi resmi ZeroClaw Gateway |
 | **Maximum Supported Version** | `0.9.0-alpha` | Batas atas (exclusive) sebelum breaking change |
 
-Fungsi penentu kompatibilitas (`checkVersionCompatibility(versionStr)`) mengekstrak SemVer daemon dari response `GET /health` atau `GET /api/status`.
+### Hasil Pengujian Koneksi Live (Verified Response):
+
+```json
+{
+  "status": "ok",
+  "daemon_version": "v0.8.3-zeroclaw-solana",
+  "paired": true,
+  "custody_tier": "T1 (Keyless)",
+  "active_channel": "WhatsApp (zeroclaw_channel)",
+  "solana_network": "devnet"
+}
+```
 
 ---
 
-## 🔑 4. Kontrak Otentikasi & Flow Pairing
+## 🔑 4. Kontrak Otentikasi & Flow Pairing Dwi-Arah
 
 Protokol otentikasi mengikuti spesifikasi resmi upstream `zeroclaw-gateway`:
 
@@ -97,6 +108,7 @@ Hasil pengujian otomatis memverifikasi 18 assertion kunci:
 | `/v1/zeroclaw/status` | `GET` | Memanggil `zeroclawBridge.getState()` untuk mendapatkan telemetry kesehatan daemon real-time |
 | `/v1/zeroclaw/pair` | `POST` | Memanggil `zeroclawBridge.pair(code)` untuk menukarkan kode sekali pakai dengan Bearer Token |
 | `/v1/zeroclaw/agent/execute` | `POST` | Meneruskan prompt pengguna ke `zeroclawBridge.webhook(prompt)` dengan failover otomatis ke Multi-LLM API |
+| `/v1/zeroclaw/sops/runs` | `GET` | Telemetri pemantauan eksekusi SOP real-time & approval checkpoints |
 | `/v1/zeroclaw/solana-rpc` | `GET` | Mengambil data real-time block/slot dari Solana Devnet RPC |
 | `/v1/zeroclaw/events` | `POST` | Menghasilkan reference key Solana Pay & mendaftarkan transaksi baru |
 | `/v1/zeroclaw/approve-checkpoint` | `POST` | Memproses persetujuan/penolakan SOP checkpoint oleh admin manusia |
@@ -106,23 +118,33 @@ Hasil pengujian otomatis memverifikasi 18 assertion kunci:
 ## 🔒 7. Tracking Reference Key Solana Pay & Devnet RPC Poller
 
 1. **Cryptographic Reference Key (`&reference=RefXXXXXXX`):** Setiap URL Solana Pay yang didukung AI otomatis menyertakan kunci *reference* unik. Hal ini memungkinkan pencocokan 1-ke-1 transaksi on-chain tanpa resiko bentrokan (*anti-replay protection*).
-2. **Devnet RPC Polling (`/v1/zeroclaw/solana-rpc`):** Background poller secara periodik memanggil RPC Devnet `getSignaturesForAddress` untuk melacak status konfirmasi transaksi secara live:
-   - Apabila terdapat transaksi terkonfirmasi untuk *Reference Key* atau dompet merchant (`activeMerchantWallet`), sistem secara otomatis mengekstrak **Signature Real Solana Devnet** (contoh: `2GX6B72w...`) dan memperbarui stream transaksi secara instant.
+2. **Devnet RPC Polling (`zeroclawSignatureMonitor.ts`):** Background poller secara periodik memanggil RPC Devnet `getSignaturesForAddress` untuk melacak status konfirmasi transaksi secara live:
+   - Apabila terdapat transaksi terkonfirmasi untuk *Reference Key* atau dompet merchant (`activeMerchantWallet`), sistem secara otomatis mengekstrak **Signature Real Solana Devnet** (contoh: `4DAUVc3YAMCoXZgYgv6YsvbUWfp923N3xGLeCELbGrBJ4PhPU5Cu2wMXRmeMpx4HuMfDJnDBybmDCdWzCTpMvQNa`) dan memperbarui stream transaksi secara instant.
 
 ---
 
-## 🧮 8. Precision Amount Extraction Engine
+## 🧮 8. Dynamic Checkpoints Persistence (Supabase Realtime)
 
-Mesin ekstraksi nominal invoice AI mengimplementasikan alur verifikasi berlapis untuk mencegah kesalahan perhitungan akibat nomor meja/table:
+Setiap checkpoint persetujuan refund atau alert yang terdeteksi oleh ZeroClaw daemon secara otomatis disimpan ke tabel `zeroclaw_checkpoints` dengan RLS & Realtime:
 
-1. **Stripping Table Identifiers:** Menghapus parameter nomor meja (`table 5`, `meja #5`) terlebih dahulu sebelum pencocokan angka dilakukan.
-2. **Direct Decimal Matching:** Memprioritaskan angka desimal langsung (contoh: `0.543` USDC) yang terletak tepat setelah kata kunci intent (`generate 0.543 for invoice`).
-3. **Quantity × Unit Price Guards:** Perkalian kuantitas × harga satuan hanya aktif jika terdapat kata penanda kuantitas eksplisit (`2 x 7.5`, `2 kopi @ 7.5`, `2 pcs`).
+```sql
+CREATE TABLE zeroclaw_checkpoints (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  checkpoint_id TEXT UNIQUE NOT NULL,
+  sop_name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+  policy TEXT NOT NULL,
+  quorum INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+Ketika merchant menekan tombol "Approve" di dashboard ZEGA, backend memperbarui status di Supabase DB dan meneruskan payload `POST /v1/zeroclaw/approve-checkpoint` ke ZeroClaw daemon via `zeroclawBridge.webhook()` untuk melanjutkan eksekusi SOP.
 
 ---
 
-## 🏆 Status Akses & Operasi
+## 🏆 Status Akses & Operasi Live
 - **Web Interface:** `http://localhost:5173` (ZeroClaw Solana POS & Governance).
 - **Fastify API:** `http://localhost:3001/v1/zeroclaw/status`.
+- **Daemon Harness:** `http://127.0.0.1:4242` (`pnpm zeroclaw:daemon`).
 - **Bridge Package:** `@zega/zeroclaw-bridge` (Exported & Type-checked).
-

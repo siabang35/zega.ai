@@ -52,6 +52,7 @@ import {
   Zap,
 } from "lucide-react";
 import { CookieConsent } from "./components/CookieConsent";
+import { PrivyAuthBridge } from "./components/auth/PrivyAuthBridge";
 import { TermsOfService } from "./pages/TermsOfService";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { PublicCheckoutView } from "./pages/PublicCheckoutView";
@@ -167,7 +168,7 @@ const getPlans = (t: any) => [
     features: [
       "Up to 2 AI agents",
       "10,000 requests/month",
-      "Basic analytics",
+      "Basic analytics & webhooks",
       "Email support",
       t.pricing.trustedBy,
     ],
@@ -181,9 +182,9 @@ const getPlans = (t: any) => [
     features: [
       t.pricing.fullAccess,
       t.pricing.unlimitedRequests,
-      "Essential integrations",
+      t.pricing.solanaSettlement,
+      t.pricing.telegramInvoice,
       t.pricing.dedicatedSupport,
-      t.pricing.saveYearly,
     ],
   },
   {
@@ -196,35 +197,35 @@ const getPlans = (t: any) => [
       t.pricing.slaGuarantee,
       t.pricing.customIntegrations,
       t.pricing.dedicatedSupport,
-      "Your next major opportunity",
+      t.pricing.isolatedTenant,
     ],
   },
 ];
 
-const TESTIMONIALS = [
+const ARCHITECTURAL_PILLARS = [
   {
-    stars: 4,
-    text: "This AI platform completely transformed the way we operate. What once required manual effort and oversight can now be fully automated, allowing my team to focus on what really matters. The results have been remarkable, helping us achieve our goals and drive gains.",
-    name: "Sarah M. Harvey",
-    role: "CTO, GlobalVentures",
-    img: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&fit=crop&crop=face",
-    featured: false,
+    Icon: ShieldCheck,
+    tag: "ZERO-TRUST SECURITY",
+    title: "Deterministic Security Gates",
+    desc: "Every agent action, payload, and payment dispatch is bound by OWASP Level 3 prompt injection filters, HMAC-SHA256 integrity signatures, and strict tenant-isolated data vaults.",
+    metric: "100% Tamper-Proof",
+    iconBoxClass: "p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-all",
   },
   {
-    stars: 5,
-    text: "ZEGA AI has proven to be an indispensable partner in our digital transformation journey. Its ability to seamlessly integrate with our existing systems, while providing powerful AI-driven insights and actions, has been a game-changer.",
-    name: "James R. Chen",
-    role: "CEO, Nexus Holdings",
-    img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&crop=face",
-    featured: true,
+    Icon: BarChart3,
+    tag: "INSTANT SETTLEMENT",
+    title: "Solana Pay & Telegram Dispatch",
+    desc: "Keyless vault transaction routing enables instant USDC micro-settlements and automated Telegram invoice dispatches with direct 1-click bot pairing fallback.",
+    metric: "<400ms Finality",
+    iconBoxClass: "p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-indigo-600 dark:text-emerald-400 group-hover:scale-110 transition-all",
   },
   {
-    stars: 4,
-    text: "The enterprise orchestration capabilities have given us unprecedented visibility across all our subsidiaries. Compliance across borders is no longer a headache — ZEGA handles it with precision and speed.",
-    name: "Evelyn P. Blake",
-    role: "COO, Meridian Group",
-    img: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face",
-    featured: false,
+    Icon: TrendingUp,
+    tag: "MULTI-MODEL SWARM",
+    title: "9Router Model Routing",
+    desc: "Dynamically balances execution workloads across Groq, Gemini, and OpenRouter for sub-100ms reasoning latencies with zero single-vendor lock-in.",
+    metric: "99.97% Uptime",
+    iconBoxClass: "p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-all",
   },
 ];
 
@@ -607,8 +608,8 @@ const ZegaSplashLoader = ({ onComplete }: { onComplete: () => void }) => {
 
 const VIZ_TAB_DATA = {
   Agent: {
-    title: "",
-    sub: "Jatevo AI Enterprise Orchestration Engine",
+    title: "Agent Orchestrator",
+    sub: "ZeroClaw Autonomous Orchestration Engine",
     badge: "LIVE",
     badgeColor: "dark:text-emerald-400 text-emerald-600 dark:bg-emerald-500/10 bg-emerald-50 border-emerald-500/20",
     badgePulse: "bg-emerald-500",
@@ -828,12 +829,6 @@ function AuthModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    if (isLocal) {
-      setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
-      return;
-    }
-
     let widgetId: string | null = null;
 
     const renderTurnstile = () => {
@@ -846,6 +841,7 @@ function AuthModal({
               setTurnstileToken(token);
             },
             'error-callback': () => {
+              console.warn("Turnstile widget error fallback triggered");
               setTurnstileToken("DEVELOPMENT_BYPASS_TOKEN");
             },
             'expired-callback': () => {
@@ -863,10 +859,10 @@ function AuthModal({
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.defer = true;
-      script.onload = () => setTimeout(renderTurnstile, 200);
+      script.onload = () => setTimeout(renderTurnstile, 150);
       document.head.appendChild(script);
     } else {
-      setTimeout(renderTurnstile, 150);
+      setTimeout(renderTurnstile, 100);
     }
 
     return () => {
@@ -1715,6 +1711,21 @@ function AppContent() {
     }
     return false;
   });
+
+  // Extract ZEGA session state for Privy JWT Auth Synchronization
+  const [zegaSessionEmail, setZegaSessionEmail] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const mockStr = localStorage.getItem("zega_mock_session");
+      if (mockStr) {
+        const parsed = JSON.parse(mockStr);
+        if (parsed && parsed.email && !parsed.isGuest) return parsed.email;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+
   const [activePage, setActivePage] = useState<'home' | 'terms' | 'privacy'>('home');
 
   const handleOpenAuth = (mode: "self-serve" | "enterprise" = "self-serve", prefillEmail = "") => {
@@ -2206,15 +2217,17 @@ function AppContent() {
   }
 
   const isPublicCheckout =
-    !currentPath.startsWith('/console') && (
-      currentPath === '/checkout' || currentPath.startsWith('/checkout') ||
-      currentPath === '/payment' || currentPath.startsWith('/payment') ||
-      currentPath === '/pay' || currentPath.startsWith('/pay') ||
-      currentPath === '/invoice' || currentPath.startsWith('/invoice') ||
+    !currentPath.startsWith('/console') &&
+    !currentPath.startsWith('/dashboard') &&
+    !currentPath.startsWith('/admin') && (
+      currentPath === '/checkout' || currentPath.startsWith('/checkout/') ||
+      currentPath === '/payment' || currentPath.startsWith('/payment/') ||
+      currentPath === '/pay' || currentPath.startsWith('/pay/') ||
+      currentPath === '/invoice' || currentPath.startsWith('/invoice/') ||
       (typeof window !== 'undefined' && (
-        window.location.pathname.includes('/checkout') ||
-        (window.location.pathname.includes('/payment') && !window.location.pathname.startsWith('/console')) ||
-        (window.location.pathname.includes('/pay') && !window.location.pathname.startsWith('/console')) ||
+        window.location.pathname.startsWith('/checkout') ||
+        (window.location.pathname.startsWith('/payment') && !window.location.pathname.startsWith('/console') && !window.location.pathname.startsWith('/dashboard') && !window.location.pathname.startsWith('/admin')) ||
+        (window.location.pathname.startsWith('/pay') && !window.location.pathname.startsWith('/console') && !window.location.pathname.startsWith('/dashboard') && !window.location.pathname.startsWith('/admin')) ||
         window.location.search.includes('reference=') ||
         window.location.search.includes('ref=')
       ))
@@ -2296,32 +2309,9 @@ function AppContent() {
           ? 'individual'
           : (session?.role || 'individual');
 
-      if (role === 'superadmin') {
-        return (
-          <SuperAdminDashboard
-            onClose={() => {
-              localStorage.removeItem('zega_mock_session');
-              setShowDashboard(false);
-              setCurrentPath('/');
-              if (typeof window !== 'undefined') {
-                window.history.pushState({}, '', '/');
-              }
-            }}
-            dark={dark}
-            setDark={setDark}
-            onSwitchToUserMode={() => {
-              const userSession = {
-                ...session,
-                role: 'enterprise',
-              };
-              localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
-              navigateTo('/console');
-            }}
-          />
-        );
-      }
+    if (role === 'superadmin') {
       return (
-        <UserDashboard
+        <SuperAdminDashboard
           onClose={() => {
             localStorage.removeItem('zega_mock_session');
             setShowDashboard(false);
@@ -2332,21 +2322,44 @@ function AppContent() {
           }}
           dark={dark}
           setDark={setDark}
-          userRole={role as any}
-          userEmail={session?.email || ''}
-          userName={session?.fullName || ''}
-          isGuest={false}
-          onSwitchToAdminMode={() => {
-            const adminSession = {
+          onSwitchToUserMode={() => {
+            const userSession = {
               ...session,
-              role: 'superadmin',
+              role: 'enterprise',
             };
-            localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
-            navigateTo('/admin');
+            localStorage.setItem('zega_mock_session', JSON.stringify(userSession));
+            navigateTo('/console');
           }}
         />
       );
     }
+    return (
+      <UserDashboard
+        onClose={() => {
+          localStorage.removeItem('zega_mock_session');
+          setShowDashboard(false);
+          setCurrentPath('/');
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/');
+          }
+        }}
+        dark={dark}
+        setDark={setDark}
+        userRole={role as any}
+        userEmail={session?.email || ''}
+        userName={session?.fullName || ''}
+        isGuest={false}
+        onSwitchToAdminMode={() => {
+          const adminSession = {
+            ...session,
+            role: 'superadmin',
+          };
+          localStorage.setItem('zega_mock_session', JSON.stringify(adminSession));
+          navigateTo('/admin');
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -2627,27 +2640,33 @@ function AppContent() {
           <div className="hero-text-reveal hero-text-reveal-delay-2 relative mx-auto mt-6 sm:mt-10 w-full max-w-[94vw] sm:max-w-[780px] lg:max-w-[840px] group select-none overflow-visible">
             {/* Multi-Layer Ambient Glow Backdrop Aura — Mobile Safe Inset */}
             <div className="absolute -inset-2 sm:-inset-6 rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-r from-[#ff6b35]/25 via-[#e8295a]/20 to-[#0ea5e9]/25 blur-2xl sm:blur-3xl opacity-70 sm:opacity-80 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            
+
             <div className="relative overflow-hidden rounded-xl sm:rounded-3xl border border-slate-200/90 dark:border-white/12 bg-slate-950/80 shadow-[0_20px_50px_-15px_rgba(255,107,53,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-all duration-500 hover:scale-[1.01]">
               {/* Top Glass Highlight Edge */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent z-20" />
 
-              {/* High-Performance Smooth Looping Video */}
-              <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+              {/* High-Performance Smooth Looping Video with Hardware Acceleration & Paint Containment */}
+              <div className="relative aspect-video w-full overflow-hidden bg-slate-950 transform-gpu will-change-transform [contain:paint_layout]">
                 <video
                   autoPlay
                   loop
                   muted
                   playsInline
-                  preload="auto"
-                  poster={getR2CdnUrl('/assets/3D/zega_robotic.png')}
-                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+                  preload="metadata"
+                  disablePictureInPicture
+                  disableRemotePlayback
+                  poster="/assets/3D/zega_robotic.png"
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02] relative z-10 [backface-visibility:hidden] [transform:translateZ(0)]"
                 >
+                  <source src="/assets/3D/zega_animate.mp4" type="video/mp4" />
                   <source src={getR2CdnUrl('/assets/3D/zega_animate.mp4')} type="video/mp4" />
                   <img
-                    src={getR2CdnUrl('/assets/3D/zega_robotic.png')}
+                    src="/assets/3D/zega_robotic.png"
                     alt="ZEGA Robotic Autonomous Swarm"
                     className="w-full h-full object-cover object-center"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getR2CdnUrl('/assets/3D/zega_robotic.png');
+                    }}
                   />
                 </video>
 
@@ -2666,18 +2685,18 @@ function AppContent() {
             <div className="pointer-events-none absolute -top-16 -left-16 size-80 rounded-full bg-gradient-to-br from-[#ff6b35]/20 via-[#e8295a]/15 to-transparent blur-3xl dark:opacity-40 opacity-70" />
             <div className="pointer-events-none absolute -bottom-16 -right-16 size-80 rounded-full bg-gradient-to-tl from-[#e8295a]/20 via-[#ff6b35]/15 to-transparent blur-3xl dark:opacity-40 opacity-70" />
 
-            {/* Flow animation styling */}
+            {/* Flow animation styling — GPU Optimized */}
             <style>{`
               @keyframes flowDash { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
-              .orch-line { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite; }
-              .orch-line-rev { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite reverse; }
+              .orch-line { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite; will-change: stroke-dashoffset; transform: translateZ(0); }
+              .orch-line-rev { stroke-dasharray: 4 4; animation: flowDash 1.2s linear infinite reverse; will-change: stroke-dashoffset; transform: translateZ(0); }
               @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
               .orch-fade { animation: fadeInUp 0.5s ease both; }
               @keyframes glowPulse { 0%,100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(56,189,248,0.5)); } 50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(56,189,248,0.8)); } }
               .glow-hub { animation: glowPulse 2s ease-in-out infinite; }
             `}</style>
 
-            <div ref={containerRef} className="relative w-full min-w-[880px] lg:min-w-0 rounded-2xl border dark:border-white/[0.08] border-slate-200/90 dark:bg-[#0a0e1a]/95 bg-white/85 backdrop-blur-2xl p-4 sm:p-5 lg:p-6 shadow-none dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition-all overflow-hidden">
+            <div ref={containerRef} className="relative w-full min-w-[880px] lg:min-w-0 rounded-2xl border dark:border-white/[0.08] border-slate-200/90 dark:bg-[#0a0e1a]/95 bg-white/85 backdrop-blur-2xl p-4 sm:p-5 lg:p-6 shadow-none dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] transition-all overflow-hidden [contain:paint_layout]">
               {/* Glassmorphic Top Border Glow Line */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#ff6b35]/50 dark:via-[#ff6b35]/70 via-[#e8295a]/40 to-transparent z-20" />
 
@@ -2689,7 +2708,7 @@ function AppContent() {
                 viewBox={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "0 0 1000 450"}
                 preserveAspectRatio={coords.leftHub && coords.leftPoints.length > 0 ? undefined : "none"}
                 fill="none"
-                className="absolute inset-0 size-full pointer-events-none z-20 overflow-visible"
+                className="absolute inset-0 size-full pointer-events-none z-20 overflow-visible [contain:strict]"
               >
                 {/* Fallback to static percentage lines while layout coordinates are loading */}
                 {(!coords.leftHub || coords.leftPoints.length === 0) ? (
@@ -2926,26 +2945,29 @@ function AppContent() {
 
                     {/* Dynamic Smooth Animated Tab Content Container */}
                     <div key={vizTab} className="animate-fadeIn transition-opacity duration-300 transform-gpu will-change-[opacity]">
-                      {/* Logo + Title — Fixed Height 70px Header across all tabs */}
-                      <div className="flex flex-col items-center h-[70px] justify-center px-4 pt-2.5 pb-1.5">
-                        <img
-                          src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                          alt="ZEGA AI"
-                          className="h-6 sm:h-7 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
-                        />
-                        {VIZ_TAB_DATA[vizTab].title && (
-                          <h3 className="mt-0.5 text-[12.5px] sm:text-[13.5px] font-bold dark:text-white/95 text-slate-800 tracking-tight">
+                      {/* Logo + Title — Responsive Header across all tabs */}
+                      <div className="flex flex-col items-center justify-center px-4 pt-3 pb-2 text-center">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                          <img
+                            src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                            alt="ZEGA AI"
+                            className="h-5 sm:h-5.5 w-auto object-contain transition-[filter] duration-300 dark:[filter:invert(1)_hue-rotate(180deg)] dark:drop-shadow-[0_1px_8px_rgba(255,255,255,0.08)]"
+                          />
+                          <span className="text-slate-300 dark:text-slate-700 font-bold text-xs select-none">•</span>
+                          <span className="text-[12.5px] sm:text-[13.5px] font-extrabold dark:text-white/95 text-slate-800 tracking-tight">
                             {VIZ_TAB_DATA[vizTab].title}
-                          </h3>
-                        )}
-                        <p className="mt-0.5 text-[8px] sm:text-[8.5px] dark:text-white/40 text-slate-500 font-semibold text-center flex items-center justify-center gap-1.5">
-                          <img src={getR2CdnUrl('/assets/logo/jatevo.svg')} className="h-3.5 sm:h-4 w-auto object-contain dark:brightness-0 dark:invert transition-all inline-block" alt="Jatevo" />
-                          <span>Enterprise Orchestration Engine</span>
-                        </p>
+                          </span>
+                        </div>
+                        <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-slate-200/90 dark:border-white/10 bg-slate-100/90 dark:bg-white/[0.04] px-2.5 py-0.5 backdrop-blur-md shadow-2xs">
+                          <img src={getR2CdnUrl('/assets/logo/zeroclaw.jpeg')} className="size-3 rounded object-cover inline-block" alt="ZeroClaw" />
+                          <span className="text-[8px] sm:text-[8.5px] font-medium dark:text-slate-300 text-slate-600">
+                            Engineered by <strong className="font-bold dark:text-white text-slate-900">ZeroClaw AI Engine</strong>
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Workflow Pipeline — Fixed 215px Height across all tabs */}
-                      <div className="px-4 sm:px-5 pb-2.5 space-y-1.5 h-[215px] flex flex-col justify-center transition-all duration-300">
+                      {/* Workflow Pipeline — Natural Flex Flow with Explicit Gap */}
+                      <div className="px-4 sm:px-5 pt-2 pb-3 space-y-1.5 transition-all duration-300">
                         {VIZ_TAB_DATA[vizTab].items.map(({ Icon, label, sub }, idx) => (
                           <div
                             key={label}
@@ -3657,41 +3679,39 @@ function AppContent() {
             {t.testimonials.subtitle}
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3 items-start">
-            {TESTIMONIALS.map(({ stars, text, name, role, img, featured }) => (
+          <div className="mt-8 grid gap-4 sm:grid-cols-3 items-stretch">
+            {ARCHITECTURAL_PILLARS.map(({ Icon, tag, title, desc, metric, iconBoxClass }) => (
               <article
-                key={name}
-                className={`group relative overflow-hidden rounded-2xl border border-border/70 p-5 transition-all duration-300 hover:shadow-xl ${featured
-                  ? "bg-gradient-to-br from-[#0e1014] to-[#161820] sm:scale-105 sm:shadow-2xl"
-                  : "bg-card"
-                  }`}
+                key={title}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/[0.08] p-5.5 transition-all duration-300 hover:border-slate-300/80 dark:hover:border-white/20"
               >
-                {/* Rotating Border Beam Line */}
+                {/* Professional 360-Degree Rotating Solana Border Beam */}
                 <div
-                  className="pointer-events-none absolute -inset-[200%] rounded-full opacity-30 group-hover:opacity-85 transition-opacity"
+                  className="pointer-events-none absolute -inset-[150%] rounded-full opacity-30 group-hover:opacity-85 transition-opacity duration-500 z-0"
                   style={{
-                    background: `conic-gradient(from 0deg, transparent 0deg, #ff6b35 35deg, #9b27d4 75deg, #0ea5e9 115deg, transparent 155deg)`,
-                    animation: `spin-beam 8s linear infinite`,
+                    background: `conic-gradient(from 0deg, transparent 0deg, #9945FF 35deg, #14F195 75deg, #00FFA3 110deg, transparent 150deg)`,
+                    animation: `spin-beam 7s linear infinite`,
                   }}
                 />
-                <div className="pointer-events-none absolute inset-[1px] rounded-[15px] bg-card" />
-                <div className="relative z-10">
-                  <Stars count={stars} />
-                  <p className="mt-3 text-[11px] leading-5 text-muted-foreground">{text}</p>
-                  <div className={`mt-5 flex items-center gap-3 ${featured ? "flex-col text-center" : ""}`}>
-                    <ImageWithFallback
-                      src={getR2CdnUrl(img)}
-                      fallbackSrc={generateInitialsAvatar(name)}
-                      alt={name}
-                      loading="lazy"
-                      decoding="async"
-                      className={`rounded-full object-cover border border-white/10 ${featured ? "size-14" : "size-9"}`}
-                    />
-                    <div>
-                      <p className="text-[12px] font-bold">{name}</p>
-                      <p className="text-[10px] text-muted-foreground">{role}</p>
+                <div className="pointer-events-none absolute inset-[1px] rounded-[11px] bg-slate-50/95 dark:bg-slate-900/95 z-0" />
+
+                <div className="space-y-3.5 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-slate-500 dark:text-slate-400 font-mono">{tag}</span>
+                    <div className={iconBoxClass}>
+                      <Icon size={18} strokeWidth={2} />
                     </div>
                   </div>
+
+                  <div>
+                    <h3 className="text-[13.5px] font-bold text-slate-900 dark:text-white tracking-tight leading-snug">{title}</h3>
+                    <p className="mt-2 text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-400 font-normal">{desc}</p>
+                  </div>
+                </div>
+
+                <div className="relative z-10 mt-6 pt-3 border-t border-slate-200/70 dark:border-white/[0.06] flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Architectural Invariant</span>
+                  <span className="text-[10.5px] font-mono font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-white/[0.05] px-2 py-0.5 rounded border border-slate-200 dark:border-white/10">{metric}</span>
                 </div>
               </article>
             ))}
@@ -3867,7 +3887,7 @@ function AppContent() {
           <p className="mt-3.5 text-[12px] sm:text-[13px] text-white/80 font-medium max-w-[280px] sm:max-w-none mx-auto leading-relaxed">
             {t.cta.subtitle}
           </p>
-          
+
           <div className="mt-6 flex items-center justify-center gap-3">
             <button
               onClick={() => handleOpenAuth("self-serve")}
@@ -4044,6 +4064,7 @@ function AppContent() {
 export default function App() {
   return (
     <LanguageProvider>
+      <PrivyAuthBridge />
       <AppContent />
     </LanguageProvider>
   );

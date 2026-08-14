@@ -13,6 +13,11 @@ import { sanitizeRpcUrl } from './urlSanitizer.js';
  * - Optional context (request_id, agent_id, tenant_id, etc.)
  * - Automatic sanitization of URLs and secrets
  */
+const maskSensitiveId = (val: unknown): unknown => {
+  if (typeof val !== 'string' || !val || val.length <= 10) return val;
+  return `${val.slice(0, 5)}...${val.slice(-4)}`;
+};
+
 export const logger = pino({
   name: 'zega-api',
   level: envConfig.LOG_LEVEL,
@@ -25,6 +30,11 @@ export const logger = pino({
   serializers: {
     url: (val) => (typeof val === 'string' ? sanitizeRpcUrl(val) : val),
     rpcUrl: (val) => (typeof val === 'string' ? sanitizeRpcUrl(val) : val),
+    walletId: maskSensitiveId,
+    walletAddress: maskSensitiveId,
+    merchantAddress: maskSensitiveId,
+    ownerId: maskSensitiveId,
+    signerId: maskSensitiveId,
   },
   redact: {
     paths: [

@@ -17,8 +17,8 @@
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="theme-color" content="#0a0b10" />
 
-  <!-- Content Security Policy (CSP) for Privy, Cloudflare Turnstile, Cloudflare Insights & Solana Web3 Extensions -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dashboard.privy.io https://auth.privy.io https://hcaptcha.com https://*.hcaptcha.com https://challenges.cloudflare.com https://js.stripe.com https://static.cloudflareinsights.com https://*.cloudflareinsights.com; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https: wss: https://dashboard.privy.io https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com wss://www.walletlink.org https://api.devnet.solana.com https://cloudflareinsights.com https://*.cloudflareinsights.com;" />
+  <!-- Content Security Policy (CSP) for Privy, Cloudflare Turnstile, Cloudflare Insights, TradingView & Solana Web3 Extensions -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dashboard.privy.io https://auth.privy.io https://hcaptcha.com https://*.hcaptcha.com https://challenges.cloudflare.com https://js.stripe.com https://static.cloudflareinsights.com https://*.cloudflareinsights.com https://s3.tradingview.com https://s.tradingview.com https://www.tradingview.com; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https: wss: https://dashboard.privy.io https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com wss://www.walletlink.org https://api.devnet.solana.com https://cloudflareinsights.com https://*.cloudflareinsights.com wss://stream.binance.com:9443 https://*.tradingview.com; frame-src 'self' https://dashboard.privy.io https://auth.privy.io https://verify.privy.io https://embedded-wallet.privy.io https://*.privy.io https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://s.tradingview.com https://www.tradingview.com; child-src 'self' https://dashboard.privy.io https://auth.privy.io https://verify.privy.io https://embedded-wallet.privy.io https://*.privy.io https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://s.tradingview.com https://www.tradingview.com;" />
 
   <!-- Canonical URL | Primary Production Domain zegaai.site -->
   <link rel="canonical" href="https://zegaai.site" />
@@ -118,16 +118,8 @@
       height: 100%;
     }
   </style>
-  <!-- Cloudflare Turnstile Real Bot Defense API (Production Only / Avoid localhost 110200 dev warning) -->
-  <script>
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      var turnstileScript = document.createElement('script');
-      turnstileScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-      turnstileScript.async = true;
-      turnstileScript.defer = true;
-      document.head.appendChild(turnstileScript);
-    }
-  </script>
+  <!-- Cloudflare Turnstile Real Bot Defense API -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 
 <body>

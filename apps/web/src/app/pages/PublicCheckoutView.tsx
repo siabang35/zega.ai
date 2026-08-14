@@ -164,26 +164,18 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
       }
 
       try {
-        const apiBase = typeof window !== 'undefined' && (window.location.hostname.includes('zegaai.site') || window.location.hostname.includes('render.com'))
+        const apiBase = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site')
           ? 'https://zega-ai.onrender.com'
-          : '';
+          : (typeof window !== 'undefined' && window.location.port === '3000' ? 'http://localhost:3001' : '');
 
-        const res = await fetch(`${apiBase}/v1/zeroclaw/settlement/list?isDemo=false`);
+        const res = await fetch(`${apiBase}/v1/zeroclaw/settlement/check?reference=${encodeURIComponent(params.reference)}`);
         if (res.ok) {
           const json = await res.json();
-          if (json.data && Array.isArray(json.data)) {
-            const found = json.data.find((evt: any) =>
-              evt.signature?.includes(params.reference) ||
-              evt.memo?.includes(params.reference) ||
-              evt.id?.includes(params.reference)
-            );
-
-            if (found) {
-              setPaymentStatus(found.settlementStatus || 'settled_exact');
-              setSettlementDetails(found);
-              setIsPolling(false);
-              clearInterval(intervalId);
-            }
+          if (json.success && json.settled) {
+            setPaymentStatus(json.settlementStatus || 'settled_exact');
+            setSettlementDetails(json.data || { signature: json.signature, status: 'completed' });
+            setIsPolling(false);
+            if (intervalId) clearInterval(intervalId);
           }
         }
       } catch { /* graceful fallback */ }
@@ -397,8 +389,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
       <div className="w-full max-w-md flex items-center justify-between mb-4 z-10">
         <div className="flex items-center gap-3">
           <div className={`size-10 rounded-2xl flex items-center justify-center shadow-xl ${params.tier === 'enterprise'
-              ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-sky-500 shadow-indigo-500/25'
-              : 'bg-gradient-to-br from-[#ff6b35] via-emerald-600 to-teal-500 shadow-emerald-500/25'
+            ? 'bg-gradient-to-br from-indigo-500 via-purple-600 to-sky-500 shadow-indigo-500/25'
+            : 'bg-gradient-to-br from-[#ff6b35] via-emerald-600 to-teal-500 shadow-emerald-500/25'
             }`}>
             <Zap className="size-5 text-white" />
           </div>
@@ -406,8 +398,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             <h1 className="text-base font-black tracking-tight text-white flex items-center gap-2">
               {params.tier === 'enterprise' ? 'ZEGA PAY ENTERPRISE' : 'ZEGA PAY WEB3'}
               <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${params.tier === 'enterprise'
-                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                 }`}>
                 {params.tier === 'enterprise' ? 'Enterprise' : 'UMKM Merchant'}
               </span>
@@ -438,8 +430,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             <span>Sesi Checkout (5 Min)</span>
           </div>
           <div className={`px-2.5 py-1 rounded-xl text-xs font-mono font-black ${isExpired
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
             }`}>
             {isExpired ? 'EXPIRED' : formatCountdown(timeLeft)}
           </div>
@@ -461,17 +453,23 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-emerald-300">PEMBAYARAN BERHASIL & LUNAS (EXACT)</p>
                 <p className="text-[11px] text-emerald-400/90 font-medium">Lunas 100% & Terkonfirmasi On-Chain di Solana</p>
-                {settlementDetails?.signature && (
-                  <a
-                    href={`https://explorer.solana.com/tx/${settlementDetails.signature}?cluster=devnet`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono underline text-emerald-300 hover:text-white"
-                  >
-                    <span>Tx Signature: {settlementDetails.signature.slice(0, 16)}...</span>
-                    <ExternalLink className="size-3" />
-                  </a>
-                )}
+                {(() => {
+                  const rawSig = settlementDetails?.signature || settlementDetails?.tx_signature;
+                  const isValidTxSig = typeof rawSig === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(rawSig.trim());
+                  if (!isValidTxSig) return null;
+                  const cleanSig = rawSig.trim();
+                  return (
+                    <a
+                      href={`https://explorer.solana.com/tx/${cleanSig}?cluster=devnet`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] font-mono underline text-emerald-300 hover:text-white"
+                    >
+                      <span>Tx Signature: {cleanSig.slice(0, 16)}...</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  );
+                })()}
               </div>
             </div>
           ) : paymentStatus === 'settled_underpaid' ? (
@@ -594,11 +592,10 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
                   setSelectedCurrency('USDC');
                   triggerToast('⚡ Solana Pay URI diset ke USDC (SPL Token)');
                 }}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
-                  selectedCurrency === 'USDC'
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${selectedCurrency === 'USDC'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg border border-emerald-400/40'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <img
                   src={getR2CdnUrl('/assets/logo/usdc.webp', true)}
@@ -622,11 +619,10 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
                   setSelectedCurrency('SOL');
                   triggerToast('⚡ Solana Pay URI diset ke Native SOL');
                 }}
-                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
-                  selectedCurrency === 'SOL'
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${selectedCurrency === 'SOL'
                     ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg border border-purple-400/40'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
               >
                 <img
                   src={getR2CdnUrl('/assets/logo/solana.png', true)}
@@ -692,8 +688,8 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
             disabled={isExpired}
             onClick={handleSinglePayButton}
             className={`w-full flex items-center justify-center gap-2.5 p-4 rounded-2xl shadow-2xl transition-all cursor-pointer border text-sm font-black ${isExpired
-                ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:opacity-95 text-white active:scale-[0.98] border-white/20'
+              ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:opacity-95 text-white active:scale-[0.98] border-white/20'
               }`}
           >
             <Wallet className="size-5" />

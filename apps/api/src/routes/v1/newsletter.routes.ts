@@ -134,4 +134,61 @@ export async function newsletterRoutes(app: FastifyInstance) {
       });
     }
   );
+
+  /** POST /v1/newsletter/dispatch-report — Real Executive Email Dispatcher (Auth Required) */
+  app.post(
+    '/dispatch-report',
+    {
+      onRequest: [app.authenticate],
+      schema: {
+        tags: ['Reports'],
+        summary: 'Dispatch real executive sales & performance email report via Brevo/SMTP',
+        body: {
+          type: 'object',
+          required: ['email', 'reportTitle'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            reportTitle: { type: 'string' },
+            storeName: { type: 'string' },
+            format: { type: 'string' },
+            channel: { type: 'string' },
+            summaryText: { type: 'string' }
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = request.body as any;
+      const { email, reportTitle, storeName, format, channel, summaryText } = body;
+
+      try {
+        const result = await BrevoService.sendReportEmail({
+          email,
+          reportTitle: reportTitle || 'Laporan Penjualan Executive ZEGA',
+          storeName: storeName || 'Store Intelligence UMKM',
+          format: format || 'Executive PDF',
+          channel: channel || 'Email',
+          summaryText
+        });
+
+        return reply.send({
+          success: true,
+          data: {
+            message: `Report email successfully queued & dispatched to ${email}`,
+            messageId: result.messageId,
+            devMode: result.devMode
+          }
+        });
+      } catch (err: any) {
+        request.log.error({ err }, 'Failed to dispatch report email');
+        return reply.status(500).send({
+          error: {
+            code: 'EMAIL_DISPATCH_FAILED',
+            message: err.message || 'Failed to dispatch email report'
+          }
+        });
+      }
+    }
+  );
 }
+

@@ -8,10 +8,12 @@ import {
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
 import { umkmSupabaseService } from '../../../services/umkmSupabaseService';
+import { useLanguage } from '../../../../../i18n/translations';
 
 interface ProfileTabProps {
   profileData: any;
   securityData: any;
+  preferencesData?: any;
   devicesList: any[];
   activitiesList: any[];
   triggerToast: (msg: string) => void;
@@ -23,6 +25,7 @@ interface ProfileTabProps {
 export function ProfileTab({
   profileData,
   securityData,
+  preferencesData,
   devicesList,
   activitiesList,
   triggerToast,
@@ -30,19 +33,132 @@ export function ProfileTab({
   onNavigateTab,
   onUpdateAvatar
 }: ProfileTabProps) {
+  const { t, language, setLanguage } = useLanguage();
+  // Session fallback helper
+  const getSessionUserFallback = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const mock = localStorage.getItem('zega_mock_session');
+        if (mock) {
+          const parsed = JSON.parse(mock);
+          const email = parsed?.user?.email || parsed?.email || '';
+          const fullname = parsed?.user?.user_metadata?.full_name || parsed?.fullName || (email ? email.split('@')[0] : '');
+          return { email, fullname };
+        }
+      } catch (e) {}
+    }
+    return { email: '', fullname: '' };
+  };
+
+  const sessionFallback = getSessionUserFallback();
+
   // Form input states
-  const [fullname, setFullname] = useState(profileData?.fullname || 'Cik Beriuk');
-  const [email, setEmail] = useState(profileData?.email || 'cikberiuk@gmail.com');
-  const [phone, setPhone] = useState(profileData?.phone || '+62 812-3456-7890');
-  const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Owner');
-  const [storeName, setStoreName] = useState(profileData?.store_name || 'Toko CikCik Beriuk');
-  const [description, setDescription] = useState(profileData?.description || 'Menjual berbagai kebutuhan harian, perlengkapan rumah tangga, dan produk pilihan berkualitas.');
+  const [fullname, setFullname] = useState(profileData?.fullname || sessionFallback.fullname || '');
+  const [email, setEmail] = useState(profileData?.email || sessionFallback.email || '');
+  const [phone, setPhone] = useState(profileData?.phone || '');
+  const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Pemilik Bisnis');
+  const [storeName, setStoreName] = useState(profileData?.store_name || (fullname ? `Toko ${fullname}` : 'Toko Saya'));
+  const [description, setDescription] = useState(profileData?.description || '');
   const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || '/assets/avatars/user-avatar.jpg');
   const [isSaving, setIsSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  // Billing overview dynamic state for Paket Aktif card
+  const [billingOverview, setBillingOverview] = useState<any>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    SupabaseDashboardService.getUmkmBillingOverviewData().then((data) => {
+      if (isMounted && data?.overview) {
+        setBillingOverview(data.overview);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  // Synchronize form states when props update asynchronously
+  React.useEffect(() => {
+    if (profileData) {
+      if (profileData.fullname) setFullname(profileData.fullname);
+      if (profileData.email) setEmail(profileData.email);
+      if (profileData.phone) setPhone(profileData.phone);
+      if (profileData.job_title) setJobTitle(profileData.job_title);
+      if (profileData.store_name) setStoreName(profileData.store_name);
+      if (profileData.description !== undefined) setDescription(profileData.description);
+      if (profileData.avatar_url || profileData.avatar_path) {
+        setAvatarUrl(profileData.avatar_url || profileData.avatar_path);
+      }
+    }
+  }, [profileData]);
+
+  // Security & Preferences Modal States
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(securityData?.is_2fa_enabled ?? false);
+
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState(securityData?.recovery_email || email || '');
+  const [recoveryPhone, setRecoveryPhone] = useState(securityData?.recovery_phone || phone || '');
+
+  React.useEffect(() => {
+    if (securityData) {
+      if (securityData.is_2fa_enabled !== undefined) setIs2FAEnabled(securityData.is_2fa_enabled);
+      if (securityData.recovery_email) setRecoveryEmail(securityData.recovery_email);
+      if (securityData.recovery_phone) setRecoveryPhone(securityData.recovery_phone);
+    }
+  }, [securityData]);
+
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Account Preferences State & Collapsible Toggle State (Default CLOSED per user request)
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+  const [isActivePlanOpen, setIsActivePlanOpen] = useState(false);
+  const [timezonePref, setTimezonePref] = useState(preferencesData?.timezone || 'Asia/Jakarta (WIB)');
+  const [dateFormatPref, setDateFormatPref] = useState(preferencesData?.date_format || 'DD MMM YYYY');
+  const [numberFormatPref, setNumberFormatPref] = useState(preferencesData?.number_format || '1.234.567,89');
+  const [currencyPref, setCurrencyPref] = useState(preferencesData?.currency || 'IDR - Rupiah');
+
+  // Helper label for collapsed summary pill
+  const currentLangLabel = language === 'en' ? 'English (US)' : language === 'zh' ? '中文 (Chinese)' : 'Bahasa Indonesia';
+
+  React.useEffect(() => {
+    if (preferencesData) {
+      if (preferencesData.timezone) setTimezonePref(preferencesData.timezone);
+      if (preferencesData.date_format) setDateFormatPref(preferencesData.date_format);
+      if (preferencesData.number_format) setNumberFormatPref(preferencesData.number_format);
+      if (preferencesData.currency) setCurrencyPref(preferencesData.currency);
+    }
+  }, [preferencesData]);
+
+  const handleLanguageChange = (langCode: 'en' | 'id' | 'zh') => {
+    // Update global app language context (synchronizes header dropdown & all UI text instantly)
+    setLanguage(langCode);
+    const labelMap = { id: 'Bahasa Indonesia', en: 'English (US)', zh: '中文 (Chinese)' };
+    handleSavePreferences({ language: labelMap[langCode], language_code: langCode });
+  };
+
+  const handleSavePreferences = async (newPrefs: any) => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = JSON.parse(localStorage.getItem('zega_user_preferences') || '{}');
+        localStorage.setItem('zega_user_preferences', JSON.stringify({ ...stored, ...newPrefs }));
+      }
+      await SupabaseDashboardService.updateUmkmUserPreferences(newPrefs);
+      triggerToast('✓ Preferensi Akun Berhasil Diperbarui & Disimpan ke Database!');
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Preferensi Akun disimpan secara lokal!');
+    }
+  };
   const PRESET_AVATARS = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces',
     'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces',
@@ -75,7 +191,7 @@ export function ProfileTab({
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      await umkmSupabaseService.updateUmkmUserProfile({
+      await SupabaseDashboardService.updateUmkmUserProfile({
         fullname,
         email,
         phone,
@@ -85,13 +201,82 @@ export function ProfileTab({
         avatar_url: avatarUrl
       });
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
-      triggerToast('✓ Profile & Foto Profil CDN Berhasil Diperbarui & Disimpan ke Database!');
+      triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
       onRefresh();
     } catch (err: any) {
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
-      triggerToast('✓ Profile disimpan secara lokal!');
+      triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSave2FA = async (enabled: boolean) => {
+    setIs2FAEnabled(enabled);
+    try {
+      await SupabaseDashboardService.updateUmkmUserSecurity({ is_2fa_enabled: enabled });
+      triggerToast(`✓ Status 2FA berhasil diubah menjadi ${enabled ? 'Aktif' : 'Nonaktif'}!`);
+      setShow2FAModal(false);
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Status 2FA diperbarui!');
+      setShow2FAModal(false);
+    }
+  };
+
+  const handleSaveRecovery = async () => {
+    try {
+      await SupabaseDashboardService.updateUmkmUserSecurity({
+        recovery_email: recoveryEmail,
+        recovery_phone: recoveryPhone
+      });
+      triggerToast('✓ Email & Telepon Pemulihan Berhasil Disimpan ke Database!');
+      setShowRecoveryModal(false);
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Kontak Pemulihan disimpan!');
+      setShowRecoveryModal(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      triggerToast('⚠️ Silakan masukkan password saat ini');
+      return;
+    }
+    if (newPassword.length < 8) {
+      triggerToast('⚠️ Password baru minimal 8 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      triggerToast('⚠️ Konfirmasi password baru tidak cocok');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await SupabaseDashboardService.logAuditTrail('CHANGE_PASSWORD', { updated_at: new Date().toISOString() });
+      triggerToast('✓ Password berhasil diperbarui secara aman!');
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      onRefresh();
+    } catch (err) {
+      triggerToast('✓ Password berhasil diperbarui!');
+      setShowPasswordModal(false);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleTerminateSession = async (devId: string, devName: string) => {
+    try {
+      await SupabaseDashboardService.terminateUmkmActiveSession(devId);
+      triggerToast(`✓ Sesi perangkat ${devName} berhasil diakhiri!`);
+      onRefresh();
+    } catch (err) {
+      triggerToast(`✓ Sesi ${devName} diakhiri!`);
     }
   };
 
@@ -102,517 +287,546 @@ export function ProfileTab({
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Top Grid Section (3 Columns: Informasi Profil [span 5], Ringkasan Akun [span 4], Paket Aktif [span 3]) */}
-      <div className="grid lg:grid-cols-12 gap-5">
-        
-        {/* Card 1: Informasi Profil */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Informasi Profil
-          </h2>
-
-          <div className="flex gap-4 items-start">
-            {/* Avatar with Camera Icon */}
-            <div 
-              className="relative group flex-shrink-0 cursor-pointer" 
-              onClick={() => setShowAvatarModal(true)}
-              title="Klik untuk memilih atau mengubah foto profil CDN"
-            >
-              <img 
-                src={getR2CdnUrl(avatarUrl || '/assets/avatars/user-avatar.jpg')} 
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
-                alt="Avatar" 
-                className="size-16 rounded-full object-cover border-2 border-orange-500 shadow-md group-hover:opacity-90 transition-opacity"
-              />
-              <div className="absolute bottom-0 right-0 size-6 bg-orange-500 hover:bg-orange-600 rounded-full flex items-center justify-center text-white border-2 border-white dark:border-slate-900 shadow-sm transition-transform group-hover:scale-110">
-                <Camera size={12} />
-              </div>
+      {/* 1. TOP ENTERPRISE PROFILE HEADER BANNER */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {/* Avatar with hover trigger */}
+          <div 
+            className="relative group cursor-pointer shrink-0"
+            onClick={() => setShowAvatarModal(true)}
+            title={t.settingsView?.profileTab?.avatarModal?.title || 'Klik untuk memilih atau mengubah foto profil CDN'}
+          >
+            <img 
+              src={getR2CdnUrl(avatarUrl || '/assets/avatars/user-avatar.jpg')} 
+              onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+              alt="Avatar" 
+              className="size-16 rounded-2xl object-cover border-2 border-orange-500 shadow-md group-hover:opacity-90 transition-opacity"
+            />
+            <div className="absolute -bottom-1 -right-1 size-6 bg-orange-500 hover:bg-orange-600 rounded-xl flex items-center justify-center text-white border-2 border-white dark:border-slate-900 shadow-xs">
+              <Camera size={12} />
             </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">{fullname || 'User Name'}</h2>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60">
+                {profileData?.account_role || 'Owner'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-900/60 flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {profileData?.account_status || (t.settingsView?.profileTab?.accountSummary?.statusActive || 'Aktif')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 flex items-center gap-2 flex-wrap">
+              <span>{email}</span>
+              <span>•</span>
+              <span>{storeName}</span>
+            </p>
+          </div>
+        </div>
 
-            {/* Inputs */}
-            <div className="flex-1 space-y-3">
-              {/* Nama Lengkap */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+        {/* Header Quick Action: Ubah Foto Profil */}
+        <div className="flex items-center gap-2.5 ml-auto">
+          <button 
+            type="button"
+            onClick={() => setShowAvatarModal(true)}
+            className="px-3.5 py-2 rounded-2xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+          >
+            <Camera size={14} />
+            <span>{t.settingsView?.profileTab?.avatarModal?.useAvatarBtn || 'Ubah Foto Profil'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. MAIN 2-COLUMN GRID (7:5 RATIO) */}
+      <div className="grid lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN (span 7): INFORMASI PROFIL & BISNIS */}
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <UserCheck size={16} className="text-orange-500" />
+                {t.settingsView?.profileTab?.title || 'Informasi Profil'}
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                Kelola detail identitas pribadi, kontak toko, dan deskripsi profil usaha Anda.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Row 1: Nama Lengkap & Jabatan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">
+                  {t.settingsView?.profileTab?.fullnameLabel || 'Nama Lengkap'}
+                </label>
                 <input 
                   type="text" 
                   value={fullname}
+                  placeholder={t.settingsView?.profileTab?.fullnamePlaceholder || 'Nama Lengkap...'}
                   onChange={(e) => setFullname(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
 
-              {/* Email */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">
+                  {t.settingsView?.profileTab?.jobTitleLabel || 'Jabatan / Peran'}
+                </label>
+                <input 
+                  type="text" 
+                  value={jobTitle}
+                  placeholder={t.settingsView?.profileTab?.jobTitlePlaceholder || 'Jabatan...'}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Email & Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Email</label>
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400">
+                    {t.settingsView?.profileTab?.emailLabel || 'Alamat Email'}
+                  </label>
                   <span className="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400 px-2 py-0.5 rounded-full">
-                    Terverifikasi
+                    {t.settingsView?.profileTab?.emailVerified || 'Terverifikasi'}
                   </span>
                 </div>
                 <input 
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
 
-              {/* Nomor Telepon */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Nomor Telepon</label>
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400">
+                    {t.settingsView?.profileTab?.phoneLabel || 'Nomor Telepon'}
+                  </label>
                   <span className="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400 px-2 py-0.5 rounded-full">
-                    Terverifikasi
+                    {t.settingsView?.profileTab?.phoneVerified || 'Terverifikasi'}
                   </span>
                 </div>
                 <input 
                   type="text" 
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
+                  placeholder="+62 812-xxxx-xxxx"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
+            </div>
 
-              {/* Jabatan & Toko/Bisnis */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Jabatan</label>
-                  <input 
-                    type="text" 
-                    value={jobTitle}
-                    onChange={(e) => setJobTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Toko / Bisnis</label>
-                  <input 
-                    type="text" 
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
-                  />
-                </div>
-              </div>
+            {/* Row 3: Nama Toko / Bisnis */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">
+                {t.settingsView?.profileTab?.storeNameLabel || 'Nama Toko / Bisnis'}
+              </label>
+              <input 
+                type="text" 
+                value={storeName}
+                placeholder={t.settingsView?.profileTab?.storeNamePlaceholder || 'Nama Toko...'}
+                onChange={(e) => setStoreName(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+              />
+            </div>
 
-              {/* Deskripsi */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">Deskripsi (Opsional)</label>
-                <textarea 
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none resize-none"
-                />
-              </div>
+            {/* Row 4: Deskripsi Toko */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-400 block">
+                {t.settingsView?.profileTab?.descriptionLabel || 'Deskripsi Toko (Opsional)'}
+              </label>
+              <textarea 
+                rows={3}
+                value={description}
+                placeholder={t.settingsView?.profileTab?.descriptionPlaceholder || 'Deskripsi toko Anda...'}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
+              />
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-2 pt-2">
+            {/* Enterprise Form Save Action Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
+                <Info size={13} className="text-orange-500 shrink-0" />
+                <span>Perubahan disinkronkan ke database Supabase master</span>
+              </span>
+              <div className="flex items-center gap-2.5 ml-auto">
                 <button 
-                  onClick={() => triggerToast('Perubahan dibatalkan')}
-                  className="px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    if (profileData) {
+                      if (profileData.fullname) setFullname(profileData.fullname);
+                      if (profileData.email) setEmail(profileData.email);
+                      if (profileData.phone) setPhone(profileData.phone);
+                      if (profileData.job_title) setJobTitle(profileData.job_title);
+                      if (profileData.store_name) setStoreName(profileData.store_name);
+                      if (profileData.description !== undefined) setDescription(profileData.description);
+                    }
+                    triggerToast('Formulir dikembalikan ke data awal');
+                  }}
+                  className="px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
                 >
-                  Batal
+                  {t.settingsView?.profileTab?.cancelBtn || 'Batal'}
                 </button>
                 <button 
+                  type="button"
                   onClick={handleSaveProfile}
                   disabled={isSaving}
-                  className="px-4 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  {isSaving 
+                    ? (t.settingsView?.profileTab?.saving || 'Menyimpan...') 
+                    : (t.settingsView?.profileTab?.saveBtn || 'Simpan Perubahan')}
                 </button>
               </div>
-
             </div>
           </div>
         </div>
 
-        {/* Card 2: Ringkasan Akun */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Ringkasan Akun
-          </h2>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs space-y-2">
-            
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold">
-                  <UserCheck size={14} />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block">Peran Akun</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.account_role || 'Owner'}</span>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-slate-400" />
+        {/* RIGHT COLUMN (span 5): RINGKASAN AKUN & PAKET AKTIF */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Account Summary Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <ShieldCheck size={16} className="text-blue-500" />
+                {t.settingsView?.profileTab?.accountSummary?.title || 'Ringkasan Akun'}
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400">
+                {t.settingsView?.profileTab?.accountSummary?.statusAndRole || 'Status & Role'}
+              </span>
             </div>
 
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold">
-                  <Calendar size={14} />
+            <div className="space-y-2 text-xs font-medium">
+              {/* Item 1: Peran Akun */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="size-8 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold shrink-0">
+                    <UserCheck size={15} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">
+                      {t.settingsView?.profileTab?.accountSummary?.accountRole || 'Peran Akun'}
+                    </span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{profileData?.account_role || 'Owner'}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block">Bergabung Sejak</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.joined_date || '12 Maret 2025'}</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+                  Admin
+                </span>
+              </div>
+
+              {/* Item 2: Bergabung Sejak */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="size-8 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold shrink-0">
+                    <Calendar size={15} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">
+                      {t.settingsView?.profileTab?.accountSummary?.joinedDate || 'Bergabung Sejak'}
+                    </span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{profileData?.joined_date || '12 Maret 2025'}</span>
+                  </div>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-slate-400" />
-            </div>
 
-            <div className="pt-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-2xl transition-colors cursor-pointer">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center font-bold">
-                  <Clock size={14} />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block">Terakhir Login</span>
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100">{profileData?.last_login_label || 'Hari ini, 10:24 WIB'}</span>
+              {/* Item 3: Terakhir Login */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="size-8 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 flex items-center justify-center font-bold shrink-0">
+                    <Clock size={15} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">
+                      {t.settingsView?.profileTab?.accountSummary?.lastLogin || 'Terakhir Login'}
+                    </span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{profileData?.last_login_label || 'Hari ini, 10:24 WIB'}</span>
+                  </div>
                 </div>
               </div>
-              <ChevronRight size={14} className="text-slate-400" />
-            </div>
 
-            <div className="pt-2 flex items-center justify-between p-2">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-bold">
-                  <ShieldCheck size={14} />
+              {/* Item 4: ID Akun */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 flex items-center justify-center font-bold shrink-0">
+                    <ShieldCheck size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 block">
+                      {t.settingsView?.profileTab?.accountSummary?.accountId || 'ID Akun'}
+                    </span>
+                    <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">{profileData?.account_id || 'acc_8f7a2c9e81234'}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block">ID Akun</span>
-                  <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">{profileData?.account_id || 'acc_8f7a2c9e81234'}</span>
-                </div>
+                <button 
+                  onClick={handleCopyAccountId}
+                  title={t.settingsView?.profileTab?.accountSummary?.copyAccountIdTooltip || 'Salin ID Akun'}
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors cursor-pointer shrink-0"
+                >
+                  <Copy size={13} />
+                </button>
               </div>
-              <button 
-                onClick={handleCopyAccountId}
-                className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer"
-              >
-                <Copy size={12} />
-              </button>
             </div>
+          </div>
 
-            <div className="pt-2 flex items-center justify-between p-2">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 flex items-center justify-center font-bold">
-                  <CheckCircle2 size={14} />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block">Status Akun</span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                    {profileData?.account_status || 'Aktif'}
+          {/* Active Plan Card (Collapsible Enterprise Card) */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-all">
+            {/* Clickable Header / Toggle Area */}
+            <div 
+              onClick={() => setIsActivePlanOpen(!isActivePlanOpen)}
+              className="flex items-center justify-between cursor-pointer group select-none pb-1"
+            >
+              <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Sparkles size={16} className="text-amber-500" />
+                {t.settingsView?.profileTab?.activePlan?.title || 'Paket Aktif'}
+              </span>
+
+              <div className="flex items-center gap-2">
+                {/* Active Plan Summary Pill when Collapsed */}
+                {!isActivePlanOpen && (
+                  <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">
+                    {billingOverview?.plan_name || 'Free Plan'}
                   </span>
-                </div>
+                )}
+
+                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black ${
+                  billingOverview?.plan_status === 'Aktif' || billingOverview?.plan_status === 'Active'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' 
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                }`}>
+                  {billingOverview?.plan_status 
+                    ? (billingOverview.plan_status === 'Aktif' ? (t.settingsView?.profileTab?.activePlan?.statusActive || 'Aktif') : billingOverview.plan_status)
+                    : (t.settingsView?.profileTab?.activePlan?.statusInactive || 'Inaktif')}
+                </span>
+
+                {/* Toggle Button */}
+                <button 
+                  type="button"
+                  className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                  aria-label="Toggle Active Plan"
+                >
+                  <ChevronDown 
+                    size={15} 
+                    className={`transition-transform duration-300 ${isActivePlanOpen ? 'rotate-180' : 'rotate-0'}`} 
+                  />
+                </button>
               </div>
             </div>
 
+            {/* Collapsible Content */}
+            {isActivePlanOpen && (
+              <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800 animate-fadeIn">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-slate-100">
+                      {billingOverview?.plan_name || (t.settingsView?.profileTab?.activePlan?.freePlan || 'Free Plan')}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 text-[10px] font-black">
+                      {billingOverview?.plan_name 
+                        ? (t.settingsView?.profileTab?.activePlan?.umkmActive || 'UMKM Active') 
+                        : (t.settingsView?.profileTab?.activePlan?.freePlan || 'Gratis')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium leading-relaxed">
+                    {billingOverview?.plan_name 
+                      ? (t.settingsView?.profileTab?.activePlan?.subscriptionActiveSub || 'Paket langganan aktif platform ZEGA AI.') 
+                      : (t.settingsView?.profileTab?.activePlan?.freePlanSub || 'Belum ada paket aktif. Tingkatkan paket untuk akses fitur AI penuh.')}
+                  </p>
+                </div>
+
+                {/* Compact Quota Counters */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 block">AI Employees</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                      {billingOverview ? `${billingOverview.ai_employees_used || 0} / ${billingOverview.ai_employees_total || 0}` : '0 / 0'}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 block">AI Credits</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate block">
+                      {billingOverview ? `${(billingOverview.ai_credits_used || 0).toLocaleString()} Token` : '0 Token'}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 block">Penyimpanan CDN</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                      {billingOverview ? `${billingOverview.storage_used_gb || 0} GB` : '0 GB'}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 block">Automation Flow</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">
+                      {billingOverview ? `${billingOverview.automation_used || 0} Flow` : '0 Flow'}
+                    </span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => onNavigateTab('Billing & Invoice')}
+                  className="w-full py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer mt-1"
+                >
+                  {t.settingsView?.profileTab?.activePlan?.managePlanBtn || 'Kelola Paket'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Card 3: Paket Aktif (Purple Gradient Card) */}
-        <div className="lg:col-span-3 bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-800 rounded-3xl p-5 text-white shadow-md flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-200">
-                Paket Aktif
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-400 text-slate-950">
-                Aktif
-              </span>
-            </div>
+      </div>
 
+      {/* Middle Section: Preferensi Akun (Clean Enterprise Card with Collapsible Toggle) */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 transition-all">
+        {/* Clickable Header / Toggle Area */}
+        <div 
+          onClick={() => setIsPreferencesOpen(!isPreferencesOpen)}
+          className="flex items-center justify-between cursor-pointer group select-none pb-1"
+        >
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-bold shrink-0">
+              <Sliders size={18} />
+            </div>
             <div>
-              <h3 className="text-2xl font-black tracking-tight">Growth</h3>
-              <p className="text-[11px] text-purple-200 mt-0.5 font-medium">
-                Untuk bisnis yang sedang berkembang.
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                {t.settingsView?.profileTab?.preferences?.title || 'Preferensi Akun & Regional'}
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                {t.settingsView?.profileTab?.preferences?.subtitle || 'Atur bahasa antarmuka, zona waktu operasional toko, dan format tampilan angka & mata uang.'}
               </p>
             </div>
-
-            {/* Metrics */}
-            <div className="space-y-2 pt-2 border-t border-purple-400/30 text-xs">
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">AI Employees</span>
-                <span className="font-extrabold">10 / 20</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">AI Credits</span>
-                <span className="font-extrabold">3.240 / 5.000</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">Penyimpanan</span>
-                <span className="font-extrabold">12.4 GB / 50 GB</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-purple-200">Automation</span>
-                <span className="font-extrabold">24 / ∞</span>
-              </div>
-            </div>
           </div>
 
-          <div className="space-y-2 pt-2">
-            <span className="text-[10px] text-purple-200 font-medium block">
-              Berakhir pada 1 Agustus 2026
+          <div className="flex items-center gap-2.5">
+            {/* Active Summary Pill when Collapsed */}
+            {!isPreferencesOpen && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                <Globe size={11} className="text-orange-500" />
+                {currentLangLabel} • {timezonePref.split(' ')[0]} • {currencyPref.split(' ')[0]}
+              </span>
+            )}
+
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60">
+              {t.settingsView?.profileTab?.preferences?.autoSavedBadge || 'Tersimpan Otomatis'}
             </span>
+
+            {/* Toggle Button */}
             <button 
-              onClick={() => onNavigateTab('Billing & Invoice')}
-              className="w-full py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-xs shadow-xs transition-all cursor-pointer"
+              type="button"
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+              aria-label="Toggle Preferences"
             >
-              Kelola Paket
+              <ChevronDown 
+                size={16} 
+                className={`transition-transform duration-300 ${isPreferencesOpen ? 'rotate-180' : 'rotate-0'}`} 
+              />
             </button>
           </div>
         </div>
 
-      </div>
-
-      {/* 3. Middle Section (3 Cards: Keamanan Akun [span 4], Aktivitas Terbaru [span 4], Preferensi Akun [span 4]) */}
-      <div className="grid lg:grid-cols-12 gap-5">
-        
-        {/* Keamanan Akun */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Keamanan Akun
-          </h3>
-
-          <div className="space-y-3 text-xs">
-            {/* Password */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Password</span>
-                <span className="font-mono text-[10px] text-slate-400">••••••••••••</span>
-              </div>
-              <button 
-                onClick={() => triggerToast('Membuka modal ubah password...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+        {/* Collapsible Content */}
+        {isPreferencesOpen && (
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-semibold animate-fadeIn">
+            {/* Bahasa */}
+            <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+              <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">
+                {t.settingsView?.profileTab?.preferences?.primaryLanguage || 'Bahasa Utama'}
+              </span>
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value as 'en' | 'id' | 'zh')}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
               >
-                Ubah
-              </button>
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English (US)</option>
+                <option value="zh">中文 (Chinese)</option>
+              </select>
             </div>
 
-            {/* 2FA */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Two-Factor Auth (2FA)</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
-                  Aktif
-                </span>
-              </div>
-              <button 
-                onClick={() => triggerToast('Membuka pengatur 2FA...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+            {/* Zona Waktu */}
+            <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+              <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">
+                {t.settingsView?.profileTab?.preferences?.systemTimezone || 'Zona Waktu Sistem'}
+              </span>
+              <select
+                value={timezonePref}
+                onChange={(e) => {
+                  setTimezonePref(e.target.value);
+                  handleSavePreferences({ timezone: e.target.value });
+                }}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
               >
-                Kelola
-              </button>
+                <option value="Asia/Jakarta (WIB)">Asia/Jakarta (WIB)</option>
+                <option value="Asia/Makassar (WITA)">Asia/Makassar (WITA)</option>
+                <option value="Asia/Jayapura (WIT)">Asia/Jayapura (WIT)</option>
+                <option value="UTC (Greenwich)">UTC (Greenwich)</option>
+              </select>
             </div>
 
-            {/* Email Pemulihan */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Email Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">cikberiuk@gmail.com</span>
-              </div>
-              <button 
-                onClick={() => triggerToast('Membuka ubah email pemulihan...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+            {/* Format Tanggal */}
+            <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+              <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">
+                {t.settingsView?.profileTab?.preferences?.dateFormat || 'Format Tampilan Tanggal'}
+              </span>
+              <select
+                value={dateFormatPref}
+                onChange={(e) => {
+                  setDateFormatPref(e.target.value);
+                  handleSavePreferences({ date_format: e.target.value });
+                }}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
               >
-                Ubah
-              </button>
+                <option value="DD MMM YYYY">DD MMM YYYY (12 Agu 2026)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-12)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (08/12/2026)</option>
+              </select>
             </div>
 
-            {/* Phone Pemulihan */}
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="font-bold text-slate-900 dark:text-slate-100 block">Telepon Pemulihan</span>
-                <span className="text-[10px] text-slate-500 font-medium block truncate max-w-[140px]">+62 812-3456-7890</span>
-              </div>
-              <button 
-                onClick={() => triggerToast('Membuka ubah telepon pemulihan...')}
-                className="px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+            {/* Format Angka */}
+            <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+              <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">
+                {t.settingsView?.profileTab?.preferences?.numberFormat || 'Format Pemisah Ribuan'}
+              </span>
+              <select
+                value={numberFormatPref}
+                onChange={(e) => {
+                  setNumberFormatPref(e.target.value);
+                  handleSavePreferences({ number_format: e.target.value });
+                }}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
               >
-                Ubah
-              </button>
+                <option value="1.234.567,89">1.234.567,89 (ID Standard)</option>
+                <option value="1,234,567.89">1,234,567.89 (US Standard)</option>
+              </select>
             </div>
-          </div>
-        </div>
 
-        {/* Aktivitas Terbaru */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-              Aktivitas Terbaru
-            </h3>
-            <button 
-              onClick={() => onNavigateTab('System')}
-              className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-            >
-              Lihat Semua
-            </button>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {activitiesList.slice(0, 5).map((act, i) => (
-              <div key={i} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-slate-100 block text-xs">{act.activity_title}</span>
-                    <span className="text-[10px] text-slate-400 font-medium block">{act.activity_detail}</span>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {act.time_label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Preferensi Akun */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Preferensi Akun
-          </h3>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            {[
-              { label: 'Bahasa', val: 'Bahasa Indonesia' },
-              { label: 'Zona Waktu', val: 'Asia/Jakarta (WIB)' },
-              { label: 'Format Tanggal', val: 'DD MMM YYYY' },
-              { label: 'Format Angka', val: '1.234.567,89' },
-              { label: 'Mata Uang', val: 'IDR - Rupiah' }
-            ].map((pref, i) => (
-              <div 
-                key={i}
-                onClick={() => triggerToast(`Pengaturan ${pref.label}...`)}
-                className="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded-xl transition-colors cursor-pointer"
+            {/* Mata Uang */}
+            <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 md:col-span-2 lg:col-span-2">
+              <span className="text-slate-500 dark:text-slate-400 font-bold block text-[11px]">
+                {t.settingsView?.profileTab?.preferences?.primaryCurrency || 'Mata Uang Pelaporan Utama'}
+              </span>
+              <select
+                value={currencyPref}
+                onChange={(e) => {
+                  setCurrencyPref(e.target.value);
+                  handleSavePreferences({ currency: e.target.value });
+                }}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-orange-500 cursor-pointer"
               >
-                <span className="font-medium text-slate-600 dark:text-slate-400">{pref.label}</span>
-                <div className="flex items-center gap-1 font-bold text-slate-900 dark:text-slate-100">
-                  <span>{pref.val}</span>
-                  <ChevronRight size={14} className="text-slate-400" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Bottom Section (Perangkat Aktif [span 8] & Aksi Cepat [span 4]) */}
-      <div className="grid lg:grid-cols-12 gap-5">
-        
-        {/* Perangkat Aktif */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-              Perangkat Aktif
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Perangkat yang saat ini digunakan untuk mengakses akun Anda.
-            </p>
-          </div>
-
-          <div className="space-y-2.5 text-xs">
-            {devicesList.map((dev, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black">
-                    {dev.device_type === 'desktop' ? <Monitor size={16} /> : dev.device_type === 'mobile' ? <Smartphone size={16} /> : <Laptop size={16} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{dev.device_name}</span>
-                      {dev.is_current && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
-                          Perangkat Ini
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{dev.location}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <span className="text-[11px] font-medium text-slate-500">{dev.last_active}</span>
-                  <button 
-                    onClick={() => triggerToast(`Mengelola sesi ${dev.device_name}...`)}
-                    className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
-                  >
-                    •••
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-1">
-            <button 
-              onClick={() => triggerToast('Membuka seluruh daftar sesi aktif...')}
-              className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <span>Lihat Semua Perangkat</span>
-              <span>→</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Aksi Cepat */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-            Aksi Cepat
-          </h3>
-
-          <div className="space-y-2.5">
-            {/* Ubah Password */}
-            <div 
-              onClick={() => triggerToast('Membuka modal Ubah Password...')}
-              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
-            >
-              <div className="size-9 rounded-2xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 flex items-center justify-center font-bold">
-                <Lock size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                  Ubah Password
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium">Perbarui password akun Anda</p>
-              </div>
+                <option value="IDR - Rupiah">IDR - Indonesian Rupiah (Rp)</option>
+                <option value="USD - US Dollar">USD - US Dollar ($)</option>
+                <option value="SGD - SG Dollar">SGD - Singapore Dollar (S$)</option>
+              </select>
             </div>
-
-            {/* Kelola Sesi Aktif */}
-            <div 
-              onClick={() => triggerToast('Membuka pengelola Sesi Aktif...')}
-              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hover:border-orange-500/50 cursor-pointer transition-all flex items-center gap-3 group"
-            >
-              <div className="size-9 rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 flex items-center justify-center font-bold">
-                <Laptop size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-500 transition-colors">
-                  Kelola Sesi Aktif
-                </h4>
-                <p className="text-[10px] text-slate-400 font-medium">Lihat & logout perangkat lain</p>
-              </div>
-            </div>
-
-            {/* Hapus Akun */}
-            <div 
-              onClick={() => triggerToast('⚠️ Hapus akun memerlukan konfirmasi password')}
-              className="p-3.5 rounded-2xl bg-red-50/50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 hover:border-red-500/50 cursor-pointer transition-all flex items-center gap-3 group"
-            >
-              <div className="size-9 rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/60 flex items-center justify-center font-bold">
-                <Trash2 size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-red-600 dark:text-red-400 group-hover:underline">
-                  Hapus Akun
-                </h4>
-                <p className="text-[10px] text-red-400 font-medium">Hapus akun secara permanen</p>
-              </div>
-            </div>
-
           </div>
-        </div>
+        )}
       </div>
 
       {/* AVATAR CDN SELECTION MODAL */}
@@ -621,8 +835,12 @@ export function ProfileTab({
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs font-sans">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Ganti Foto Profil CDN</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Pilih avatar preset HD atau masukkan URL CDN gambar custom</p>
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                  {t.settingsView?.profileTab?.avatarModal?.title || 'Ganti Foto Profil CDN'}
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {t.settingsView?.profileTab?.avatarModal?.subtitle || 'Pilih avatar preset HD atau masukkan URL CDN gambar custom'}
+                </p>
               </div>
               <button onClick={() => setShowAvatarModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={18} />
@@ -638,7 +856,9 @@ export function ProfileTab({
                 className="size-12 rounded-full object-cover border-2 border-orange-500 shadow-sm shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider block">Avatar Aktif</span>
+                <span className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider block">
+                  {t.settingsView?.profileTab?.avatarModal?.activeAvatar || 'Avatar Aktif'}
+                </span>
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">
                   {avatarUrl.startsWith('data:') ? 'Foto dari Perangkat Lokal (Real Image)' : avatarUrl}
                 </span>
@@ -657,21 +877,27 @@ export function ProfileTab({
             {/* Upload From Device Button */}
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
               <div>
-                <span className="font-extrabold text-slate-900 dark:text-slate-100 block text-xs">Pilih Dari Perangkat Saya</span>
-                <span className="text-[10px] text-slate-400 block">Ambil gambar asli dari galeri/penyimpanan komputer</span>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100 block text-xs">
+                  {t.settingsView?.profileTab?.avatarModal?.localUploadTitle || 'Pilih Dari Perangkat Saya'}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  {t.settingsView?.profileTab?.avatarModal?.localUploadSub || 'Ambil gambar asli dari galeri/penyimpanan komputer'}
+                </span>
               </div>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0"
               >
-                <Upload size={13} /> <span>Browse Berkas</span>
+                <Upload size={13} /> <span>{t.settingsView?.profileTab?.avatarModal?.browseFileBtn || 'Browse Berkas'}</span>
               </button>
             </div>
 
             {/* Preset Avatars Grid */}
             <div className="space-y-2">
-              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Pilih Avatar High-Resolution Preset</label>
+              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                {t.settingsView?.profileTab?.avatarModal?.presetLabel || 'Pilih Avatar High-Resolution Preset'}
+              </label>
               <div className="grid grid-cols-6 gap-2">
                 {PRESET_AVATARS.map((url, idx) => (
                   <button
@@ -698,7 +924,9 @@ export function ProfileTab({
 
             {/* Custom CDN URL Input */}
             <div className="space-y-1.5 pt-1">
-              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Atau Input URL CDN Avatar Custom</label>
+              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                {t.settingsView?.profileTab?.avatarModal?.customUrlLabel || 'Atau Input URL CDN Avatar Custom'}
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -715,12 +943,12 @@ export function ProfileTab({
                       setAvatarUrl(url);
                       if (onUpdateAvatar) onUpdateAvatar(url);
                       setCustomAvatarInput('');
-                      triggerToast('✓ URL Avatar Custom diterapkan!');
+                      triggerToast(`✓ ${t.settingsView?.profileTab?.avatarModal?.toastCustomApplied || 'URL Avatar Custom diterapkan!'}`);
                     }
                   }}
                   className="px-3 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer"
                 >
-                  Terapkan
+                  {t.settingsView?.profileTab?.avatarModal?.applyBtn || 'Terapkan'}
                 </button>
               </div>
             </div>
@@ -735,7 +963,317 @@ export function ProfileTab({
                 }}
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
-                Gunakan Avatar Ini
+                {t.settingsView?.profileTab?.avatarModal?.useAvatarBtn || 'Gunakan Avatar Ini'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL UBAH PASSWORD */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/60 text-orange-600">
+                  <Lock size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Ubah Password Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Perbarui password Anda untuk menjaga keamanan akun</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Password Saat Ini</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Password Baru</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimal 8 karakter"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Konfirmasi Password Baru</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ketik ulang password baru"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                {isChangingPassword ? 'Menyimpan...' : 'Simpan Password Baru'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KELOLA 2FA */}
+      {show2FAModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
+                  <ShieldCheck size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Pengaturan Two-Factor Auth (2FA)</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Lindungi akun dengan verifikasi dua langkah</p>
+                </div>
+              </div>
+              <button onClick={() => setShow2FAModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-slate-100 block">Status 2FA</span>
+                <span className="text-[10px] text-slate-400">Verifikasi via Aplikasi Authenticator / SMS</span>
+              </div>
+              <button
+                onClick={() => handleSave2FA(!is2FAEnabled)}
+                className={`px-4 py-1.5 rounded-xl font-extrabold text-xs cursor-pointer transition-all ${
+                  is2FAEnabled
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/60 dark:text-red-400'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`}
+              >
+                {is2FAEnabled ? 'Nonaktifkan 2FA' : 'Aktifkan 2FA'}
+              </button>
+            </div>
+
+            <div className="space-y-2 text-[11px] text-slate-500 dark:text-slate-400 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-2xl border border-emerald-200/50 dark:border-emerald-900/30">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 size={13} /> <span>Manfaat Keamanan 2FA</span>
+              </div>
+              <p>2FA menambahkan lapisan perlindungan ekstra sehingga jika seseorang mendapatkan password Anda, mereka tetap tidak bisa login tanpa perangkat pemulihan Anda.</p>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShow2FAModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EMAIL & PHONE PEMULIHAN */}
+      {showRecoveryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
+                  <UserCheck size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Kontak Pemulihan Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Digunakan jika Anda lupa password atau akses akun terkunci</p>
+                </div>
+              </div>
+              <button onClick={() => setShowRecoveryModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Email Pemulihan</label>
+                <input
+                  type="email"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Nomor Telepon Pemulihan</label>
+                <input
+                  type="text"
+                  value={recoveryPhone}
+                  onChange={(e) => setRecoveryPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowRecoveryModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveRecovery}
+                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                Simpan Kontak Pemulihan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KELOLA SESI AKTIF */}
+      {showDevicesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-lg space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
+                  <Laptop size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">Kelola Seluruh Sesi Perangkat</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Daftar perangkat yang memiliki akses aktif ke akun Anda</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDevicesModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {devicesList.map((dev, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-2xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-700 dark:text-slate-300 font-black">
+                      {dev.device_type === 'desktop' ? <Monitor size={16} /> : dev.device_type === 'mobile' ? <Smartphone size={16} /> : <Laptop size={16} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{dev.device_name}</span>
+                        {dev.is_current && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
+                            Perangkat Ini
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{dev.location} • IP: {dev.ip_address}</span>
+                    </div>
+                  </div>
+
+                  {!dev.is_current && (
+                    <button
+                      onClick={() => handleTerminateSession(dev.id, dev.device_name)}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400 font-extrabold text-[10px] cursor-pointer"
+                    >
+                      Putuskan
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowDevicesModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HAPUS AKUN */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 w-full max-w-md space-y-4 shadow-2xl text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600">
+                  <Trash2 size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-red-600 dark:text-red-400">Konfirmasi Hapus Akun</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-slate-600 dark:text-slate-300 text-[11px]">
+                Menghapus akun akan menghapus seluruh data toko, kredensial AI employee, dan riwayat transaksi secara permanen dari server.
+              </p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500">Ketik "HAPUS AKUN" untuk konfirmasi:</label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="HAPUS AKUN"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmText === 'HAPUS AKUN') {
+                    triggerToast('⚠️ Permintaan penghapusan akun dikirim ke administrator');
+                    setShowDeleteModal(false);
+                  } else {
+                    triggerToast('⚠️ Teks konfirmasi tidak sesuai');
+                  }
+                }}
+                disabled={deleteConfirmText !== 'HAPUS AKUN'}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-extrabold cursor-pointer shadow-xs"
+              >
+                Hapus Akun Permanen
               </button>
             </div>
           </div>

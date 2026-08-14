@@ -27,3 +27,6 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# ─── 6. MEDIA ASSETS (STREAMED VIA R2 CDN) ──────────────────────────────────
+public/assets/video/

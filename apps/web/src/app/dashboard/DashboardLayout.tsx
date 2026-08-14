@@ -186,9 +186,8 @@ export function DashboardLayout({ onClose, dark, setDark }: DashboardLayoutProps
             >
               {dark ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <button className="relative size-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer">
+            <button className="relative size-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer" title="Notifications">
               <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-[#e05638]" />
             </button>
             <button
               onClick={onClose}

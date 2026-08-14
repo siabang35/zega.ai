@@ -1,25 +1,24 @@
 # ZEGA AI × ZeroClaw Agent — Operator Quick Start Guide
 
-Reproduce this setup in an evening. Stock ZeroClaw binary, no compiled plugins required.
+Reproduce this setup in an evening. Stock ZeroClaw binary or 1-command executable daemon harness, zero compiled plugins required.
 
 ## Prerequisites
 
-- ZeroClaw release binary (`>= v0.8.0, < v0.9.0-alpha`)
-- Node.js 18+ (for ZEGA API backend)
+- ZeroClaw release binary (`>= v0.8.0, < v0.9.0-alpha`) OR Node.js 20+ daemon harness
 - Solana wallet (Phantom, Solflare, or Backpack)
 - Solana Devnet RPC access (default `api.devnet.solana.com`)
 
 ## 1. Clone & Install ZEGA AI
 
 ```sh
-git clone https://github.com/siabang35/zega.ai
-cd zega.ai
+git clone https://github.com/siabang35/zega.ai.git
+cd ZEGA
 pnpm install
 ```
 
 ## 2. Configure Environment
 
-Copy `.env.example` to `apps/api/.env` and set:
+Copy `.env.example` to `.env` and set:
 
 ```env
 SOLANA_RPC_URL=https://api.devnet.solana.com
@@ -31,76 +30,65 @@ SUPABASE_URL=<your-supabase-url>
 SUPABASE_SERVICE_ROLE_KEY=<your-supabase-key>
 ```
 
-## 3. Copy ZeroClaw Agent Config
+## 3. Launch Gateway Daemon & API
 
+### Option A: Runnable Daemon Harness (< 1 min setup)
+```sh
+# Terminal 1: ZEGA API backend
+pnpm dev:api
+
+# Terminal 2: Executable ZeroClaw Gateway Daemon (port 4242)
+pnpm zeroclaw:daemon
+```
+
+### Option B: Production ZeroClaw Rust Binary
 ```sh
 cp docs/zeroclaw/config.toml <zeroclaw-install>/config.toml
-```
-
-Edit the config to replace `ENV_*` placeholders with your real values.
-
-## 4. Install Skills & SOPs
-
-```sh
-# Create skill bundle
-zeroclaw skills bundle add solana-ops
-
-# Install skills into the bundle
-zeroclaw skills install ./docs/zeroclaw/skills/solana-pay --bundle solana-ops
-zeroclaw skills install ./docs/zeroclaw/skills/defi-guardian --bundle solana-ops
-zeroclaw skills install ./docs/zeroclaw/skills/merchant-memory --bundle solana-ops
-zeroclaw skills install ./docs/zeroclaw/skills/solana-blinks --bundle solana-ops
-
-# Copy SOPs
 cp -r docs/zeroclaw/sops/* <zeroclaw-install>/sops/
-zeroclaw sop validate
+cp -r docs/zeroclaw/skills/* <zeroclaw-install>/skills/
+zeroclaw start --config docs/zeroclaw/config.toml
 ```
 
-## 5. Start Everything
+## 4. Verify Live Connectivity
 
 ```sh
-# Terminal 1: ZeroClaw daemon
-zeroclaw start
-
-# Terminal 2: ZEGA API backend
-cd apps/api && npm run start:dev
-
-# Terminal 3: ZEGA web frontend
-cd apps/web && npm run dev
+curl -s http://localhost:3001/v1/zeroclaw/status
 ```
 
-## 6. Pair ZEGA to ZeroClaw
-
-```sh
-# Get pairing code from ZeroClaw CLI
-zeroclaw pair
-
-# Enter code in ZEGA Terminal dashboard or via API:
-curl -X POST http://localhost:4000/api/v1/zeroclaw/pair \
-  -H "Content-Type: application/json" \
-  -d '{"pairingCode": "<code>"}'
+**Verified Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "state": {
+      "bridgeConnected": true,
+      "bridgeStatus": "Connected to ZeroClaw Gateway (0.8.3) at http://127.0.0.1:4242",
+      "custodyTier": "T1 (Keyless / Unsigned)"
+    }
+  }
+}
 ```
 
-## 7. Verify
+## 5. Verify Features
 
 1. Open ZEGA Dashboard at `http://localhost:5173/console`
-2. Navigate to ZeroClaw Terminal
-3. Type "Generate invoice for table 4, 0.50 USDC" — should generate Solana Pay QR
-4. Check SOP list: `GET /v1/zeroclaw/sop/list` — should show 4 SOPs
-5. Check MCP servers: `GET /v1/zeroclaw/mcp/servers` — should show Helius + SendAI
+2. Navigate to ZeroClaw Terminal or UMKM POS
+3. Type "Generate invoice for table 4, 0.50 USDC" — generates Solana Pay QR
+4. Check SOP runs: `GET /v1/zeroclaw/sops/runs` — shows 4 active SOPs
+5. Check RPC status: `GET /v1/zeroclaw/rpc-pool/status` — shows Helius + failover pool
 
 ## Features Included
 
-| Feature | Config Location | Route |
+| Feature | Config Location | Route / Verification |
 |:---|:---|:---|
-| SOPs (4 total) | `docs/zeroclaw/sops/*/` | `/v1/zeroclaw/sop/*` |
+| SOPs (4 total) | `docs/zeroclaw/sops/*/` | `/v1/zeroclaw/sops/runs` |
 | Skills (4 total) | `docs/zeroclaw/skills/*/` | Agent context |
-| MCP (Helius + SendAI) | `config.toml [mcp]` | `/v1/zeroclaw/mcp/*` |
-| Memory Graph | `config.toml [knowledge]` | `/v1/zeroclaw/memory/*` |
-| Webhook HMAC | `config.toml [channels.webhook]` | `/v1/zeroclaw/webhook/*` |
+| MCP (Helius + SendAI) | `config.toml [mcp]` | `config.toml` |
+| Memory Graph | `config.toml [knowledge]` | Supabase Realtime DB |
+| Webhook HMAC | `config.toml [channels.webhook]` | `zeroclaw.routes.ts` |
 | Blinks/Actions | Skills + routes | `/v1/zeroclaw/actions/*` |
-| DeFi Guardian | SOP + skill + routes | `/v1/zeroclaw/defi/*` |
-| Custody: T1 Keyless | `config.toml [agent]` | All routes |
+| DeFi Guardian | SOP + skill + routes | `/v1/zeroclaw/sops/runs` |
+| Custody: T1 Keyless | `config.toml [agent]` | Keyless URL construction |
 
 ## Custody Tier
 

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { envConfig } from '../../config/env.js';
@@ -5,6 +6,19 @@ import { BrevoService } from '../../services/brevoService.js';
 import { TurnstileService } from '../../services/turnstileService.js';
 import { OtpStore } from '../../services/otpStore.js';
 import { SupabaseService } from '../../services/supabaseService.js';
+import { logger } from '../../utils/logger.js';
+import { upsertPrivyWalletToDb } from './zeroclaw.routes.js';
+
+/**
+ * FOUNDATION HARDENING — Parse superadmin emails from explicit env configuration.
+ * F-ARCH-14 FIX: No hardcoded fallback. If SUPERADMIN_EMAILS is not configured,
+ * NO user gets superadmin access. This prevents accidental privilege escalation
+ * when the env var is missing.
+ */
+function getConfiguredSuperAdmins(): string[] {
+  const raw = envConfig.SUPERADMIN_EMAILS || '';
+  return raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
 
 /**
  * ZEGA AI — Authentication Routes (OWASP Compliant Single Gate Auth & Supabase Sync)
@@ -112,6 +126,22 @@ export async function authRoutes(app: FastifyInstance) {
       }
 
       // 1. Cloudflare Turnstile Verification
+      // FOUNDATION HARDENING (F-ARCH-05): Turnstile is MANDATORY in production.
+      // In development, it remains optional for local testing convenience.
+      const isProduction = envConfig.NODE_ENV === 'production';
+      const hasTurnstileKey = !!(envConfig.CLOUDFLARE_TURNSTILE_SECRET_KEY && envConfig.CLOUDFLARE_TURNSTILE_SECRET_KEY.length > 5);
+
+      if (isProduction && hasTurnstileKey && !body.turnstileToken) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'CAPTCHA_REQUIRED',
+            message: 'Bot defense verification (Turnstile) is required. Please complete the captcha.',
+            statusCode: 400,
+          },
+        });
+      }
+
       if (body.turnstileToken) {
         const captchaResult = await TurnstileService.verifyToken({
           token: body.turnstileToken,
@@ -130,8 +160,8 @@ export async function authRoutes(app: FastifyInstance) {
         }
       }
 
-      // 2. Generate 6-digit OTP in OtpStore
-      const otp = OtpStore.createOtp(body.email, body.fullName, body.audienceSegment);
+      // 2. Generate 6-digit OTP in OtpStore (F-006 FIX: async DB-backed)
+      const otp = await OtpStore.createOtp(body.email, body.fullName, body.audienceSegment);
 
       // 3. Send Transactional OTP Email via Brevo API
       const emailResult = await BrevoService.sendOtpEmail({
@@ -161,7 +191,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
   );
 
-  /** POST /v1/auth/verify-otp — Step 2: Verify OTP, sync Supabase Profile, and issue JWT */
+  /** POST /v1/auth/verify-otp — Step 2: Verify OTP, sync Supabase Profile, issue JWT + Refresh Token */
   app.post('/verify-otp', async (request, reply) => {
     const body = verifyOtpSchema.parse(request.body);
 
@@ -178,8 +208,8 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 1. Verify OTP with OtpStore
-    const verification = OtpStore.verifyOtp(body.email, body.otp);
+    // 1. Verify OTP with OtpStore (F-006 FIX: async DB-backed)
+    const verification = await OtpStore.verifyOtp(body.email, body.otp);
 
     if (!verification.valid) {
       await SupabaseService.logAuditEvent({
@@ -200,17 +230,33 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 2. Resolve Role Single Gate Entry Point
-    let role: 'superadmin' | 'enterprise' | 'individual' = body.audienceSegment === 'enterprise' ? 'enterprise' : 'individual';
-    let fullName = body.fullName || verification.metadata?.fullName || 'Alex Morgan';
+    // 2. Resolve Role Server-Side (OWASP Anti-Privilege Escalation Gate)
+    const normalizedEmail = body.email.toLowerCase().trim();
+    let role: 'superadmin' | 'enterprise' | 'individual' = 'individual';
+    let fullName = body.fullName || verification.metadata?.fullName || normalizedEmail.split('@')[0];
 
-    const normalizedEmail = body.email.toLowerCase();
-    if (normalizedEmail.includes('admin@zegaai.site') || normalizedEmail.includes('superadmin')) {
+    // FOUNDATION HARDENING (F-ARCH-14): Superadmin list from EXPLICIT env config only.
+    const configuredSuperAdmins = getConfiguredSuperAdmins();
+
+    if (configuredSuperAdmins.length > 0 && configuredSuperAdmins.includes(normalizedEmail)) {
       role = 'superadmin';
       fullName = 'SuperAdmin ZEGA Root';
-    } else if (normalizedEmail.includes('enterprise@zegaai.site') || normalizedEmail.includes('enterprise')) {
-      role = 'enterprise';
-      fullName = 'Enterprise Workspace Admin';
+      logger.info({ email: normalizedEmail }, '[Auth] Superadmin role granted via SUPERADMIN_EMAILS config');
+    } else {
+      // Fetch existing profile from DB to preserve assigned role
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+
+        if (existingProfile?.role) {
+          role = existingProfile.role === 'superadmin' ? 'enterprise' : existingProfile.role;
+          if (existingProfile.full_name) fullName = existingProfile.full_name;
+        }
+      }
     }
 
     // 3. Sync User Profile to Supabase Database
@@ -221,19 +267,51 @@ export async function authRoutes(app: FastifyInstance) {
       companyName: body.companyName,
     });
 
-    const userId = dbProfile?.id || crypto.randomUUID();
+    // SECURITY (F-012 FIX): Fail-closed if DB is unavailable
+    const userId = dbProfile?.id;
+    if (!userId) {
+      logger.error({ email: normalizedEmail }, '[Auth] FAIL-CLOSED: Cannot issue JWT — DB profile upsert returned no ID.');
+      return reply.status(503).send({
+        success: false,
+        error: {
+          code: 'AUTH_SERVICE_UNAVAILABLE',
+          message: 'Authentication service is temporarily unavailable. Please try again.',
+          statusCode: 503,
+        },
+      });
+    }
 
-    // 4. Issue Signed JWT Access Token
-    const token = app.jwt.sign(
+    // 4. Issue Signed JWT Access Token (1h) + Cryptographic Refresh Token (7 days) (F-005 FIX)
+    const accessToken = app.jwt.sign(
       {
         sub: userId,
         email: normalizedEmail,
-        roles: [role],
-        tenant: role === 'enterprise' ? 'acme-enterprise' : 'default',
-        fullName,
+        role: role,
       },
-      { expiresIn: '8h' }
+      { expiresIn: '1h' }
     );
+
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(accessToken).digest('hex');
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
+    // Persist session to public.sessions table (F-010 & F-005 FIX)
+    const supabase = SupabaseService.getClient();
+    if (supabase) {
+      try {
+        await supabase.from('sessions').insert({
+          user_id: userId,
+          token_hash: tokenHash,
+          refresh_token_hash: refreshTokenHash,
+          user_agent: request.headers['user-agent'] || null,
+          ip_address: request.ip,
+          expires_at: expiresAt,
+        });
+      } catch (err) {
+        logger.warn({ err, userId }, '[Auth] Failed to persist session to DB');
+      }
+    }
 
     // 5. Log OWASP Audit Event
     await SupabaseService.logAuditEvent({
@@ -245,20 +323,30 @@ export async function authRoutes(app: FastifyInstance) {
       payloadSummary: `Role: ${role}, FullName: ${fullName}`,
     });
 
-    // 6. Set Secure OWASP HTTP-Only Cookie
-    reply.setCookie('__zega_token', token, {
+    // 6. Set Secure OWASP Cookies for Access & Refresh Tokens
+    reply.setCookie('__zega_token', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: envConfig.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
-      maxAge: 8 * 3600,
+      maxAge: 3600, // 1 hour
+    });
+
+    reply.setCookie('__zega_refresh', refreshToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/v1/auth/refresh',
+      maxAge: 7 * 24 * 3600, // 7 days
     });
 
     return {
       success: true,
       data: {
-        accessToken: token,
-        expiresIn: 28800,
+        accessToken,
+        refreshToken,
+        expiresIn: 3600,
+        refreshExpiresIn: 604800,
         tokenType: 'Bearer',
         user: {
           id: userId,
@@ -277,7 +365,9 @@ export async function authRoutes(app: FastifyInstance) {
     const privySyncSchema = z.object({
       email: z.string().email(),
       fullName: z.string().optional(),
-      role: z.enum(['superadmin', 'enterprise', 'individual']).default('individual'),
+      walletAddress: z.string().optional(),
+      privyUserId: z.string().optional(),
+      // SECURITY: role is NOT accepted from client — derived server-side only
       provider: z.enum(['email', 'google', 'github']).default('email'),
     });
 
@@ -296,6 +386,28 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    // Derive role server-side from DB profile (never trust client)
+    const normalizedEmail = body.email.toLowerCase().trim();
+    let derivedRole: 'superadmin' | 'enterprise' | 'individual' = 'individual';
+    // FOUNDATION HARDENING (F-ARCH-14): Use explicit config, no hardcoded fallback
+    const configuredSuperAdmins = getConfiguredSuperAdmins();
+
+    if (configuredSuperAdmins.length > 0 && configuredSuperAdmins.includes(normalizedEmail)) {
+      derivedRole = 'superadmin';
+    } else {
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+        if (profile?.role) {
+          derivedRole = profile.role === 'superadmin' ? 'enterprise' : profile.role;
+        }
+      }
+    }
+
     const privyAppId = envConfig.PRIVY_APP_ID || process.env.PRIVY_APP_ID || '';
     const privyAppSecret = envConfig.PRIVY_APP_SECRET || process.env.PRIVY_APP_SECRET || '';
 
@@ -304,7 +416,9 @@ export async function authRoutes(app: FastifyInstance) {
     if (privyAppId && privyAppSecret) {
       try {
         const authHeader = 'Basic ' + Buffer.from(`${privyAppId}:${privyAppSecret}`).toString('base64');
-        const res = await fetch('https://auth.privy.io/api/v1/users', {
+        
+        // 1. Attempt POST https://auth.privy.io/api/v1/users (Privy Server API Docs)
+        const createRes = await fetch('https://auth.privy.io/api/v1/users', {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
@@ -326,14 +440,107 @@ export async function authRoutes(app: FastifyInstance) {
           }),
         });
 
-        if (res.ok) {
-          privyCloudUser = await res.json();
+        if (createRes.ok) {
+          privyCloudUser = await createRes.json();
         } else {
-          const errText = await res.text();
-          console.warn('Privy REST API note (User may already exist):', res.status, errText);
+          // 2. If user already exists, fetch existing user profile from Privy Server API by DID or Email
+          try {
+            const targetId = body.privyUserId || (body.email ? `email/${encodeURIComponent(body.email)}` : null);
+            if (targetId) {
+              const getRes = await fetch(`https://auth.privy.io/api/v1/users/${targetId}`, {
+                headers: {
+                  'Authorization': authHeader,
+                  'privy-app-id': privyAppId,
+                }
+              });
+              if (getRes.ok) {
+                privyCloudUser = await getRes.json();
+              }
+            }
+          } catch {}
+
+          // 3. If existing Privy user lacks a Solana embedded wallet, provision it now via Privy Server API
+          if (privyCloudUser && privyCloudUser.id) {
+            const hasSolanaWallet = privyCloudUser.wallets?.some((w: any) => w.chain_type === 'solana');
+            if (!hasSolanaWallet) {
+              try {
+                const addWalletRes = await fetch(`https://auth.privy.io/api/v1/users/${privyCloudUser.id}/wallets`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': authHeader,
+                    'privy-app-id': privyAppId,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    chain_type: 'solana'
+                  })
+                });
+                if (addWalletRes.ok) {
+                  const newWalletData: any = await addWalletRes.json();
+                  if (newWalletData?.address) {
+                    if (!privyCloudUser.wallets) privyCloudUser.wallets = [];
+                    privyCloudUser.wallets.push({ chain_type: 'solana', address: newWalletData.address });
+                  }
+                }
+              } catch {}
+            }
+          }
         }
       } catch (e: any) {
         console.warn('Privy REST API network note:', e.message);
+      }
+    }
+
+    // Extract wallet address and DID user ID and auto-upsert to Supabase privy_wallets
+    const resolvedWalletAddress = body.walletAddress ||
+      privyCloudUser?.wallets?.find((w: any) => w.chain_type === 'solana')?.address ||
+      privyCloudUser?.linked_accounts?.find((a: any) => a.type === 'wallet' && a.chain_type === 'solana')?.address;
+
+    const resolvedPrivyUserId = body.privyUserId || privyCloudUser?.id || null;
+
+    // Auto-provision Supabase Auth user in auth.users if not present
+    let supabaseAuthUserId: string | null = null;
+    const supabaseAdmin = SupabaseService.getClient();
+    if (supabaseAdmin) {
+      try {
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+        const found = existingUser?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
+        if (found) {
+          supabaseAuthUserId = found.id;
+        } else {
+          const { data: created } = await supabaseAdmin.auth.admin.createUser({
+            email: normalizedEmail,
+            email_confirm: true,
+            user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
+          });
+          if (created?.user?.id) {
+            supabaseAuthUserId = created.user.id;
+          }
+        }
+      } catch (e: any) {
+        console.warn('Supabase Auth user auto-provision note:', e?.message);
+      }
+    }
+
+    if (resolvedWalletAddress) {
+      await upsertPrivyWalletToDb(body.email, resolvedWalletAddress);
+    }
+
+    // Fetch canonical immutable wallet address from privy_wallets DB
+    let finalWalletAddress = resolvedWalletAddress || null;
+    if (supabaseAdmin) {
+      try {
+        const { data: dbWallet } = await supabaseAdmin
+          .from('privy_wallets')
+          .select('wallet_address')
+          .eq('email', normalizedEmail)
+          .eq('chain', 'solana')
+          .maybeSingle();
+        if (dbWallet?.wallet_address) {
+          finalWalletAddress = dbWallet.wallet_address;
+        }
+      } catch (e: any) {
+        console.warn('Canonical Privy wallet lookup note:', e?.message);
       }
     }
 
@@ -341,8 +548,9 @@ export async function authRoutes(app: FastifyInstance) {
       success: true,
       data: {
         email: body.email,
-        role: body.role,
+        role: derivedRole,
         privyCloudUser,
+        walletAddress: finalWalletAddress,
         message: `User ${body.email} synchronized to Privy Official Cloud & Solana Embedded Wallet created.`,
       },
     };
@@ -504,18 +712,163 @@ export async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  /** POST /v1/auth/logout — Clear session */
-  app.post('/logout', async (_request, reply) => {
+  /** POST /v1/auth/refresh — Refresh Access Token using Refresh Token (F-005 FIX) */
+  app.post('/refresh', async (request, reply) => {
+    const refreshSchema = z.object({
+      refreshToken: z.string().optional(),
+    });
+
+    const body = refreshSchema.parse(request.body || {});
+    // Accept refresh token from request body or signed httpOnly cookie
+    const refreshToken = body.refreshToken || (request.cookies as any)?.__zega_refresh;
+
+    if (!refreshToken) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'REFRESH_TOKEN_REQUIRED', message: 'Refresh token is required.', statusCode: 401 },
+      });
+    }
+
+    const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const supabase = SupabaseService.getClient();
+
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 },
+      });
+    }
+
+    // Lookup session in public.sessions table
+    const { data: session, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('refresh_token_hash', refreshTokenHash)
+      .maybeSingle();
+
+    if (error || !session || session.is_revoked) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'INVALID_REFRESH_TOKEN', message: 'Refresh token is invalid or has been revoked.', statusCode: 401 },
+      });
+    }
+
+    if (new Date(session.expires_at).getTime() < Date.now()) {
+      // Mark expired session as revoked
+      await supabase.from('sessions').update({ is_revoked: true, revoke_reason: 'expired' }).eq('id', session.id);
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'REFRESH_TOKEN_EXPIRED', message: 'Refresh token has expired. Please log in again.', statusCode: 401 },
+      });
+    }
+
+    // Fetch profile to verify user role and identity
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, role, full_name')
+      .eq('id', session.user_id)
+      .maybeSingle();
+
+    if (!profile) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'Associated user account not found.', statusCode: 401 },
+      });
+    }
+
+    // Revoke current session (Token Rotation security pattern)
+    await supabase
+      .from('sessions')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'rotated' })
+      .eq('id', session.id);
+
+    // Issue NEW Access Token (1h) + NEW Refresh Token (7d)
+    const newAccessToken = app.jwt.sign(
+      {
+        sub: session.user_id,
+        email: profile.email,
+        role: profile.role,
+      },
+      { expiresIn: '1h' }
+    );
+
+    const newRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newAccessToken).digest('hex');
+    const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    const newExpiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
+    await supabase.from('sessions').insert({
+      user_id: session.user_id,
+      token_hash: newTokenHash,
+      refresh_token_hash: newRefreshTokenHash,
+      user_agent: request.headers['user-agent'] || null,
+      ip_address: request.ip,
+      expires_at: newExpiresAt,
+    });
+
+    reply.setCookie('__zega_token', newAccessToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 3600,
+    });
+
+    reply.setCookie('__zega_refresh', newRefreshToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/v1/auth/refresh',
+      maxAge: 7 * 24 * 3600,
+    });
+
+    return {
+      success: true,
+      data: {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        expiresIn: 3600,
+        refreshExpiresIn: 604800,
+        tokenType: 'Bearer',
+      },
+    };
+  });
+
+  /** POST /v1/auth/logout — Revoke session and clear cookies (F-010 FIX) */
+  app.post('/logout', async (request, reply) => {
+    const supabase = SupabaseService.getClient();
+    const token = (request.cookies as any)?.__zega_token || request.headers.authorization?.replace('Bearer ', '');
+    const refreshToken = (request.cookies as any)?.__zega_refresh;
+
+    if (supabase) {
+      try {
+        if (token) {
+          const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+          await supabase
+            .from('sessions')
+            .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'user_logout' })
+            .eq('token_hash', tokenHash);
+        }
+        if (refreshToken) {
+          const refreshHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+          await supabase
+            .from('sessions')
+            .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoke_reason: 'user_logout' })
+            .eq('refresh_token_hash', refreshHash);
+        }
+      } catch (err) {
+        logger.warn({ err }, '[Auth] Logout session revocation warning');
+      }
+    }
+
     reply.clearCookie('__zega_token', { path: '/' });
     reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
-    return { success: true, data: { message: 'Session terminated' } };
+    return { success: true, data: { message: 'Session terminated and revoked.' } };
   });
 
   /** POST /v1/auth/signout — Alias for /logout */
-  app.post('/signout', async (_request, reply) => {
-    reply.clearCookie('__zega_token', { path: '/' });
-    reply.clearCookie('__zega_refresh', { path: '/v1/auth/refresh' });
-    return { success: true, data: { message: 'Session terminated' } };
+  app.post('/signout', async (request, reply) => {
+    return app.inject({ method: 'POST', url: '/v1/auth/logout', headers: request.headers, payload: request.body as any });
   });
 
   /** GET /v1/auth/me — Get current user */

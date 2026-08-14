@@ -10,6 +10,8 @@
     "build": "tsc --project ../../packages/zeroclaw-bridge/tsconfig.json && tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
+    "test": "tsx --test src/__tests__/foundation-hardening.test.ts src/__tests__/payment-verification.test.ts src/__tests__/prompt-injection.test.ts src/__tests__/settlement-integration.test.ts src/__tests__/vault-settlement.test.ts src/__tests__/zeroclaw-withdrawal.test.ts",
+    "test:e2e": "tsx --test src/__tests__/*.test.ts",
     "lint": "eslint src/"
   },
   "dependencies": {
@@ -24,6 +26,8 @@
     "@fastify/swagger": "^9.0.0",
     "@fastify/swagger-ui": "^5.0.0",
     "@fastify/websocket": "^11.0.0",
+    "@privy-io/server-auth": "^1.32.5",
+    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.49.0",
     "@whiskeysockets/baileys": "7.0.0-rc14",
