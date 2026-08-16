@@ -1,0 +1,16 @@
+[
+  {
+    "id": "inv_1786899028137",
+    "user_id": "cicikberiuk@gmail.com",
+    "merchant_pubkey": "Fj2up6JxAE1CZbqy9ZJAoZLH61uux9dZvj6ny5XCAhGw",
+    "amount_usdc": 0.2,
+    "reference_key": "GQfErf7Sn9Aoqsd4euo9vsuc4YsSLeCRjwqhsZPxPAWm",
+    "memo": "Invoice Table 3 (0.20 USDC)",
+    "customer_target": "@comoc86",
+    "solana_pay_url": "solana:Fj2up6JxAE1CZbqy9ZJAoZLH61uux9dZvj6ny5XCAhGw?amount=0.20&reference=GQfErf7Sn9Aoqsd4euo9vsuc4YsSLeCRjwqhsZPxPAWm",
+    "r2_cdn_url": "https://cdn.zegaai.site/privy-audits/demo/audit.json",
+    "network": "solana-devnet",
+    "status": "active",
+    "created_at": "2026-08-16T16:50:28.137Z"
+  }
+]

@@ -3,26 +3,124 @@
 #  OWASP Security Compliance: Strict Zero Secret Exposure Policy
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── 1. ENVIRONMENT VARIABLES & SECRETS (CRITICAL SECURITY) ───────────────────
+# ─── 1. ENVIRONMENT VARIABLES, VAULT & API SECRETS ───────────────────────────
 .env
 .env.*
 !.env.example
+!.env.template
+!.env.schema
 *.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+.env.vault
+.env.me
+
+# ─── 2. CERTIFICATES, PRIVATE KEYS, SSH & CRYPTOGRAPHIC KEYS ──────────────────
 *.pem
 *.key
+*.pk8
+*.pubkey
 *.cert
 *.crt
 *.pfx
 *.p12
+*.p8
+*.asc
+*.gpg
+*.pgp
+*.sig
+*.der
+*.csr
+*.keystore
+*.jks
+id_rsa
+id_rsa*
+id_dsa
+id_dsa*
+id_ecdsa
+id_ecdsa*
+id_ed25519
+id_ed25519*
 
-# ─── 2. DEPENDENCIES ─────────────────────────────────────────────────────────
+# ─── 3. CLOUD, SERVICE ACCOUNTS & IAM CREDENTIALS ────────────────────────────
+*credential*.json
+*credentials*.json
+*secret*.json
+*secrets*.json
+*service_account*.json
+*service-account*.json
+sa-key*.json
+gcp-*.json
+google-*.json
+firebase-*.json
+aws-*.json
+cloudflare-*.json
+supabase-*.json
+.aws/
+.gcp/
+.azure/
+.cloudflare/
+.vercel/
+
+# ─── 4. WEB3 / BLOCKCHAIN / SOLANA WALLET KEYPAIRS & SEED PHRASES ─────────────
+id.json
+keypair.json
+*keypair*.json
+*key-pair*.json
+wallet.json
+*wallet*.json
+*private*.json
+*private_key*
+*private-key*
+mnemonic*.txt
+seed*.txt
+*.secret
+
+# ─── 5. DATABASE EXPORTS, DUMPS & SENSITIVE SNAPSHOTS ─────────────────────────
+database*_export*
+*_export*.json
+*_export*.sql
+database2_export_raw.sql
+*.dump
+*.sql
+!supabase/migrations/**/*.sql
+!supabase/migrations/*.sql
+!supabase/schema.sql
+!supabase/seed.sql
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.bak
+*.sql.gz
+*.tar.gz
+
+# ─── 6. AUTHENTICATION CONFIGS, OAUTH TOKENS & NET ACCESS ─────────────────────
+.npmrc
+.yarnrc
+.yarnrc.yml
+.netrc
+htpasswd
+.htpasswd
+
+# ─── 7. AGENT SESSIONS, EVIDENCE & CERTIFICATION REPORTS ───────────────────────
+codex-session*.jsonl
+artifacts_v*/
+evidence_v*/
+*certification_report.json
+
+# ─── 8. DEPENDENCIES ─────────────────────────────────────────────────────────
 node_modules/
 .pnpm-store/
 .yarn/cache/
 .yarn/unplugged/
 .yarn/build-state.yml
 
-# ─── 3. BUILD OUTPUTS & CACHES ───────────────────────────────────────────────
+# ─── 9. BUILD OUTPUTS & CACHES ───────────────────────────────────────────────
 dist/
 build/
 out/
@@ -34,7 +132,7 @@ out/
 .nuxt/
 *.tsbuildinfo
 
-# ─── 4. LOGS & TEMPORARY FILES ───────────────────────────────────────────────
+# ─── 10. LOGS & TEMPORARY FILES ──────────────────────────────────────────────
 *.log
 /logs/
 !apps/web/src/app/dashboard/enterprise/views/logs/
@@ -47,11 +145,11 @@ lerna-debug.log*
 *.tmp
 *.temp
 
-# ─── 5. SUPABASE & LOCAL DATABASE CACHES ──────────────────────────────────────
+# ─── 11. SUPABASE & LOCAL DATABASE CACHES ────────────────────────────────────
 .supabase/
 supabase/.temp/
 
-# ─── 6. OPERATING SYSTEM & IDE FILES ──────────────────────────────────────────
+# ─── 12. OPERATING SYSTEM & IDE FILES ────────────────────────────────────────
 .DS_Store
 .DS_Store?
 ._*
@@ -76,21 +174,17 @@ Desktop.ini
 *.swp
 *.swo
 
-# ─── 7. TESTING & COVERAGE ───────────────────────────────────────────────────
+# ─── 13. TESTING & COVERAGE ──────────────────────────────────────────────────
 coverage/
 .nyc_output/
 .cypress/
 playwright-report/
 test-results/
 
-# ─── 8. LARGE MEDIA & DESIGN ASSETS (SERVED VIA CLOUDFLARE R2 CDN) ───────────
+# ─── 14. LARGE MEDIA & DESIGN ASSETS (SERVED VIA CLOUDFLARE R2 CDN) ──────────
 apps/web/public/assets/3D/
 apps/web/public/assets/products/
 apps/web/public/design/
 *.mp4
 *.mov
 *.avi
-
-
-# Agent session evidence
-codex-session*.jsonl

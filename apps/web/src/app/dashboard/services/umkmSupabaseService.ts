@@ -1,4 +1,68 @@
 import { supabase } from '../../../lib/supabase';
+export { getActiveTenantIds } from '../contexts/TenantContext';
+import { getActiveTenantIds, updateActiveTenantStore, updateActiveTenantOrg, updateActiveTenantWorkspace } from '../contexts/TenantContext';
+
+/**
+ * Extract the real user UUID (sub claim) from the backend-issued JWT
+ * stored in localStorage. This is the DB profile ID from public.profiles.
+ * Returns null if no valid JWT is available.
+ */
+function extractUserIdFromStoredJwt(): { userId: string | null; email: string | null } {
+  try {
+    // 1. Try accessToken from OTP verify response stored in mock session
+    const mockStr = localStorage.getItem('zega_mock_session');
+    if (mockStr) {
+      const mock = JSON.parse(mockStr);
+      if (mock?.accessToken && typeof mock.accessToken === 'string' && mock.accessToken.includes('.')) {
+        const payload = JSON.parse(atob(mock.accessToken.split('.')[1]));
+        const sub = payload?.sub;
+        const email = payload?.email || mock?.email || null;
+        if (sub && typeof sub === 'string' && sub.length > 10) {
+          return { userId: sub, email };
+        }
+      }
+      // Fallback: extract email from mock session even without JWT
+      if (mock?.email) {
+        return { userId: null, email: mock.email };
+      }
+    }
+
+    // 2. Try standalone token keys
+    const tokenKeys = ['zega_access_token', 'zega_jwt', 'token'];
+    for (const key of tokenKeys) {
+      const token = localStorage.getItem(key);
+      if (token && token.includes('.')) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload?.sub) return { userId: payload.sub, email: payload.email || null };
+        } catch { /* skip invalid JWT */ }
+      }
+    }
+
+    // 3. Try Supabase auth token
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed?.user?.id) {
+            return { userId: parsed.user.id, email: parsed.user.email || null };
+          }
+        }
+      }
+    }
+  } catch { /* non-blocking */ }
+  return { userId: null, email: null };
+}
+
+export function isValidUuid(val: any): boolean {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '' || trimmed === 'null' || trimmed === 'undefined') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(trimmed);
+}
 
 async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>, fallback: T): Promise<T> {
   try {
@@ -8,6 +72,34 @@ async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>
   } catch {
     return fallback;
   }
+}
+
+// ============================================================================
+// IN-FLIGHT & CACHED RESOLUTIONS: Prevents provisioning storm from concurrent React effects
+// ============================================================================
+const _inflightResolutions = new Map<string, Promise<{ userId: string; organizationId: string; workspaceId: string; storeId: string | null }>>();
+const _resolvedStoresCache = new Map<string, { userId: string; organizationId: string; workspaceId: string; storeId: string | null; timestamp: number }>();
+const CACHE_TTL_MS = 30000; // 30 seconds cache
+
+/** Session-level guard: tracks organization IDs where provisioning has already been attempted. */
+const _provisioningAttempted = new Set<string>();
+
+/**
+ * Classify PostgREST / Supabase errors as structural (never retry) vs transient (may retry).
+ * Structural errors: missing column (PGRST204), missing table/function (404), bad request (400).
+ */
+function isStructuralError(err: any): boolean {
+  if (!err) return false;
+  const code = err.code || '';
+  const status = err.status || err.statusCode || 0;
+  const msg = (err.message || '').toLowerCase();
+  // PGRST204: column not found in schema cache
+  if (code === 'PGRST204' || code === 'PGRST301' || code === 'PGRST200') return true;
+  // 404: function/table does not exist
+  if (status === 404) return true;
+  // 400: bad request (schema mismatch)
+  if (status === 400 && (msg.includes('schema cache') || msg.includes('column') || msg.includes('not found'))) return true;
+  return false;
 }
 
 export const umkmSupabaseService = {
@@ -29,45 +121,169 @@ export const umkmSupabaseService = {
   },
 
   // Helper: Resolve dynamic authenticated Tenant Context (User -> Organization -> Workspace -> Store)
-  async getAuthenticatedTenantContext(fallbackStoreId: string = '11111111-1111-1111-1111-111111111111') {
-    const defaultOrg = '00000000-0000-0000-0000-000000000001';
-    const defaultWs  = '00000000-0000-0000-0000-000000000002';
+  // PURE RESOLVER with RPC fallback — queries by organization_id first, uses fn_ensure_store_for_organization RPC if store is missing.
+  async getAuthenticatedTenantContext(providedStoreId?: string | null) {
+    const active = getActiveTenantIds();
+    let targetStoreId = providedStoreId || active.storeId || undefined;
+    let targetOrgId = active.organizationId;
+    const targetWsId = active.workspaceId;
+
+    // Extract real user identity from backend JWT
+    const jwtIdentity = extractUserIdFromStoredJwt();
+    const rawUserId = jwtIdentity.userId || (isValidUuid(active.userId) ? active.userId : null);
+    const userEmail = jwtIdentity.email || active.userEmail || null;
+    const effectiveUserId = rawUserId || active.userId || userEmail || '';
+
+    const authenticatedUserReady = !!effectiveUserId;
+    const organizationReady = !!targetOrgId && targetOrgId !== '00000000-0000-0000-0000-000000000000';
+    const organizationIdValid = organizationReady && isValidUuid(targetOrgId);
+
+    // Pre-Auth & Org Guard: If user identity or organization context is not ready, keep store in loading or deferred
+    if (!authenticatedUserReady || !organizationReady) {
+      return {
+        userId: effectiveUserId,
+        organizationId: targetOrgId,
+        workspaceId: targetWsId,
+        storeId: null
+      };
+    }
+
+    // 0. Check session cache first to prevent infinite RPC retries on re-renders
+    const dedupeKey = `${targetOrgId}::${effectiveUserId}`;
+    const cached = _resolvedStoresCache.get(dedupeKey);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS) && cached.storeId) {
+      updateActiveTenantStore(cached.storeId, 'ready');
+      return cached;
+    }
+
+    // In-flight deduplication: share in-flight resolution promise per organization and user
+    const inflight = _inflightResolutions.get(dedupeKey);
+    if (inflight) {
+      return inflight;
+    }
+
+    const resolutionPromise = this._resolveStoreContext(
+      targetOrgId, targetWsId, targetStoreId || null,
+      rawUserId, userEmail, effectiveUserId,
+      authenticatedUserReady, organizationReady, organizationIdValid
+    );
+
+    _inflightResolutions.set(dedupeKey, resolutionPromise);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        const { data: store } = await supabase
-          .from('umkm_stores')
-          .select('id, organization_id, workspace_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        if (store?.id) {
-          return {
-            userId: session.user.id,
-            organizationId: store.organization_id || defaultOrg,
-            workspaceId: store.workspace_id || defaultWs,
-            storeId: store.id
-          };
+      const res = await resolutionPromise;
+      if (res.storeId) {
+        _resolvedStoresCache.set(dedupeKey, { ...res, timestamp: Date.now() });
+      }
+      return res;
+    } finally {
+      _inflightResolutions.delete(dedupeKey);
+    }
+  },
+
+  /** Internal: actual store resolution logic via organization_id query & RPC */
+  async _resolveStoreContext(
+    targetOrgId: string, targetWsId: string, targetStoreId: string | null,
+    rawUserId: string | null, userEmail: string | null, effectiveUserId: string,
+    authenticatedUserReady: boolean, organizationReady: boolean, organizationIdValid: boolean
+  ) {
+    try {
+      // 1. Query stores strictly by organization_id (canonical tenant boundary)
+      const { data: orgStores, error: orgErr } = await supabase
+        .from('umkm_stores')
+        .select('*')
+        .eq('organization_id', targetOrgId)
+        .order('created_at', { ascending: true });
+
+      if (orgErr) {
+        console.error('[StoreContextResolver] Error querying umkm_stores:', orgErr.message, orgErr.code);
+        if (isStructuralError(orgErr)) {
+          updateActiveTenantStore(null, 'error');
+          return { userId: effectiveUserId, organizationId: targetOrgId, workspaceId: targetWsId, storeId: null };
         }
       }
+
+      if (orgStores && orgStores.length > 0) {
+        let selected = orgStores[0];
+        if (targetStoreId && isValidUuid(targetStoreId)) {
+          const matched = orgStores.find((s: any) => s.id === targetStoreId || s.store_id === targetStoreId);
+          if (matched) selected = matched;
+        }
+
+        const selectedStoreId = selected.id || selected.store_id;
+        const selectedWorkspaceId = selected.workspace_id || targetWsId;
+
+        console.log('[StoreContextResolver]', {
+          phase: 'STORE_READY',
+          organizationId: targetOrgId,
+          workspaceId: selectedWorkspaceId,
+          storeId: selectedStoreId,
+          storesCount: orgStores.length
+        });
+
+        updateActiveTenantStore(selectedStoreId, 'ready');
+        if (selectedWorkspaceId && isValidUuid(selectedWorkspaceId)) {
+          updateActiveTenantWorkspace(selectedWorkspaceId);
+        }
+
+        return {
+          userId: effectiveUserId,
+          organizationId: targetOrgId,
+          workspaceId: selectedWorkspaceId,
+          storeId: selectedStoreId
+        };
+      }
+
+      // 2. Provisioning check & RPC call
+      if (!_provisioningAttempted.has(targetOrgId)) {
+        _provisioningAttempted.add(targetOrgId);
+        console.log('[StoreContextResolver] Calling fn_ensure_store_for_organization RPC for org:', targetOrgId);
+        const { data: rpcRes, error: rpcErr } = await supabase
+          .rpc('fn_ensure_store_for_organization', { p_org_id: targetOrgId });
+
+        if (!rpcErr && rpcRes && rpcRes.storeId) {
+          console.log('[StoreContextResolver] Store provisioned/resolved via RPC successfully:', rpcRes);
+          updateActiveTenantStore(rpcRes.storeId, 'ready');
+          if (rpcRes.workspaceId && isValidUuid(rpcRes.workspaceId)) {
+            updateActiveTenantWorkspace(rpcRes.workspaceId);
+          }
+          return {
+            userId: effectiveUserId,
+            organizationId: targetOrgId,
+            workspaceId: rpcRes.workspaceId || targetWsId,
+            storeId: rpcRes.storeId
+          };
+        }
+
+        if (rpcErr) {
+          console.warn('[StoreContextResolver] fn_ensure_store_for_organization RPC returned error:', rpcErr.message, rpcErr.code);
+        }
+      }
+
+      // 3. Unresolved Context: If store could not be resolved or provisioned, return storeId: null strictly (no cross-tenant fallbacks)
+      console.warn('[StoreContextResolver] STORE_UNAVAILABLE: Store could not be resolved for organization:', targetOrgId);
+      updateActiveTenantStore(null, 'error');
       return {
-        userId: null,
-        organizationId: defaultOrg,
-        workspaceId: defaultWs,
-        storeId: fallbackStoreId
+        userId: effectiveUserId,
+        organizationId: targetOrgId,
+        workspaceId: targetWsId,
+        storeId: null
       };
-    } catch {
+
+    } catch (err: any) {
+      console.error('[StoreContextResolver] Exception during store context resolution:', err?.message || err);
+      updateActiveTenantStore(null, 'error');
       return {
-        userId: null,
-        organizationId: defaultOrg,
-        workspaceId: defaultWs,
-        storeId: fallbackStoreId
+        userId: effectiveUserId,
+        organizationId: targetOrgId,
+        workspaceId: targetWsId,
+        storeId: null
       };
     }
   },
 
   // Helper: Resolve dynamic authenticated store ID
-  async getAuthenticatedStoreId(defaultStoreId: string = '11111111-1111-1111-1111-111111111111'): Promise<string> {
-    const ctx = await this.getAuthenticatedTenantContext(defaultStoreId);
+  async getAuthenticatedStoreId(providedStoreId?: string | null): Promise<string | null> {
+    const ctx = await this.getAuthenticatedTenantContext(providedStoreId);
     return ctx.storeId;
   },
 
@@ -78,13 +294,11 @@ export const umkmSupabaseService = {
       const tenantCtx = await this.getAuthenticatedTenantContext(providedStoreId);
       const storeId = tenantCtx.storeId;
 
-      // Attempt server-side stored procedure aggregation for KPIs
-      const kpiRpcRes = await safeQuery<any>(
-        supabase.rpc('fn_get_umkm_overview_kpis', { p_store_id: storeId }).single(),
-        null
-      );
+      if (!storeId) {
+        return { tenantContext: tenantCtx, store: null, kpis: null, aiEmployees: [], automations: [], timelineEvents: [], transactions: [], integrations: [], knowledgeDocs: [], error: null };
+      }
 
-      const [storeRes, fallbackKpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
+      const [storeRes, kpiRes, empRes, autoRes, timelineRes, intRes, knowRes, trxRes] = await Promise.all([
         safeQuery<any>(supabase.from('umkm_stores').select('*').eq('id', storeId).maybeSingle(), null),
         safeQuery<any>(supabase.from('umkm_dashboard_kpis').select('*').eq('store_id', storeId).maybeSingle(), null),
         safeQuery<any[]>(supabase.from('umkm_ai_employees').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
@@ -101,7 +315,7 @@ export const umkmSupabaseService = {
         avatar_path: getCdnUrl(storeRes.avatar_path),
       } : null;
 
-      const kpis = kpiRpcRes || fallbackKpiRes || null;
+      const kpis = kpiRes || null;
 
       return {
         tenantContext: tenantCtx,
@@ -147,8 +361,12 @@ export const umkmSupabaseService = {
   },
 
   // 2. Notifications Feed
-  async getUmkmNotifications(storeId: string = '11111111-1111-1111-1111-111111111111') {
+  async getUmkmNotifications(providedStoreId?: string | null) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId || undefined);
+      if (!storeId) {
+        return { data: [], error: null };
+      }
       const { data, error } = await supabase
         .from('umkm_notifications')
         .select('*')
@@ -427,7 +645,8 @@ export const umkmSupabaseService = {
   },
 
   // 8. Realtime WebSocket Subscription on UMKM tables
-  subscribeToUmkmRealtime(storeId: string, onUpdate: (payload: any) => void) {
+  subscribeToUmkmRealtime(storeId?: string | null, onUpdate?: (payload: any) => void) {
+    if (!storeId || !onUpdate) return () => {};
     try {
       const channel = supabase
         .channel(`umkm-realtime-${storeId}`)
@@ -527,12 +746,14 @@ export const umkmSupabaseService = {
   },
 
   // 10. Products & Sales Transactions
-  async getUmkmProducts(orgId: string = 'umkm-org-01') {
+  async getUmkmProducts(orgId?: string) {
     try {
+      const resolvedOrgId = orgId || getActiveTenantIds().organizationId;
+      if (!resolvedOrgId) return { data: [], error: 'Organization context unavailable' };
       const { data, error } = await supabase
         .from('umkm_products')
         .select('*')
-        .eq('org_id', orgId)
+        .eq('org_id', resolvedOrgId)
         .order('name', { ascending: true });
 
       if (error || !data) return { data: [], error };
@@ -556,12 +777,14 @@ export const umkmSupabaseService = {
     }
   },
 
-  async getUmkmSales(orgId: string = 'umkm-org-01') {
+  async getUmkmSales(orgId?: string) {
     try {
+      const resolvedOrgId = orgId || getActiveTenantIds().organizationId;
+      if (!resolvedOrgId) return { data: [], error: 'Organization context unavailable' };
       const { data, error } = await supabase
         .from('umkm_sales_transactions')
         .select('*')
-        .eq('org_id', orgId)
+        .eq('org_id', resolvedOrgId)
         .order('created_at', { ascending: false });
 
       if (error || !data) return { data: [], error };
@@ -586,8 +809,10 @@ export const umkmSupabaseService = {
   },
 
   // 11. Update UMKM Store & Profile Metadata with CDN Avatar
-  async updateUmkmUserProfile(payload: any, storeId: string = '11111111-1111-1111-1111-111111111111') {
+  async updateUmkmUserProfile(payload: any, providedStoreId?: string | null) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId || undefined);
+      if (!storeId) return { data: null, error: 'Store context unavailable' };
       const avatarPath = payload.avatar_url || payload.avatar_path;
       const { data, error } = await supabase
         .from('umkm_stores')
@@ -622,18 +847,20 @@ export const umkmSupabaseService = {
   },
 
   // 12. Deploy Real AI Model Sales Swarm & Insights Generation
-  async deploySalesAiSwarm(storeId: string = '11111111-1111-1111-1111-111111111111', modelPayload: any) {
+  async deploySalesAiSwarm(providedStoreId?: string | null, modelPayload?: any) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId || undefined);
+      if (!storeId) return { data: null, error: 'Store context unavailable' };
       const insertInsight = {
         store_id: storeId,
-        model_engine: modelPayload.model_engine || '9Router-Auto-Cost-Optimizer',
-        model_provider: modelPayload.model_provider || '9router/gpt-4o-mini',
-        execution_gateway: modelPayload.execution_gateway || 'ZeroClaw-Edge-Gateway',
-        cdn_icon_url: modelPayload.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png',
-        insight_type: modelPayload.insight_type || 'forecast',
-        headline: modelPayload.headline || `Real AI Model Swarm Strategy (${modelPayload.model_engine || '9Router'})`,
-        content: modelPayload.content || 'AI model menganalisis histori penjualan.',
-        action_suggestion: modelPayload.action_suggestion || 'Optimalkan alokasi iklan.',
+        model_engine: modelPayload?.model_engine || '9Router-Auto-Cost-Optimizer',
+        model_provider: modelPayload?.model_provider || '9router/gpt-4o-mini',
+        execution_gateway: modelPayload?.execution_gateway || 'ZeroClaw-Edge-Gateway',
+        cdn_icon_url: modelPayload?.cdn_icon_url || 'https://cdn.zegaai.site/assets/logo/9router.png',
+        insight_type: modelPayload?.insight_type || 'forecast',
+        headline: modelPayload?.headline || `Real AI Model Swarm Strategy (${modelPayload?.model_engine || '9Router'})`,
+        content: modelPayload?.content || 'AI model menganalisis histori penjualan.',
+        action_suggestion: modelPayload?.action_suggestion || 'Optimalkan alokasi iklan.',
         created_at: new Date().toISOString()
       };
 
@@ -651,8 +878,10 @@ export const umkmSupabaseService = {
   },
 
   // 13. Update Sales Goal
-  async updateSalesGoal(storeId: string = '11111111-1111-1111-1111-111111111111', targetRevenue: number) {
+  async updateSalesGoal(providedStoreId?: string | null, targetRevenue: number = 0) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId || undefined);
+      if (!storeId) return { data: null, error: 'Store context unavailable' };
       const { data, error } = await supabase
         .from('umkm_sales_goals')
         .upsert({
@@ -671,9 +900,10 @@ export const umkmSupabaseService = {
   },
 
   // 14. Realtime Subscription for Sales
-  subscribeToSalesRealtime(storeId: string = '11111111-1111-1111-1111-111111111111', callback: () => void) {
+  subscribeToSalesRealtime(providedStoreId?: string | null, callback?: () => void) {
+    if (!providedStoreId || !callback) return () => {};
     const channel = supabase
-      .channel(`sales_realtime_${storeId}_${Date.now()}`)
+      .channel(`sales_realtime_${providedStoreId}_${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_metrics' }, () => callback())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_goals' }, () => callback())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'umkm_sales_insights' }, () => callback())
@@ -685,8 +915,10 @@ export const umkmSupabaseService = {
   },
 
   // 15. Log System Audit Log
-  async logSystemAuditLog(action: string, status: string = 'Success', details: any = {}, storeId: string = '11111111-1111-1111-1111-111111111111') {
+  async logSystemAuditLog(action: string, status: string = 'Success', details: any = {}, providedStoreId?: string | null) {
     try {
+      const storeId = await this.getAuthenticatedStoreId(providedStoreId || undefined);
+      if (!storeId) return { data: null, error: 'Store context unavailable' };
       const payload = {
         store_id: storeId,
         event_action: action,

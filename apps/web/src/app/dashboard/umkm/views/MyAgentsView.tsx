@@ -246,9 +246,9 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
     let unsubscribe: (() => void) | undefined;
     const init = async () => {
       await loadDatabaseData();
-      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => undefined);
       unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
-        storeId,
+        storeId || undefined as any,
         () => loadDatabaseData()
       );
     };
@@ -379,7 +379,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
     triggerToast(`Deploying ${formData.name} (${selectedModelConfig.name})...`);
     setActiveModal(null);
 
-    const res = await SupabaseDashboardService.addUmkmAiEmployee('11111111-1111-1111-1111-111111111111', payload);
+    const res = await SupabaseDashboardService.addUmkmAiEmployee(undefined as any, payload);
     if (res.error) {
       triggerToast(`Error deploying agent: ${res.error}`);
     } else {
@@ -402,7 +402,7 @@ export function MyAgentsView({ triggerToast }: MyAgentsViewProps) {
       avatar_path: preset.avatar_path
     };
 
-    const res = await SupabaseDashboardService.addUmkmAiEmployee('11111111-1111-1111-1111-111111111111', payload);
+    const res = await SupabaseDashboardService.addUmkmAiEmployee(undefined as any, payload);
     if (res.error) {
       triggerToast(`Failed to deploy template: ${res.error}`);
     } else {

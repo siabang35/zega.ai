@@ -157,7 +157,7 @@ export function StudioCopywriterSubView({
     const fileType = file.type.startsWith('video/') ? 'video' : 'image';
 
     try {
-      const cdnUrl = await SupabaseDashboardService.uploadUmkmKnowledgeDocument(file, 'store-11111111-1111-1111-1111-111111111111');
+      const cdnUrl = await SupabaseDashboardService.uploadUmkmKnowledgeDocument(file, undefined as any);
       const finalUrl = cdnUrl || URL.createObjectURL(file);
 
       const newAttachment = {
@@ -199,7 +199,7 @@ export function StudioCopywriterSubView({
     try {
       const parsedTags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
       const payload = {
-        storeId: '11111111-1111-1111-1111-111111111111',
+        storeId: undefined as any,
         title: title.trim(),
         description: description.trim() || title.trim(),
         contentMarkdown: contentMarkdown.trim(),

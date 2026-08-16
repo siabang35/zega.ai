@@ -155,7 +155,7 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
   const loadInvoicesOverview = async (search = invoiceSearch, status = invoiceStatusFilter) => {
     setIsInvoicesLoading(true);
     try {
-      const res = await SupabaseDashboardService.getBillingInvoicesOverview('11111111-1111-1111-1111-111111111111', search, status);
+      const res = await SupabaseDashboardService.getBillingInvoicesOverview(undefined as any, search, status);
       if (res?.success) {
         if (Array.isArray(res.invoices)) {
           res.invoices.sort((a: any, b: any) => {

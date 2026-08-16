@@ -114,7 +114,7 @@ export function ApiKeysTab({ triggerToast }: ApiKeysTabProps) {
     loadApiKeys();
 
     // Subscribe to realtime PostgreSQL updates
-    const unsubscribe = SupabaseDashboardService.subscribeToApiKeysRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToApiKeysRealtime(undefined as any, () => {
       loadApiKeys();
     });
 
@@ -1032,7 +1032,7 @@ print("Total revenue:", analytics.revenue)`}</pre>
   -H "Content-Type: application/json" \\
   -d '{
     "task": "Sinkronisasi Webhook Pembayaran Shopee & Midtrans",
-    "store_id": "11111111-1111-1111-1111-111111111111"
+    "store_id": "<STORE_ID>"
   }'`}</pre>
               )}
 

@@ -17,6 +17,7 @@ import { LanguageSelector } from '../../components/LanguageSelector';
 import { useLanguage } from '../../../i18n/translations';
 import { ZegaLogo } from '../../components/ZegaLogo';
 import { SupabaseDashboardService } from '../services/supabaseService';
+import { getActiveTenantIds } from '../contexts/TenantContext';
 
 import { AiCommandCenterView } from './views/AiCommandCenterView';
 import { AgentSwarmsView } from './views/AgentSwarmsView';
@@ -362,11 +363,11 @@ export function EnterpriseDashboardView({
     let unsubscribe: (() => void) | null = null;
 
     const loadRealtimeData = async () => {
-      const data = await SupabaseDashboardService.getEnterpriseRealtimeData();
+      const data = await SupabaseDashboardService.getEnterpriseRealtimeData(getActiveTenantIds().organizationId || '');
       setEnterpriseData(data);
 
-      unsubscribe = SupabaseDashboardService.subscribeToEnterpriseRealtime('99999999-9999-9999-9999-999999999999', async () => {
-        const fresh = await SupabaseDashboardService.getEnterpriseRealtimeData();
+      unsubscribe = SupabaseDashboardService.subscribeToEnterpriseRealtime(getActiveTenantIds().organizationId || '', async () => {
+        const fresh = await SupabaseDashboardService.getEnterpriseRealtimeData(getActiveTenantIds().organizationId || '');
         setEnterpriseData(fresh);
       });
     };

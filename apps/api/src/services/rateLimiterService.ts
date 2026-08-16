@@ -64,6 +64,25 @@ export class RateLimiterService {
     };
   }
 
+  /**
+   * SECURITY: Tenant-scoped rate limit check.
+   * Automatically prefixes the key with organization_id to isolate tenants.
+   * Tenant A traffic cannot throttle Tenant B.
+   */
+  public static checkTenantRateLimit(
+    organizationId: string,
+    endpoint: string,
+    maxRequests: number = 100,
+    windowMs: number = 60000
+  ): { allowed: boolean; remaining: number; resetMs: number } {
+    if (!organizationId) {
+      // FAIL-CLOSED: No org context = deny
+      return { allowed: false, remaining: 0, resetMs: windowMs };
+    }
+    const tenantKey = this.getTenantKey(organizationId, endpoint);
+    return this.checkRateLimit(tenantKey, maxRequests, windowMs);
+  }
+
   /** Clear all stored rate limit keys (for testing / reset) */
   public static resetStore(): void {
     this.memoryStore.clear();

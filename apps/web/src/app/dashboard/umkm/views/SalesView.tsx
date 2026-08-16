@@ -145,7 +145,7 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
 
   useEffect(() => {
     loadSalesData();
-    const unsubscribe = SupabaseDashboardService.subscribeToSalesRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToSalesRealtime(undefined, () => {
       loadSalesData();
     });
     return () => unsubscribe();
@@ -153,14 +153,14 @@ export function SalesView({ triggerToast = () => {}, onNavigateTab }: SalesViewP
 
   // Update Sales Goal Callback
   const handleSaveGoal = async (newTarget: number) => {
-    setSalesGoal((prev: any) => ({ ...prev, target_revenue: newTarget }));
-    await SupabaseDashboardService.updateSalesGoal('11111111-1111-1111-1111-111111111111', newTarget);
+    await SupabaseDashboardService.updateSalesGoal(undefined, newTarget);
+    loadSalesData();
   };
 
   // Deploy Real AI Sales Swarm Callback
   const handleDeploySwarm = async (modelPayload: any) => {
-    await SupabaseDashboardService.deploySalesAiSwarm('11111111-1111-1111-1111-111111111111', modelPayload);
-    await loadSalesData();
+    await SupabaseDashboardService.deploySalesAiSwarm(undefined, modelPayload);
+    loadSalesData();
   };
 
   // Dynamic Chart Configuration for Daily, Weekly, and Monthly Time Tabs

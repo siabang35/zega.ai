@@ -161,7 +161,7 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
 
   useEffect(() => {
     loadPreferences();
-    const unsub = SupabaseDashboardService.subscribeToAiPreferencesRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsub = SupabaseDashboardService.subscribeToAiPreferencesRealtime(undefined as any, () => {
       loadPreferences();
     });
     return () => unsub();

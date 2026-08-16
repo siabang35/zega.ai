@@ -17,7 +17,7 @@ interface ActivityStreamDashboardProps {
   onSelectCustomer?: (customerName: string) => void;
 }
 
-const MOCK_EXTENDED_ACTIVITIES: any[] = [];
+
 
 export function ActivityStreamDashboard({ activityStreamData, triggerToast, onSelectCustomer }: ActivityStreamDashboardProps) {
   const { t } = useLanguage();

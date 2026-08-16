@@ -26,6 +26,7 @@ export interface InvoiceRecord {
   status: 'DRAFT' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
   description?: string;
   metadata?: Record<string, any>;
+  organization_id?: string;
   expires_at: string;
   payment_signature?: string;
   paid_amount: string;

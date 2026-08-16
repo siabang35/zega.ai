@@ -55,7 +55,7 @@ export function SystemTab({ triggerToast }: SystemTabProps) {
 
   useEffect(() => {
     loadSystemData();
-    const unsubscribe = SupabaseDashboardService.subscribeToSystemSecurityRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToSystemSecurityRealtime(undefined as any, () => {
       loadSystemData();
     });
 

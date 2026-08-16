@@ -86,7 +86,13 @@ export async function registerPlugins(app: FastifyInstance) {
       'x-correlation-id',
       'x-privy-authorization',
       'x-authorization-attempt-id',
-      'x-withdrawal-id'
+      'x-withdrawal-id',
+      'X-Organization-Id',
+      'x-organization-id',
+      'X-Store-Id',
+      'x-store-id',
+      'X-Workspace-Id',
+      'x-workspace-id'
     ],
     maxAge: 86400,
   });

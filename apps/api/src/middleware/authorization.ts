@@ -2,32 +2,30 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { logger } from '../utils/logger.js';
 
 /**
- * ZEGA AI — Authorization Middleware
+ * ZEGA AI — Authorization Middleware (HARDENED)
  *
  * Central authorization primitives for the ZEGA platform.
  * Implements ownership verification, role-based access control,
  * and tenant-scoped resource authorization.
  *
- * Design Principles:
- *   - Section 0.1 (Security is a System Property): Authorization is NOT
- *     just authentication. Every resource access must verify ownership.
- *   - Section 0.3 (Server Authority): The server determines who owns
- *     what. Client claims are never trusted.
- *   - Section 0.4 (Least Privilege): Users only access their own resources
- *     unless explicitly granted higher scope.
- *   - Section 0.5 (Fail Closed): Missing principal or ownership data = deny.
- *
- * IMPORTANT: These functions assume request.principal has been populated
- * by the populatePrincipal middleware. If principal is missing, access
- * is DENIED (fail-closed).
+ * SECURITY INVARIANTS:
+ *   1. Missing principal = DENY (fail-closed)
+ *   2. Missing tenant scope = DENY (fail-closed)
+ *   3. NULL resource organization = DENY (fail-closed)
+ *   4. Superadmin does NOT bypass tenant isolation
+ *   5. Superadmin customer-data access requires break-glass authorization
+ *   6. Every authorization decision is logged for audit
  */
 
 /**
  * Verify that the current principal owns the given resource.
  *
+ * SECURITY: Superadmin does NOT bypass ownership.
+ * Superadmin is a control-plane identity, not a customer-data accessor.
+ *
  * @param request - The Fastify request (must have request.principal populated)
  * @param resourceOwnerId - The user_id that owns the resource
- * @returns true if the principal is the owner OR a superadmin
+ * @returns true if the principal is the owner
  */
 export function verifyOwnership(request: FastifyRequest, resourceOwnerId: string | undefined): boolean {
   const principal = request.principal;
@@ -37,18 +35,9 @@ export function verifyOwnership(request: FastifyRequest, resourceOwnerId: string
     return false;
   }
 
-  // Superadmin bypasses ownership checks (but is still logged)
-  if (principal.role === 'superadmin') {
-    logger.info(
-      { userId: principal.userId, resourceOwnerId, action: 'superadmin_override' },
-      '[Authorization] Superadmin ownership override'
-    );
-    return true;
-  }
-
-  // Standard ownership check
+  // FAIL-CLOSED: No resource owner = deny
   if (!resourceOwnerId) {
-    return false; // Resource has no owner — deny by default
+    return false;
   }
 
   return principal.userId === resourceOwnerId;
@@ -57,6 +46,12 @@ export function verifyOwnership(request: FastifyRequest, resourceOwnerId: string
 /**
  * Verify that the current principal has access to a resource within
  * a specific organization (tenant isolation check).
+ *
+ * SECURITY (C-01 FIX): Returns FALSE when resourceOrgId is null/undefined.
+ * A missing tenant scope is DENY, not ALLOW.
+ *
+ * SECURITY (C-03 FIX): Superadmin does NOT automatically bypass.
+ * Use verifyBreakGlassAccess() for superadmin customer-data access.
  *
  * @param request - The Fastify request (must have request.principal populated)
  * @param resourceOrgId - The organization_id that owns the resource
@@ -70,26 +65,35 @@ export function verifyTenantAccess(request: FastifyRequest, resourceOrgId: strin
     return false;
   }
 
-  // Superadmin can access any tenant (logged for audit trail)
-  if (principal.role === 'superadmin') {
-    logger.info(
-      { userId: principal.userId, resourceOrgId, action: 'superadmin_tenant_override' },
-      '[Authorization] Superadmin cross-tenant access'
-    );
-    return true;
-  }
-
-  // Resource has no org scope — fall back to ownership check only
+  // FAIL-CLOSED (C-01 FIX): No resource org scope = DENY
+  // A tenant-owned resource MUST have an organization_id.
   if (!resourceOrgId) {
-    return true; // Resource is user-scoped, not org-scoped
+    logger.warn(
+      { userId: principal.userId, action: 'tenant_access_denied_null_org' },
+      '[Authorization] DENIED — resource has no organization_id (fail-closed)'
+    );
+    return false;
   }
 
-  // Principal must belong to the resource's organization
+  // FAIL-CLOSED: Principal must have an active org context
   if (!principal.organizationId) {
-    return false; // Principal has no org membership — deny
+    logger.warn(
+      { userId: principal.userId, resourceOrgId, action: 'tenant_access_denied_no_context' },
+      '[Authorization] DENIED — principal has no organization context'
+    );
+    return false;
   }
 
-  return principal.organizationId === resourceOrgId;
+  // Standard tenant isolation check
+  if (principal.organizationId !== resourceOrgId) {
+    logger.warn(
+      { userId: principal.userId, principalOrg: principal.organizationId, resourceOrgId, action: 'cross_tenant_access_denied' },
+      '[Authorization] DENIED — cross-tenant access attempt'
+    );
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -97,9 +101,8 @@ export function verifyTenantAccess(request: FastifyRequest, resourceOrgId: strin
  *
  * Role hierarchy: superadmin > enterprise > umkm > individual
  *
- * @param request - The Fastify request (must have request.principal populated)
- * @param minimumRole - The minimum role required for this action
- * @returns true if the principal's role >= minimumRole
+ * NOTE: This checks PLATFORM role, not TENANT role.
+ * Platform role does NOT grant cross-tenant access.
  */
 const ROLE_HIERARCHY: Record<string, number> = {
   individual: 0,
@@ -128,9 +131,7 @@ export function verifyMinimumRole(request: FastifyRequest, minimumRole: string):
  *
  * Org role hierarchy: owner > admin > member > billing_contact
  *
- * @param request - The Fastify request (must have request.principal populated)
- * @param minimumOrgRole - The minimum org role required
- * @returns true if the principal's org role >= minimumOrgRole
+ * SECURITY (C-03 FIX): Superadmin no longer auto-passes org role checks.
  */
 const ORG_ROLE_HIERARCHY: Record<string, number> = {
   billing_contact: 0,
@@ -147,11 +148,6 @@ export function verifyMinimumOrgRole(request: FastifyRequest, minimumOrgRole: st
     return false;
   }
 
-  // Superadmin always passes org role checks
-  if (principal.role === 'superadmin') {
-    return true;
-  }
-
   const principalLevel = ORG_ROLE_HIERARCHY[principal.orgRole] ?? 0;
   const requiredLevel = ORG_ROLE_HIERARCHY[minimumOrgRole] ?? 0;
 
@@ -159,15 +155,15 @@ export function verifyMinimumOrgRole(request: FastifyRequest, minimumOrgRole: st
 }
 
 /**
- * Pre-built Fastify preHandler that denies access with a 403 response
- * when ownership verification fails.
- *
- * Usage: Call this inside route handlers AFTER populatePrincipal.
- *
- * Example:
- *   if (!verifyOwnership(request, resource.user_id)) {
- *     return denyAccess(reply, 'FORBIDDEN', 'You do not have access to this resource.');
- *   }
+ * Check if the principal is a superadmin (control-plane identity).
+ * NOTE: Being a superadmin does NOT grant customer-data access.
+ */
+export function isSuperadmin(request: FastifyRequest): boolean {
+  return request.principal?.role === 'superadmin';
+}
+
+/**
+ * Deny access with a 403 response.
  */
 export function denyAccess(
   reply: FastifyReply,
@@ -182,12 +178,6 @@ export function denyAccess(
 
 /**
  * Create a Fastify preHandler that enforces a minimum platform role.
- *
- * Usage:
- *   app.get('/admin/users', {
- *     onRequest: [app.authenticate],
- *     preHandler: [populatePrincipal, requireRole('enterprise')],
- *   }, handler);
  */
 export function requireRole(minimumRole: string) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -204,6 +194,22 @@ export function requireOrgRole(minimumOrgRole: string) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (!verifyMinimumOrgRole(request, minimumOrgRole)) {
       return denyAccess(reply, 'INSUFFICIENT_ORG_ROLE', `This action requires at least '${minimumOrgRole}' organization role.`);
+    }
+  };
+}
+
+/**
+ * Fastify preHandler that verifies tenant access to a resource.
+ * Use this when the resource's organization_id is known at pre-handler time.
+ *
+ * Usage:
+ *   preHandler: [populatePrincipal, requireTenantAccessTo(getResourceOrg)]
+ */
+export function requireTenantAccessTo(getResourceOrgId: (request: FastifyRequest) => string | undefined | null) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const resourceOrgId = getResourceOrgId(request);
+    if (!verifyTenantAccess(request, resourceOrgId)) {
+      return denyAccess(reply, 'TENANT_ACCESS_DENIED', 'You do not have access to this tenant resource.');
     }
   };
 }

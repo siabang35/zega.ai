@@ -1,5 +1,12 @@
 /**
- * ZEGA AI — Standardized Wallet API Routes (`/api/wallet`)
+ * ZEGA AI — Standardized Wallet API Routes (`/api/wallet`) (HARDENED Phase 3)
+ *
+ * SECURITY INVARIANTS:
+ *   1. ALL routes require JWT authentication (fail-closed)
+ *   2. ALL routes require tenant context (organization_id from verified principal)
+ *   3. User identity is derived ONLY from the verified JWT principal
+ *   4. Client-supplied x-user-id / x-user-email headers are NEVER trusted
+ *   5. No hardcoded fallback identities
  *
  * Endpoints:
  *   GET /api/wallet              - Wallet overview (address, chain, balances)
@@ -12,51 +19,43 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WalletService } from '../../services/walletService.js';
 import { BalanceService } from '../../services/balanceService.js';
 import { TransactionHistoryService, type TransactionStatus } from '../../services/transactionHistoryService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
-import { envConfig } from '../../config/env.js';
+import { populatePrincipal, requireTenantContext } from '../../middleware/requestContext.js';
 import { logger } from '../../utils/logger.js';
 
 export async function apiWalletRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+  // SECURITY: Strict JWT authentication for ALL wallet routes (fail-closed)
+  fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
     } catch {
-      // Allow hook to continue if in dev/test fallback mode; getUserIdentity handles fail-closed in prod
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for wallet endpoints.', statusCode: 401 },
+      });
     }
-    await populatePrincipal(request, reply);
   });
 
+  // Populate principal and require tenant context
+  fastify.addHook('preHandler', populatePrincipal);
+  fastify.addHook('preHandler', requireTenantContext);
+
   /**
-   * Helper to extract user identity from headers / auth context safely.
+   * Get the verified user identity from the authenticated principal.
+   *
+   * SECURITY: Identity is derived EXCLUSIVELY from the verified JWT principal.
+   * Client headers (x-user-id, x-user-email) are NEVER trusted.
+   * No hardcoded fallback identities exist.
    */
-  function getUserIdentity(req: FastifyRequest, reply: FastifyReply): string | null {
+  function getPrincipalIdentity(req: FastifyRequest, reply: FastifyReply): string | null {
     const principal = req.principal;
     if (principal && (principal.email || principal.userId)) {
       return principal.email || principal.userId;
     }
 
-    const jwtUser = req.user;
-    if (jwtUser && (jwtUser.email || jwtUser.sub)) {
-      return jwtUser.email || jwtUser.sub;
-    }
-
-    const isDev = process.env.NODE_ENV !== 'production' && envConfig.NODE_ENV !== 'production';
-    const headerUserId = req.headers['x-user-id'] as string;
-    const headerEmail = req.headers['x-user-email'] as string;
-    const queryUser = (req.query as any)?.userId || (req.query as any)?.email;
-
-    const fallbackUser = headerUserId || headerEmail || queryUser;
-    if (isDev && fallbackUser) {
-      return fallbackUser.trim();
-    }
-
-    if (isDev) {
-      return 'user@zegaai.site';
-    }
-
+    // FAIL-CLOSED: No principal = deny
     reply.status(401).send({
-      error: 'UNAUTHORIZED',
-      message: 'Authentication required. Missing or invalid access token.',
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
     });
     return null;
   }
@@ -64,7 +63,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
   // GET /api/wallet
   fastify.get('/api/wallet', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req, reply);
+      const userId = getPrincipalIdentity(req, reply);
       if (!userId) return;
 
       const walletRecord = await WalletService.ensureUserWallet(userId);
@@ -95,7 +94,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
   // GET /api/wallet/balance
   fastify.get('/api/wallet/balance', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req, reply);
+      const userId = getPrincipalIdentity(req, reply);
       if (!userId) return;
 
       const walletAddress = await WalletService.getSolanaWallet(userId);
@@ -118,7 +117,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
   // GET /api/wallet/tokens
   fastify.get('/api/wallet/tokens', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req, reply);
+      const userId = getPrincipalIdentity(req, reply);
       if (!userId) return;
 
       const walletAddress = await WalletService.getSolanaWallet(userId);
@@ -140,7 +139,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
   // GET /api/wallet/transactions
   fastify.get('/api/wallet/transactions', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req, reply);
+      const userId = getPrincipalIdentity(req, reply);
       if (!userId) return;
 
       const query = req.query as any;

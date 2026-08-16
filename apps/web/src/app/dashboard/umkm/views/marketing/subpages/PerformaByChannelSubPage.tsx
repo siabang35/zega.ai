@@ -82,7 +82,7 @@ export function PerformaByChannelSubPage({ triggerToast }: PerformaByChannelSubP
 
   useEffect(() => {
     loadChannelData();
-    const unsubscribe = SupabaseDashboardService.subscribeToMarketingChannelPerformance('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToMarketingChannelPerformance(undefined as any, () => {
       loadChannelData();
     });
     return () => unsubscribe();

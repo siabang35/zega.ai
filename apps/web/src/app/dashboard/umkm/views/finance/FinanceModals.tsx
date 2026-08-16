@@ -874,7 +874,7 @@ export function ManageFinanceSwarmModal({
     };
 
     // DB insert attempt
-    await SupabaseDashboardService.addUmkmAiEmployee('11111111-1111-1111-1111-111111111111', {
+    await SupabaseDashboardService.addUmkmAiEmployee(undefined as any, {
       name: newSwarmName.trim(),
       role: 'Finance AI Assistant',
       category: 'Finance & Ledger',

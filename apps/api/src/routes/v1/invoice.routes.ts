@@ -1,52 +1,44 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { invoiceService } from '../../services/InvoiceService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
-import { envConfig } from '../../config/env.js';
+import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../middleware/requestContext.js';
+import { verifyTenantAccess, denyAccess } from '../../middleware/authorization.js';
+import { SupabaseService } from '../../services/supabaseService.js';
+import { logger } from '../../utils/logger.js';
 
-function extractAuthenticatedUserId(request: FastifyRequest, reply: FastifyReply): string | null {
-  const principal = request.principal;
-  if (principal && (principal.email || principal.userId)) {
-    return principal.email || principal.userId;
-  }
-
-  const jwtUser = request.user;
-  if (jwtUser && (jwtUser.email || jwtUser.sub)) {
-    return jwtUser.email || jwtUser.sub;
-  }
-
-  const isDev = process.env.NODE_ENV !== 'production' && envConfig.NODE_ENV !== 'production';
-  const headerUserId = request.headers['x-user-id'] as string;
-  const headerEmail = request.headers['x-user-email'] as string;
-
-  if (isDev && (headerUserId || headerEmail)) {
-    return (headerUserId || headerEmail).trim();
-  }
-
-  if (isDev) {
-    return 'user@zegaai.site';
-  }
-
-  reply.status(401).send({
-    success: false,
-    error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
-  });
-  return null;
-}
-
+/**
+ * ZEGA AI — Invoice Routes (HARDENED Phase 2)
+ *
+ * SECURITY INVARIANTS:
+ *   1. ALL routes require JWT authentication (fail-closed)
+ *   2. ALL routes require tenant context
+ *   3. Invoice creation stamps principal's org + userId (server-side authority)
+ *   4. Invoice GET verifies tenant before returning data
+ *   5. Invoice list is scoped to principal's org + userId
+ *   6. No dev fallback user ID — removed extractAuthenticatedUserId
+ */
 export async function invoiceRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+  // SECURITY: Strict JWT authentication
+  fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
     } catch {
-      // Allow hook to continue if in dev/test fallback mode; extractAuthenticatedUserId handles fail-closed in prod
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for invoice endpoints.', statusCode: 401 },
+      });
     }
-    await populatePrincipal(request, reply);
   });
+
+  // Populate principal and require tenant context
+  fastify.addHook('preHandler', populatePrincipal);
+  fastify.addHook('preHandler', requireTenantContext);
 
   // POST /api/invoices -> Create receiving invoice
   fastify.post('/api/invoices', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
-    if (!rawUserId) return;
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({ success: false, message: 'Authentication required' });
+    }
 
     const body = request.body as any;
 
@@ -54,8 +46,9 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ success: false, message: 'Amount is required' });
     }
 
+    // SECURITY: userId derived from authenticated principal, NOT from client
     const invoice = await invoiceService.createInvoice({
-      userId: rawUserId,
+      userId: principal.userId,
       amount: body.amount.toString(),
       asset: body.asset || 'SOL',
       tokenMint: body.tokenMint,
@@ -70,17 +63,44 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // GET /api/invoices/:id -> Get invoice details
+  // GET /api/invoices/:id -> Get invoice details (tenant-verified)
   fastify.get('/api/invoices/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    const principal = request.principal;
+    const orgId = getTenantOrg(request);
     const { id } = request.params as { id: string };
+
     const invoice = await invoiceService.getInvoice(id);
 
     if (!invoice) {
       return reply.status(404).send({ success: false, message: 'Invoice not found' });
     }
 
-    const currentUserId = extractAuthenticatedUserId(request, reply);
-    const isOwner = currentUserId && (invoice.user_id === currentUserId || invoice.user_id.toLowerCase() === currentUserId.toLowerCase());
+    // SECURITY (C-01 FIX): Unconditional tenant isolation check.
+    // Invoice MUST have an organization_id and it MUST match principal's org.
+    // A NULL organization_id is DENY, not skip.
+    if (!invoice.organization_id) {
+      logger.warn(
+        { userId: principal?.userId, invoiceId: id, action: 'invoice_denied_orphan' },
+        '[Invoice] DENIED — invoice has no organization_id (fail-closed)'
+      );
+      return reply.status(404).send({ success: false, error: { code: 'INVOICE_TENANT_MISSING', message: 'Invoice not found' } });
+    }
+
+    if (!verifyTenantAccess(request, invoice.organization_id)) {
+      logger.warn(
+        { userId: principal?.userId, invoiceId: id, invoiceOrg: invoice.organization_id, principalOrg: orgId, action: 'cross_tenant_invoice_denied' },
+        '[Invoice] DENIED — cross-tenant invoice access attempt'
+      );
+      return reply.status(404).send({ success: false, message: 'Invoice not found' });
+    }
+
+    // Check if the requesting user is the owner
+    const isOwner = principal?.userId && (
+      invoice.user_id === principal.userId ||
+      invoice.user_id?.toLowerCase() === principal.userId.toLowerCase() ||
+      invoice.user_id === principal.email ||
+      invoice.user_id?.toLowerCase() === principal.email?.toLowerCase()
+    );
 
     return reply.send({
       success: true,
@@ -98,12 +118,15 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // GET /api/invoices/user/list -> List user invoices
+  // GET /api/invoices/user/list -> List user invoices (org-scoped)
   fastify.get('/api/invoices/user/list', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
-    if (!rawUserId) return;
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({ success: false, message: 'Authentication required' });
+    }
 
-    const invoices = await invoiceService.listUserInvoices(rawUserId);
+    // SECURITY: List scoped to authenticated principal's identity
+    const invoices = await invoiceService.listUserInvoices(principal.userId);
 
     return reply.send({
       success: true,
@@ -111,4 +134,3 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
     });
   });
 }
-

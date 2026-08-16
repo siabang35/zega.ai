@@ -13,8 +13,10 @@ import {
 
 import { UmkmDashboardView } from './UmkmDashboard';
 import { LanguageSelector } from '../../components/LanguageSelector';
-import { SupabaseDashboardService } from '../services/supabaseService';
+import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '../services/supabaseService';
+import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../i18n/translations';
+import { TenantProvider, resolveTenantFromUser, setActiveTenant, getActiveTenantIds } from '../contexts/TenantContext';
 
 interface UmkmDashboardContainerProps {
   onClose: () => void;
@@ -236,6 +238,12 @@ export function UmkmDashboardContainer({
       }
     }
   }, [userAvatar]);
+
+  // Multi-Tenant Context Sync: resolve tenant from user and sync to service layer
+  useEffect(() => {
+    const tenant = resolveTenantFromUser(userEmail, 'umkm');
+    setActiveTenant(tenant);
+  }, [userEmail]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [whatsNewList, setWhatsNewList] = useState<any[]>([]);
@@ -534,11 +542,11 @@ export function UmkmDashboardContainer({
     };
     window.addEventListener('storage', handleStorageChange);
 
-    // Also poll localStorage every 2s for same-tab changes
+    // Also poll localStorage every 2s for same-tab changes safely without stale closure re-render loop
     const pollInterval = setInterval(() => {
       const current = localStorage.getItem('zega_ai_default_language');
-      if (current && current !== aiLang) {
-        setAiLang(current);
+      if (current) {
+        setAiLang(prev => (current !== prev ? current : prev));
       }
     }, 2000);
 
@@ -568,7 +576,7 @@ export function UmkmDashboardContainer({
 
   const fetchCopilotHistoryList = async () => {
     try {
-      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory(userEmail || 'demo-owner', 'copilot');
+      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory((userEmail || getActiveTenantIds().userId || ''), 'copilot');
       if (recentRpcList && recentRpcList.length > 0) {
         setCopilotHistoryList(recentRpcList.map((item: any) => ({
           id: item.chat_id,
@@ -578,7 +586,7 @@ export function UmkmDashboardContainer({
         })));
         return;
       }
-      const list = await SupabaseDashboardService.getUmkmZegaCopilotChats('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner');
+      const list = await SupabaseDashboardService.getUmkmZegaCopilotChats(undefined, (userEmail || getActiveTenantIds().userId || ''));
       if (list) setCopilotHistoryList(list);
     } catch (e) {
       console.warn('Note loading copilot chat list:', e);
@@ -639,7 +647,7 @@ export function UmkmDashboardContainer({
   useEffect(() => {
     const fetchTierUsage = async () => {
       try {
-        const usage = await SupabaseDashboardService.getUserChatTierUsage('demo-owner');
+        const usage = await SupabaseDashboardService.getUserChatTierUsage((userEmail || getActiveTenantIds().userId || ''));
         if (usage) setTierUsage(usage);
       } catch (e) {
         console.warn('Note loading tier usage:', e);
@@ -704,11 +712,25 @@ export function UmkmDashboardContainer({
   useEffect(() => {
     const loadCopilotHistory = async () => {
       try {
-        const chats = await SupabaseDashboardService.getUmkmZegaCopilotChats('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner');
-        if (chats && chats.length > 0) {
-          const latestChat = chats[0];
-          setActiveCopilotChatId(latestChat.id);
-          const msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(latestChat.id);
+        const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+        if (!activeStoreId) {
+          const initialMsg = getSeedMessage(aiLang);
+          setCopilotMessages([{
+            id: 'seed-1',
+            sender: 'copilot',
+            message: initialMsg,
+            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+          return;
+        }
+
+        const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalZegaCopilotChat(
+          undefined,
+          (userEmail || getActiveTenantIds().userId || '')
+        );
+        if (resolved.ok && resolved.chatId) {
+          setActiveCopilotChatId(resolved.chatId);
+          const msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(resolved.chatId);
           if (msgs && msgs.length > 0) {
             const formatted = msgs.map((m: any) => ({
               id: m.id,
@@ -720,19 +742,23 @@ export function UmkmDashboardContainer({
               created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }));
             setCopilotMessages(formatted);
-          }
-        } else {
-          // Create initial session in DB
-          const defaultTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
-          const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner', defaultTitle);
-          if (newSession) {
-            setActiveCopilotChatId(newSession.id);
+          } else {
+            // New session resolved -> insert seed message for user guidance
+            const initialMsg = getSeedMessage(aiLang);
+            setCopilotMessages([{
+              id: 'seed-1',
+              sender: 'copilot',
+              message: initialMsg,
+              created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
             await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
-              chat_id: newSession.id,
+              chat_id: resolved.chatId,
               sender: 'assistant',
-              message: getSeedMessage(aiLang)
+              message: initialMsg
             });
           }
+        } else {
+          console.warn('[UmkmDashboardContainer] Canonical Copilot session resolution warning:', resolved.reason, resolved.error);
         }
       } catch (e) {
         console.warn('Note loading copilot chat history:', e);
@@ -744,22 +770,25 @@ export function UmkmDashboardContainer({
   // Create New Chat Session Function (+ Sesi Baru)
   const handleNewCopilotChatSession = async () => {
     try {
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      if (!activeStoreId) {
+        triggerToast(aiLang === 'en' ? 'Store context unavailable.' : 'Konteks toko belum siap.');
+        return;
+      }
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const title = aiLang === 'en' ? `Session ${timeStr}` : aiLang === 'zh' ? `对话 ${timeStr}` : `Sesi ${timeStr}`;
-      const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', userEmail || 'demo-owner', title);
-      if (newSession) {
+      const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat(activeStoreId, (userEmail || getActiveTenantIds().userId || ''), title);
+      if (newSession && newSession.id) {
         setActiveCopilotChatId(newSession.id);
-      }
-      const initialMsg = getSeedMessage(aiLang);
-      setCopilotMessages([
-        {
-          id: Date.now().toString(),
-          sender: 'copilot',
-          message: initialMsg,
-          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-      if (newSession) {
+        const initialMsg = getSeedMessage(aiLang);
+        setCopilotMessages([
+          {
+            id: Date.now().toString(),
+            sender: 'copilot',
+            message: initialMsg,
+            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
         await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
           chat_id: newSession.id,
           sender: 'assistant',
@@ -841,26 +870,38 @@ export function UmkmDashboardContainer({
 
     const startTime = Date.now();
 
-    // ── STEP 1: Ensure Session Exists First & Save User Message ──
+    // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
     let chatIdToUse = activeCopilotChatId;
-    try {
-      if (!chatIdToUse) {
-        const title = `Copilot: ${textToSend.trim().slice(0, 25)}`;
-        const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat('11111111-1111-1111-1111-111111111111', 'demo-owner', title);
-        if (newSession && newSession.id) {
-          chatIdToUse = newSession.id;
-          setActiveCopilotChatId(newSession.id);
+    if (!chatIdToUse) {
+      try {
+        const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalZegaCopilotChat(
+          undefined,
+          (userEmail || getActiveTenantIds().userId || ''),
+          `Copilot: ${textToSend.trim().slice(0, 25)}`
+        );
+        if (resolved.ok && resolved.chatId) {
+          chatIdToUse = resolved.chatId;
+          setActiveCopilotChatId(resolved.chatId);
+          fetchCopilotHistoryList();
+        } else {
+          console.warn('[UmkmDashboardContainer] Canonical Copilot session resolution notice:', resolved.reason, resolved.error);
         }
+      } catch (sessionErr) {
+        console.warn('[UmkmDashboardContainer] Session resolution exception:', sessionErr);
       }
-      if (chatIdToUse) {
+    }
+
+    // Save User Message to DB ONLY IF valid persistent chatId exists
+    if (chatIdToUse && isValidUuid(chatIdToUse)) {
+      try {
         await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
           chat_id: chatIdToUse,
           sender: 'user',
           message: textToSend.trim()
         });
+      } catch (saveErr) {
+        console.warn('[UmkmDashboardContainer] Failed to persist user message:', saveErr);
       }
-    } catch (sessionErr) {
-      console.warn('Session setup error in UmkmDashboardContainer:', sessionErr);
     }
 
     const envApi = import.meta.env.VITE_API_URL;
@@ -884,30 +925,37 @@ export function UmkmDashboardContainer({
       const prefFormat = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_format')) || 'Ringkas';
       const prefModel = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_default_model')) || 'GPT-4o (Recommended)';
 
-      const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: textToSend.trim(),
-          storeId: umkmData?.store?.id || '11111111-1111-1111-1111-111111111111',
-          userId: 'demo-owner',
-          language: currentAiLang,
-          response_style: prefStyle,
-          response_length: prefLen,
-          response_format: prefFormat,
-          default_model: prefModel
-        })
-      });
+      const headers = getCanonicalAuthHeaders();
+      const orgIdHeader = headers['X-Organization-Id'];
+      const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
+      const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data && result.data.message) {
-          copilotReplyText = result.data.message;
-          aiModelToUse = result.data.ai_model || 'gemini-3.6-flash';
-          promptTokensToUse = result.data.prompt_tokens || promptTokensToUse;
-          completionTokensToUse = result.data.completion_tokens || Math.floor(copilotReplyText.length * 0.8);
-          inferenceMsToUse = result.data.inference_ms || (Date.now() - startTime);
+      if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+        const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            chatId: chatIdToUse,
+            message: textToSend.trim(),
+            language: currentAiLang,
+            response_style: prefStyle,
+            response_length: prefLen,
+            response_format: prefFormat,
+            default_model: prefModel
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && result.data.message) {
+            copilotReplyText = result.data.message;
+            aiModelToUse = result.data.ai_model || 'gemini-3.6-flash';
+            completionTokensToUse = result.data.completion_tokens || Math.floor(copilotReplyText.length * 0.8);
+            inferenceMsToUse = result.data.inference_ms || (Date.now() - startTime);
+          }
         }
+      } else {
+        console.log('[UmkmDashboardContainer] Gated Copilot API POST call: store/organization tenant context not ready yet.', { orgIdHeader, storeIdHeader, storeStatus: getActiveTenantIds().storeStatus });
       }
     } catch (err) {
       console.warn('Backend proxy Copilot call fallback note:', err);
@@ -923,64 +971,62 @@ export function UmkmDashboardContainer({
 
       if (currentAiLang === 'en') {
         if (promptLower.includes('fashion') || promptLower.includes('apparel') || promptLower.includes('boutique') || promptLower.includes('clothing')) {
-          copilotReplyText = `👕 **ZEGA AI Fashion Store Intelligence (2026):**\n• **Catalog Automation**: Automated 24/7 size & color variant assistant on WhatsApp.\n• **Sales Campaign**: Flash promo broadcast ready for new seasonal arrivals.\n• **POS Inventory**: Tracking variant sizes (S, M, L, XL) with auto-alerts for fast sellers.\n💡 *Action:* Deploy WhatsApp Promo Broadcast or set up product catalog.`;
+          copilotReplyText = `ZEGA AI Fashion Store Intelligence (2026):\n- Catalog Automation: Automated 24/7 size & color variant assistant on WhatsApp.\n- Sales Campaign: Flash promo broadcast ready for new seasonal arrivals.\n- POS Inventory: Tracking variant sizes (S, M, L, XL) with auto-alerts for fast sellers.\nAction: Deploy WhatsApp Promo Broadcast or set up product catalog.`;
         } else if (promptLower.includes('profit') || promptLower.includes('growth') || promptLower.includes('margin') || promptLower.includes('make more') || promptLower.includes('increase')) {
-          copilotReplyText = `📈 **ZEGA AI Profit & Growth Strategy (2026):**\n1. **WhatsApp Re-engagement**: Auto-message unpaid carts & inactive customers.\n2. **AI Sales Swarm Cross-Selling**: Auto-recommend bundles to repeat shoppers.\n3. **High-Margin POS Analytics**: Focus marketing on top 20% profitable items.\n⚡ *Target:* Expand net margin by +18.5% this quarter.`;
+          copilotReplyText = `ZEGA AI Profit & Growth Strategy (2026):\n1. WhatsApp Re-engagement: Auto-message unpaid carts & inactive customers.\n2. AI Sales Swarm Cross-Selling: Auto-recommend bundles to repeat shoppers.\n3. High-Margin POS Analytics: Focus marketing on top 20% profitable items.\nTarget: Expand net margin by +18.5% this quarter.`;
         } else if (promptLower.includes('know') || promptLower.includes('unsure') || promptLower.includes('help')) {
-          copilotReplyText = `💡 **ZEGA Copilot Advisory Service:**\nNo worries! What area would you like to explore for your store right now?\n• **24/7 WhatsApp API Automation** for instant customer orders\n• **Auto POS Cashier System** for rapid daily sales\n• **Inventory & Low-Stock Alerts** to prevent lost revenue`;
+          copilotReplyText = `ZEGA Copilot Advisory Service:\nNo worries! What area would you like to explore for your store right now?\n- 24/7 WhatsApp API Automation for instant customer orders\n- Auto POS Cashier System for rapid daily sales\n- Inventory & Low-Stock Alerts to prevent lost revenue`;
         } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('morning') || promptLower.includes('afternoon') || promptLower.includes('evening')) {
-          copilotReplyText = `👋 **Hello! Welcome to ZEGA Copilot AI.**\nI am ready to assist with your business operations for **${currentDate}**. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
+          copilotReplyText = `Hello! Welcome to ZEGA Copilot AI.\nI am ready to assist with your business operations for ${currentDate}. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
         } else if (promptLower.includes('sales') || promptLower.includes('revenue') || promptLower.includes('margin')) {
-          copilotReplyText = `📊 **ZEGA AI Real-Time Sales Analysis (2026):**\n• Today's Revenue: **Rp48,250,000** (+24.8% vs last month)\n• Total Transactions: **342 orders**\n• Average Basket Size: **Rp141,000**\n💡 *Recommendation:* Activate F&B bundle promo to increase basket size to Rp175,000.`;
+          copilotReplyText = `ZEGA AI Real-Time Sales Analysis (2026):\n- Today's Revenue: Rp48,250,000 (+24.8% vs last month)\n- Total Transactions: 342 orders\n- Average Basket Size: Rp141,000\nRecommendation: Activate F&B bundle promo to increase basket size to Rp175,000.`;
         } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-          copilotReplyText = `💬 **ZEGA AI WhatsApp Broadcast Draft:**\n"Hello! 🌟 Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: *ZEGASUPER15*. Limited quota! Click: https://zegaai.site/promo"`;
+          copilotReplyText = `ZEGA AI WhatsApp Broadcast Draft:\n"Hello! Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: ZEGASUPER15. Limited quota! Click: https://zegaai.site/promo"`;
         } else if (promptLower.includes('stock') || promptLower.includes('inventory') || promptLower.includes('item')) {
-          copilotReplyText = `📦 **Real-Time Inventory Status (2026):**\n• Aren Palm Sugar Coffee: *12 units left* ⚠️ (Needs restocking!)\n• Super Groceries Pack: *45 units left* ✅\n• Premium Rice 5kg: *8 units left* ⚠️\n⚡ Gemini recommends reordering from supplier today.`;
+          copilotReplyText = `Real-Time Inventory Status (2026):\n- Aren Palm Sugar Coffee: 12 units left (Needs restocking!)\n- Super Groceries Pack: 45 units left\n- Premium Rice 5kg: 8 units left\nRecommendation: Reorder low-stock items from supplier today.`;
         } else {
-          copilotReplyText = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nThank you for your question regarding "*${textToSend.trim()}*". Based on operational telemetry for **${currentDate}**, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
+          copilotReplyText = `ZEGA Copilot Real-Time Inference (2026):\nThank you for your question regarding "${textToSend.trim()}". Based on operational telemetry for ${currentDate}, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
         }
       } else if (currentAiLang === 'zh') {
         if (promptLower.includes('fashion') || promptLower.includes('服装') || promptLower.includes('女装') || promptLower.includes('精品店')) {
-          copilotReplyText = `👕 **ZEGA AI 服饰店铺智能方案 (2026):**\n• **目录自动化**: 24/7 WhatsApp 多尺码与颜色助手。\n• **销售活动**: 新品上新与限时抢购广播文案准备就绪。\n• **POS 库存**: 实时追踪尺码（S, M, L, XL）并提供热销品预警。\n💡 *操作:* 部署 WhatsApp 促销广播或配置商品目录。`;
+          copilotReplyText = `ZEGA AI 服饰店铺智能方案 (2026):\n- 目录自动化: 24/7 WhatsApp 多尺码与颜色助手。\n- 销售活动: 新品上新与限时抢购广播文案准备就绪。\n- POS 库存: 实时追踪尺码（S, M, L, XL）并提供热销品预警。\n操作: 部署 WhatsApp 促销广播或配置商品目录。`;
         } else if (promptLower.includes('profit') || promptLower.includes('增长') || promptLower.includes('利润') || promptLower.includes('提升')) {
-          copilotReplyText = `📈 **ZEGA AI 利润与增长策略 (2026):**\n1. **WhatsApp 追单**: 自动提醒未付款订单与沉睡客户。\n2. **AI 销售团队交叉销售**: 自动向老客户推荐组合商品。\n3. **高利润 POS 分析**: 将营销重点放在贡献 20% 主要利润的商品。\n⚡ *目标:* 本季度净利润率提升 +18.5%。`;
+          copilotReplyText = `ZEGA AI 利润与增长策略 (2026):\n1. WhatsApp 追单: 自动提醒未付款订单与沉睡客户。\n2. AI 销售团队交叉销售: 自动向老客户推荐组合商品。\n3. 高利润 POS 分析: 将营销重点放在贡献 20% 主要利润的商品。\n目标: 本季度净利润率提升 +18.5%。`;
         } else if (promptLower.includes('know') || promptLower.includes('不懂') || promptLower.includes('帮助')) {
-          copilotReplyText = `💡 **ZEGA Copilot 运营咨询顾问:**\n别担心！今天想先探索哪个店铺模块？\n• **24/7 WhatsApp API 自动化** 实现即时接单\n• **高效 POS 收银系统** 处理日常销售\n• **库存与低库存预警** 防止收入损失`;
+          copilotReplyText = `ZEGA Copilot 运营咨询顾问:\n别担心！今天想先探索哪个店铺模块？\n- 24/7 WhatsApp API 自动化 实现即时接单\n- 高效 POS 收银系统 处理日常销售\n- 库存与低库存预警 防止收入损失`;
         } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('你好') || promptLower.includes('早')) {
-          copilotReplyText = `👋 **您好！欢迎使用 ZEGA Copilot AI。**\n我已准备好协助您处理 **${currentDate}** 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
+          copilotReplyText = `您好！欢迎使用 ZEGA Copilot AI。\n我已准备好协助您处理 ${currentDate} 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
         } else if (promptLower.includes('sales') || promptLower.includes('销售') || promptLower.includes('收入') || promptLower.includes('利润')) {
-          copilotReplyText = `📊 **ZEGA AI 实时销售分析 (2026):**\n• 今日营业额: **Rp48,250,000** (比上月增长 +24.8%)\n• 总交易笔数: **342 笔订单**\n• 平均客单价: **Rp141,000**\n💡 *优化建议:* 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
+          copilotReplyText = `ZEGA AI 实时销售分析 (2026):\n- 今日营业额: Rp48,250,000 (比上月增长 +24.8%)\n- 总交易笔数: 342 笔订单\n- 平均客单价: Rp141,000\n优化建议: 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
         } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('促销') || promptLower.includes('推广')) {
-          copilotReplyText = `💬 **ZEGA AI WhatsApp 广播文案草稿:**\n"您好！🌟 本店特惠！超值组合包享 15% 折扣。优惠码: *ZEGASUPER15*。名额有限！点击: https://zegaai.site/promo"`;
+          copilotReplyText = `ZEGA AI WhatsApp 广播文案草稿:\n"您好！本店特惠！超值组合包享 15% 折扣。优惠码: ZEGASUPER15。名额有限！点击: https://zegaai.site/promo"`;
         } else if (promptLower.includes('stock') || promptLower.includes('库存') || promptLower.includes('商品')) {
-          copilotReplyText = `📦 **实时库存状态 (2026):**\n• 棕榈糖咖啡: *剩余 12 件* ⚠️ (需补货!)\n• 超级杂货包: *剩余 45 件* ✅\n• 优质大米 5kg: *剩余 8 件* ⚠️\n⚡ Gemini 建议今天向供应商重新订购。`;
+          copilotReplyText = `实时库存状态 (2026):\n- 棕榈糖咖啡: 剩余 12 件 (需补货!)\n- 超级杂货包: 剩余 45 件\n- 优质大米 5kg: 剩余 8 件\n建议今天向供应商重新订购。`;
         } else {
-          copilotReplyText = `🧠 **ZEGA Copilot 实时推理 (2026):**\n感谢您提出关于 "*${textToSend.trim()}*" 的问题。根据 **${currentDate}** 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
+          copilotReplyText = `ZEGA Copilot 实时推理 (2026):\n感谢您提出关于 "${textToSend.trim()}" 的问题。根据 ${currentDate} 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
         }
       } else {
         if (promptLower.includes('fashion') || promptLower.includes('baju') || promptLower.includes('pakaian') || promptLower.includes('distro') || promptLower.includes('boutique')) {
-          copilotReplyText = `👕 **Solusi Cerdas Toko Fashion ZEGA AI (2026):**\n• **Katalog Otomatis**: Panduan ukuran (S, M, L, XL) & rekomendasi baju otomatis di WhatsApp 24/7.\n• **Kampanye WA**: Draf pesan promo otomatis siap kirim saat koleksi baju baru rilis.\n• **Stok Kasir POS**: Memantau varian warna/ukuran terlaris dengan notifikasi stok menipis secara real-time.\n💡 *Langkah:* Siapkan katalog fashion atau jalankan broadcast promo WA toko Kakak.`;
+          copilotReplyText = `Solusi Cerdas Toko Fashion ZEGA AI (2026):\n- Katalog Otomatis: Panduan ukuran (S, M, L, XL) & rekomendasi baju otomatis di WhatsApp 24/7.\n- Kampanye WA: Draf pesan promo otomatis siap kirim saat koleksi baju baru rilis.\n- Stok Kasir POS: Memantau varian warna/ukuran terlaris dengan notifikasi stok menipis secara real-time.\nLangkah: Siapkan katalog fashion atau jalankan broadcast promo WA toko Anda.`;
         } else if (promptLower.includes('profit') || promptLower.includes('untung') || promptLower.includes('omzet') || promptLower.includes('penjualan') || promptLower.includes('margin') || promptLower.includes('make more')) {
-          copilotReplyText = `📈 **Strategi Pertumbuhan Profit ZEGA AI (2026):**\n1. **Follow-up WA Otomatis**: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. **AI Sales Swarm Cross-Selling**: Rekomendasikan produk pelengkap secara otomatis.\n3. **Analitik POS Margin Tinggi**: Fokuskan promo pada 20% produk paling menguntungkan.\n⚡ *Target:* Tingkatkan margin bersih toko sebesar +18.5% triwulan ini.`;
+          copilotReplyText = `Strategi Pertumbuhan Profit ZEGA AI (2026):\n1. Follow-up WA Otomatis: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. AI Sales Swarm Cross-Selling: Rekomendasikan produk pelengkap secara otomatis.\n3. Analitik POS Margin Tinggi: Fokuskan promo pada 20% produk paling menguntungkan.\nTarget: Tingkatkan margin bersih toko sebesar +18.5% triwulan ini.`;
         } else if (promptLower.includes('know') || promptLower.includes('bingung') || promptLower.includes('tidak tahu') || promptLower.includes('gimana') || promptLower.includes('apa aja')) {
-          copilotReplyText = `💡 **Konsultasi Operasional ZEGA Copilot:**\nTidak masalah Kak! Mau mulai dari bagian mana untuk toko Kakak hari ini?\n• **Otomatisasi WhatsApp API 24 Jam** untuk penerimaan pesanan otomatis\n• **Kasir POS Otomatis** untuk pencatatan transaksi harian cepat\n• **Manajemen Stok Barang** & Notifikasi Supplier otomatis`;
+          copilotReplyText = `Konsultasi Operasional ZEGA Copilot:\nTidak masalah! Mau mulai dari bagian mana untuk toko Anda hari ini?\n- Otomatisasi WhatsApp API 24 Jam untuk penerimaan pesanan otomatis\n- Kasir POS Otomatis untuk pencatatan transaksi harian cepat\n- Manajemen Stok Barang & Notifikasi Supplier otomatis`;
         } else if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
-          copilotReplyText = `🤖 **ZEGA Copilot AI Verification:**\nSaya **tidak halu**! Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per **${currentDate}** (Tahun **2026**).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
+          copilotReplyText = `ZEGA Copilot AI Verification:\nSaya tidak halu. Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per ${currentDate} (Tahun 2026).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
         } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
-          copilotReplyText = `✨ **ZEGA Copilot AI:**\nSaya adalah **ZEGA Copilot**, asisten AI cerdas resmi platform **ZEGA AI**. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
+          copilotReplyText = `ZEGA Copilot AI:\nSaya adalah ZEGA Copilot, asisten AI cerdas resmi platform ZEGA AI. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
         } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
-          copilotReplyText = `👋 **Halo! Selamat datang di ZEGA Copilot AI.**\nSaya siap membantu mengelola operasional bisnis Anda per **${currentDate}**. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
+          copilotReplyText = `Halo! Selamat datang di ZEGA Copilot AI.\nSaya siap membantu mengelola operasional bisnis Anda per ${currentDate}. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
         } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
-          copilotReplyText = `📊 **Analisis Penjualan Real-Time ZEGA AI (2026):**\n• Penjualan Hari Ini: **Rp48.250.000** (+24.8% vs bulan lalu)\n• Total Transaksi: **342 pesanan**\n• Rata-rata Keranjang: **Rp141.000**\n💡 *Rekomendasi:* Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
+          copilotReplyText = `Analisis Penjualan Real-Time ZEGA AI (2026):\n- Penjualan Hari Ini: Rp48.250.000 (+24.8% vs bulan lalu)\n- Total Transaksi: 342 pesanan\n- Rata-rata Keranjang: Rp141.000\nRekomendasi: Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
         } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-          copilotReplyText = `💬 **Draf Broadcast WhatsApp ZEGA AI:**\n"Halo Kak! 🌟 Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: *ZEGASUPER15*. Kuota terbatas! Klik: https://zegaai.site/promo"`;
+          copilotReplyText = `Draf Broadcast WhatsApp ZEGA AI:\n"Halo! Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: ZEGASUPER15. Kuota terbatas! Klik: https://zegaai.site/promo"`;
         } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
-          copilotReplyText = `📦 **Status Stok Real-Time (2026):**\n• Kopi Susu Aren: *Sisa 12 unit* ⚠️ (Perlu re-stock!)\n• Paket Sembako Super: *Sisa 45 unit* ✅\n• Beras Premium 5kg: *Sisa 8 unit* ⚠️\n⚡ Gemini merekomendasikan pemesanan ulang ke supplier hari ini.`;
-        } else {
-          copilotReplyText = `🧠 **ZEGA Copilot Real-Time Inference (2026):**\nTerima kasih atas pertanyaan Anda mengenai "*${textToSend.trim()}*". Berdasarkan data operasional per **${currentDate}**, sistem ZEGA AI telah siap mengoptimalkan performa toko Anda.\n\nApakah Anda ingin saya menganalisis laporan keuangan, draf pemasaran, atau manajemen stok?`;
+          copilotReplyText = `Status Stok Real-Time (2026):\n- Kopi Susu Aren: Sisa 12 unit (Perlu re-stock!)\n- Paket Sembako Super: Sisa 45 unit\n- Beras Premium 5kg: Sisa 8 unit\nRekomendasi: Lakukan pemesanan ulang ke supplier hari ini.`;
         }
+        completionTokensToUse = Math.floor(copilotReplyText.length * 0.8);
       }
-      completionTokensToUse = Math.floor(copilotReplyText.length * 0.8);
     }
 
     const copilotMsg = {
@@ -998,9 +1044,9 @@ export function UmkmDashboardContainer({
     setCopilotMessages(prev => [...prev, copilotMsg]);
     setIsCopilotTyping(false);
 
-    // ── STEP 2: Always Persist Assistant Message to Supabase DB ──
+    // ── STEP 2: Persist Assistant Message to Supabase DB if Session Exists ──
     try {
-      if (chatIdToUse) {
+      if (chatIdToUse && isValidUuid(chatIdToUse)) {
         await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
           chat_id: chatIdToUse,
           sender: 'assistant',
@@ -1024,34 +1070,41 @@ export function UmkmDashboardContainer({
   const [billingOverview, setBillingOverview] = useState<any>(null);
 
   useEffect(() => {
+    let isMounted = true;
     let unsubscribe: (() => void) | null = null;
 
     const loadRealtimeData = async () => {
       const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
-      const data = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
+      const storeIdParam = activeStoreId || undefined;
+      const data = await SupabaseDashboardService.getUmkmRealtimeData(storeIdParam);
+      if (!isMounted) return;
       setUmkmData(data);
 
-      const notifRes = await SupabaseDashboardService.getUmkmNotifications(activeStoreId);
-      if (notifRes.data && notifRes.data.length > 0) setNotifications(notifRes.data);
+      const notifRes = await SupabaseDashboardService.getUmkmNotifications(storeIdParam);
+      if (isMounted && notifRes.data && notifRes.data.length > 0) setNotifications(notifRes.data);
 
       const whatsNewRes = await SupabaseDashboardService.getUmkmWhatsNew();
-      if (whatsNewRes.data && whatsNewRes.data.length > 0) setWhatsNewList(whatsNewRes.data);
+      if (isMounted && whatsNewRes.data && whatsNewRes.data.length > 0) setWhatsNewList(whatsNewRes.data);
 
-      const kpiData = await SupabaseDashboardService.getUmkmInboxKpis(activeStoreId);
-      if (kpiData) setInboxUnreadBadge(kpiData.unreadMessages || 0);
+      const kpiData = await SupabaseDashboardService.getUmkmInboxKpis(storeIdParam);
+      if (isMounted && kpiData) setInboxUnreadBadge(kpiData.unreadMessages || 0);
 
-      const billingRes = await SupabaseDashboardService.getUmkmBillingOverview(activeStoreId);
-      if (billingRes) setBillingOverview(billingRes);
+      const billingRes = await SupabaseDashboardService.getUmkmBillingOverview(storeIdParam);
+      if (isMounted && billingRes) setBillingOverview(billingRes);
 
-      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(activeStoreId, async () => {
-        const fresh = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
-        setUmkmData(fresh);
-      });
+      if (storeIdParam && isMounted) {
+        unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(storeIdParam, async () => {
+          if (!isMounted) return;
+          const fresh = await SupabaseDashboardService.getUmkmRealtimeData(storeIdParam);
+          if (isMounted) setUmkmData(fresh);
+        });
+      }
     };
 
     loadRealtimeData();
 
     return () => {
+      isMounted = false;
       if (unsubscribe) unsubscribe();
     };
   }, []);
@@ -1223,6 +1276,7 @@ export function UmkmDashboardContainer({
   );
 
   return (
+    <TenantProvider userEmail={userEmail} tenantType="umkm">
     <div className="fixed inset-0 z-50 flex bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-xs">
       {/* Toast Notification Banner */}
       {toastMsg && (
@@ -2187,16 +2241,11 @@ export function UmkmDashboardContainer({
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 truncate">
+                              {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
                               <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
                                 {displayTitle}
                               </span>
                             </div>
-                            {isActive && (
-                              <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white font-mono text-[8.5px] font-extrabold uppercase shrink-0 flex items-center gap-1 shadow-xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                Aktif
-                              </span>
-                            )}
                           </div>
                           {session.last_message && (
                             <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
@@ -2486,5 +2535,6 @@ export function UmkmDashboardContainer({
         </div>
       )}
     </div>
+    </TenantProvider>
   );
 }

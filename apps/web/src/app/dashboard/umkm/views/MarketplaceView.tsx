@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
+import { getActiveTenantIds } from '../../services/umkmSupabaseService';
 import { useLanguage } from '../../../../i18n/translations';
 import { 
   AIAgentDetailModal, ConnectPaymentModal, RequestCustomAIModal, MarketplaceHelpModal, ExecuteAgentTaskModal, ArticleDetailModal, CategoryDetailModal, EditCategoryModal, AIModuleConfigModal, AddPopularAgentModal 
@@ -1245,7 +1246,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
     const loadLeaderboardData = async () => {
       setIsTopUsedLoading(true);
       try {
-        const data = await SupabaseDashboardService.fetchTopUsedLeaderboard('STORE-DEMO-1283', topUsedTimeframe);
+        const data = await SupabaseDashboardService.fetchTopUsedLeaderboard((getActiveTenantIds().storeId || ''), topUsedTimeframe);
         if (isMounted && data && data.length > 0) {
           setTopUsedLeaderboard(data);
         }
@@ -1270,7 +1271,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
     const loadNewAgents = async () => {
       setIsNewAgentsLoading(true);
       try {
-        const data = await SupabaseDashboardService.fetchNewAgents('STORE-DEMO-1283', newAgentsCategory);
+        const data = await SupabaseDashboardService.fetchNewAgents((getActiveTenantIds().storeId || ''), newAgentsCategory);
         if (isMounted && data && data.length > 0) {
           setNewAgentsList(data);
         }
@@ -1295,7 +1296,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
   const loadPopularAgents = useCallback(async () => {
     setIsPopularAgentsLoading(true);
     try {
-      const data = await SupabaseDashboardService.fetchPopularAgents('STORE-DEMO-1283', searchQuery || 'ALL', popularCategoryFilter, popularModelFilter);
+      const data = await SupabaseDashboardService.fetchPopularAgents((getActiveTenantIds().storeId || ''), searchQuery || 'ALL', popularCategoryFilter, popularModelFilter);
       if (data && data.length > 0) {
         setPopularAgentsList(data);
       }
@@ -1331,7 +1332,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
     setNewAgentsList(prev => prev.map(ag => ag.id === item.id ? { ...ag, is_installed: nextStatus } : ag));
 
     try {
-      const res = await SupabaseDashboardService.toggleNewAgentInstallation('STORE-DEMO-1283', item.id, nextStatus);
+      const res = await SupabaseDashboardService.toggleNewAgentInstallation((getActiveTenantIds().storeId || ''), item.id, nextStatus);
       if (res && res.success) {
         triggerToast(`✓ AI Terbaru ${item.title}: ${nextStatus ? 'BERHASIL DIINSTAL' : 'NONAKTIF'}`);
       } else {
@@ -1349,7 +1350,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
     setTopUsedLeaderboard(prev => prev.map(ag => ag.id === item.id ? { ...ag, is_installed: nextStatus } : ag));
     
     try {
-      const res = await SupabaseDashboardService.toggleTopUsedAgentInstallation('STORE-DEMO-1283', item.id, nextStatus);
+      const res = await SupabaseDashboardService.toggleTopUsedAgentInstallation((getActiveTenantIds().storeId || ''), item.id, nextStatus);
       if (res && res.success) {
         triggerToast(`✓ Status ${item.title} berhasil diubah: ${nextStatus ? 'TERINSTAL' : 'NONAKTIF'}`);
       } else {
@@ -1543,7 +1544,7 @@ export function MarketplaceView({ triggerToast, onNavigateTab }: MarketplaceView
     let isMounted = true;
     const loadKnowledgeCats = async () => {
       try {
-        const kCats = await SupabaseDashboardService.getUmkmKnowledgeCategories();
+        const kCats = await SupabaseDashboardService.getUmkmKnowledgeCategories(getActiveTenantIds().storeId || '');
         if (isMounted && kCats && kCats.length > 0) {
           setKnowledgeCategories(kCats);
         }

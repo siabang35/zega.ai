@@ -112,7 +112,7 @@ export function NotificationsTab({ triggerToast }: NotificationsTabProps) {
 
   useEffect(() => {
     loadSettings();
-    const unsub = SupabaseDashboardService.subscribeToNotificationSettingsRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsub = SupabaseDashboardService.subscribeToNotificationSettingsRealtime(undefined as any, () => {
       loadSettings();
     });
     return () => unsub();

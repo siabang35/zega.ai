@@ -233,17 +233,24 @@ class SupabaseBackendService {
   }
 
   /**
-   * Fetch all registered agents from public.agents
+   * Fetch agents scoped to a specific organization.
+   * SECURITY (C-02 FIX): Requires organizationId — never returns globally unscoped data.
    * FOUNDATION HARDENING (F-PERF-03): Bounded to MAX_QUERY_LIMIT rows.
    */
-  async getAgents() {
+  async getAgents(organizationId: string) {
     const supabase = this.getClient();
     if (!supabase) return [];
+
+    if (!organizationId) {
+      logger.warn('[SupabaseService] getAgents DENIED — missing organizationId (fail-closed)');
+      return [];
+    }
 
     try {
       const { data, error } = await supabase
         .from('agents')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(SupabaseBackendService.MAX_QUERY_LIMIT);
 
@@ -290,8 +297,8 @@ class SupabaseBackendService {
    * Save a newly deployed AI agent into public.agents table
    */
   async createAgent(agentData: {
-    userId?: string;
-    organizationId?: string;
+    userId: string;
+    organizationId: string;
     name: string;
     description?: string;
     systemPrompt: string;
@@ -303,25 +310,24 @@ class SupabaseBackendService {
     const supabase = this.getClient();
     if (!supabase) return null;
 
+    // SECURITY (C-02 FIX): Both userId and organizationId are REQUIRED.
+    // Never auto-select a user or allow null organization.
+    if (!agentData.userId) {
+      logger.warn('[SupabaseService] createAgent DENIED — missing userId (fail-closed)');
+      return null;
+    }
+    if (!agentData.organizationId) {
+      logger.warn('[SupabaseService] createAgent DENIED — missing organizationId (fail-closed)');
+      return null;
+    }
+
     try {
-      // Find or default user ID
-      let userId = agentData.userId;
-      if (!userId) {
-        const { data: firstUser } = await supabase.from('profiles').select('id').limit(1).maybeSingle();
-        userId = firstUser?.id;
-      }
-
-      if (!userId) {
-        logger.warn('[SupabaseService] Cannot insert agent: No user profile found.');
-        return null;
-      }
-
       const { data, error } = await supabase
         .from('agents')
         .insert([
           {
-            user_id: userId,
-            organization_id: agentData.organizationId || null,
+            user_id: agentData.userId,
+            organization_id: agentData.organizationId,
             name: agentData.name,
             description: agentData.description || null,
             system_prompt: agentData.systemPrompt,

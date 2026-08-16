@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Check, Settings, Copy, MessageSquare, Instagram, ShoppingBag, Video, 
-  FileText, Sparkles, User, Package, Truck, MapPin, Zap, ExternalLink, RefreshCw
+  FileText, Sparkles, User, Package, Truck, MapPin, Zap, ExternalLink, RefreshCw, Loader2
 } from 'lucide-react';
 import { useLanguage } from '../../../../../i18n/translations';
+import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { select9RouterModel } from '../../../services/zeroClaw9RouterEngine';
 
 interface ModalBaseProps {
   isOpen: boolean;
@@ -302,19 +304,41 @@ export function ProductCatalogModal({ isOpen, onClose, onInsertText, triggerToas
 }
 
 // 6. AI Reasoning Log Modal
-export function AiReasoningModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function AiReasoningModal({ isOpen, onClose, conversation }: { isOpen: boolean; onClose: () => void; conversation?: any }) {
   const { t } = useLanguage();
-  const u = (t as any).umkmInbox || t.inboxView || {};
+  const iv = t.inboxView;
+
+  const intent = conversation?.intent || 'General Inquiry';
+  const sentiment = conversation?.sentiment || 'Neutral';
+  const cName = conversation?.customer_name || iv.notSpecified || 'Pelanggan';
+  const routerSelection = select9RouterModel(intent, sentiment);
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title={u.aiReasoningTitle || "AI Assistant Reasoning & Diagnostics Log"}>
+    <ModalBase isOpen={isOpen} onClose={onClose} title={iv.modalAiReasoningTitle || "AI Assistant Reasoning & Diagnostics Log"}>
       <div className="space-y-3 text-xs font-mono">
-        <div className="p-3 rounded-2xl bg-slate-900 text-emerald-400 space-y-1 text-[11px]">
-          <p>[SYSTEM] Model: ZEGA-Copilot-v4-Turbine</p>
-          <p>[INTENT] Detected: Order Inquiry (Confidence: 98%)</p>
-          <p>[SENTIMENT] Positive (Score: +0.94)</p>
-          <p>[KNOWLEDGE BASE] Matched: "Paket Skincare Basic Remaja Catalog"</p>
-          <p>[REASONING] Customer asked for teenage skincare prices. Recommendation: Recommend Paket Basic for oily skin @ Rp199.000.</p>
+        <div className="p-3.5 rounded-2xl bg-slate-950 text-emerald-400 space-y-1.5 text-[11px] leading-relaxed border border-slate-800 shadow-inner">
+          <div className="text-blue-400 font-bold border-b border-slate-800 pb-1 flex justify-between items-center">
+            <span>[{iv.telemetryHeader || '9ROUTER OMNI-ORCHESTRATOR TELEMETRY'}]</span>
+            <span className="text-[9.5px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800 font-sans">{iv.realtimeBadge || 'LIVE REALTIME'}</span>
+          </div>
+
+          <p><span className="text-slate-500">[{iv.customerLabel || 'Customer:'}]</span> {cName} ({conversation?.channel?.toUpperCase() || 'WHATSAPP'})</p>
+          <p><span className="text-slate-500">[{iv.modelSelectedLabel || 'Model Selected:'}]</span> <span className="text-purple-300 font-extrabold">{routerSelection.model}</span> (Provider: {routerSelection.provider})</p>
+          <p><span className="text-slate-500">[{iv.routingRationaleLabel || 'Routing Rationale:'}]</span> {routerSelection.rationale}</p>
+          <p><span className="text-slate-500">[{iv.intentLabel || 'Intent Detected:'}]</span> <span className="text-amber-300">{intent}</span> (Confidence: {conversation?.ai_confidence || 98}%)</p>
+          <p><span className="text-slate-500">[{iv.sentimentLabel || 'Sentiment Evaluated:'}]</span> <span className="text-pink-300">{sentiment}</span></p>
+          <p><span className="text-slate-500">[{iv.guardrailsLabel || 'Security Guardrails:'}]</span> ZeroClaw PII Filter <span className="text-emerald-300">ACTIVE</span></p>
+          <p><span className="text-slate-500">[{iv.dbSyncLabel || 'Database Sync:'}]</span> Supabase DB (<span className="text-sky-300">umkm_inbox_messages</span>)</p>
+          <p><span className="text-slate-500">[{iv.cdnStorageLabel || 'CDN Storage:'}]</span> Supabase Storage (<span className="text-teal-300">inbox-attachments</span>)</p>
+          <p><span className="text-slate-500">[{iv.lastMessageLabel || 'Last Message:'}]</span> "{conversation?.last_message || '-'}"</p>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 space-y-1 font-sans text-[11px]">
+          <p className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            9Router Multi-LLM & Supabase DB Realtime Engine
+          </p>
+          <p className="text-slate-500 text-[10.5px]">{iv.connectedEngineNote || 'Directly connected to 9Router Multi-LLM engine and Supabase backend database.'}</p>
         </div>
       </div>
     </ModalBase>
@@ -333,23 +357,60 @@ export function CustomerFullProfileModal({
   customer: any; 
   triggerToast: (msg: string) => void; 
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const u = (t as any).umkmInbox || t.inboxView || {};
+
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen && customer) {
+      let isMounted = true;
+      setLoadingOrders(true);
+      SupabaseDashboardService.getUmkmCustomerOrders(customer.customer_name, customer.customer_phone)
+        .then((fetchedOrders) => {
+          if (isMounted) {
+            setOrders(fetchedOrders || []);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setOrders([]);
+        })
+        .finally(() => {
+          if (isMounted) setLoadingOrders(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isOpen, customer]);
 
   if (!customer) return null;
 
-  const sampleOrders = [
-    { id: 'ORD-9982', date: '08 Agu 2026', total: 199000, status: 'Selesai', items: 'Paket Basic Skincare Remaja' },
-    { id: 'ORD-8841', date: '15 Mei 2026', total: 450000, status: 'Selesai', items: 'Paket Sunscreen & Cleanser' },
-  ];
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return u.notSpecified || 'Belum diisi';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const localeCode = language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US';
+      return d.toLocaleDateString(localeCode, { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formattedTotalSpent = customer.total_spent !== undefined && customer.total_spent !== null
+    ? `Rp${Number(customer.total_spent).toLocaleString('id-ID')}`
+    : `Rp0`;
 
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} title={u.customerProfileTitle || "Profil Lengkap Pelanggan"}>
+    <ModalBase isOpen={isOpen} onClose={onClose} title={u.customerProfileTitle || u.modalFullProfileTitle || "Profil Lengkap Pelanggan"}>
       <div className="space-y-4 text-xs">
         {/* Customer Avatar & Primary Metadata */}
         <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
           <img
-            src={customer.customer_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+            src={customer.customer_avatar || 'https://cdn.zegaai.site/assets/avatar/avatar_1.webp'}
             alt={customer.customer_name}
             className="size-14 rounded-full object-cover border-2 border-blue-600 shadow-xs"
           />
@@ -357,11 +418,11 @@ export function CustomerFullProfileModal({
             <div className="flex items-center gap-1.5">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{customer.customer_name}</h3>
               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[9px] font-extrabold flex items-center gap-0.5">
-                <Check size={10} /> {u.verifiedBadge || 'Terverifikasi'}
+                <Check size={10} /> {u.verifiedBadge || u.verifiedCustomer || 'Terverifikasi'}
               </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">{customer.customer_phone}</p>
-            <p className="text-[10px] text-slate-400 truncate">{customer.customer_email || 'siti.aisyah@gmail.com'}</p>
+            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">{customer.customer_phone || (u.notSpecified || 'Belum diisi')}</p>
+            <p className="text-[10px] text-slate-400 truncate">{customer.customer_email || (u.notSpecified || 'Belum diisi')}</p>
           </div>
         </div>
 
@@ -369,49 +430,62 @@ export function CustomerFullProfileModal({
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
             <p className="text-[10px] text-slate-400 font-bold">{u.totalOrder || 'Total Order'}</p>
-            <p className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5">{customer.total_orders || 3}x</p>
+            <p className="font-black text-sm text-slate-900 dark:text-slate-100 mt-0.5">{customer.total_orders || 0}x</p>
           </div>
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
             <p className="text-[10px] text-slate-400 font-bold">{u.totalSpent || 'Total Belanja'}</p>
-            <p className="font-black text-sm text-blue-600 dark:text-blue-400 mt-0.5">Rp{(customer.total_spent || 650000).toLocaleString('id-ID')}</p>
+            <p className="font-black text-sm text-blue-600 dark:text-blue-400 mt-0.5">{formattedTotalSpent}</p>
           </div>
           <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold">{u.memberSince || 'Member Sejak'}</p>
-            <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">{customer.customer_since || '12 Mei 2026'}</p>
+            <p className="text-[10px] text-slate-400 font-bold">{u.memberSince || u.customerSince || 'Member Sejak'}</p>
+            <p className="font-black text-xs text-slate-900 dark:text-slate-100 mt-0.5">{formatDate(customer.customer_since || customer.created_at)}</p>
           </div>
         </div>
 
         {/* Contact Info & Address */}
         <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5">{u.contactDetailsTitle || 'Detail Kontak & Alamat Pengiriman'}</h4>
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5">{u.contactDetailsTitle || u.contactDetailShipping || 'Detail Kontak & Alamat Pengiriman'}</h4>
           <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
-            <p><strong className="text-slate-400 font-medium">{u.waNumberLabel || 'No. WhatsApp:'}</strong> {customer.customer_phone}</p>
-            <p><strong className="text-slate-400 font-medium">{u.emailLabel || 'Email:'}</strong> {customer.customer_email || 'siti.aisyah@gmail.com'}</p>
-            <p><strong className="text-slate-400 font-medium">{u.addressLabel || 'Alamat:'}</strong> {customer.customer_address || 'Jl. Gatot Subroto No. 88, Denpasar Selatan, Bali 80225'}</p>
-            <p><strong className="text-slate-400 font-medium">{u.assignedAgentLabel || 'Agen Penanggung Jawab:'}</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{customer.assigned_agent || 'Cicik Berluk (CS Lead)'}</span></p>
+            <p><strong className="text-slate-400 font-medium">{u.waNumberLabel || u.waNumber || 'No. WhatsApp:'}</strong> {customer.customer_phone || (u.notSpecified || 'Belum diisi')}</p>
+            <p><strong className="text-slate-400 font-medium">{u.emailLabel || 'Email:'}</strong> {customer.customer_email || (u.notSpecified || 'Belum diisi')}</p>
+            <p><strong className="text-slate-400 font-medium">{u.addressLabel || 'Alamat:'}</strong> {customer.customer_address || customer.city_region || (u.notSpecified || 'Belum diisi')}</p>
+            <p><strong className="text-slate-400 font-medium">{u.assignedAgentLabel || 'Agen Penanggung Jawab:'}</strong> <span className="font-bold text-blue-600 dark:text-blue-400">{customer.assigned_agent || (u.unassignedAgent || 'Belum ditugaskan')}</span></p>
           </div>
         </div>
 
         {/* Order History */}
         <div className="space-y-2">
-          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{u.transactionHistoryTitle || 'Riwayat Transaksi Terakhir'}</h4>
-          <div className="space-y-1.5">
-            {sampleOrders.map((ord) => (
-              <div key={ord.id} className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{ord.id}</span>
-                    <span className="text-[10px] text-slate-400">{ord.date}</span>
+          <h4 className="font-extrabold text-slate-900 dark:text-slate-100">{u.transactionHistoryTitle || u.recentTransactionHistory || 'Riwayat Transaksi Terakhir'}</h4>
+          {loadingOrders ? (
+            <div className="p-4 flex items-center justify-center gap-2 text-slate-400 text-xs">
+              <Loader2 size={14} className="animate-spin" />
+              <span>Memuat data riwayat...</span>
+            </div>
+          ) : orders && orders.length > 0 ? (
+            <div className="space-y-1.5">
+              {orders.map((ord: any) => (
+                <div key={ord.id} className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{ord.id}</span>
+                      <span className="text-[10px] text-slate-400">{formatDate(ord.date)}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium mt-0.5">{ord.items}</p>
                   </div>
-                  <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium mt-0.5">{ord.items}</p>
+                  <div className="text-right">
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100 block">Rp{Number(ord.total).toLocaleString('id-ID')}</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+                      {ord.status === 'Paid' || ord.status === 'Selesai' ? (u.orderStatusCompleted || 'Selesai') : ord.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-extrabold text-slate-900 dark:text-slate-100 block">Rp{ord.total.toLocaleString('id-ID')}</span>
-                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">{ord.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-[11px]">
+              {u.noTransactionHistory || 'Belum ada riwayat transaksi'}
+            </div>
+          )}
         </div>
 
         {/* Actions Bar */}

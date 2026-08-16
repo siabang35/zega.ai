@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Search, Filter, Send, MessageSquare, Instagram, 
+import {
+  Search, Filter, Send, MessageSquare, Instagram,
   ShoppingBag, Video, Phone, CheckCircle2, Bot, ChevronDown, UserCheck,
   Check, Plus, Tag, Star, MoreHorizontal, UserPlus, FileText, ShoppingCart,
   Truck, MapPin, Package, Paperclip, Smile, Image as ImageIcon, Sliders,
@@ -9,8 +9,8 @@ import {
 import { SupabaseDashboardService } from '../../services/supabaseService';
 import { executeZeroClawAiInference, select9RouterModel, type ZeroClawInferenceResult } from '../../services/zeroClaw9RouterEngine';
 import { useLanguage } from '../../../../i18n/translations';
-import { 
-  ManageIntegrationsModal, CreateOrderModal, CheckOngkirModal, 
+import {
+  ManageIntegrationsModal, CreateOrderModal, CheckOngkirModal,
   TrackOrderModal, ProductCatalogModal, AiReasoningModal,
   CustomerFullProfileModal, AssignAgentModal, AddTagModal
 } from './inbox/InboxModals';
@@ -120,7 +120,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
     loadData();
     loadMessages(selectedConvId);
 
-    const unsubscribe = SupabaseDashboardService.subscribeToInboxRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToInboxRealtime(undefined, () => {
       loadData();
       loadMessages(selectedConvId);
     });
@@ -252,7 +252,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
     setAiAssistantEnabled(nextVal);
 
     // Update local conversations array state
-    setConversations(prev => prev.map(c => 
+    setConversations(prev => prev.map(c =>
       c.id === selectedConvId ? { ...c, ai_auto_respond: nextVal } : c
     ));
 
@@ -423,6 +423,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
   };
 
   const [isAiSummaryOpen, setIsAiSummaryOpen] = useState(true);
+  const [isCustomerProfileOpen, setIsCustomerProfileOpen] = useState(false);
+  const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false);
 
   return (
     <div className="space-y-4 font-sans text-slate-900 dark:text-slate-100">
@@ -438,31 +440,46 @@ export function InboxView({ triggerToast }: InboxViewProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className="text-[10.5px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 mr-0.5 truncate">{t.inboxView.activeIntegrations}</span>
-          
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex-shrink-0">
-            <div className="size-5 sm:size-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs shadow-xs" title="WhatsApp (32)">
-              <MessageSquare size={11} />
-            </div>
-            <div className="size-5 sm:size-6 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
-              <Instagram size={11} />
-            </div>
-            <div className="size-5 sm:size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
-              <ShoppingBag size={11} />
-            </div>
-            <div className="size-5 sm:size-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs shadow-xs" title="TikTok (5)">
-              <Video size={11} />
-            </div>
-            <span className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[9.5px] sm:text-[10px] font-extrabold text-slate-600 dark:text-slate-300">+2</span>
-          </div>
-
           <button
-            onClick={() => setActiveModal('integrations')}
-            className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10.5px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all min-w-0"
+            onClick={() => setIsIntegrationsOpen(!isIntegrationsOpen)}
+            className="px-3 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-all cursor-pointer border border-slate-200/70 dark:border-slate-700 shadow-xs"
+            title="Toggle Active Integrations"
           >
-            <Settings size={13} className="text-blue-500 flex-shrink-0" />
-            <span className="truncate">{t.inboxView.manageIntegrations}</span>
+            <span className="text-slate-600 dark:text-slate-300 font-bold">{t.inboxView.activeIntegrations}</span>
+            <div className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 text-[10px] font-black text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700">4 Active</span>
+            </div>
+            <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isIntegrationsOpen ? 'rotate-180' : ''}`} />
           </button>
+
+          {isIntegrationsOpen && (
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex-shrink-0">
+                <div className="size-5 sm:size-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs shadow-xs" title="WhatsApp (32)">
+                  <MessageSquare size={11} />
+                </div>
+                <div className="size-5 sm:size-6 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs shadow-xs" title="Instagram (12)">
+                  <Instagram size={11} />
+                </div>
+                <div className="size-5 sm:size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs" title="Shopee (8)">
+                  <ShoppingBag size={11} />
+                </div>
+                <div className="size-5 sm:size-6 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs shadow-xs" title="TikTok (5)">
+                  <Video size={11} />
+                </div>
+                <span className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[9.5px] sm:text-[10px] font-extrabold text-slate-600 dark:text-slate-300">+2</span>
+              </div>
+
+              <button
+                onClick={() => setActiveModal('integrations')}
+                className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10.5px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-xs cursor-pointer transition-all min-w-0"
+              >
+                <Settings size={13} className="text-blue-500 flex-shrink-0" />
+                <span className="truncate">{t.inboxView.manageIntegrations}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -485,16 +502,14 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             <button
               key={item.key}
               onClick={() => setChannelTab(item.key)}
-              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer ${
-                isActive
+              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer ${isActive
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-              }`}
+                }`}
             >
               <span>{item.label}</span>
-              <span className={`px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-              }`}>
+              <span className={`px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                }`}>
                 {count}
               </span>
             </button>
@@ -506,9 +521,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       <div className="lg:hidden flex items-center bg-slate-100 dark:bg-slate-800 p-1 sm:p-1.5 rounded-2xl text-[10px] sm:text-xs font-extrabold shadow-inner mb-2 min-w-0">
         <button
           onClick={() => setMobileTab('list')}
-          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
-            mobileTab === 'list' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${mobileTab === 'list' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
         >
           <MessageSquare size={13} className="flex-shrink-0" />
           <span className="truncate">{u.mobileConversations || 'Percakapan'}</span>
@@ -519,9 +533,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
         <button
           onClick={() => setMobileTab('chat')}
-          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
-            mobileTab === 'chat' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${mobileTab === 'chat' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
         >
           <Send size={13} className="flex-shrink-0" />
           <span className="truncate">{u.mobileMessages || 'Pesan'}</span>
@@ -529,9 +542,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
         <button
           onClick={() => setMobileTab('info')}
-          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${
-            mobileTab === 'info' ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
+          className={`flex-1 py-1.5 sm:py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0 ${mobileTab === 'info' ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
         >
           <Bot size={13} className="flex-shrink-0" />
           <span className="truncate">{u.mobileInfoAi || 'Info & AI'}</span>
@@ -577,9 +589,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       setSelectedConvId(conv.id);
                       setMobileTab('chat');
                     }}
-                    className={`relative p-1 rounded-2xl transition-all cursor-pointer flex-shrink-0 group ${
-                      isSelected ? 'ring-2 ring-blue-600 bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
+                    className={`relative p-1 rounded-2xl transition-all cursor-pointer flex-shrink-0 group ${isSelected ? 'ring-2 ring-blue-600 bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
                     title={`${conv.customer_name} (${conv.channel})`}
                   >
                     <img
@@ -599,7 +610,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           </div>
         ) : (
           <div className={`${mobileTab === 'list' ? 'block' : 'hidden lg:flex'} lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-col h-[calc(100vh-210px)] min-h-[460px] lg:h-[740px] justify-between space-y-3 transition-all duration-300 min-w-0`}>
-            
+
             <div className="space-y-3 flex-1 flex flex-col min-h-0">
               {/* Search Bar & Advanced Filter Toggle */}
               <div className="relative min-w-0">
@@ -623,13 +634,12 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => setShowAdvancedFilter(!showAdvancedFilter)} 
-                    className={`p-2 rounded-2xl border transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 ${
-                      showAdvancedFilter || activeFilterCount > 0
+                  <button
+                    onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
+                    className={`p-2 rounded-2xl border transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0 ${showAdvancedFilter || activeFilterCount > 0
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs font-bold'
                         : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                     title={u.advancedFilterTitle || "Filter Lanjutan"}
                   >
                     <Sliders size={14} />
@@ -640,8 +650,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     )}
                   </button>
 
-                  <button 
-                    onClick={() => setIsLeftSidebarOpen(false)} 
+                  <button
+                    onClick={() => setIsLeftSidebarOpen(false)}
                     className="p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all cursor-pointer flex-shrink-0"
                     title={u.collapseSidebar || "Sembunyikan Panel Percakapan (Collapse Left)"}
                   >
@@ -681,11 +691,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                             key={p.key}
                             type="button"
                             onClick={() => setAdvancedFilters(prev => ({ ...prev, priority: p.key }))}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                              advancedFilters.priority === p.key
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${advancedFilters.priority === p.key
                                 ? 'bg-blue-600 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
+                              }`}
                           >
                             {p.label}
                           </button>
@@ -704,11 +713,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                             key={i}
                             type="button"
                             onClick={() => setAdvancedFilters(prev => ({ ...prev, intent: i }))}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                              advancedFilters.intent === i
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${advancedFilters.intent === i
                                 ? 'bg-blue-600 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
+                              }`}
                           >
                             {i === 'all' ? (u.allIntents || 'Semua Intent') : i}
                           </button>
@@ -730,11 +738,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                             key={s.key}
                             type="button"
                             onClick={() => setAdvancedFilters(prev => ({ ...prev, sentiment: s.key }))}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                              advancedFilters.sentiment === s.key
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${advancedFilters.sentiment === s.key
                                 ? 'bg-blue-600 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
+                              }`}
                           >
                             {s.label}
                           </button>
@@ -840,11 +847,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   <button
                     key={sub.key}
                     onClick={() => setSubTab(sub.key)}
-                    className={`flex-1 py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                      subTab === sub.key
+                    className={`flex-1 py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${subTab === sub.key
                         ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs font-black'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     <span>{sub.label}</span>
                     {sub.badge && (
@@ -881,86 +887,85 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 </div>
               ) : (
                 <div className="space-y-1.5 overflow-y-auto flex-1 pr-1 scrollbar-thin">
-                {filteredConversations.map((conv) => {
-                  const isSelected = selectedConvId === conv.id;
-                  return (
-                    <div
-                      key={conv.id}
-                      onClick={() => setSelectedConvId(conv.id)}
-                      className={`p-3 rounded-2xl cursor-pointer transition-all border flex items-start gap-3 relative ${
-                        isSelected
-                          ? 'bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-l-blue-600 border-y border-r border-blue-200/60 dark:border-blue-900/60 shadow-2xs'
-                          : 'bg-white dark:bg-slate-900 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <div className="relative flex-shrink-0 mt-0.5">
-                        <img
-                          src={conv.customer_avatar}
-                          alt={conv.customer_name}
-                          className="size-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
-                        />
-                        <div className="absolute -bottom-0.5 -right-0.5">
-                          {conv.channel === 'whatsapp' && (
-                            <div className="size-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[8px]">
-                              <MessageSquare size={8} />
-                            </div>
-                          )}
-                          {conv.channel === 'instagram' && (
-                            <div className="size-4 bg-pink-500 text-white rounded-full flex items-center justify-center text-[8px]">
-                              <Instagram size={8} />
-                            </div>
-                          )}
-                          {conv.channel === 'tiktok' && (
-                            <div className="size-4 bg-black text-white rounded-full flex items-center justify-center text-[8px]">
-                              <Video size={8} />
-                            </div>
-                          )}
-                          {conv.channel === 'email' && (
-                            <div className="size-4 bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px]">
-                              <FileText size={8} />
-                            </div>
-                          )}
+                  {filteredConversations.map((conv) => {
+                    const isSelected = selectedConvId === conv.id;
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => setSelectedConvId(conv.id)}
+                        className={`p-3 rounded-2xl cursor-pointer transition-all border flex items-start gap-3 relative ${isSelected
+                            ? 'bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-l-blue-600 border-y border-r border-blue-200/60 dark:border-blue-900/60 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          }`}
+                      >
+                        <div className="relative flex-shrink-0 mt-0.5">
+                          <img
+                            src={conv.customer_avatar}
+                            alt={conv.customer_name}
+                            className="size-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-xs"
+                          />
+                          <div className="absolute -bottom-0.5 -right-0.5">
+                            {conv.channel === 'whatsapp' && (
+                              <div className="size-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[8px]">
+                                <MessageSquare size={8} />
+                              </div>
+                            )}
+                            {conv.channel === 'instagram' && (
+                              <div className="size-4 bg-pink-500 text-white rounded-full flex items-center justify-center text-[8px]">
+                                <Instagram size={8} />
+                              </div>
+                            )}
+                            {conv.channel === 'tiktok' && (
+                              <div className="size-4 bg-black text-white rounded-full flex items-center justify-center text-[8px]">
+                                <Video size={8} />
+                              </div>
+                            )}
+                            {conv.channel === 'email' && (
+                              <div className="size-4 bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px]">
+                                <FileText size={8} />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
-                            {conv.customer_name}
-                          </h4>
-                          <span className="text-[10px] font-mono text-slate-400 ml-1 flex-shrink-0">
-                            {formatTimestamp(conv.last_message_time)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">
+                              {conv.customer_name}
+                            </h4>
+                            <span className="text-[10px] font-mono text-slate-400 ml-1 flex-shrink-0">
+                              {formatTimestamp(conv.last_message_time)}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
+                            {conv.last_message}
+                          </p>
+
+                          {/* Tags & Badges */}
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {conv.priority === 'high' && (
+                              <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[9px] font-extrabold">
+                                High Priority
+                              </span>
+                            )}
+                            {conv.intent && (
+                              <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[9px] font-bold">
+                                {conv.intent}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {conv.unread_count > 0 && (
+                          <span className="size-5 rounded-full bg-blue-600 text-white font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
+                            {conv.unread_count}
                           </span>
-                        </div>
-
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
-                          {conv.last_message}
-                        </p>
-
-                        {/* Tags & Badges */}
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          {conv.priority === 'high' && (
-                            <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[9px] font-extrabold">
-                              High Priority
-                            </span>
-                          )}
-                          {conv.intent && (
-                            <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[9px] font-bold">
-                              {conv.intent}
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
-
-                      {conv.unread_count > 0 && (
-                        <span className="size-5 rounded-full bg-blue-600 text-white font-extrabold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
-                          {conv.unread_count}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -1033,42 +1038,51 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             </div>
 
             {/* Quick Header Actions */}
-            <div className="flex items-center gap-0.5 sm:gap-1 text-slate-400 relative flex-shrink-0 ml-1">
-              <button 
-                onClick={() => setActiveModal('assignAgent')} 
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+            <div className="flex items-center gap-1 text-slate-400 relative flex-shrink-0 ml-1">
+              {/* Sleek 9Router AI Diagnostics Pill */}
+              <button
+                onClick={() => setActiveModal('aiReasoning')}
+                className="px-2 sm:px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200/80 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[10.5px] font-bold flex items-center gap-1 hover:bg-purple-100 dark:hover:bg-purple-900/80 cursor-pointer shadow-xs transition-all mr-0.5"
+                title="ZeroClaw & 9Router AI Reasoning Diagnostics"
+              >
+                <Bot size={12} className="text-purple-500 animate-pulse flex-shrink-0" />
+                <span className="hidden sm:inline">9Router AI</span>
+              </button>
+
+              <button
+                onClick={() => setActiveModal('assignAgent')}
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
                 title={u.assignedAgent || "Tugaskan Agen CS"}
               >
                 <UserPlus size={15} />
               </button>
-              <button 
-                onClick={() => setActiveModal('addTag')} 
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+              <button
+                onClick={() => setActiveModal('addTag')}
+                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
                 title={u.addTag || "Tambah Tag Label"}
               >
                 <Tag size={15} />
               </button>
-              <button 
+              <button
                 onClick={async () => {
                   const nextStar = !activeConv.is_starred;
                   const updated = conversations.map(c => c.id === activeConv.id ? { ...c, is_starred: nextStar } : c);
                   setConversations(updated);
                   await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
                   triggerToast(nextStar ? 'Percakapan ditandai bintang (Bintang)' : 'Bintang dilepas');
-                }} 
-                className={`p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${
-                  activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
-                }`} 
+                }}
+                className={`p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
+                  }`}
                 title={activeConv.is_starred ? (u.unstar || 'Lepas Bintang') : (u.markStarred || 'Tandai Bintang')}
               >
                 <Star size={15} className={activeConv.is_starred ? 'fill-amber-500 text-amber-500' : ''} />
               </button>
-              
+
               {/* 3-Dots Options Dropdown Button */}
               <div className="relative">
-                <button 
-                  onClick={() => setShowMoreMenu(!showMoreMenu)} 
-                  className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors" 
+                <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
                   title={u.moreOptions || "Opsi Lanjutan"}
                 >
                   <MoreHorizontal size={15} />
@@ -1120,23 +1134,6 @@ export function InboxView({ triggerToast }: InboxViewProps) {
             </div>
           </div>
 
-          {/* AI Responding Auto Banner with ZeroClaw & 9Router Indicator */}
-          <div className="bg-blue-50/80 dark:bg-blue-950/50 border border-blue-200/80 dark:border-blue-800/80 p-2 sm:p-2.5 rounded-2xl flex items-center justify-between text-[10px] sm:text-xs text-blue-950 dark:text-blue-200 shadow-xs flex-shrink-0 gap-1.5 min-w-0">
-            <div className="flex items-center gap-1.5 font-bold min-w-0 flex-1">
-              <Bot size={13} className="text-blue-500 animate-pulse flex-shrink-0" />
-              <span className="truncate min-w-0 font-extrabold">{u.aiStreamActive || 'ZeroClaw & 9Router Multi-LLM Model Aktif'}</span>
-              <span title="Model AI ditentukan secara otomatis oleh 9Router berdasarkan intent, akurasi & latensi secara real-time" className="flex-shrink-0">
-                <HelpCircle size={12} className="text-purple-500 cursor-pointer" />
-              </span>
-            </div>
-            <button
-              onClick={() => setActiveModal('aiReasoning')}
-              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 text-[10px] sm:text-[11px] font-extrabold border border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/40 cursor-pointer shadow-xs flex-shrink-0 whitespace-nowrap"
-            >
-              {t.inboxView.viewAction}
-            </button>
-          </div>
-
           {/* Chat Messages Stream */}
           <div className="flex-1 space-y-3 overflow-y-auto pr-1 text-xs scrollbar-thin">
             {messages.map((msg) => {
@@ -1154,11 +1151,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     />
                   )}
 
-                  <div className={`max-w-[88%] sm:max-w-[80%] space-y-1 min-w-0 break-words ${
-                    isCustomer 
-                      ? 'p-2.5 sm:p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60' 
+                  <div className={`max-w-[88%] sm:max-w-[80%] space-y-1 min-w-0 break-words ${isCustomer
+                      ? 'p-2.5 sm:p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60'
                       : 'p-3 sm:p-3.5 rounded-2xl rounded-tr-xs bg-blue-600 text-white font-medium shadow-xs'
-                  }`}>
+                    }`}>
                     {msg.sender_type === 'ai_assistant' && (
                       <div className="flex items-center gap-1.5 text-[9.5px] font-extrabold text-blue-100 bg-blue-700/50 px-2 py-0.5 rounded-lg mb-1 border border-blue-400/30 truncate">
                         <Bot size={10} className="text-blue-300 animate-pulse flex-shrink-0" />
@@ -1186,9 +1182,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                         {msg.message_text.replace(/\\n/g, '\n')}
                       </p>
                     )}
-                    <div className={`flex items-center justify-end gap-1 text-[9px] ${
-                      isCustomer ? 'text-slate-400' : 'text-blue-100'
-                    }`}>
+                    <div className={`flex items-center justify-end gap-1 text-[9px] ${isCustomer ? 'text-slate-400' : 'text-blue-100'
+                      }`}>
                       <span>{formatTimestamp(msg.created_at)}</span>
                       {!isCustomer && <CheckCircle2 size={10} className="text-white" />}
                     </div>
@@ -1221,23 +1216,16 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     <FileText size={12} className="text-blue-500 flex-shrink-0" />
                     {u.quickReplyTemplates || 'Template Balasan Cepat'}
                   </span>
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setShowTemplateMenu(false)} 
+                    onClick={() => setShowTemplateMenu(false)}
                     className="size-5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center text-xs font-bold cursor-pointer flex-shrink-0"
                   >
                     ✕
                   </button>
                 </div>
                 <div className="max-h-52 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
-                  {[
-                    'Halo Kak! Ada yang bisa kami bantu hari ini? 😊',
-                    'Terima kasih atas pesanannya! Pesanan Kakak sedang kami proses. 📦',
-                    'Pembayaran dapat dilakukan melalui QRIS / Transfer Bank ke BCA 123-456-7890. 💳',
-                    'Untuk garansi retur produk berlaku 7 hari setelah barang diterima. 🛡️',
-                    'Pesanan Kakak sudah dikirim dengan No. Resi: JNT-882910293. 🚚',
-                    'Stok produk ini ready Kak, siap kami kirimkan hari ini juga! 📦',
-                  ].map((tpl, tIdx) => (
+                  {(t.inboxView.quickReplyTemplatesList || []).map((tpl, tIdx) => (
                     <button
                       key={tIdx}
                       type="button"
@@ -1255,7 +1243,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               </div>
             )}
 
-            <div 
+            <div
               className="flex items-center gap-1.5 overflow-x-auto pb-1.5 text-[10.5px] sm:text-[11px] font-bold touch-pan-x min-w-0 no-scrollbar"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
@@ -1306,11 +1294,10 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               <button
                 type="button"
                 onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-                className={`px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1 flex-shrink-0 cursor-pointer ${
-                  showTemplateMenu 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold shadow-xs' 
+                className={`px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1 flex-shrink-0 cursor-pointer ${showTemplateMenu
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold shadow-xs'
                     : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}
+                  }`}
               >
                 <FileText size={12} className={showTemplateMenu ? 'text-blue-600' : 'text-slate-500'} />
                 <span>{u.template || t.inboxView.template}</span>
@@ -1320,19 +1307,19 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           </div>
 
           {/* Hidden File & Image Inputs */}
-          <input 
-            type="file" 
-            ref={imageInputRef} 
-            accept="image/*" 
-            className="hidden" 
-            onChange={handleImageUpload} 
+          <input
+            type="file"
+            ref={imageInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
           />
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" 
-            className="hidden" 
-            onChange={handleFileUpload} 
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+            className="hidden"
+            onChange={handleFileUpload}
           />
 
           {/* Message Form & Input Container */}
@@ -1343,8 +1330,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 {attachedImage && (
                   <div className="relative group flex-shrink-0">
                     <img src={attachedImage} alt="Preview" className="size-12 rounded-xl object-cover border border-blue-300 dark:border-blue-700 shadow-xs" />
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setAttachedImage(null)}
                       className="absolute -top-1.5 -right-1.5 size-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-md cursor-pointer hover:bg-red-600 transition-colors"
                       title="Hapus Gambar"
@@ -1360,8 +1347,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                       <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate">{attachedFile.name}</p>
                       <p className="text-[9px] text-slate-400 font-medium">{attachedFile.size}</p>
                     </div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setAttachedFile(null)}
                       className="size-4 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[10px] font-bold cursor-pointer ml-1 flex-shrink-0"
                       title="Hapus Dokumen"
@@ -1373,14 +1360,72 @@ export function InboxView({ triggerToast }: InboxViewProps) {
               </div>
             )}
 
-            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 sm:p-2 transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 min-w-0">
-              <input
-                type="text"
+            <div className="relative flex flex-col bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-2.5 sm:p-3 transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-xs min-w-0">
+              <textarea
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                rows={2}
                 placeholder={u.typeMessage || t.inboxView.typeMessage}
-                className="w-full bg-transparent px-2 text-[11px] sm:text-xs font-medium focus:outline-none text-slate-900 dark:text-slate-100 pr-24 sm:pr-28 min-w-0"
+                className="w-full bg-transparent px-1.5 text-xs sm:text-sm font-medium focus:outline-none text-slate-900 dark:text-slate-100 resize-none min-h-[56px] max-h-40 leading-relaxed min-w-0"
               />
+
+              {/* Toolbar inside input box */}
+              <div className="flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/60 pt-2 mt-1 min-w-0">
+                <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 font-medium">
+                  <span className="hidden sm:inline">{t.inboxView.pressEnterToSend}</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEmojiPicker(!showEmojiPicker);
+                      setShowAttachmentMenu(false);
+                    }}
+                    className={`p-1.5 rounded-xl transition-colors cursor-pointer ${showEmojiPicker ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    title={u.chooseEmoji || "Pilih Emoji"}
+                  >
+                    <Smile size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachmentMenu(!showAttachmentMenu);
+                      setShowEmojiPicker(false);
+                    }}
+                    className={`p-1.5 rounded-xl transition-colors cursor-pointer ${showAttachmentMenu ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    title={u.attachFile || "Lampirkan Berkas"}
+                  >
+                    <Paperclip size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className={`p-1.5 rounded-xl transition-colors cursor-pointer ${attachedImage ? 'text-purple-500 bg-purple-50 dark:bg-purple-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    title={u.uploadImage || "Unggah Gambar"}
+                  >
+                    <ImageIcon size={16} />
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95 ml-1"
+                    title={u.sendMessage || "Kirim Pesan"}
+                  >
+                    <span>{t.inboxView.sendMessageBtn}</span>
+                    <Send size={12} />
+                  </button>
+                </div>
+              </div>
 
               {/* Popover Real WhatsApp / Instagram Style Emoji Picker */}
               {showEmojiPicker && (
@@ -1429,53 +1474,6 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                   </button>
                 </div>
               )}
-
-              <div className="absolute right-2 flex items-center gap-1">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setShowEmojiPicker(!showEmojiPicker);
-                    setShowAttachmentMenu(false);
-                  }} 
-                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                    showEmojiPicker ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                  title={u.chooseEmoji || "Pilih Emoji"}
-                >
-                  <Smile size={15} />
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setShowAttachmentMenu(!showAttachmentMenu);
-                    setShowEmojiPicker(false);
-                  }} 
-                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                    showAttachmentMenu ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                  title={u.attachFile || "Lampirkan Berkas"}
-                >
-                  <Paperclip size={15} />
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => imageInputRef.current?.click()} 
-                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                    attachedImage ? 'text-purple-500 bg-purple-50 dark:bg-purple-950/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                  title={u.uploadImage || "Unggah Gambar"}
-                >
-                  <ImageIcon size={15} />
-                </button>
-                
-                <button
-                  type="submit"
-                  className="size-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-xs transition-all ml-1 active:scale-95"
-                  title={u.sendMessage || "Kirim Pesan"}
-                >
-                  <Send size={13} />
-                </button>
-              </div>
             </div>
 
             {/* Footer Auto-Respond Info & AI Assistant Switch */}
@@ -1492,9 +1490,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <button
                   type="button"
                   onClick={handleToggleAiAssistant}
-                  className={`w-9 h-5 rounded-full transition-all duration-300 p-0.5 flex items-center cursor-pointer shadow-xs ${
-                    aiAssistantEnabled ? 'bg-blue-600 justify-end ring-2 ring-blue-400/30' : 'bg-slate-300 dark:bg-slate-700 justify-start'
-                  }`}
+                  className={`w-9 h-5 rounded-full transition-all duration-300 p-0.5 flex items-center cursor-pointer shadow-xs ${aiAssistantEnabled ? 'bg-blue-600 justify-end ring-2 ring-blue-400/30' : 'bg-slate-300 dark:bg-slate-700 justify-start'
+                    }`}
                   title={aiAssistantEnabled ? "AI Assistant Aktif (Klik untuk menonaktifkan)" : "AI Assistant Mati (Klik untuk mengaktifkan)"}
                 >
                   <div className={`size-4 rounded-full bg-white dark:bg-slate-900 shadow-md flex items-center justify-center transition-transform ${aiAssistantEnabled ? 'scale-110' : ''}`}>
@@ -1513,7 +1510,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
 
           {/* AI Assistant Summary Card (Pro) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-all duration-300">
-            <div 
+            <div
               onClick={() => setIsAiSummaryOpen(!isAiSummaryOpen)}
               className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 cursor-pointer select-none group"
             >
@@ -1578,8 +1575,8 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{activeConv.ai_confidence}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-500 rounded-full" 
+                    <div
+                      className="h-full bg-emerald-500 rounded-full"
                       style={{ width: `${activeConv.ai_confidence}%` }}
                     />
                   </div>
@@ -1610,47 +1607,75 @@ export function InboxView({ triggerToast }: InboxViewProps) {
           </div>
 
           {/* Customer Profile Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-2">
-              {t.inboxView.customerProfile}
-            </h3>
-
-            <div className="flex items-center gap-3 min-w-0">
-              <img
-                src={activeConv.customer_avatar}
-                alt={activeConv.customer_name}
-                className="size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{activeConv.customer_name}</h4>
-                  <Check size={12} className="text-emerald-500 flex-shrink-0" />
-                </div>
-                <p className="text-[10px] font-mono text-slate-400 truncate">{activeConv.customer_phone}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1 text-center min-w-0">
-              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
-                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalOrder}</p>
-                <p className="font-black text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">{activeConv.total_orders}x</p>
-              </div>
-              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
-                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalSpent}</p>
-                <p className="font-black text-[10.5px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">Rp{(activeConv.total_spent / 1000).toFixed(0)}k</p>
-              </div>
-              <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
-                <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.customerSince}</p>
-                <p className="font-black text-[9.5px] sm:text-[10px] text-slate-900 dark:text-slate-100 mt-0.5 truncate">{formatDate(activeConv.customer_since)}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setActiveModal('fullProfile')}
-              className="w-full py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-center transition-colors"
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-all duration-300">
+            <div 
+              onClick={() => setIsCustomerProfileOpen(!isCustomerProfileOpen)}
+              className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 cursor-pointer select-none group"
             >
-              {t.inboxView.viewFullProfile}
-            </button>
+              <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 group-hover:text-blue-600 transition-colors">
+                {t.inboxView.customerProfile}
+              </h3>
+
+              <div className="flex items-center gap-2">
+                {!isCustomerProfileOpen && (
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+                    {activeConv.customer_name}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCustomerProfileOpen(!isCustomerProfileOpen);
+                  }}
+                  className="p-1.5 rounded-xl text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center"
+                  title={isCustomerProfileOpen ? "Sembunyikan Profil Pelanggan" : "Tampilkan Profil Pelanggan"}
+                >
+                  <ChevronDown size={14} className={`transition-transform duration-300 ${isCustomerProfileOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {isCustomerProfileOpen && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={activeConv.customer_avatar}
+                    alt={activeConv.customer_name}
+                    className="size-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 flex-shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{activeConv.customer_name}</h4>
+                      <Check size={12} className="text-emerald-500 flex-shrink-0" />
+                    </div>
+                    <p className="text-[10px] font-mono text-slate-400 truncate">{activeConv.customer_phone}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1 text-center min-w-0">
+                  <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                    <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalOrder}</p>
+                    <p className="font-black text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">{activeConv.total_orders}x</p>
+                  </div>
+                  <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                    <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.totalSpent}</p>
+                    <p className="font-black text-[10.5px] sm:text-xs text-slate-900 dark:text-slate-100 mt-0.5 truncate">Rp{(activeConv.total_spent / 1000).toFixed(0)}k</p>
+                  </div>
+                  <div className="p-1.5 sm:p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/40 min-w-0">
+                    <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium truncate">{t.inboxView.customerSince}</p>
+                    <p className="font-black text-[9.5px] sm:text-[10px] text-slate-900 dark:text-slate-100 mt-0.5 truncate">{formatDate(activeConv.customer_since)}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setActiveModal('fullProfile')}
+                  className="w-full py-2 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-center transition-colors"
+                >
+                  {t.inboxView.viewFullProfile}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Internal Notes Card */}
@@ -1741,6 +1766,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
       <AiReasoningModal
         isOpen={activeModal === 'aiReasoning'}
         onClose={() => setActiveModal(null)}
+        conversation={activeConv}
       />
 
       <CustomerFullProfileModal

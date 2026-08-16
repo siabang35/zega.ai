@@ -8,6 +8,7 @@ import {
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { getR2CdnUrl } from '../../utils/cdn';
 import { SupabaseDashboardService } from '../services/supabaseService';
+import { getActiveTenantIds } from '../contexts/TenantContext';
 import { OverviewModals } from './overview/OverviewModals';
 import { EnterpriseHeaderWidgets } from './overview/EnterpriseHeaderWidgets';
 import { EnterpriseCopilot } from './overview/EnterpriseCopilot';
@@ -51,7 +52,7 @@ export function ZegaOrchestratorView({
 
     async function loadOverviewData() {
       setLoading(true);
-      const data = await SupabaseDashboardService.getEnterpriseOverviewRealtimeData('99999999-9999-9999-9999-999999999999', timeRange);
+      const data = await SupabaseDashboardService.getEnterpriseOverviewRealtimeData((getActiveTenantIds().organizationId || ''), timeRange);
       if (isMounted && data) {
         setRealtimeData(data);
         setLoading(false);
@@ -61,7 +62,7 @@ export function ZegaOrchestratorView({
     loadOverviewData();
 
     // Subscribe to Realtime Postgres Changes (Anti-throttled & OWASP Anti-chunking protected)
-    const unsubscribe = SupabaseDashboardService.subscribeToEnterpriseOverviewRealtime('99999999-9999-9999-9999-999999999999', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToEnterpriseOverviewRealtime((getActiveTenantIds().organizationId || ''), () => {
       loadOverviewData();
     });
 

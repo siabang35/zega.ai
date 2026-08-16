@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X } from 'lucide-react';
+import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X, Plus, History, Search } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { getApiBase } from '../../../../config/api';
+import { SupabaseDashboardService, isValidUuid, getCanonicalAuthHeaders } from '../../services/supabaseService';
+import { getActiveTenantIds } from '../../contexts/TenantContext';
 
 export interface EnterpriseCopilotProps {
   dark?: boolean;
@@ -19,6 +21,17 @@ export function EnterpriseCopilot({
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotInput, setCopilotInput] = useState('');
   const [isCopilotTyping, setIsCopilotTyping] = useState(false);
+  
+  // Chat session & history state
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [historyList, setHistoryList] = useState<any[]>([]);
+  const [historySearch, setHistorySearch] = useState('');
+
+  const getSeedMessageText = () => {
+    return 'Welcome to **ZEGA Enterprise Copilot AI** 🚀. I am connected directly to your enterprise clusters, 9Router engine, and OWASP security telemetry. How can I assist with your orchestration, security audit, or cost optimization today?';
+  };
+
   const [copilotMessages, setCopilotMessages] = useState<Array<{
     id?: string;
     sender: 'user' | 'copilot' | 'system';
@@ -33,7 +46,7 @@ export function EnterpriseCopilot({
     {
       id: 'ent-seed-1',
       sender: 'copilot',
-      message: 'Welcome to **ZEGA Enterprise Copilot AI** 🚀. I am connected directly to your enterprise clusters, 9Router engine, and OWASP security telemetry. How can I assist with your orchestration, security audit, or cost optimization today?',
+      message: getSeedMessageText(),
       ai_model: 'deepseek-r1-zeroclaw',
       prompt_tokens: 64,
       completion_tokens: 92,
@@ -56,7 +69,6 @@ export function EnterpriseCopilot({
           const trimmed = rawLine.trim();
           if (!trimmed) return <div key={idx} className="h-1" />;
 
-          // Detect bullets or numbered list items
           const isBullet = /^[•\-\*\+]\s+/.test(trimmed) || /^[•\-\*\+]$/.test(trimmed);
           const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
 
@@ -102,6 +114,127 @@ export function EnterpriseCopilot({
     );
   };
 
+  // 1. Fetch Session History List
+  const fetchHistoryList = async () => {
+    try {
+      const tenant = getActiveTenantIds();
+      const list = await SupabaseDashboardService.getUmkmRecentChatHistory(tenant.userId || '', 'enterprise_copilot');
+      if (list && list.length > 0) {
+        setHistoryList(list.map((item: any) => ({
+          id: item.chat_id,
+          title: item.title,
+          created_at: item.updated_at || item.created_at,
+          last_message: item.last_message
+        })));
+      }
+    } catch (e) {
+      console.warn('Note loading history list:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (showHistoryDrawer) {
+      fetchHistoryList();
+    }
+  }, [showHistoryDrawer]);
+
+  // 2. Initialize Canonical Chat Session on mount
+  useEffect(() => {
+    let isMounted = true;
+    const initSession = async () => {
+      try {
+        const tenant = getActiveTenantIds();
+        const res = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+          tenant.storeId,
+          tenant.userId,
+          'Enterprise Copilot Chat',
+          'ZEGA Enterprise Specialist'
+        );
+        if (res.ok && res.chatId) {
+          if (isMounted) setChatSessionId(res.chatId);
+          const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(res.chatId);
+          if (msgs && msgs.length > 0 && isMounted) {
+            setCopilotMessages(msgs.map((m: any) => ({
+              id: m.id,
+              sender: m.sender === 'user' ? 'user' : 'copilot',
+              message: m.text,
+              ai_model: m.model_engine || 'deepseek-r1-zeroclaw',
+              inference_ms: m.inference_ms || 180,
+              created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn('Failed init Enterprise Copilot Session:', err);
+      }
+    };
+    initSession();
+    return () => { isMounted = false; };
+  }, []);
+
+  // 3. Create New Chat Session
+  const handleNewSession = async () => {
+    try {
+      const tenant = getActiveTenantIds();
+      const newChat = await SupabaseDashboardService.createUmkmAiAssistantChat(
+        tenant.storeId || '',
+        tenant.userId || '',
+        `Copilot Session ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      );
+      if (newChat && newChat.id) {
+        setChatSessionId(newChat.id);
+        const seedText = getSeedMessageText();
+        setCopilotMessages([{
+          id: 'seed-' + Date.now(),
+          sender: 'copilot',
+          message: seedText,
+          ai_model: 'deepseek-r1-zeroclaw',
+          inference_ms: 180,
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: newChat.id,
+          sender: 'ai',
+          text: seedText
+        });
+        fetchHistoryList();
+        setShowHistoryDrawer(false);
+      }
+    } catch (e) {
+      console.warn('Error creating new session:', e);
+    }
+  };
+
+  // 4. Select Session from History
+  const handleSelectSession = async (session: any) => {
+    try {
+      setChatSessionId(session.id);
+      const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(session.id);
+      if (msgs && msgs.length > 0) {
+        setCopilotMessages(msgs.map((m: any) => ({
+          id: m.id,
+          sender: m.sender === 'user' ? 'user' : 'copilot',
+          message: m.text,
+          ai_model: m.model_engine || 'deepseek-r1-zeroclaw',
+          inference_ms: m.inference_ms || 180,
+          created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        })));
+      } else {
+        setCopilotMessages([{
+          id: 'seed-' + Date.now(),
+          sender: 'copilot',
+          message: getSeedMessageText(),
+          ai_model: 'deepseek-r1-zeroclaw',
+          inference_ms: 180,
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+      setShowHistoryDrawer(false);
+    } catch (e) {
+      console.warn('Error selecting session:', e);
+    }
+  };
+
   const handleSendCopilotMessage = async (customText?: string) => {
     const textToSend = customText || copilotInput;
     if (!textToSend.trim()) return;
@@ -116,6 +249,19 @@ export function EnterpriseCopilot({
     setCopilotMessages(prev => [...prev, userMsg]);
     if (!customText) setCopilotInput('');
     setIsCopilotTyping(true);
+
+    // Save user message to database if active session is valid
+    if (chatSessionId && isValidUuid(chatSessionId)) {
+      try {
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: chatSessionId,
+          sender: 'user',
+          text: textToSend.trim()
+        });
+      } catch (err) {
+        console.warn('Failed saving user message:', err);
+      }
+    }
 
     const startTime = Date.now();
     const promptLower = textToSend.toLowerCase();
@@ -139,16 +285,18 @@ export function EnterpriseCopilot({
     };
     const currentAiLang = getAiLang();
 
-    // Try calling backend real AI inference endpoint first with 25s timeout for DeepSeek R1 reasoning
+    // Try calling backend real AI inference endpoint first with 25s timeout
     try {
       const apiHost = getApiBase();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
 
+      const headers = getCanonicalAuthHeaders();
+
       const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: textToSend.trim(), language: currentAiLang }),
+        headers,
+        body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
         signal: controller.signal,
       });
 
@@ -217,17 +365,32 @@ export function EnterpriseCopilot({
 
     setCopilotMessages(prev => [...prev, copilotMsg]);
     setIsCopilotTyping(false);
+
+    // Save AI response to database if active session is valid
+    if (chatSessionId && isValidUuid(chatSessionId)) {
+      try {
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: chatSessionId,
+          sender: 'ai',
+          text: replyMessage,
+          inference_ms: latencyMs,
+          tokens: totalTokens
+        });
+      } catch (err) {
+        console.warn('Failed saving AI response:', err);
+      }
+    }
   };
 
   return (
     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2">
       {/* Copilot Floating Chat Panel */}
       {copilotOpen && (
-        <div className="w-[90vw] sm:w-[350px] max-w-[350px] h-[500px] max-h-[560px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
+        <div className="w-[90vw] sm:w-[380px] max-w-[380px] h-[520px] max-h-[580px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-slideUp">
           {/* Header */}
-          <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+          <div className="p-3.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="size-9 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
                 <img
                   src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
                   alt="ZEGA Copilot"
@@ -235,116 +398,176 @@ export function EnterpriseCopilot({
                 />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-white tracking-tight flex items-center gap-2">
-                  ZEGA Enterprise Copilot
+                <h3 className="font-extrabold text-xs text-white tracking-tight flex items-center gap-1.5">
+                  Enterprise Copilot
                   <span className="px-1.5 py-0.2 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-mono font-bold">
                     Enterprise AI
                   </span>
                 </h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-slate-400 font-semibold">Real-Time Telemetry Connected</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">Realtime Connected</span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => setCopilotOpen(false)}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Prompt Pills */}
-          <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => handleSendCopilotMessage('Cluster status & node latency')}
-              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
-            >
-              🖥️ Cluster Status
-            </button>
-            <button
-              onClick={() => handleSendCopilotMessage('OWASP security threat audit')}
-              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
-            >
-              🛡️ Security Audit
-            </button>
-            <button
-              onClick={() => handleSendCopilotMessage('LLM Cost Optimization Report')}
-              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
-            >
-              💰 Cost Optimization
-            </button>
-            <button
-              onClick={() => handleSendCopilotMessage('Swarm workflow telemetry')}
-              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
-            >
-              ⚡ Swarm Telemetry
-            </button>
-          </div>
-
-          {/* Chat Stream */}
-          <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
-            {copilotMessages.map((msg, idx) => (
-              <div
-                key={msg.id || idx}
-                className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleNewSession}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                title="Sesi Chat Baru"
               >
-                <div className="flex items-end gap-2 max-w-[90%]">
-                  {msg.sender === 'copilot' && (
-                    <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
-                      <img
-                        src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                        alt="ZEGA Copilot"
-                        className="w-full h-full object-contain p-0.5"
-                      />
-                    </div>
-                  )}
+                <Plus size={14} /> <span>Baru</span>
+              </button>
+              <button
+                onClick={() => setShowHistoryDrawer(!showHistoryDrawer)}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer ${showHistoryDrawer ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title="Riwayat Chat"
+              >
+                <History size={15} />
+              </button>
+              <button
+                onClick={() => setCopilotOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
 
-                  <div className={`p-3 rounded-2xl ${
-                    msg.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-xs'
-                      : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-xs'
-                  }`}>
-                    {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <p className="text-xs">{msg.message}</p>}
+          {/* History Drawer Popover */}
+          {showHistoryDrawer ? (
+            <div className="flex-1 p-3 bg-slate-900/90 overflow-y-auto space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-slate-800">
+                <span>Riwayat Sesi Enterprise Copilot</span>
+                <button onClick={() => setShowHistoryDrawer(false)} className="text-slate-400 hover:text-white"><X size={14} /></button>
+              </div>
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari sesi chat..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  className="w-full pl-7 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="space-y-1 pt-1">
+                {historyList.length > 0 ? (
+                  historyList
+                    .filter(s => (s.title || '').toLowerCase().includes(historySearch.toLowerCase()))
+                    .map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => handleSelectSession(s)}
+                        className={`w-full text-left p-2 rounded-xl transition-all border text-xs font-semibold ${
+                          chatSessionId === s.id
+                            ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
+                            : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="font-bold truncate text-white">{s.title || 'Sesi Enterprise Copilot'}</div>
+                        <div className="text-[10px] text-slate-400 truncate mt-0.5">{s.last_message || 'Belum ada pesan'}</div>
+                      </button>
+                    ))
+                ) : (
+                  <div className="text-center py-6 text-slate-400 text-xs italic">Belum ada riwayat sesi tersimpan</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Prompt Pills */}
+              <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => handleSendCopilotMessage('Cluster status & node latency')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  🖥️ Cluster Status
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage('OWASP security threat audit')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  🛡️ Security Audit
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage('LLM Cost Optimization Report')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  💰 Cost Optimization
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage('Swarm workflow telemetry')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-indigo-500/20 hover:text-indigo-400 border border-slate-700/80 text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  ⚡ Swarm Telemetry
+                </button>
+              </div>
 
-                    {msg.sender === 'copilot' && (
-                      <div className="mt-2 pt-1 border-t border-slate-800 flex items-center justify-between text-[9px] font-mono text-slate-400">
-                        <span>ZEGA Copilot</span>
-                        <span>{msg.inference_ms}ms • {msg.total_tokens || 140} tokens</span>
+              {/* Chat Stream */}
+              <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+                {copilotMessages.map((msg, idx) => (
+                  <div
+                    key={msg.id || idx}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-end gap-2 max-w-[90%]">
+                      {msg.sender === 'copilot' && (
+                        <div className="size-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                          <img
+                            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                            alt="ZEGA Copilot"
+                            className="w-full h-full object-contain p-0.5"
+                          />
+                        </div>
+                      )}
+
+                      <div className={`p-3 rounded-2xl ${
+                        msg.sender === 'user'
+                          ? 'bg-indigo-600 text-white rounded-br-xs'
+                          : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-xs'
+                      }`}>
+                        {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <p className="text-xs">{msg.message}</p>}
+
+                        {msg.sender === 'copilot' && (
+                          <div className="mt-2 pt-1 border-t border-slate-800 flex items-center justify-between text-[9px] font-mono text-slate-400">
+                            <span>ZEGA Copilot</span>
+                            <span>{msg.inference_ms}ms • {msg.total_tokens || 140} tokens</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                ))}
 
-            {isCopilotTyping && (
-              <div className="flex items-center gap-2 text-slate-400 text-xs italic">
-                <span className="size-2 rounded-full bg-indigo-500 animate-ping" />
-                Copilot is querying enterprise telemetry...
+                {isCopilotTyping && (
+                  <div className="flex items-center gap-2 text-slate-400 text-xs italic">
+                    <span className="size-2 rounded-full bg-indigo-500 animate-ping" />
+                    Copilot is querying enterprise telemetry...
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Input Bar */}
-          <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-            <input
-              type="text"
-              value={copilotInput}
-              onChange={(e) => setCopilotInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
-              placeholder="Ask Enterprise Copilot AI..."
-              className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 font-medium"
-            />
-            <button
-              onClick={() => handleSendCopilotMessage()}
-              className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-md transition-colors"
-            >
-              <Send size={16} />
-            </button>
-          </div>
+              {/* Input Bar */}
+              <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={copilotInput}
+                  onChange={(e) => setCopilotInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
+                  placeholder="Ask Enterprise Copilot AI..."
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                />
+                <button
+                  onClick={() => handleSendCopilotMessage()}
+                  className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-md transition-colors"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

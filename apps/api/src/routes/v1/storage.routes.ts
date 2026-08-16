@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { R2StorageService } from '../../services/r2StorageService.js';
 import { SupabaseService } from '../../services/supabaseService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
+import { populatePrincipal, requireTenantContext } from '../../middleware/requestContext.js';
 
 /**
  * ZEGA AI — Storage Routes
@@ -77,7 +77,7 @@ export async function storageRoutes(app: FastifyInstance) {
     '/upload',
     {
       onRequest: [app.authenticate],
-      preHandler: [populatePrincipal],
+      preHandler: [populatePrincipal, requireTenantContext],
       schema: {
         tags: ['Storage & System'],
         summary: 'Upload Image / Asset to Cloudflare R2 CDN',
@@ -115,13 +115,11 @@ export async function storageRoutes(app: FastifyInstance) {
         });
       }
 
-      // EA-02 FIX: Tenant-scoped upload path to prevent cross-tenant collision
+      // SECURITY: Tenant-scoped path — FAIL-CLOSED if no org context
       const principal = request.principal;
       const tenantFolder = principal?.organizationId
         ? `org/${principal.organizationId}/images`
-        : principal?.userId
-          ? `user/${principal.userId}/images`
-          : 'images';
+        : `user/${principal?.userId || 'unknown'}/images`;
 
       const uploadResult = await R2StorageService.uploadFile({
         content: buffer,
@@ -147,7 +145,7 @@ export async function storageRoutes(app: FastifyInstance) {
     '/presigned-url',
     {
       onRequest: [app.authenticate],
-      preHandler: [populatePrincipal],
+      preHandler: [populatePrincipal, requireTenantContext],
       schema: {
         tags: ['Storage & System'],
         summary: 'Generate Presigned R2 Upload URL',
@@ -157,17 +155,16 @@ export async function storageRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const body = presignedUrlSchema.parse(request.body);
 
-      // EA-02 FIX: Ensure folder path is tenant-scoped
+      // SECURITY: Tenant-scoped path — FAIL-CLOSED if no org context
       const principal = request.principal;
       const tenantFolder = principal?.organizationId
         ? `org/${principal.organizationId}/${body.folder}`
-        : principal?.userId
-          ? `user/${principal.userId}/${body.folder}`
-          : body.folder;
+        : `user/${principal?.userId || 'unknown'}/${body.folder}`;
 
       const result = await R2StorageService.generatePresignedUploadUrl({
         filename: body.filename,
         contentType: body.contentType,
+        organizationId: principal!.organizationId!,
         folder: tenantFolder,
       });
 

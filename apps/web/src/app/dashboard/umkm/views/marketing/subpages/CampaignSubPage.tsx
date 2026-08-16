@@ -89,7 +89,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
 
   useEffect(() => {
     loadCampaigns();
-    const unsubscribe = SupabaseDashboardService.subscribeToMarketingCampaigns('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToMarketingCampaigns(undefined as any, () => {
       loadCampaigns();
     });
     return () => unsubscribe();
@@ -208,7 +208,7 @@ export function CampaignSubPage({ onOpenCreateCampaign, triggerToast }: Campaign
       const { data, error } = await supabase
         .from('umkm_marketing_campaigns')
         .insert([{
-          store_id: '11111111-1111-1111-1111-111111111111',
+          store_id: undefined as any,
           campaign_name: newCampaignName,
           channel_name: newChannelName,
           status: 'Aktif',

@@ -40,7 +40,7 @@ export function ActivitiesSubPage({ activities: initialActivities = [], triggerT
   useEffect(() => {
     loadActivities();
     // Subscribe to realtime database changes on umkm_marketing_activities
-    const unsubscribe = SupabaseDashboardService.subscribeToMarketingActivities('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToMarketingActivities(undefined as any, () => {
       loadActivities();
     });
     return () => {
@@ -144,7 +144,7 @@ export function ActivitiesSubPage({ activities: initialActivities = [], triggerT
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          store_id: '11111111-1111-1111-1111-111111111111',
+          store_id: undefined,
           event: realPayload,
           cdn_verified: true,
           timestamp: new Date().toISOString()
@@ -522,7 +522,7 @@ export function ActivitiesSubPage({ activities: initialActivities = [], triggerT
                 {JSON.stringify(
                   {
                     event_id: selectedAuditItem.id,
-                    store_id: selectedAuditItem.store_id || '11111111-1111-1111-1111-111111111111',
+                    store_id: selectedAuditItem.store_id || undefined,
                     source_name: selectedAuditItem.source_name,
                     source_category: selectedAuditItem.source_category,
                     model_engine: selectedAuditItem.model_engine,

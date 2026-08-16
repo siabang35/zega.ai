@@ -23,21 +23,46 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await SupabaseDashboardService.getUmkmStoreOverview();
+      const [data, dbCategories] = await Promise.all([
+        SupabaseDashboardService.getUmkmStoreOverview(),
+        SupabaseDashboardService.getUmkmStoreCategories()
+      ]);
+
+      const counts: Record<string, number> = {};
       if (data && Array.isArray(data.products)) {
-        const counts: Record<string, number> = {};
         data.products.forEach((p: any) => {
           const cat = p.category || 'Apparel';
           counts[cat] = (counts[cat] || 0) + 1;
         });
-
-        const catList = Object.keys(counts).map(catName => ({
-          name: catName,
-          count: counts[catName],
-          icon: catName.includes('Fashion') ? '👔' : catName.includes('Makanan') ? '🍱' : catName.includes('Drink') ? '🥤' : '📦'
-        }));
-        setCategoriesData(catList);
       }
+
+      const catMap = new Map<string, any>();
+
+      // 1. Add categories from Supabase DB umkm_store_categories table
+      if (Array.isArray(dbCategories)) {
+        dbCategories.forEach((dbc: any) => {
+          if (dbc.name) {
+            catMap.set(dbc.name, {
+              name: dbc.name,
+              count: dbc.product_count || counts[dbc.name] || 0,
+              icon: dbc.name.includes('Fashion') ? '👔' : dbc.name.includes('Makanan') ? '🍱' : dbc.name.includes('Drink') ? '🥤' : '📦'
+            });
+          }
+        });
+      }
+
+      // 2. Add categories from existing products
+      Object.keys(counts).forEach(catName => {
+        if (!catMap.has(catName)) {
+          catMap.set(catName, {
+            name: catName,
+            count: counts[catName],
+            icon: catName.includes('Fashion') ? '👔' : catName.includes('Makanan') ? '🍱' : catName.includes('Drink') ? '🥤' : '📦'
+          });
+        }
+      });
+
+      setCategoriesData(Array.from(catMap.values()));
     } catch (err) {
       console.error('Failed to load categories:', err);
     } finally {
@@ -51,15 +76,19 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
 
     setSubmitting(true);
     try {
-      setCategoriesData(prev => [...prev, { name: newCatName.trim(), count: 0, icon: '📦' }]);
-      triggerToast(`✓ ${s.categoryAdded || 'Kategori'} "${newCatName}" ${s.categoryAddedSuccess || 'berhasil ditambahkan!'}`);
+      // Direct Supabase DB insert to umkm_store_categories table
+      await SupabaseDashboardService.createUmkmStoreCategory(trimmed);
+      triggerToast(`✓ ${s.categoryAdded || 'Kategori'} "${trimmed}" ${s.categoryAddedSuccess || 'berhasil ditambahkan ke Supabase DB!'}`);
       setNewCatName('');
-    } catch (err) {
-      triggerToast(`⚠️ ${s.failedCreateCategory || 'Gagal membuat kategori'}`);
+      await loadData();
+    } catch (err: any) {
+      console.error('Failed to add category to Supabase DB:', err);
+      triggerToast(`⚠️ ${s.failedCreateCategory || 'Gagal membuat kategori di DB'}`);
     } finally {
       setSubmitting(false);
     }
@@ -89,7 +118,10 @@ export function ManageCategorySubView({ triggerToast, onNavigateTab }: ManageCat
 
     setSubmitting(true);
     try {
-      await SupabaseDashboardService.manageStoreCategory('delete', catName);
+      await Promise.all([
+        SupabaseDashboardService.deleteUmkmStoreCategory(catName),
+        SupabaseDashboardService.manageStoreCategory('delete', catName)
+      ]);
       triggerToast(`✓ ${s.categoryDeleted || 'Kategori'} "${catName}" ${s.deletedSuccess || 'berhasil dihapus'}`);
       await loadData();
     } catch (err: any) {

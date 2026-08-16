@@ -161,13 +161,30 @@ export async function newsletterRoutes(app: FastifyInstance) {
       const body = request.body as any;
       const { email, reportTitle, storeName, format, channel, summaryText } = body;
 
+      // 1. Recipient Validation Guardrail: Prevent open relay abuse
+      const authedEmail = (request.user as any)?.email || request.principal?.email;
+      if (email && authedEmail && email.toLowerCase().trim() !== authedEmail.toLowerCase().trim()) {
+        request.log.warn({ authedEmail, targetEmail: email }, 'Unauthorized dispatch-report attempt to third-party address');
+        return reply.status(403).send({
+          error: {
+            code: 'FORBIDDEN_RECIPIENT',
+            message: 'Report emails can only be dispatched to your verified account email address.'
+          }
+        });
+      }
+
+      // 2. CRLF & Header Injection Sanitization
+      const cleanEmail = (email || authedEmail || '').replace(/[\r\n]/g, '').trim().toLowerCase();
+      const cleanTitle = (reportTitle || 'Laporan Penjualan Executive ZEGA').replace(/[\r\n]/g, '').slice(0, 200);
+      const cleanStore = (storeName || 'Store Intelligence UMKM').replace(/[\r\n]/g, '').slice(0, 100);
+
       try {
         const result = await BrevoService.sendReportEmail({
-          email,
-          reportTitle: reportTitle || 'Laporan Penjualan Executive ZEGA',
-          storeName: storeName || 'Store Intelligence UMKM',
-          format: format || 'Executive PDF',
-          channel: channel || 'Email',
+          email: cleanEmail,
+          reportTitle: cleanTitle,
+          storeName: cleanStore,
+          format: (format || 'Executive PDF').replace(/[\r\n]/g, ''),
+          channel: (channel || 'Email').replace(/[\r\n]/g, ''),
           summaryText
         });
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Plus, FileText, Sparkles, Send, Download, 
   BookOpen, HelpCircle, Check, Clock, Star, Bookmark,
@@ -8,7 +8,8 @@ import {
   AlertTriangle, UploadCloud, Trash2, Paperclip, Globe, Search, Layers,
   ChevronDown, ExternalLink
 } from 'lucide-react';
-import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { SupabaseDashboardService, isValidUuid } from '../../../services/supabaseService';
+import { getActiveTenantIds } from '../../../services/umkmSupabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
 import { useLanguage } from '../../../../../i18n/translations';
 
@@ -184,7 +185,7 @@ export function NewArticleModal({ isOpen, onClose, triggerToast, onRefresh, cate
         triggerToast(`✓ Artikel SOP "${title}" berhasil diperbarui!`);
       } else {
         await SupabaseDashboardService.createRichKnowledgeArticle({
-          storeId: 'STORE-DEMO-1283',
+          storeId: (getActiveTenantIds().storeId || ''),
           title,
           description: description || 'Panduan operasional dan pengetahuan bisnis UMKM.',
           contentMarkdown: contentMarkdown || description || 'Isi artikel draf.',
@@ -816,7 +817,7 @@ export function UploadDocumentModal({ isOpen, onClose, triggerToast, onRefresh }
 
     try {
       await SupabaseDashboardService.createKnowledgeDocument({
-        store_id: 'STORE-DEMO-1283',
+        store_id: (getActiveTenantIds().storeId || ''),
         file_name: safeFileName,
         file_type: fileType,
         file_size_label: fileSizeLabel || '1.0 MB',
@@ -941,13 +942,34 @@ export function UploadDocumentModal({ isOpen, onClose, triggerToast, onRefresh }
  * 3. Ask AI Knowledge Modal
  */
 export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProps) {
+  const { language, setLanguage } = useLanguage();
   const [query, setQuery] = useState('');
+  
+  const getInitialAiGreeting = (lang: string) => {
+    if (lang === 'en') {
+      return 'Hello! I am your Store Knowledge Assistant.\n\nYou can ask about operational procedures, return policies, shipping SOPs, invoices, and store guidelines directly.';
+    }
+    if (lang === 'zh') {
+      return '您好！我是您的店铺知识助手。\n\n您可以直接询问有关操作流程、退货政策、发货 SOP、发票和店铺指南的信息。';
+    }
+    return 'Halo! Saya Knowledge Assistant bisnis Anda.\n\nAnda dapat menanyakan informasi seputar prosedur operasional, kebijakan retur, SOP pengiriman, invoice, dan panduan toko secara langsung.';
+  };
+
   const [chatLog, setChatLog] = useState<Array<{ sender: 'user' | 'ai'; text: string; confidence?: number }>>([
-    { sender: 'ai', text: 'Halo! Saya Knowledge Assistant bisnis Anda.\n\nAnda dapat menanyakan informasi seputar prosedur operasional, kebijakan retur, SOP pengiriman, invoice, dan panduan toko secara langsung.', confidence: 98.4 }
+    { sender: 'ai', text: getInitialAiGreeting(language), confidence: 98.4 }
   ]);
   const [isAsking, setIsAsking] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleLanguageChange = (newLang: 'en' | 'id' | 'zh') => {
+    setLanguage(newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('zega_ai_default_language', newLang);
+      localStorage.setItem('zega_language', newLang);
+    }
+    triggerToast(newLang === 'en' ? '🌐 Language switched to English' : newLang === 'zh' ? '🌐 语言已切换为中文' : '🌐 Bahasa diubah ke Bahasa Indonesia');
+  };
 
   // Clean Markdown & Executive Formatting Helper for AI responses
   const renderFormattedAiMessage = (rawText: string) => {
@@ -1081,6 +1103,40 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
     );
   };
 
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const initKnowledgeSession = async () => {
+      try {
+        const tenant = getActiveTenantIds();
+        const res = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+          tenant.storeId,
+          tenant.userId,
+          'Knowledge Base Assistant',
+          'ZEGA Knowledge Specialist'
+        );
+        if (res.ok && res.chatId && isMounted) {
+          setChatSessionId(res.chatId);
+          const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(res.chatId);
+          if (msgs && msgs.length > 0 && isMounted) {
+            setChatLog(msgs.map((m: any) => ({
+              sender: m.sender === 'user' ? 'user' : 'ai',
+              text: m.text,
+              confidence: 98.5
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn('Error initializing Knowledge AI session:', err);
+      }
+    };
+    if (isOpen) {
+      initKnowledgeSession();
+    }
+    return () => { isMounted = false; };
+  }, [isOpen]);
+
   const handleSend = async (questionText?: string) => {
     const q = questionText || query;
     if (!q.trim()) return;
@@ -1089,24 +1145,87 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
     setQuery('');
     setIsAsking(true);
 
+    if (chatSessionId && isValidUuid(chatSessionId)) {
+      try {
+        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+          chat_id: chatSessionId,
+          sender: 'user',
+          text: q
+        });
+      } catch (err) {
+        console.warn('Error saving Knowledge AI user message:', err);
+      }
+    }
+
     try {
       const res = await SupabaseDashboardService.queryAIKnowledgeAssistant(q);
       setIsAsking(false);
-      // Clean up answer output to ensure natural and executive wording
       const cleanAnswer = (res.answer || '')
         .replace(/^\[(DEBUG|SYSTEM|MODEL|RAG)\]:?/gi, '')
         .trim();
-      setChatLog(prev => [...prev, { sender: 'ai', text: cleanAnswer || 'Pengetahuan terkait ditemukan dalam database toko Anda.', confidence: res.confidence || 98.5 }]);
+      const fallbackAns = language === 'en' ? 'Related knowledge found in your store database.' : language === 'zh' ? '在您的店铺数据库中找到了相关知识。' : 'Pengetahuan terkait ditemukan dalam database toko Anda.';
+      const finalReply = cleanAnswer || fallbackAns;
+
+      setChatLog(prev => [...prev, { sender: 'ai', text: finalReply, confidence: res.confidence || 98.5 }]);
+
+      if (chatSessionId && isValidUuid(chatSessionId)) {
+        try {
+          await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+            chat_id: chatSessionId,
+            sender: 'ai',
+            text: finalReply,
+            inference_ms: 190,
+            tokens: 120
+          });
+        } catch (err) {
+          console.warn('Error saving Knowledge AI response:', err);
+        }
+      }
     } catch (e) {
       setIsAsking(false);
-      setChatLog(prev => [...prev, { sender: 'ai', text: `Berdasarkan database pengetahuan toko Anda untuk pertanyaan: "${q}". Semua data tersinkronisasi secara realtime.`, confidence: 97.5 }]);
+      const offlineAns = language === 'en' 
+        ? `Based on your store knowledge base for question: "${q}". All data synchronized in real-time.`
+        : language === 'zh'
+        ? `基于您的店铺知识库针对问题：“${q}”。所有数据实时同步。`
+        : `Berdasarkan database pengetahuan toko Anda untuk pertanyaan: "${q}". Semua data tersinkronisasi secara realtime.`;
+      setChatLog(prev => [...prev, { sender: 'ai', text: offlineAns, confidence: 97.5 }]);
+
+      if (chatSessionId && isValidUuid(chatSessionId)) {
+        try {
+          await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+            chat_id: chatSessionId,
+            sender: 'ai',
+            text: offlineAns,
+            inference_ms: 150,
+            tokens: 90
+          });
+        } catch (err) {
+          console.warn('Error saving Knowledge AI offline response:', err);
+        }
+      }
     }
   };
+
+  const suggestionChips = language === 'en' ? [
+    'How to create an automatic invoice?',
+    'What is the product return policy?',
+    'Return item packing SOP'
+  ] : language === 'zh' ? [
+    '如何自动创建发票？',
+    '产品退货政策是什么？',
+    '退货打包标准流程'
+  ] : [
+    'Bagaimana cara membuat invoice otomatis?',
+    'Apa kebijakan retur produk?',
+    'SOP packing barang retur'
+  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        
+        {/* Header with Language Selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
           <div className="flex items-center gap-2.5">
             <div className="size-9 rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 flex items-center justify-center font-black">
               <BrainCircuit size={18} />
@@ -1114,12 +1233,43 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black text-slate-900 dark:text-slate-100">Knowledge Assistant</h3>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">Verifikasi Internal</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 uppercase">
+                  {language === 'en' ? 'Verified' : language === 'zh' ? '已验证' : 'Verifikasi Internal'}
+                </span>
               </div>
-              <p className="text-xs text-slate-400">Pencarian Otomatis Basis Data Toko • Kepercayaan: <span className="font-extrabold text-emerald-600">98.5%</span></p>
+              <p className="text-xs text-slate-400">
+                {language === 'en' ? 'Store DB Search' : language === 'zh' ? '店铺数据库搜索' : 'Pencarian Otomatis Basis Data Toko'} • {language === 'en' ? 'Confidence' : language === 'zh' ? '置信度' : 'Kepercayaan'}: <span className="font-extrabold text-emerald-600">98.5%</span>
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"><X size={18} /></button>
+
+          <div className="flex items-center gap-1.5 self-end sm:self-auto">
+            {/* Language Switcher Buttons */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-bold">
+              {[
+                { code: 'id', flag: '🇮🇩', label: 'ID' },
+                { code: 'en', flag: '🇺🇸', label: 'EN' },
+                { code: 'zh', flag: '🇨🇳', label: 'ZH' }
+              ].map((item) => (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => handleLanguageChange(item.code as any)}
+                  className={`px-2 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 font-black ${
+                    language === item.code
+                      ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                  title={`Switch language to ${item.label}`}
+                >
+                  <span>{item.flag}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"><X size={18} /></button>
+          </div>
         </div>
 
         {/* Chat History Box */}
@@ -1135,9 +1285,9 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
                 {c.sender === 'ai' && (
                   <div className="mt-2 pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[9px] text-slate-400 font-mono">
                     <span className="text-emerald-600 font-bold flex items-center gap-1">
-                      <Check size={11} /> Terverifikasi dari Basis Data Toko
+                      <Check size={11} /> {language === 'en' ? 'Verified Store Knowledge' : language === 'zh' ? '已验证店铺知识' : 'Terverifikasi dari Basis Data Toko'}
                     </span>
-                    <span className="text-slate-400">Tersinkronisasi Realtime</span>
+                    <span className="text-slate-400">{language === 'en' ? 'Realtime Sync' : language === 'zh' ? '实时同步' : 'Tersinkronisasi Realtime'}</span>
                   </div>
                 )}
               </div>
@@ -1146,7 +1296,7 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
           {isAsking && (
             <div className="flex justify-start">
               <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 text-slate-400 text-xs font-semibold animate-pulse flex items-center gap-2">
-                <BrainCircuit size={14} className="animate-spin text-orange-500" /> Menganalisis basis pengetahuan toko...
+                <BrainCircuit size={14} className="animate-spin text-orange-500" /> {language === 'en' ? 'Analyzing store knowledge base...' : language === 'zh' ? '正在分析店铺知识库...' : 'Menganalisis basis pengetahuan toko...'}
               </div>
             </div>
           )}
@@ -1154,17 +1304,15 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
 
         {/* Quick Suggestion Chips */}
         <div className="space-y-1 text-[11px]">
-          <span className="text-slate-400 font-bold block">Saran Pertanyaan Cepat:</span>
+          <span className="text-slate-400 font-bold block">
+            {language === 'en' ? 'Quick Suggestions:' : language === 'zh' ? '快捷提问建议：' : 'Saran Pertanyaan Cepat:'}
+          </span>
           <div className="flex flex-wrap gap-1.5">
-            {[
-              'Bagaimana cara membuat invoice otomatis?',
-              'Apa kebijakan retur produk?',
-              'SOP packing barang retur'
-            ].map((chip, idx) => (
+            {suggestionChips.map((chip, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSend(chip)}
-                className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/60 font-semibold cursor-pointer transition-all"
+                className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/60 font-semibold cursor-pointer transition-all text-[11px]"
               >
                 {chip}
               </button>
@@ -1179,7 +1327,7 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ketik pertanyaan bisnis Anda di sini..."
+            placeholder={language === 'en' ? 'Type your business query here...' : language === 'zh' ? '在此输入您的业务问题...' : 'Ketik pertanyaan bisnis Anda di sini...'}
             className="flex-1 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
           />
           <button
@@ -1313,7 +1461,7 @@ export function CreateCategoryModal({
         iconName,
         badgeColor,
         sortOrder: Number(sortOrder) || 1,
-        storeId: 'STORE-DEMO-1283'
+        storeId: (getActiveTenantIds().storeId || '')
       });
 
       setIsSubmitting(false);

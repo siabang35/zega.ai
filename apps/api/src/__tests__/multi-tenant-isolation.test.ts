@@ -69,11 +69,16 @@ describe('MT-02: Backend Authorization & Principal Context Hardening', () => {
 
   it('authorization.ts implements verifyTenantAccess fail-closed guard', () => {
     assert.ok(authSource.includes('export function verifyTenantAccess'), 'Must export verifyTenantAccess');
-    assert.ok(authSource.includes('principal.organizationId === resourceOrgId'), 'Must verify principal organization matches resource organization');
+    // Hardened code denies if principal org !== resource org (fail-closed)
+    assert.ok(
+      authSource.includes('principal.organizationId !== resourceOrgId') || 
+      authSource.includes('principal.organizationId === resourceOrgId'),
+      'Must compare principal organization with resource organization'
+    );
   });
 
-  it('requestContext.ts populates organizationId and orgRole from DB or JWT', () => {
-    assert.ok(contextSource.includes('organizationId: jwtPayload.organizationId'), 'Must read organizationId');
+  it('requestContext.ts populates organizationId via header verification from DB', () => {
+    assert.ok(contextSource.includes("x-organization-id"), 'Must read X-Organization-Id header');
     assert.ok(contextSource.includes('.from(\'organization_members\')'), 'Must enrich principal from organization_members table');
   });
 });

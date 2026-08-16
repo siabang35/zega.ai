@@ -90,9 +90,12 @@ export async function orchestrationRoutes(app: FastifyInstance) {
       priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
     }).parse(request.query);
 
-    // EA-01 FIX: Filter by ownership
+    // EA-01 FIX + L4 FIX: Filter by ownership AND organization context
     let tasks = Array.from(taskStore.values()).filter(
-      (t) => principal && (t.ownerId === principal.userId || principal.role === 'superadmin')
+      (t) => principal && (
+        (t.ownerId === principal.userId && t.organizationId === principal.organizationId) ||
+        principal.role === 'superadmin'
+      )
     );
 
     if (query.status) tasks = tasks.filter((t) => t.status === query.status);

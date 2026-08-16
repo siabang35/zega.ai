@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { envConfig } from '../../config/env.js';
 import { SupabaseService } from '../../services/supabaseService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
+import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../middleware/requestContext.js';
 
 export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
   // SECURITY (F-15/F-16 FIX): Require authentication for ALL enterprise routes
@@ -18,6 +18,8 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
 
   // EA-01 FIX: Populate principal context for authorization decisions
   fastify.addHook('preHandler', populatePrincipal);
+  // SECURITY: Require active tenant context for all enterprise routes
+  fastify.addHook('preHandler', requireTenantContext);
 
   /**
    * GET /v1/enterprise/copilot/health
@@ -49,14 +51,16 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/copilot/chat', async (request, reply) => {
     const body = request.body as {
       message: string;
-      userId?: string;
-      orgId?: string;
       language?: string;
       response_style?: string;
       response_length?: string;
       response_format?: string;
       default_model?: string;
     };
+
+    // SECURITY (EA-01 / EA-02): Identity & Tenant Scoping derived SERVER-AUTHORITATIVELY from JWT principal
+    const authenticatedOrgId = getTenantOrg(request) || request.principal?.organizationId || '';
+    const authenticatedUserId = request.principal?.userId || request.principal?.email || 'enterprise-user';
 
     // ── LAYER 1: Input Validation & Sanitization ──
     if (!body || !body.message || typeof body.message !== 'string') {
@@ -370,7 +374,7 @@ ATURAN UTAMA BAHASA & FORMAT:
    * GET /v1/enterprise/commander/telemetry
    * Fetches live AI Commander operational telemetry from Supabase with OWASP Level 3 zero-trust headers
    */
-  fastify.get('/commander/telemetry', async (_request, reply) => {
+  fastify.get('/commander/telemetry', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('X-XSS-Protection', '1; mode=block');
@@ -378,12 +382,13 @@ ATURAN UTAMA BAHASA & FORMAT:
     try {
       const client = SupabaseService.getClient();
       if (client) {
+        const orgId = getTenantOrg(request);
         const { data, error } = await client
           .from('enterprise_ai_commander_telemetry')
           .select('*')
-          .eq('org_id', 'enterprise-org-01')
+          .eq('organization_id', orgId)
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           return reply.send({ success: true, data });
@@ -463,7 +468,8 @@ ATURAN UTAMA BAHASA & FORMAT:
         await client
           .from('enterprise_ai_commander_actions')
           .insert([{
-            org_id: body.orgId || 'enterprise-org-01',
+            org_id: getTenantOrg(request),
+            organization_id: getTenantOrg(request),
             action_type: action,
             triggered_by: 'admin@zegaai.site',
             status: 'COMPLETED',
@@ -501,17 +507,21 @@ ATURAN UTAMA BAHASA & FORMAT:
    * GET /v1/enterprise/agents/list
    * Fetches real-time AI Agents registry data from Supabase
    */
-  fastify.get('/agents/list', async (_request, reply) => {
+  fastify.get('/agents/list', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
 
     try {
       const client = SupabaseService.getClient();
       if (client) {
-        const { data, error } = await client
+        const orgId = getTenantOrg(request);
+        const query = client
           .from('enterprise_ai_agents_registry')
           .select('*')
           .order('updated_at', { ascending: false });
+        // Apply tenant filter if organization_id column exists
+        if (orgId) query.eq('organization_id', orgId);
+        const { data, error } = await query;
 
         if (!error && data && data.length > 0) {
           return reply.send({ success: true, data });
@@ -559,16 +569,21 @@ ATURAN UTAMA BAHASA & FORMAT:
     try {
       const client = SupabaseService.getClient();
       if (client && body.agentName && body.action === 'create') {
+        const tenantOrgId = getTenantOrg(request);
+        if (!tenantOrgId) {
+          return reply.status(403).send({ success: false, error: { message: 'Organization context required to create agent.' } });
+        }
         await client
           .from('enterprise_ai_agents_registry')
           .insert([{
             agent_name: body.agentName,
+            organization_id: tenantOrgId,
             category: body.category || 'General',
             status: 'Active',
             health_score: 99.90,
             runs_7d: 1,
             success_rate_pct: 99.00,
-            owner_name: 'Danz A.',
+            owner_name: request.principal?.email || 'enterprise-admin',
             description: body.description || 'Enterprise AI Agent workforce member',
           }]);
       }
@@ -590,6 +605,9 @@ ATURAN UTAMA BAHASA & FORMAT:
   // GET /api/v1/enterprise/my-agents/list
   // Fetches enterprise user's active deployed workforce instances
   // ----------------------------------------------------
+  // GET /api/v1/enterprise/my-agents/list
+  // Fetches enterprise user's active deployed workforce instances (Tenant Scoped)
+  // ----------------------------------------------------
   fastify.get(
     '/my-agents/list',
     async (request, reply) => {
@@ -600,10 +618,17 @@ ATURAN UTAMA BAHASA & FORMAT:
       try {
         const client = SupabaseService.getClient();
         if (client) {
-          const { data, error } = await client
+          const orgId = getTenantOrg(request);
+          const query = client
             .from('enterprise_my_agents_workforce')
             .select('*')
             .order('updated_at', { ascending: false });
+          
+          if (orgId) {
+            query.eq('organization_id', orgId);
+          }
+
+          const { data, error } = await query;
 
           if (!error && data && data.length > 0) {
             return reply.send({ success: true, data });
@@ -659,19 +684,24 @@ ATURAN UTAMA BAHASA & FORMAT:
       try {
         const client = SupabaseService.getClient();
         if (client && body.instanceId) {
+          const orgId = getTenantOrg(request);
           if (body.action === 'pause' || body.action === 'resume') {
             const newStatus = body.action === 'pause' ? 'Paused' : 'Active';
-            await client
+            const updateQuery = client
               .from('enterprise_my_agents_workforce')
               .update({ status: newStatus, updated_at: new Date().toISOString() })
               .eq('id', body.instanceId);
+
+            if (orgId) updateQuery.eq('organization_id', orgId);
+            await updateQuery;
           }
 
           await client.from('enterprise_my_agents_action_audit').insert([
             {
               instance_id: body.instanceId,
+              organization_id: orgId,
               action_type: body.action.toUpperCase(),
-              performed_by: 'Danz A.',
+              performed_by: request.principal?.email || 'enterprise-admin',
               details: body.params || {},
             },
           ]);
@@ -689,7 +719,7 @@ ATURAN UTAMA BAHASA & FORMAT:
     }
   );
 
-  // 10. GET /v1/enterprise/teams/list - Teams Swarm List
+  // 10. GET /v1/enterprise/teams/list - Teams Swarm List (Tenant Scoped)
   fastify.get('/teams/list', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
@@ -698,7 +728,10 @@ ATURAN UTAMA BAHASA & FORMAT:
     try {
       const client = SupabaseService.getClient();
       if (client) {
-        const { data, error } = await client.from('enterprise_agent_teams').select('*').order('created_at', { ascending: false });
+        const orgId = getTenantOrg(request);
+        const query = client.from('enterprise_agent_teams').select('*').order('created_at', { ascending: false });
+        if (orgId) query.eq('organization_id', orgId);
+        const { data, error } = await query;
         if (!error && data && data.length > 0) {
           return reply.send({ success: true, data });
         }
@@ -718,7 +751,7 @@ ATURAN UTAMA BAHASA & FORMAT:
     });
   });
 
-  // 11. GET /v1/enterprise/templates/list - Enterprise Templates List
+  // 11. GET /v1/enterprise/templates/list - Enterprise Templates List (Tenant Scoped)
   fastify.get('/templates/list', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
@@ -727,7 +760,10 @@ ATURAN UTAMA BAHASA & FORMAT:
     try {
       const client = SupabaseService.getClient();
       if (client) {
-        const { data, error } = await client.from('enterprise_agent_templates').select('*').order('created_at', { ascending: false });
+        const orgId = getTenantOrg(request);
+        const query = client.from('enterprise_agent_templates').select('*').order('created_at', { ascending: false });
+        if (orgId) query.eq('organization_id', orgId);
+        const { data, error } = await query;
         if (!error && data && data.length > 0) {
           return reply.send({ success: true, data });
         }
@@ -747,7 +783,7 @@ ATURAN UTAMA BAHASA & FORMAT:
     });
   });
 
-  // 12. GET /v1/enterprise/workflow/telemetry - Workflow Telemetry Metrics
+  // 12. GET /v1/enterprise/workflow/telemetry - Workflow Telemetry Metrics (Tenant Scoped)
   fastify.get('/workflow/telemetry', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
@@ -756,7 +792,10 @@ ATURAN UTAMA BAHASA & FORMAT:
     try {
       const client = SupabaseService.getClient();
       if (client) {
-        const { data, error } = await client.from('enterprise_workflow_instances').select('*').limit(1).single();
+        const orgId = getTenantOrg(request);
+        const query = client.from('enterprise_workflow_instances').select('*');
+        if (orgId) query.eq('organization_id', orgId);
+        const { data, error } = await query.limit(1).maybeSingle();
         if (!error && data) {
           return reply.send({ success: true, data });
         }
@@ -802,11 +841,13 @@ ATURAN UTAMA BAHASA & FORMAT:
       try {
         const client = SupabaseService.getClient();
         if (client) {
+          const tenantOrgId = getTenantOrg(request);
           await client.from('enterprise_my_agents_action_audit').insert({
-            org_id: 'enterprise-org-01',
+            org_id: tenantOrgId,
+            organization_id: tenantOrgId,
             action_type: `WORKFLOW_${String(action).toUpperCase()}`,
             details: { ...body, timestamp: new Date().toISOString() },
-            performed_by: 'Danz A.',
+            performed_by: request.principal?.email || 'enterprise-admin',
           });
         }
       } catch (err) {
@@ -859,13 +900,14 @@ ATURAN UTAMA BAHASA & FORMAT:
   });
 
   // 15. GET /v1/enterprise/workflow/integrations - Authenticated Vault Integrations List
-  fastify.get('/workflow/integrations', async (_request, reply) => {
+  fastify.get('/workflow/integrations', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
 
     try {
       const client = SupabaseService.getClient();
       if (client) {
-        const { data, error } = await client.from('enterprise_workflow_integrations_vault').select('*').eq('org_id', 'enterprise-org-01');
+        const tenantOrgId = getTenantOrg(request);
+        const { data, error } = await client.from('enterprise_workflow_integrations_vault').select('*').eq('organization_id', tenantOrgId);
         if (!error && data) {
           return reply.send({ success: true, data });
         }

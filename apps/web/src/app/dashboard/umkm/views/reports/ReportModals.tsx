@@ -4,6 +4,7 @@ import {
   Send, ShieldCheck, TrendingUp, BarChart2, DollarSign, Users, ShoppingBag
 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { getActiveTenantIds } from '../../../services/umkmSupabaseService';
 import { useLanguage } from '../../../../../i18n/translations';
 
 /**
@@ -222,7 +223,7 @@ export function AIHealthRecommendationModal({ isOpen, onClose, triggerToast, onR
     setIsExecuting(true);
     try {
       // Real database write to umkm_automations via SupabaseDashboardService
-      await SupabaseDashboardService.createAutomation('STORE-DEMO-1283', {
+      await SupabaseDashboardService.createAutomation((getActiveTenantIds().storeId || ''), {
         title: 'Retensi Pembeli WhatsApp AI (Health Boost)',
         description: 'Otomatisasi pengiriman pesan retensi untuk pembeli WhatsApp',
         trigger_event: 'Business Health Recommendation Trigger',
@@ -413,7 +414,7 @@ export function ScheduleReportModal({ isOpen, onClose, triggerToast, onRefresh }
       });
 
       // DB write to automations table
-      await SupabaseDashboardService.createAutomation('STORE-DEMO-1283', {
+      await SupabaseDashboardService.createAutomation((getActiveTenantIds().storeId || ''), {
         title: 'ZeroClaw Automated Sales & Performance Report Dispatcher',
         description: `Automated report dispatch to ${emailInput} across ${schedules.length} active schedules.`,
         trigger_event: 'Cron Schedule Trigger',

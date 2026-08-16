@@ -53,7 +53,7 @@ export function MarketingReportsSubPage({ metrics, triggerToast }: MarketingRepo
   useEffect(() => {
     loadReports();
     // Subscribe to real-time changes on umkm_marketing_reports table
-    const unsubscribe = SupabaseDashboardService.subscribeToMarketingReports('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToMarketingReports(undefined as any, () => {
       loadReports();
     });
     return () => {

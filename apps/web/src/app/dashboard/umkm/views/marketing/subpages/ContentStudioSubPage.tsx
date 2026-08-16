@@ -73,7 +73,7 @@ interface AnalyticsItem {
 
 import { useLanguage } from '../../../../../../i18n/translations';
 
-export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId = '11111111-1111-1111-1111-111111111111' }) => {
+export const ContentStudioSubPage: React.FC<{ storeId?: string }> = ({ storeId }) => {
   const { t } = useLanguage();
   const m = (t.marketingView || {}) as any;
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);

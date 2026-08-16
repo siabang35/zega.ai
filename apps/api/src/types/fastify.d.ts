@@ -10,7 +10,24 @@ import 'fastify';
  *   Principal identity, organization, role, and permissions are derived
  *   server-side from JWT claims and database lookups. Client input is
  *   untrusted and is never the source of truth for authorization.
+ *
+ * SECURITY: organizationId is REQUIRED for tenant-scoped operations.
+ * A missing organizationId means DENY by default.
  */
+
+/** Immutable tenant context derived server-side */
+export interface TenantContext {
+  /** Organization (tenant) that owns the current scope */
+  organizationId: string;
+  /** Workspace within the organization */
+  workspaceId: string;
+  /** Tenant type classification */
+  tenantType: 'umkm' | 'enterprise';
+  /** Membership ID for audit trails */
+  membershipId: string;
+  /** Organization role within the tenant */
+  orgRole: 'owner' | 'admin' | 'member' | 'billing_contact';
+}
 
 /** Authenticated principal identity extracted from verified JWT */
 export interface ZegaPrincipal {
@@ -18,14 +35,16 @@ export interface ZegaPrincipal {
   userId: string;
   /** User email (from JWT claims) */
   email: string;
-  /** User role (server-derived, never from client) */
+  /** User platform role (server-derived, never from client) */
   role: 'individual' | 'umkm' | 'enterprise' | 'superadmin';
-  /** Organization ID the user is acting within (if multi-tenant context) */
+  /** Organization ID the user is acting within — REQUIRED for tenant-scoped ops */
   organizationId?: string;
-  /** Workspace ID the user is acting within (if multi-tenant workspace scope) */
+  /** Workspace ID the user is acting within */
   workspaceId?: string;
-  /** Organization role within that org (if org-scoped) */
+  /** Organization role within that org */
   orgRole?: 'owner' | 'admin' | 'member' | 'billing_contact';
+  /** Resolved tenant context (populated by requireTenantContext middleware) */
+  tenantContext?: TenantContext;
 }
 
 declare module 'fastify' {

@@ -833,38 +833,48 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
               <span>{s.colSold || 'TERJUAL'}</span>
             </div>
 
-            {storeData.topSelling.map((p: any, idx: number) => {
-              const rawImg = p.rawPath || '/assets/products/kaoshitam.png';
-              const cdnImg = getR2CdnUrl(rawImg, true);
+            {(() => {
+              const topList = (storeData.topSelling && storeData.topSelling.length > 0)
+                ? storeData.topSelling
+                : (storeData.products || []).slice(0, 5);
 
-              return (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="size-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
-                      <img 
-                        src={cdnImg} 
-                        alt={p.name} 
-                        className="w-full h-full object-contain"
-                        loading="lazy"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target.src.includes('cdn.zegaai.site')) {
-                            target.src = rawImg;
-                          } else {
-                            target.src = generateInitialsAvatar(p.name);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate max-w-[95px]">{p.name}</h4>
-                      <span className="text-[9px] text-slate-400 font-medium block">{p.cat || 'General'}</span>
-                    </div>
+              if (!topList || topList.length === 0) {
+                return (
+                  <div className="py-6 text-center text-slate-400 text-xs font-medium">
+                    Belum ada data produk
                   </div>
-                  <span className="text-slate-500 font-bold text-[11px]">{p.sold}</span>
-                </div>
-              );
-            })}
+                );
+              }
+
+              return topList.slice(0, 5).map((p: any, idx: number) => {
+                const rawImg = p.image_path || p.image || p.rawPath || '';
+                const cdnImg = rawImg ? getR2CdnUrl(rawImg, true) : generateInitialsAvatar(p.name || 'Produk');
+
+                return (
+                  <div key={p.id || idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="size-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
+                        <img 
+                          src={cdnImg} 
+                          alt={p.name} 
+                          className="w-full h-full object-contain"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = generateInitialsAvatar(p.name || 'Produk');
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate max-w-[95px]">{p.name}</h4>
+                        <span className="text-[9px] text-slate-400 font-medium block">{p.category || p.cat || 'General'}</span>
+                      </div>
+                    </div>
+                    <span className="text-slate-500 font-bold text-[11px]">{p.sold || 0}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
 
@@ -885,40 +895,50 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             </div>
 
             <div className="space-y-2.5 text-xs">
-              {storeData.stockAlerts.map((item: any, i: number) => {
-                const rawImg = item.rawPath || '/assets/products/kaoshitam.png';
-                const cdnImg = getR2CdnUrl(rawImg, true);
+              {(() => {
+                const alertList = (storeData.stockAlerts && storeData.stockAlerts.length > 0)
+                  ? storeData.stockAlerts
+                  : (storeData.products || []).filter((p: any) => (p.stock || 0) <= 10).slice(0, 5);
 
-                return (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="size-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
-                        <img 
-                          src={cdnImg} 
-                          alt={item.name} 
-                          className="w-full h-full object-contain"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src.includes('cdn.zegaai.site')) {
-                              target.src = rawImg;
-                            } else {
-                              target.src = generateInitialsAvatar(item.name);
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate max-w-[90px]">{item.name}</h4>
-                        <span className="text-[9px] text-slate-400 font-medium block">{item.category}</span>
-                      </div>
+                if (!alertList || alertList.length === 0) {
+                  return (
+                    <div className="py-6 text-center text-slate-400 text-xs font-medium">
+                      Semua stok produk aman
                     </div>
-                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400">
-                      {s.colStock || 'Stok'}: {item.stock}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                }
+
+                return alertList.slice(0, 5).map((item: any, i: number) => {
+                  const rawImg = item.image_path || item.image || item.rawPath || '';
+                  const cdnImg = rawImg ? getR2CdnUrl(rawImg, true) : generateInitialsAvatar(item.name || 'Produk');
+
+                  return (
+                    <div key={item.id || i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="size-8 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
+                          <img 
+                            src={cdnImg} 
+                            alt={item.name} 
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = generateInitialsAvatar(item.name || 'Produk');
+                            }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-[11px] text-slate-900 dark:text-slate-100 truncate max-w-[90px]">{item.name}</h4>
+                          <span className="text-[9px] text-slate-400 font-medium block">{item.category || item.cat || 'General'}</span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400">
+                        {s.colStock || 'Stok'}: {item.stock}
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 

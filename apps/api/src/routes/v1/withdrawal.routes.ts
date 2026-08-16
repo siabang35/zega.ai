@@ -1,57 +1,50 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { withdrawalService } from '../../services/WithdrawalService.js';
 import { solanaTransactionService } from '../../services/solanaTransactionService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
-import { envConfig } from '../../config/env.js';
+import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../middleware/requestContext.js';
+import { logger } from '../../utils/logger.js';
 
-function extractAuthenticatedUserId(request: FastifyRequest, reply: FastifyReply): string | null {
-  const principal = request.principal;
-  if (principal && (principal.email || principal.userId)) {
-    return principal.email || principal.userId;
-  }
-
-  const jwtUser = request.user;
-  if (jwtUser && (jwtUser.email || jwtUser.sub)) {
-    return jwtUser.email || jwtUser.sub;
-  }
-
-  // Fallback ONLY in non-production for local/integration testing
-  const isDev = process.env.NODE_ENV !== 'production' && envConfig.NODE_ENV !== 'production';
-  const headerUserId = request.headers['x-user-id'] as string;
-  const headerEmail = request.headers['x-user-email'] as string;
-
-  if (isDev && (headerUserId || headerEmail)) {
-    return (headerUserId || headerEmail).trim();
-  }
-
-  if (isDev) {
-    return 'user@zegaai.site';
-  }
-
-  reply.status(401).send({
-    success: false,
-    error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
-  });
-  return null;
-}
-
+/**
+ * ZEGA AI — Withdrawal Routes (HARDENED Phase 2)
+ *
+ * SECURITY INVARIANTS:
+ *   1. ALL routes require JWT authentication (fail-closed)
+ *   2. ALL routes require tenant context
+ *   3. userId derived from authenticated principal
+ *   4. Idempotency keys tenant-scoped
+ *   5. Withdrawal list scoped to authenticated user
+ */
 export async function withdrawalRoutes(fastify: FastifyInstance) {
-  // Add onRequest JWT check attempt & populatePrincipal middleware
-  fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+  // SECURITY: Strict JWT authentication
+  fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
     } catch {
-      // Allow hook to continue if in dev/test fallback mode; extractAuthenticatedUserId handles fail-closed in prod
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for withdrawal endpoints.', statusCode: 401 },
+      });
     }
-    await populatePrincipal(request, reply);
   });
+
+  // Populate principal and require tenant context
+  fastify.addHook('preHandler', populatePrincipal);
+  fastify.addHook('preHandler', requireTenantContext);
 
   // POST /api/withdrawals -> Execute withdrawal request via Privy signing
   fastify.post('/api/withdrawals', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
-    if (!rawUserId) return;
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({ success: false, message: 'Authentication required' });
+    }
 
-    const idempotencyKey = request.headers['idempotency-key'] as string;
+    const orgId = getTenantOrg(request);
+    const rawIdempotencyKey = request.headers['idempotency-key'] as string;
+    // SECURITY: Scope idempotency key to tenant to prevent cross-tenant replay
+    const idempotencyKey = rawIdempotencyKey && orgId
+      ? `${orgId}:${rawIdempotencyKey.trim()}`
+      : rawIdempotencyKey?.trim();
+
     const body = request.body as any;
 
     if (!body.recipient || !body.amount) {
@@ -62,8 +55,9 @@ export async function withdrawalRoutes(fastify: FastifyInstance) {
     }
 
     try {
+      // SECURITY: userId from authenticated principal, NOT client
       const withdrawal = await withdrawalService.executeWithdrawal({
-        userId: rawUserId,
+        userId: principal.email || principal.userId,
         recipient: body.recipient,
         amount: body.amount.toString(),
         asset: body.asset || 'SOL',
@@ -83,12 +77,16 @@ export async function withdrawalRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/withdrawals -> List user withdrawals
+  // GET /api/withdrawals -> List user withdrawals (scoped to authenticated user)
   fastify.get('/api/withdrawals', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
-    if (!rawUserId) return;
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({ success: false, message: 'Authentication required' });
+    }
 
-    const withdrawals = await withdrawalService.listUserWithdrawals(rawUserId);
+    // SECURITY: Scoped to authenticated principal's identity
+    const userId = principal.email || principal.userId;
+    const withdrawals = await withdrawalService.listUserWithdrawals(userId);
 
     return reply.send({
       success: true,
@@ -96,4 +94,3 @@ export async function withdrawalRoutes(fastify: FastifyInstance) {
     });
   });
 }
-

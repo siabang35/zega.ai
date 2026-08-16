@@ -31,22 +31,32 @@ class IdempotencyServiceManager {
   }
 
   /**
-   * Check if idempotency key exists and is valid
+   * Check if idempotency key exists and is valid.
+   * SECURITY: Keys are scoped to organization to prevent cross-tenant replay.
    */
-  async checkIdempotency(key: string, requestHash: string): Promise<IdempotencyRecord | null> {
+  async checkIdempotency(key: string, requestHash: string, organizationId?: string): Promise<IdempotencyRecord | null> {
     if (!key || typeof key !== 'string') return null;
+
+    // SECURITY: Scope key to organization in memory
+    const scopedKey = organizationId ? `${organizationId}:${key}` : key;
 
     const supabase = SupabaseService.getClient();
     const nowIso = new Date().toISOString();
 
     if (supabase) {
       try {
-        const { data } = await supabase
+        const query = supabase
           .from('idempotency_keys')
           .select('key, user_id, request_hash, response_body, status_code, expires_at')
           .eq('key', key)
-          .gt('expires_at', nowIso)
-          .maybeSingle();
+          .gt('expires_at', nowIso);
+
+        // SECURITY: Scope to organization if provided
+        if (organizationId) {
+          query.eq('organization_id', organizationId);
+        }
+
+        const { data } = await query.maybeSingle();
 
         if (data) {
           if (data.request_hash !== requestHash) {
@@ -68,8 +78,8 @@ class IdempotencyServiceManager {
       }
     }
 
-    // Memory fallback check
-    const local = this.localMemoryMap.get(key);
+    // Memory fallback check (org-scoped key)
+    const local = this.localMemoryMap.get(scopedKey);
     if (local && new Date(local.expiresAt).getTime() > Date.now()) {
       if (local.requestHash !== requestHash) {
         throw new Error('Idempotency key payload mismatch');
@@ -81,10 +91,14 @@ class IdempotencyServiceManager {
   }
 
   /**
-   * Save completed idempotent response (24h default TTL)
+   * Save completed idempotent response (24h default TTL).
+   * SECURITY: Organization-scoped to prevent cross-tenant key collision.
    */
-  async saveIdempotency(key: string, requestHash: string, responseBody: any, statusCode = 200, ttlSeconds = 86400, userId?: string): Promise<void> {
+  async saveIdempotency(key: string, requestHash: string, responseBody: any, statusCode = 200, ttlSeconds = 86400, userId?: string, organizationId?: string): Promise<void> {
     if (!key) return;
+
+    // SECURITY: Scope key to organization in memory
+    const scopedKey = organizationId ? `${organizationId}:${key}` : key;
 
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
     const record: IdempotencyRecord = {
@@ -102,6 +116,7 @@ class IdempotencyServiceManager {
         await supabase.from('idempotency_keys').upsert({
           key,
           user_id: userId || null,
+          organization_id: organizationId || null,
           request_hash: requestHash,
           response_body: responseBody,
           status_code: statusCode,
@@ -121,7 +136,7 @@ class IdempotencyServiceManager {
         }
       }
     }
-    this.localMemoryMap.set(key, record);
+    this.localMemoryMap.set(scopedKey, record);
   }
 }
 

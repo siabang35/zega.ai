@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabase';
+import { getActiveTenantIds } from '../contexts/TenantContext';
 import { getR2CdnUrl } from '../../utils/cdn';
 
 async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>, fallback: T): Promise<T> {
@@ -13,7 +14,7 @@ async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>
 
 export const enterpriseSupabaseService = {
   // 1. Fetch Realtime Enterprise Dashboard Data
-  async getEnterpriseRealtimeData(orgId: string = '99999999-9999-9999-9999-999999999999') {
+  async getEnterpriseRealtimeData(orgId: string = (getActiveTenantIds().organizationId || '')) {
     try {
       const [orgRes, memberRes, clusterRes, mcpRes, orchRes, auditRes, costRes] = await Promise.all([
         safeQuery<any>(supabase.from('enterprise_organizations').select('*').eq('id', orgId).maybeSingle(), null),
@@ -60,7 +61,7 @@ export const enterpriseSupabaseService = {
   },
 
   // 3. Enterprise Telemetry & Realtime Data (OWASP Hardened)
-  async getEnterpriseOverviewRealtimeData(orgId: string = '99999999-9999-9999-9999-999999999999', timeRange: string = 'Last 24 hours') {
+  async getEnterpriseOverviewRealtimeData(orgId: string = (getActiveTenantIds().organizationId || ''), timeRange: string = 'Last 24 hours') {
     try {
       const [kpiRes, pipelineRes, teamsRes, activitiesRes, routerRes, systemRes] = await Promise.all([
         safeQuery<any>(supabase.from('enterprise_overview_kpis').select('*').eq('org_id', orgId).eq('time_range', timeRange).maybeSingle(), null),
@@ -86,7 +87,7 @@ export const enterpriseSupabaseService = {
   },
 
   // 4. Subscribe to Realtime Overview Telemetry (OWASP Throttling & Guard)
-  subscribeToEnterpriseOverviewRealtime(orgId: string = '99999999-9999-9999-9999-999999999999', onUpdate: (payload: any) => void) {
+  subscribeToEnterpriseOverviewRealtime(orgId: string = (getActiveTenantIds().organizationId || ''), onUpdate: (payload: any) => void) {
     try {
       let lastCall = 0;
       const THROTTLE_MS = 150;
@@ -1116,7 +1117,7 @@ export const enterpriseSupabaseService = {
   },
 
   // 18. Enterprise Analytics & Telemetry Realtime Methods
-  async getEnterpriseAnalyticsRealtime(orgId: string = '99999999-9999-9999-9999-999999999999') {
+  async getEnterpriseAnalyticsRealtime(orgId: string = (getActiveTenantIds().organizationId || '')) {
     try {
       const [kpis, timeSeries, agentRanking, channelDist, workflowExec, systemHealth] = await Promise.all([
         safeQuery<any>(supabase.from('enterprise_analytics_kpis').select('*').eq('org_id', orgId).maybeSingle(), null),
@@ -1158,7 +1159,7 @@ export const enterpriseSupabaseService = {
   },
 
   // 19. Enterprise Cost Intelligence & Payments/Billing Realtime Methods
-  async getEnterpriseCostIntelligenceRealtime(orgId: string = '99999999-9999-9999-9999-999999999999') {
+  async getEnterpriseCostIntelligenceRealtime(orgId: string = (getActiveTenantIds().organizationId || '')) {
     try {
       const [kpis, planLimits, spendBreakdown, topDrivers, invoices, paymentMethods] = await Promise.all([
         safeQuery<any>(supabase.from('enterprise_cost_overview_kpis').select('*').eq('org_id', orgId).maybeSingle(), null),

@@ -152,10 +152,10 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
   const loadAutomations = async () => {
     try {
       setLoading(true);
-      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => undefined);
       const [data, realtimeRes] = await Promise.all([
-        SupabaseDashboardService.getUmkmAutomations(storeId),
-        SupabaseDashboardService.getUmkmRealtimeData(storeId)
+        SupabaseDashboardService.getUmkmAutomations(storeId || undefined),
+        SupabaseDashboardService.getUmkmRealtimeData(storeId || undefined)
       ]);
 
       setAutomations(data || []);
@@ -180,8 +180,8 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
     let unsubscribe: (() => void) | undefined;
     const init = async () => {
       await loadAutomations();
-      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => '11111111-1111-1111-1111-111111111111');
-      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(storeId, () => {
+      const storeId = await SupabaseDashboardService.getAuthenticatedStoreId().catch(() => undefined);
+      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime((storeId || undefined) as any, () => {
         loadAutomations();
       });
     };
@@ -358,12 +358,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
       {/* ========================================================================= */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{u.title || 'Automation'}</h1>
-            <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-[9.5px] sm:text-[10px] font-extrabold shrink-0">
-              {u.badge || 'Enterprise Workflow Engine'}
-            </span>
-          </div>
+          <h1 className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">{u.title || 'Automation'}</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
             {u.subtitle || 'Buat dan kelola workflow otomatisasi tanpa kode. Hemat waktu, kurangi kesalahan, tingkatkan produktivitas.'}
           </p>
@@ -941,7 +936,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                           trigger_event: 'Template Preset Trigger',
                           status: 'active'
                         };
-                        const res = await SupabaseDashboardService.createAutomation('11111111-1111-1111-1111-111111111111', payload);
+                        const res = await SupabaseDashboardService.createAutomation(undefined, payload);
                         if (res.data) {
                           setAutomations(prev => [res.data, ...prev]);
                           triggerToast(`Deployed template: ${tpl.title}`);
@@ -1182,7 +1177,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                     setImportProgressStep('db_persist');
 
                     // Step 2: Real Supabase DB Stored Procedure Insert
-                    const res = await SupabaseDashboardService.createAutomation('11111111-1111-1111-1111-111111111111', payload);
+                    const res = await SupabaseDashboardService.createAutomation(undefined, payload);
                     
                     await new Promise(r => setTimeout(r, 250));
                     setImportProgressStep('gateway_verification');
@@ -1252,7 +1247,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                   status: 'active'
                 };
 
-                const res = await SupabaseDashboardService.createAutomation('11111111-1111-1111-1111-111111111111', payload);
+                const res = await SupabaseDashboardService.createAutomation(undefined, payload);
                 if (res.data) {
                   setAutomations(prev => [res.data, ...prev]);
                   triggerToast(`Successfully created ${res.data.title}!`);
@@ -1596,7 +1591,7 @@ export function AutomationView({ triggerToast }: AutomationViewProps) {
                             success_rate: 100,
                             runs_today: 1
                           };
-                          const res = await SupabaseDashboardService.createAutomation('11111111-1111-1111-1111-111111111111', payload);
+                          const res = await SupabaseDashboardService.createAutomation(undefined, payload);
                           if (res.data) {
                             setAutomations(prev => [res.data, ...prev]);
                             setShowTemplateModal(false);

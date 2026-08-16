@@ -5,7 +5,8 @@ import {
   Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X, Bot,
   Plus, Maximize2, Minimize2, History, ArrowLeft, ChevronRight, Trash2
 } from 'lucide-react';
-import { SupabaseDashboardService } from '../../services/supabaseService';
+import { SupabaseDashboardService, supabase, isValidUuid, getCanonicalAuthHeaders } from '../../services/supabaseService';
+import { getActiveTenantIds } from '../../contexts/TenantContext';
 import { useLanguage } from '../../../../i18n/translations';
 import { getApiBase } from '../../../../config/api';
 import { getR2CdnUrl } from '../../../utils/cdn';
@@ -109,7 +110,7 @@ export const HelpView: React.FC = () => {
 
   const fetchDirectHelpHistoryList = async () => {
     try {
-      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory('demo-owner', 'live_help');
+      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory((getActiveTenantIds().userId || ''), 'live_help');
       if (recentRpcList && recentRpcList.length > 0) {
         setDirectHelpHistoryList(recentRpcList.map((item: any) => ({
           id: item.chat_id,
@@ -119,7 +120,7 @@ export const HelpView: React.FC = () => {
         })));
         return;
       }
-      const list = await SupabaseDashboardService.getUmkmLiveHelpChats('11111111-1111-1111-1111-111111111111', 'demo-owner');
+      const list = await SupabaseDashboardService.getUmkmLiveHelpChats(getActiveTenantIds().storeId || '', (getActiveTenantIds().userId || ''));
       if (list) setDirectHelpHistoryList(list);
     } catch (e) {
       console.warn('Note loading help chat list:', e);
@@ -294,14 +295,16 @@ export const HelpView: React.FC = () => {
       : 'Halo! Selamat datang di Pusat Bantuan UMKM ZEGA. Ada yang bisa saya bantu terkait WhatsApp API, Kasir Otomatis, atau AI Employees?';
 
     try {
-      const usage = await SupabaseDashboardService.getUserChatTierUsage('demo-owner');
+      const usage = await SupabaseDashboardService.getUserChatTierUsage((getActiveTenantIds().userId || ''));
       if (usage) setTierUsage(usage);
 
-      const sessionList = await SupabaseDashboardService.getUmkmLiveHelpChats('11111111-1111-1111-1111-111111111111', 'demo-owner');
-      const session = (sessionList && sessionList.length > 0) ? sessionList[0] : null;
-      if (session && session.id) {
-        setActiveHelpChatId(session.id);
-        const dbMsgs = await SupabaseDashboardService.getUmkmLiveHelpMessages(session.id);
+      const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalLiveHelpChat(
+        undefined,
+        (getActiveTenantIds().userId || '')
+      );
+      if (resolved.ok && resolved.chatId) {
+        setActiveHelpChatId(resolved.chatId);
+        const dbMsgs = await SupabaseDashboardService.getUmkmLiveHelpMessages(resolved.chatId);
         if (dbMsgs && dbMsgs.length > 0) {
           const formatted = dbMsgs.map((m: any, idx: number) => ({
             id: m.id || idx.toString(),
@@ -313,6 +316,8 @@ export const HelpView: React.FC = () => {
           setChatMessages(formatted);
           return;
         }
+      } else {
+        console.warn('[HelpView] Canonical Live Help session resolution warning:', resolved.reason, resolved.error);
       }
     } catch (e) {
       console.warn('Note loading live chat history:', e);
@@ -331,8 +336,13 @@ export const HelpView: React.FC = () => {
 
   const handleNewLiveChatSession = async () => {
     try {
-      const newChat = await SupabaseDashboardService.createUmkmLiveHelpChat('11111111-1111-1111-1111-111111111111', 'demo-owner', `Live Chat ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-      if (newChat) {
+      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
+      if (!activeStoreId) {
+        triggerToast(getAiLang() === 'en' ? 'Store context unavailable.' : 'Konteks toko belum siap.');
+        return;
+      }
+      const newChat = await SupabaseDashboardService.createUmkmLiveHelpChat(activeStoreId, (getActiveTenantIds().userId || ''), `Live Chat ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+      if (newChat && newChat.id) {
         setActiveHelpChatId(newChat.id);
         const lang = getAiLang();
         const seedMsg = lang === 'en'
@@ -351,7 +361,7 @@ export const HelpView: React.FC = () => {
         ]);
         await SupabaseDashboardService.saveUmkmLiveHelpMessage({
           chat_id: newChat.id,
-          user_id: 'demo-owner',
+          user_id: (getActiveTenantIds().userId || ''),
           sender: 'ai',
           text: seedMsg
         });
@@ -380,27 +390,39 @@ export const HelpView: React.FC = () => {
     setChatMessages(prev => [...prev, newMsg]);
     setIsAiThinking(true);
 
+    // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
     let chatIdToUse = activeHelpChatId;
     if (!chatIdToUse) {
       try {
-        const title = `Live Help: ${userMsg.trim().slice(0, 25)}`;
-        const newChat = await SupabaseDashboardService.createUmkmLiveHelpChat('11111111-1111-1111-1111-111111111111', 'demo-owner', title);
-        if (newChat && newChat.id) {
-          chatIdToUse = newChat.id;
-          setActiveHelpChatId(newChat.id);
+        const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalLiveHelpChat(
+          undefined,
+          (getActiveTenantIds().userId || ''),
+          `Live Help: ${userMsg.trim().slice(0, 25)}`
+        );
+        if (resolved.ok && resolved.chatId) {
+          chatIdToUse = resolved.chatId;
+          setActiveHelpChatId(resolved.chatId);
+          fetchDirectHelpHistoryList();
+        } else {
+          console.warn('[HelpView] Canonical Live Help session resolution notice:', resolved.reason, resolved.error);
         }
       } catch (e) {
         console.warn('Error auto-creating live help chat:', e);
       }
     }
 
-    if (chatIdToUse) {
-      await SupabaseDashboardService.saveUmkmLiveHelpMessage({
-        chat_id: chatIdToUse,
-        user_id: 'demo-owner',
-        sender: 'user',
-        text: userMsg
-      });
+    // Save User Message to DB ONLY IF valid persistent chatId exists
+    if (chatIdToUse && isValidUuid(chatIdToUse)) {
+      try {
+        await SupabaseDashboardService.saveUmkmLiveHelpMessage({
+          chat_id: chatIdToUse,
+          user_id: (getActiveTenantIds().userId || ''),
+          sender: 'user',
+          text: userMsg
+        });
+      } catch (saveErr) {
+        console.warn('[HelpView] Failed to persist user message:', saveErr);
+      }
     }
 
     try {
@@ -413,58 +435,61 @@ export const HelpView: React.FC = () => {
 
       let aiReply = '';
 
-      // Try Enterprise Copilot Chat Endpoint First
+      // Try UMKM Copilot Chat Endpoint First
       try {
         const prefStyle = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_style')) || 'Profesional';
         const prefLen = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_length')) || 'Sedang';
         const prefFormat = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_format')) || 'Ringkas';
         const prefModel = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_default_model')) || 'GPT-4o (Recommended)';
 
-        const res = await fetch(`${cleanBaseUrl}/v1/enterprise/copilot/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userMsg,
-            language: currentAiLang,
-            response_style: prefStyle,
-            response_length: prefLen,
-            response_format: prefFormat,
-            default_model: prefModel,
-            agent_role: 'ZEGA AI Specialist Direct'
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          aiReply = data.data?.message || data.message || '';
-        }
-      } catch (e) {
-        // Retry with UMKM Copilot Endpoint
-        try {
-          const prefStyle = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_style')) || 'Profesional';
-          const prefLen = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_length')) || 'Sedang';
-          const prefFormat = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_format')) || 'Ringkas';
-          const prefModel = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_default_model')) || 'GPT-4o (Recommended)';
+        const headers = getCanonicalAuthHeaders();
+        const orgIdHeader = headers['X-Organization-Id'];
+        const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
+        const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
 
-          const res2 = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
+        if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+          const res = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
+              chatId: activeHelpChatId,
               message: userMsg,
               language: currentAiLang,
-              userId: 'demo-owner',
               response_style: prefStyle,
               response_length: prefLen,
               response_format: prefFormat,
-              default_model: prefModel
+              default_model: prefModel,
+              agent_role: 'ZEGA AI Support Specialist'
             })
           });
-          if (res2.ok) {
-            const data2 = await res2.json();
-            aiReply = data2.data?.message || data2.message || '';
+          if (res.ok) {
+            const data = await res.json();
+            aiReply = data.data?.message || data.message || '';
+          } else {
+            // If enterprise endpoint available as fallback
+            const res2 = await fetch(`${cleanBaseUrl}/v1/enterprise/copilot/chat`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                message: userMsg,
+                language: currentAiLang,
+                response_style: prefStyle,
+                response_length: prefLen,
+                response_format: prefFormat,
+                default_model: prefModel,
+                agent_role: 'ZEGA AI Support Specialist'
+              })
+            });
+            if (res2.ok) {
+              const data2 = await res2.json();
+              aiReply = data2.data?.message || data2.message || '';
+            }
           }
-        } catch (err2) {
-          console.warn('Backend proxy fetch note:', err2);
+        } else {
+          console.log('[HelpView] Skipping Copilot API POST call: valid organization tenant context not ready yet.');
         }
+      } catch (e) {
+        console.warn('Live Chat Copilot backend fetch note:', e);
       }
 
       // Enterprise-Grade Natural & Friendly AI Specialist Support Engine
@@ -540,10 +565,10 @@ export const HelpView: React.FC = () => {
         }
       ]);
 
-      if (chatIdToUse) {
+      if (chatIdToUse && isValidUuid(chatIdToUse)) {
         await SupabaseDashboardService.saveUmkmLiveHelpMessage({
           chat_id: chatIdToUse,
-          user_id: 'demo-owner',
+          user_id: (getActiveTenantIds().userId || ''),
           sender: 'ai',
           text: aiReply
         });
@@ -566,10 +591,10 @@ export const HelpView: React.FC = () => {
           created_at: new Date().toISOString()
         }
       ]);
-      if (chatIdToUse) {
+      if (chatIdToUse && isValidUuid(chatIdToUse)) {
         await SupabaseDashboardService.saveUmkmLiveHelpMessage({
           chat_id: chatIdToUse,
-          user_id: 'demo-owner',
+          user_id: (getActiveTenantIds().userId || ''),
           sender: 'ai',
           text: fallback
         });

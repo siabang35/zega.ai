@@ -7,6 +7,7 @@ import {
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
+import { getActiveTenantIds } from '../../contexts/TenantContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler);
 
@@ -171,7 +172,7 @@ export function AuditLogsView({ onTriggerToast }: AuditLogsViewProps) {
     };
 
     loadAuditData();
-    unsubscribe = enterpriseSupabaseService.subscribeToEnterpriseRealtime('99999999-9999-9999-9999-999999999999', () => {
+    unsubscribe = enterpriseSupabaseService.subscribeToEnterpriseRealtime(getActiveTenantIds().organizationId || '', () => {
       loadAuditData();
     });
 

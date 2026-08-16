@@ -145,7 +145,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
     fetchMarketingData();
 
     // Subscribe to Supabase Realtime
-    const unsubscribe = SupabaseDashboardService.subscribeToMarketingRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToMarketingRealtime(undefined, () => {
       fetchMarketingData();
     });
 
@@ -154,7 +154,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
 
   const handleDeploySwarm = async (swarm: any) => {
     setLoading(true);
-    await SupabaseDashboardService.deployMarketingAiSwarm('11111111-1111-1111-1111-111111111111', swarm);
+    await SupabaseDashboardService.deployMarketingAiSwarm(undefined, swarm);
     await fetchMarketingData();
   };
 
@@ -188,14 +188,14 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
   const handleCreateCampaign = async (newCamp: any) => {
     setCampaigns((prev) => [newCamp, ...prev]);
     if (typeof (SupabaseDashboardService as any).createMarketingCampaign === 'function') {
-      await (SupabaseDashboardService as any).createMarketingCampaign('11111111-1111-1111-1111-111111111111', newCamp);
+      await (SupabaseDashboardService as any).createMarketingCampaign(undefined, newCamp);
     }
   };
 
   const handleCreateContent = async (newItem: any) => {
     setContentItems((prev) => [newItem, ...prev]);
     if (typeof (SupabaseDashboardService as any).createMarketingContent === 'function') {
-      await (SupabaseDashboardService as any).createMarketingContent('11111111-1111-1111-1111-111111111111', newItem);
+      await (SupabaseDashboardService as any).createMarketingContent(undefined, newItem);
     }
   };
 
@@ -444,7 +444,7 @@ export function MarketingView({ triggerToast = () => {}, onNavigateTab }: Market
 
       {/* SUBPAGE: AI CONTENT STUDIO */}
       {activeSubTab === 'konten' && (
-        <ContentStudioSubPage storeId="11111111-1111-1111-1111-111111111111" />
+        <ContentStudioSubPage />
       )}
 
       {/* SUBPAGE 2: PERFORMA BY CHANNEL */}

@@ -205,10 +205,11 @@ describe('FH-06: Query Bounds — Unbounded Result Set Protection', () => {
     assert.ok(supabaseSource.includes('MAX_QUERY_LIMIT'), 'Must define MAX_QUERY_LIMIT');
   });
 
-  it('getAgents() uses .limit()', () => {
-    const fnStart = supabaseSource.indexOf('async getAgents()');
+  it('getAgents() uses .limit() and requires organizationId', () => {
+    const fnStart = supabaseSource.indexOf('async getAgents(');
     const fnBody = supabaseSource.slice(fnStart, fnStart + 500);
     assert.ok(fnBody.includes('.limit('), 'getAgents must include .limit()');
+    assert.ok(fnBody.includes('organizationId'), 'getAgents must require organizationId parameter');
   });
 
   it('getAgentsByUser() uses .limit()', () => {

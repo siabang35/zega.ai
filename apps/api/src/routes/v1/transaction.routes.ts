@@ -1,5 +1,5 @@
 /**
- * ZEGA AI — Standardized Transaction API Routes (`/api/transactions`)
+ * ZEGA AI — Standardized Transaction API Routes (HARDENED Phase 2)
  *
  * Endpoints:
  *   POST /api/transactions/transfer       - SOL Transfer
@@ -10,6 +10,13 @@
  *   GET  /api/transactions/:id            - Query Transaction by ID
  *   GET  /api/transactions/signature/:sig - Query Transaction by Signature
  *   GET  /api/transactions                - Paginated Transaction History
+ *
+ * SECURITY INVARIANTS:
+ *   1. ALL routes require JWT authentication (fail-closed)
+ *   2. ALL routes require tenant context (organization_id from verified principal)
+ *   3. userId derived from authenticated principal — NOT from headers/body/query
+ *   4. Transaction history scoped to authenticated user
+ *   5. Idempotency keys are tenant-scoped
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -17,30 +24,51 @@ import { WalletService } from '../../services/walletService.js';
 import { SolanaTransactionService } from '../../services/solanaTransactionService.js';
 import { TransactionEngine } from '../../services/transactionEngine.js';
 import { TransactionHistoryService, type TransactionStatus } from '../../services/transactionHistoryService.js';
+import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../middleware/requestContext.js';
 import { logger } from '../../utils/logger.js';
 
 export async function transactionRoutes(fastify: FastifyInstance) {
-  function getUserIdentity(req: FastifyRequest): string {
-    const headerUserId = req.headers['x-user-id'] as string;
-    const headerEmail = req.headers['x-user-email'] as string;
-    const bodyUser = (req.body as any)?.userId;
-    const queryUser = (req.query as any)?.userId || (req.query as any)?.email;
+  // SECURITY: Strict JWT authentication for ALL transaction routes
+  fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for transaction endpoints.', statusCode: 401 },
+      });
+    }
+  });
 
-    const user = headerUserId || headerEmail || bodyUser || queryUser || 'user@zegaai.site';
-    return user.trim();
+  // Populate principal and require tenant context
+  fastify.addHook('preHandler', populatePrincipal);
+  fastify.addHook('preHandler', requireTenantContext);
+
+  /**
+   * SECURITY: Derive user identity from authenticated principal.
+   * NEVER trust client-supplied userId from headers, body, or query.
+   */
+  function getAuthenticatedUserId(request: FastifyRequest): string {
+    const principal = request.principal;
+    return principal?.email || principal?.userId || '';
   }
 
-  function getIdempotencyKey(req: FastifyRequest): string | undefined {
-    const headerKey = req.headers['idempotency-key'] as string;
-    const bodyKey = (req.body as any)?.idempotencyKey;
-    return (headerKey || bodyKey)?.trim();
+  function getTenantScopedIdempotencyKey(request: FastifyRequest): string | undefined {
+    const headerKey = (request.headers['idempotency-key'] as string)?.trim();
+    const bodyKey = (request.body as any)?.idempotencyKey?.trim();
+    const rawKey = headerKey || bodyKey;
+    if (!rawKey) return undefined;
+
+    // SECURITY: Scope idempotency key to tenant org to prevent cross-tenant replay
+    const orgId = getTenantOrg(request);
+    return orgId ? `${orgId}:${rawKey}` : rawKey;
   }
 
   // POST /api/transactions/transfer (SOL)
   fastify.post('/api/transactions/transfer', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
-      const idempotencyKey = getIdempotencyKey(req);
+      const userId = getAuthenticatedUserId(req);
+      const idempotencyKey = getTenantScopedIdempotencyKey(req);
       const { recipient, amount } = req.body as { recipient: string; amount: string };
 
       if (!recipient || !amount) {
@@ -71,8 +99,8 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // POST /api/transactions/token-transfer (SPL)
   fastify.post('/api/transactions/token-transfer', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
-      const idempotencyKey = getIdempotencyKey(req);
+      const userId = getAuthenticatedUserId(req);
+      const idempotencyKey = getTenantScopedIdempotencyKey(req);
       const { mint, recipient, amount } = req.body as { mint?: string; recipient: string; amount: string };
 
       if (!recipient || !amount) {
@@ -104,7 +132,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // GET /api/transactions/estimate
   fastify.get('/api/transactions/estimate', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
+      const userId = getAuthenticatedUserId(req);
       const query = req.query as any;
       const { recipient, amount, asset = 'SOL', mint } = query;
 
@@ -143,7 +171,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // POST /api/transactions/preview
   fastify.post('/api/transactions/preview', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
+      const userId = getAuthenticatedUserId(req);
       const { recipient, amount, asset = 'SOL', mint } = req.body as any;
 
       if (!recipient || !amount) {
@@ -174,8 +202,8 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // POST /api/transactions (Generic execution)
   fastify.post('/api/transactions', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
-      const idempotencyKey = getIdempotencyKey(req);
+      const userId = getAuthenticatedUserId(req);
+      const idempotencyKey = getTenantScopedIdempotencyKey(req);
       const body = req.body as any;
 
       const { recipient, amount, asset = 'SOL', mint } = body;
@@ -209,9 +237,10 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // GET /api/transactions/:id
   fastify.get('/api/transactions/:id', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
+      const userId = getAuthenticatedUserId(req);
       const { id } = req.params as { id: string };
 
+      // SECURITY: Scoped to authenticated user's transactions
       const record = await TransactionHistoryService.getTransactionById(id, userId);
       if (!record) {
         return reply.status(404).send({
@@ -232,6 +261,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // GET /api/transactions/signature/:signature
   fastify.get('/api/transactions/signature/:signature', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
+      const userId = getAuthenticatedUserId(req);
       const { signature } = req.params as { signature: string };
 
       const record = await TransactionHistoryService.getTransactionBySignature(signature);
@@ -254,7 +284,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   // GET /api/transactions (Paginated list)
   fastify.get('/api/transactions', async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = getUserIdentity(req);
+      const userId = getAuthenticatedUserId(req);
       const query = req.query as any;
 
       const page = parseInt(query?.page || '1', 10);
@@ -263,6 +293,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
       const asset = query?.asset as string;
       const type = query?.type as string;
 
+      // SECURITY: Scoped to authenticated user
       const result = await TransactionHistoryService.listTransactions({
         userId,
         page,

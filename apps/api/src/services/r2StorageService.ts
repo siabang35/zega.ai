@@ -193,18 +193,21 @@ export class R2StorageService {
   static async generatePresignedUploadUrl({
     filename,
     contentType,
-    organizationId = '00000000-0000-0000-0000-000000000001',
-    workspaceId = '00000000-0000-0000-0000-000000000002',
+    organizationId,
+    workspaceId = 'default',
     folder = 'user-uploads',
     expiresInSeconds = 900,
   }: {
     filename: string;
     contentType: string;
-    organizationId?: string;
+    organizationId: string;
     workspaceId?: string;
     folder?: string;
     expiresInSeconds?: number;
   }): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+    if (!organizationId) {
+      throw new Error('TENANT SCOPING VIOLATION: organizationId is required and fallback organization is prohibited.');
+    }
     const client = this.getS3Client();
     const bucket = this.getBucketName();
 
@@ -241,11 +244,16 @@ export class R2StorageService {
   static async uploadPrivyAuditCertificate(
     email: string,
     privyWalletAddress: string,
-    auditPayload: Record<string, any>
+    auditPayload: Record<string, any>,
+    organizationId: string
   ): Promise<{ success: boolean; cdnUrl: string; objectKey: string; sha256Checksum: string }> {
+    if (!organizationId) {
+      throw new Error('TENANT SCOPING VIOLATION: organizationId is required for audit certificates.');
+    }
     const timestamp = Date.now();
     const sanitizedEmail = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const objectKey = `privy-audits/${sanitizedEmail}/${timestamp}-audit.json`;
+    // TENANT-SCOPED: R2 path prefixed with organization
+    const objectKey = `organizations/${organizationId}/privy-audits/${sanitizedEmail}/${timestamp}-audit.json`;
 
     const fullPayload = {
       version: 'ZEGA_PRIVY_AUDIT_V3',
@@ -291,6 +299,7 @@ export class R2StorageService {
     txSignature,
     ipAddress = '127.0.0.1',
     auditSignature,
+    organizationId,
   }: {
     withdrawalId: string;
     userEmail: string;
@@ -301,9 +310,15 @@ export class R2StorageService {
     txSignature?: string;
     ipAddress?: string;
     auditSignature?: string;
+    organizationId: string;
   }): Promise<{ success: boolean; cdnUrl: string; objectKey: string }> {
+    if (!organizationId) {
+      throw new Error('TENANT SCOPING VIOLATION: organizationId is required for withdrawal proof.');
+    }
     const timestamp = new Date().toISOString();
-    const objectKey = `withdrawal-proofs/${Date.now()}-${withdrawalId.slice(0, 8)}.json`;
+    const orgPrefix = organizationId;
+    // TENANT-SCOPED: R2 path prefixed with organization
+    const objectKey = `organizations/${orgPrefix}/withdrawal-proofs/${Date.now()}-${withdrawalId.slice(0, 8)}.json`;
 
     const proofPayload = {
       version: 'ZEROCLAW_WITHDRAWAL_PROOF_V2',
@@ -333,6 +348,52 @@ export class R2StorageService {
       content: contentBuffer,
       contentType: 'application/json',
       folder: 'withdrawal-proofs',
+    });
+
+    return {
+      success: result.success,
+      cdnUrl: result.url,
+      objectKey: result.key,
+    };
+  }
+
+  /**
+   * Upload Chat Session & Messages JSON Archive to Cloudflare R2 CDN Storage
+   */
+  static async uploadChatHistoryArchive({
+    chatId,
+    organizationId,
+    messages,
+    agentRole = 'ZEGA Copilot AI',
+  }: {
+    chatId: string;
+    organizationId: string;
+    messages: Array<Record<string, any>>;
+    agentRole?: string;
+  }): Promise<{ success: boolean; cdnUrl: string; objectKey: string }> {
+    if (!organizationId) {
+      throw new Error('TENANT SCOPING VIOLATION: organizationId is required for chat history archive.');
+    }
+    const timestamp = Date.now();
+    const objectKey = `organizations/${organizationId}/chat-archives/${chatId}/${timestamp}.json`;
+
+    const archivePayload = {
+      version: 'ZEGA_CHAT_ARCHIVE_V1',
+      chatId,
+      organizationId,
+      agentRole,
+      archivedAt: new Date().toISOString(),
+      messagesCount: messages.length,
+      messages,
+    };
+
+    const contentBuffer = Buffer.from(JSON.stringify(archivePayload, null, 2), 'utf-8');
+
+    const result = await this.uploadFile({
+      key: objectKey,
+      content: contentBuffer,
+      contentType: 'application/json',
+      folder: 'chat-archives',
     });
 
     return {

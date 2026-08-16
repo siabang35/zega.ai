@@ -93,7 +93,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     loadBillingData();
 
     // Subscribe to realtime changes
-    const unsubscribe = SupabaseDashboardService.subscribeToBillingRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsubscribe = SupabaseDashboardService.subscribeToBillingRealtime(undefined as any, () => {
       loadBillingData();
     });
 
@@ -162,7 +162,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
     </div>
     <div class="meta-item">
       <label>ID Merchant Store</label>
-      <div>11111111-1111-1111-1111-111111111111</div>
+      <div>&lt;STORE_ID&gt;</div>
     </div>
   </div>
 
@@ -345,7 +345,7 @@ export function BillingTab({ triggerToast, onNavigateTab }: BillingTabProps) {
 
     try {
       await SupabaseDashboardService.submitUmkmBillingSupportTicket(
-        '11111111-1111-1111-1111-111111111111',
+        undefined as any,
         supportSubject,
         'Billing & Invoicing',
         supportPriority,

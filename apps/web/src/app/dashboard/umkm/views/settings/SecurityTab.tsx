@@ -92,7 +92,7 @@ export function SecurityTab({ triggerToast }: SecurityTabProps) {
 
   useEffect(() => {
     loadSecurityOverview();
-    const unsub = SupabaseDashboardService.subscribeToSystemSecurityRealtime('11111111-1111-1111-1111-111111111111', () => {
+    const unsub = SupabaseDashboardService.subscribeToSystemSecurityRealtime(undefined as any, () => {
       loadSecurityOverview();
     });
     return () => unsub();

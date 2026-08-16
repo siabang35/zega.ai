@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Download, Upload, Filter, Tag, Barcode, RefreshCw, Percent, Package, Check, Trash2 } from 'lucide-react';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
+import { getActiveTenantIds } from '../../../services/umkmSupabaseService';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
 import { useLanguage } from '../../../../../i18n/translations';
 
@@ -771,7 +772,7 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
     try {
       const activeModelObj = modelOptions.find(m => m.id === selectedModel) || modelOptions[0];
 
-      await SupabaseDashboardService.deployStoreAiSwarm('STORE-DEMO-1283', {
+      await SupabaseDashboardService.deployStoreAiSwarm(getActiveTenantIds().storeId || '', {
         swarm_name: swarmName,
         model_engine: activeModelObj.id,
         model_provider: activeModelObj.provider,

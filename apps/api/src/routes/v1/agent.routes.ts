@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { safeInfer } from '../../services/ai/inference.pipeline.js';
 import { SupabaseService } from '../../services/supabaseService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
-import { verifyOwnership, denyAccess } from '../../middleware/authorization.js';
+import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../middleware/requestContext.js';
+import { verifyOwnership, verifyTenantAccess, denyAccess } from '../../middleware/authorization.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -92,8 +92,9 @@ async function fetchAgentFromDb(agentRouteId: string): Promise<AgentCacheRecord 
       dbId: data.id,
     };
 
-    // Populate cache for future fast lookups
-    agentCache.set(agentRouteId, record);
+    // Populate cache for future fast lookups (tenant-scoped key)
+    const cacheKey = record.organizationId ? `${record.organizationId}:${agentRouteId}` : agentRouteId;
+    agentCache.set(cacheKey, record);
     return record;
   } catch (err) {
     logger.warn({ err, agentRouteId }, '[Agents] DB lookup exception');
@@ -103,16 +104,18 @@ async function fetchAgentFromDb(agentRouteId: string): Promise<AgentCacheRecord 
 
 /**
  * F-002: Resolve agent by route ID — check cache first, then DB.
+ * SECURITY: Cache key is org-scoped to prevent cross-tenant reads.
  */
-async function resolveAgent(agentRouteId: string): Promise<AgentCacheRecord | null> {
-  const cached = agentCache.get(agentRouteId);
+async function resolveAgent(agentRouteId: string, organizationId?: string): Promise<AgentCacheRecord | null> {
+  const cacheKey = organizationId ? `${organizationId}:${agentRouteId}` : agentRouteId;
+  const cached = agentCache.get(cacheKey);
   if (cached) return cached;
   return fetchAgentFromDb(agentRouteId);
 }
 
 export async function agentRoutes(app: FastifyInstance) {
   /** POST /v1/agents — Deploy a new agent (DB-primary) */
-  app.post('/', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
+  app.post('/', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
     const principal = request.principal;
     if (!principal) {
       return reply.status(401).send({
@@ -127,7 +130,7 @@ export async function agentRoutes(app: FastifyInstance) {
     // F-002 FIX: Write to DB FIRST (authoritative store)
     const dbResult = await SupabaseService.createAgent({
       userId: principal.userId,
-      organizationId: principal.organizationId,
+      organizationId: principal.organizationId || '',
       name: body.name,
       systemPrompt: `Agent Mesh ${body.meshId} with model ${body.modelPreference}`,
       modelName: body.modelPreference,
@@ -175,7 +178,7 @@ export async function agentRoutes(app: FastifyInstance) {
   });
 
   /** GET /v1/agents — List agents owned by the current user (DB-primary) */
-  app.get('/', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request) => {
+  app.get('/', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request) => {
     const principal = request.principal;
     if (!principal) {
       return { success: true, data: [], total: 0 };
@@ -191,9 +194,10 @@ export async function agentRoutes(app: FastifyInstance) {
     return { success: true, data: [], total: 0 };
   });
 
-  /** GET /v1/agents/:id — Get agent by ID (ownership-verified, cache + DB) */
-  app.get<{ Params: { id: string } }>('/:id', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
-    const agent = await resolveAgent(request.params.id);
+  /** GET /v1/agents/:id — Get agent by ID (ownership + tenant verified, cache + DB) */
+  app.get<{ Params: { id: string } }>('/:id', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
+    const orgId = getTenantOrg(request);
+    const agent = await resolveAgent(request.params.id, orgId || undefined);
     if (!agent) {
       return reply.status(404).send({
         success: false,
@@ -209,9 +213,10 @@ export async function agentRoutes(app: FastifyInstance) {
     return { success: true, data: agent };
   });
 
-  /** POST /v1/agents/:id/infer — Run AI inference as this agent (ownership-verified) */
-  app.post<{ Params: { id: string } }>('/:id/infer', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
-    const agent = await resolveAgent(request.params.id);
+  /** POST /v1/agents/:id/infer — Run AI inference as this agent (ownership + tenant verified) */
+  app.post<{ Params: { id: string } }>('/:id/infer', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
+    const orgId = getTenantOrg(request);
+    const agent = await resolveAgent(request.params.id, orgId || undefined);
     if (!agent) {
       return reply.status(404).send({
         success: false,
@@ -263,9 +268,10 @@ export async function agentRoutes(app: FastifyInstance) {
     };
   });
 
-  /** PATCH /v1/agents/:id/suspend — Suspend an agent (ownership-verified, DB + cache) */
-  app.patch<{ Params: { id: string } }>('/:id/suspend', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
-    const agent = await resolveAgent(request.params.id);
+  /** PATCH /v1/agents/:id/suspend — Suspend an agent (ownership + tenant verified, DB + cache) */
+  app.patch<{ Params: { id: string } }>('/:id/suspend', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
+    const orgId = getTenantOrg(request);
+    const agent = await resolveAgent(request.params.id, orgId || undefined);
     if (!agent) {
       return reply.status(404).send({
         success: false,
@@ -302,9 +308,10 @@ export async function agentRoutes(app: FastifyInstance) {
     return { success: true, data: agent };
   });
 
-  /** PATCH /v1/agents/:id/activate — Reactivate an agent (ownership-verified, DB + cache) */
-  app.patch<{ Params: { id: string } }>('/:id/activate', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
-    const agent = await resolveAgent(request.params.id);
+  /** PATCH /v1/agents/:id/activate — Reactivate an agent (ownership + tenant verified, DB + cache) */
+  app.patch<{ Params: { id: string } }>('/:id/activate', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
+    const orgId = getTenantOrg(request);
+    const agent = await resolveAgent(request.params.id, orgId || undefined);
     if (!agent) {
       return reply.status(404).send({
         success: false,
@@ -341,9 +348,10 @@ export async function agentRoutes(app: FastifyInstance) {
     return { success: true, data: agent };
   });
 
-  /** DELETE /v1/agents/:id — Decommission an agent (ownership-verified, DB + cache) */
-  app.delete<{ Params: { id: string } }>('/:id', { onRequest: [app.authenticate], preHandler: [populatePrincipal] }, async (request, reply) => {
-    const agent = await resolveAgent(request.params.id);
+  /** DELETE /v1/agents/:id — Decommission an agent (ownership + tenant verified, DB + cache) */
+  app.delete<{ Params: { id: string } }>('/:id', { onRequest: [app.authenticate], preHandler: [populatePrincipal, requireTenantContext] }, async (request, reply) => {
+    const orgId = getTenantOrg(request);
+    const agent = await resolveAgent(request.params.id, orgId || undefined);
     if (!agent) {
       return reply.status(404).send({
         success: false,

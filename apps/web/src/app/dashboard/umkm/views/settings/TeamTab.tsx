@@ -86,7 +86,9 @@ export function TeamTab({ triggerToast }: TeamTabProps) {
     try {
       setLoading(true);
       const data = await SupabaseDashboardService.getUmkmTeamMembers();
-      setMembers(data);
+      if (Array.isArray(data)) {
+        setMembers(data);
+      }
     } catch (e) {
       console.warn('Error loading team members:', e);
     } finally {

@@ -2,52 +2,53 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { privyWalletService } from '../../services/PrivyWalletService.js';
 import { balanceService } from '../../services/balanceService.js';
 import { transactionHistoryService } from '../../services/transactionHistoryService.js';
-import { populatePrincipal } from '../../middleware/requestContext.js';
-import { envConfig } from '../../config/env.js';
+import { populatePrincipal, requireTenantContext } from '../../middleware/requestContext.js';
 
-function extractAuthenticatedUserId(request: FastifyRequest, reply: FastifyReply): string | null {
-  const principal = request.principal;
-  if (principal && (principal.email || principal.userId)) {
-    return principal.email || principal.userId;
-  }
-
-  const jwtUser = request.user;
-  if (jwtUser && (jwtUser.email || jwtUser.sub)) {
-    return jwtUser.email || jwtUser.sub;
-  }
-
-  const isDev = process.env.NODE_ENV !== 'production' && envConfig.NODE_ENV !== 'production';
-  const headerUserId = request.headers['x-user-id'] as string;
-  const headerEmail = request.headers['x-user-email'] as string;
-
-  if (isDev && (headerUserId || headerEmail)) {
-    return (headerUserId || headerEmail).trim();
-  }
-
-  if (isDev) {
-    return 'user@zegaai.site';
-  }
-
-  reply.status(401).send({
-    success: false,
-    error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
-  });
-  return null;
-}
-
+/**
+ * ZEGA AI — Wallet Routes (HARDENED Phase 2)
+ *
+ * SECURITY INVARIANTS:
+ *   1. ALL routes require JWT authentication (fail-closed)
+ *   2. ALL routes require tenant context
+ *   3. userId derived from authenticated principal — NOT from headers
+ *   4. No dev fallback identity
+ */
 export async function walletRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+  // SECURITY: Strict JWT authentication
+  fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify();
     } catch {
-      // Allow hook to continue if in dev/test fallback mode; extractAuthenticatedUserId handles fail-closed in prod
+      reply.status(401).send({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required for wallet endpoints.', statusCode: 401 },
+      });
     }
-    await populatePrincipal(request, reply);
   });
+
+  // Populate principal and require tenant context
+  fastify.addHook('preHandler', populatePrincipal);
+  fastify.addHook('preHandler', requireTenantContext);
+
+  /**
+   * SECURITY: Derive user identity from authenticated principal only.
+   */
+  function getAuthenticatedUserId(request: FastifyRequest, reply: FastifyReply): string | null {
+    const principal = request.principal;
+    if (principal && (principal.email || principal.userId)) {
+      return principal.email || principal.userId;
+    }
+
+    reply.status(401).send({
+      success: false,
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required. Missing or invalid access token.', statusCode: 401 },
+    });
+    return null;
+  }
 
   // GET /api/wallet -> Overview & main wallet metadata
   fastify.get('/api/wallet', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
+    const rawUserId = getAuthenticatedUserId(request, reply);
     if (!rawUserId) return;
 
     const wallet = await privyWalletService.ensureUserSolanaWallet(rawUserId);
@@ -69,7 +70,7 @@ export async function walletRoutes(fastify: FastifyInstance) {
 
   // GET /api/wallet/balance -> Native SOL balance
   fastify.get('/api/wallet/balance', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
+    const rawUserId = getAuthenticatedUserId(request, reply);
     if (!rawUserId) return;
 
     const wallet = await privyWalletService.ensureUserSolanaWallet(rawUserId);
@@ -84,7 +85,7 @@ export async function walletRoutes(fastify: FastifyInstance) {
 
   // GET /api/wallet/tokens -> SPL token balances
   fastify.get('/api/wallet/tokens', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
+    const rawUserId = getAuthenticatedUserId(request, reply);
     if (!rawUserId) return;
 
     const wallet = await privyWalletService.ensureUserSolanaWallet(rawUserId);
@@ -99,7 +100,7 @@ export async function walletRoutes(fastify: FastifyInstance) {
 
   // GET /api/wallet/transactions -> User transaction history
   fastify.get('/api/wallet/transactions', async (request: FastifyRequest, reply: FastifyReply) => {
-    const rawUserId = extractAuthenticatedUserId(request, reply);
+    const rawUserId = getAuthenticatedUserId(request, reply);
     if (!rawUserId) return;
 
     const limit = parseInt((request.query as any)?.limit || '20', 10);
@@ -111,4 +112,3 @@ export async function walletRoutes(fastify: FastifyInstance) {
     });
   });
 }
-

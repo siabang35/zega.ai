@@ -3,11 +3,31 @@ import urllib.request
 
 import os
 
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://ikxiclpvywxxnkcaldbx.supabase.co')
-SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+def load_env():
+    env_vars = {}
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_paths = [
+        os.path.join(base_dir, 'apps', 'api', '.env'),
+        os.path.join(base_dir, '.env')
+    ]
+    for env_path in env_paths:
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if '=' in line and not line.startswith('#'):
+                        k, v = line.split('=', 1)
+                        env_vars[k.strip()] = v.strip().strip("'").strip('"')
 
-if not SUPABASE_SERVICE_ROLE_KEY:
-    raise RuntimeError('ERROR: SUPABASE_SERVICE_ROLE_KEY environment variable is required.')
+    supabase_url = os.environ.get('SUPABASE_URL') or env_vars.get('SUPABASE_URL')
+    service_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or env_vars.get('SUPABASE_SERVICE_ROLE_KEY')
+    return supabase_url, service_key
+
+SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY = load_env()
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise RuntimeError('ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required in .env.')
+
 
 headers = {
     'apikey': SUPABASE_SERVICE_ROLE_KEY,

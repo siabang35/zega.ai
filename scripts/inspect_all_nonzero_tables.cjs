@@ -1,12 +1,34 @@
 const fs = require('fs');
+const path = require('path');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ikxiclpvywxxnkcaldbx.supabase.co';
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '../apps/api/.env');
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf8');
+    for (const line of envConfig.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const idx = trimmed.indexOf('=');
+        const key = trimmed.substring(0, idx).trim();
+        const val = trimmed.substring(idx + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+
+loadEnv();
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('ERROR: SUPABASE_SERVICE_ROLE_KEY environment variable is required.');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required in .env.');
   process.exit(1);
 }
+
 
 async function checkAllNonZero() {
   console.log('Fetching live table list...');
