@@ -9549,10 +9549,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     // 1. Build strict UUID-only OR filter for umkm_stores
     const orParts: string[] = [];
     if (isValidUuid(canonicalUserId)) {
-      orParts.push(`user_id.eq.${canonicalUserId}`, `owner_id.eq.${canonicalUserId}`, `created_by.eq.${canonicalUserId}`);
+      orParts.push(`user_id.eq.${canonicalUserId}`);
     }
     if (isValidUuid(startUserId) && startUserId !== canonicalUserId) {
-      orParts.push(`user_id.eq.${startUserId}`, `owner_id.eq.${startUserId}`, `created_by.eq.${startUserId}`);
+      orParts.push(`user_id.eq.${startUserId}`);
     }
     if (isValidUuid(providedStoreId)) {
       orParts.push(`id.eq.${providedStoreId}`);
@@ -9570,14 +9570,22 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         if (realStores && realStores.length > 0) {
           const s = realStores[0];
           finalStoreId = s.id;
-          if (s.organization_id && isValidUuid(s.organization_id)) {
-            finalOrgId = s.organization_id;
-          }
-          if (s.workspace_id && isValidUuid(s.workspace_id)) {
-            finalWsId = s.workspace_id;
-          }
+          finalOrgId = (s.organization_id && isValidUuid(s.organization_id)) ? s.organization_id : s.id;
+          finalWsId = (s.workspace_id && isValidUuid(s.workspace_id)) ? s.workspace_id : finalOrgId;
           if (s.user_id && isValidUuid(s.user_id)) {
             finalUserId = s.user_id;
+          }
+
+          // If organization_id or workspace_id is missing on existing store row, update in-place
+          if ((!s.organization_id || !s.workspace_id) && isValidUuid(finalStoreId)) {
+            try {
+              await supabase.from('umkm_stores').update({
+                organization_id: finalOrgId,
+                workspace_id: finalWsId
+              }).eq('id', finalStoreId);
+            } catch (repairErr) {
+              console.warn('[resolveStoreAndWorkspaceContext] in-place store repair notice:', repairErr);
+            }
           }
         }
       } catch (e) {
@@ -9585,58 +9593,13 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
     }
 
-    // 2. Perform in-place Organization & Workspace repair if store/org exists but workspace_id is missing
+    // 2. Perform in-place Organization & Workspace resolution
     if (isValidUuid(finalStoreId)) {
       if (!isValidUuid(finalOrgId)) {
-        try {
-          const newOrgId = crypto.randomUUID();
-          const { error: insOrgErr } = await supabase.from('organizations').insert({
-            id: newOrgId,
-            name: 'UMKM Organization',
-            slug: `org-${finalStoreId.slice(0, 8)}`,
-            created_by: finalUserId || canonicalUserId
-          });
-          if (!insOrgErr) {
-            finalOrgId = newOrgId;
-            await supabase.from('umkm_stores').update({ organization_id: finalOrgId }).eq('id', finalStoreId);
-          }
-        } catch (orgRepairErr) {
-          console.warn('[resolveStoreAndWorkspaceContext] org repair error:', orgRepairErr);
-        }
+        finalOrgId = finalStoreId;
       }
-
-      if (!isValidUuid(finalWsId) && isValidUuid(finalOrgId)) {
-        try {
-          const { data: wsRow } = await supabase
-            .from('workspaces')
-            .select('id')
-            .eq('organization_id', finalOrgId)
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-          if (wsRow?.id && isValidUuid(wsRow.id)) {
-            finalWsId = wsRow.id;
-          } else {
-            const newWsId = crypto.randomUUID();
-            const { error: insErr } = await supabase.from('workspaces').insert({
-              id: newWsId,
-              organization_id: finalOrgId,
-              name: 'Main Workspace',
-              slug: `ws-${finalOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
-              status: 'active'
-            });
-            if (!insErr) {
-              finalWsId = newWsId;
-            }
-          }
-
-          if (isValidUuid(finalWsId) && isValidUuid(finalStoreId)) {
-            await supabase.from('umkm_stores').update({ workspace_id: finalWsId }).eq('id', finalStoreId);
-          }
-        } catch (wsRepairErr) {
-          console.warn('[resolveStoreAndWorkspaceContext] workspace repair error:', wsRepairErr);
-        }
+      if (!isValidUuid(finalWsId)) {
+        finalWsId = finalOrgId;
       }
     }
 
@@ -9736,14 +9699,14 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const targetWsId = resolvedContext.workspaceId;
 
       // Pre-INSERT Canonical UUID Assertion: FAIL CLOSED if any required tenant ID is not a valid UUID
-      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId) || !isValidUuid(targetWsId)) {
+      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId)) {
         console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
           assistantType: agentRole,
           canonicalUserId,
           targetStoreId,
           targetOrgId,
           targetWsId,
-          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : (!isValidUuid(targetStoreId) ? 'storeId' : 'workspaceId'))
+          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : 'storeId')
         });
         return null;
       }
@@ -9758,11 +9721,15 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         user_id: canonicalUserId,
         organization_id: targetOrgId,
         store_id: targetStoreId,
-        workspace_id: targetWsId,
         title,
         agent_role: agentRole,
         status: 'active'
       };
+
+      // Only attach workspace_id if it is a valid UUID and distinct from storeId/orgId (i.e. points to a real workspaces table row)
+      if (isValidUuid(targetWsId) && targetWsId !== targetStoreId && targetWsId !== targetOrgId) {
+        payload.workspace_id = targetWsId;
+      }
 
       console.log('[CHAT_INSERT_SCOPE]', {
         assistantType: agentRole,
@@ -10272,14 +10239,14 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const targetWsId = resolvedContext.workspaceId;
 
       // Pre-INSERT Canonical UUID Assertion: FAIL CLOSED if any required tenant ID is not a valid UUID
-      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId) || !isValidUuid(targetWsId)) {
+      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId)) {
         console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
           assistantType: 'zega_copilot',
           canonicalUserId,
           targetStoreId,
           targetOrgId,
           targetWsId,
-          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : (!isValidUuid(targetStoreId) ? 'storeId' : 'workspaceId'))
+          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : 'storeId')
         });
         return null;
       }
@@ -10294,11 +10261,15 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         user_id: canonicalUserId,
         organization_id: targetOrgId,
         store_id: targetStoreId,
-        workspace_id: targetWsId,
         title,
         status: 'active',
         copilot_type: 'zega_copilot'
       };
+
+      // Only attach workspace_id if it is a valid UUID and distinct from storeId/orgId
+      if (isValidUuid(targetWsId) && targetWsId !== targetStoreId && targetWsId !== targetOrgId) {
+        payload.workspace_id = targetWsId;
+      }
 
       console.log('[CHAT_INSERT_SCOPE]', {
         assistantType: 'zega_copilot',

@@ -67,15 +67,15 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       if (requestedStoreId && isValidUuid(requestedStoreId)) {
         const { data: verifiedStores } = await supabase
           .from('umkm_stores')
-          .select('id, organization_id, user_id, owner_id, created_by')
+          .select('id, organization_id, user_id')
           .or(`id.eq.${requestedStoreId},organization_id.eq.${requestedStoreId}`)
           .limit(1);
 
         const verifiedStore = verifiedStores && verifiedStores.length > 0 ? verifiedStores[0] : null;
         if (verifiedStore) {
           const matchesOrg = organizationId && (verifiedStore.organization_id === organizationId || verifiedStore.id === organizationId);
-          const matchesUser = userId && (verifiedStore.user_id === userId || verifiedStore.owner_id === userId || verifiedStore.created_by === userId);
-          if (matchesOrg || matchesUser || (!verifiedStore.organization_id && !verifiedStore.user_id && !verifiedStore.owner_id)) {
+          const matchesUser = userId && (verifiedStore.user_id === userId);
+          if (matchesOrg || matchesUser || (!verifiedStore.organization_id && !verifiedStore.user_id)) {
             console.log('[TENANT_RESOLVER] Verified requested store:', verifiedStore.id);
             return verifiedStore.id;
           }
@@ -86,7 +86,7 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       if (organizationId || userId) {
         let query = supabase
           .from('umkm_stores')
-          .select('id, user_id, owner_id, created_by, organization_id')
+          .select('id, user_id, organization_id')
           .order('created_at', { ascending: true });
 
         const conditions: string[] = [];
@@ -96,8 +96,6 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
         }
         if (userId && isValidUuid(userId)) {
           conditions.push(`user_id.eq.${userId}`);
-          conditions.push(`owner_id.eq.${userId}`);
-          conditions.push(`created_by.eq.${userId}`);
         }
 
         if (conditions.length > 0) {
@@ -234,7 +232,7 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       const { data: storeRows } = await supabase
         .from('umkm_stores')
         .select('id, organization_id, workspace_id, store_name')
-        .or(`owner_id.eq.${canonicalUserId},created_by.eq.${canonicalUserId},user_id.eq.${canonicalUserId}`)
+        .or(`user_id.eq.${canonicalUserId},id.eq.${canonicalUserId}`)
         .order('created_at', { ascending: true })
         .limit(1);
 
@@ -343,8 +341,6 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       await supabase.from('umkm_stores').insert({
         id: storeId,
         user_id: canonicalUserId,
-        owner_id: canonicalUserId,
-        created_by: canonicalUserId,
         organization_id: orgId,
         workspace_id: wsId,
         store_name: storeName.trim(),

@@ -754,8 +754,7 @@ export async function ensureStoreForCurrentUser(params?: {
       if (candidateUserIds.length > 0) {
         const storeOrFilter = candidateUserIds.flatMap(uid => [
           `user_id.eq.${uid}`,
-          `owner_id.eq.${uid}`,
-          `created_by.eq.${uid}`
+          `id.eq.${uid}`
         ]).join(',');
 
         const { data: existingStores, error: checkErr } = await supabase
@@ -772,21 +771,7 @@ export async function ensureStoreForCurrentUser(params?: {
 
           // Repair Organization ID in-place if missing
           if (!existingOrgId) {
-            try {
-              const newOrgId = crypto.randomUUID();
-              const { error: orgInsErr } = await supabase.from('organizations').insert({
-                id: newOrgId,
-                name: `${existing.store_name || 'UMKM'} Organization`,
-                slug: `org-${existing.id.slice(0, 8)}`,
-                created_by: existing.user_id || candidateUserIds[0]
-              });
-              if (!orgInsErr) {
-                existingOrgId = newOrgId;
-                await supabase.from('umkm_stores').update({ organization_id: existingOrgId }).eq('id', existing.id);
-              }
-            } catch (orgRepairErr) {
-              console.warn('[PROVISIONING] Org repair exception:', orgRepairErr);
-            }
+            existingOrgId = existing.id;
           }
 
           // Repair Workspace ID in-place if missing
@@ -1889,7 +1874,7 @@ export const umkmSupabaseService = {
           const { data: storeList, error: err } = await supabase
             .from('umkm_stores')
             .select('id, user_id, organization_id, workspace_id, store_name')
-            .or(`user_id.eq.${sessionUserId},owner_id.eq.${sessionUserId},created_by.eq.${sessionUserId}`)
+            .or(`user_id.eq.${sessionUserId},id.eq.${sessionUserId}`)
             .order('created_at', { ascending: true });
 
           if (err) storeErr = err;
@@ -1911,21 +1896,7 @@ export const umkmSupabaseService = {
 
           // Repair Organization ID in-place if missing
           if (!resolvedOrgId) {
-            try {
-              const newOrgId = crypto.randomUUID();
-              const { error: insertOrgErr } = await supabase.from('organizations').insert({
-                id: newOrgId,
-                name: `${store.store_name || 'UMKM'} Organization`,
-                slug: `org-${resolvedStoreId.slice(0, 8)}`,
-                created_by: store.user_id || sessionUserId
-              });
-              if (!insertOrgErr) {
-                resolvedOrgId = newOrgId;
-                await supabase.from('umkm_stores').update({ organization_id: resolvedOrgId }).eq('id', resolvedStoreId);
-              }
-            } catch (orgErr) {
-              console.warn('[TENANT_RESOLVER] org repair exception:', orgErr);
-            }
+            resolvedOrgId = resolvedStoreId;
           }
 
           // If workspace_id is missing on store row, attempt lookup or auto-creation in workspaces table by organization_id
