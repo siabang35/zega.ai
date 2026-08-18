@@ -28,6 +28,10 @@ export interface CanonicalAuthState {
   expiresAt: number | null;
   session: Session | null;
   error?: string | null;
+  identityReady: boolean;
+  supabaseSessionReady: boolean;
+  externalSessionReady: boolean;
+  sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
 }
 
 export interface CanonicalAuthResult {
@@ -40,6 +44,10 @@ export interface CanonicalAuthResult {
   publicUserId: string | null;
   userEmail: string | null;
   generation: number;
+  identityReady: boolean;
+  supabaseSessionReady: boolean;
+  externalSessionReady: boolean;
+  sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
 }
 
 function isValidUuid(val: any): boolean {
@@ -61,6 +69,10 @@ class CanonicalAuthManager {
     expiresAt: null,
     session: null,
     error: null,
+    identityReady: false,
+    supabaseSessionReady: false,
+    externalSessionReady: false,
+    sessionProvider: 'none',
   };
 
   private listeners: Set<(state: CanonicalAuthState) => void> = new Set();
@@ -142,6 +154,18 @@ class CanonicalAuthManager {
       nextSessionState = 'SESSION_ABSENT';
     }
 
+    const identityReady = (nextAuthState === 'AUTH_READY' || nextAuthState === 'AUTH_LOADING') && hasValidIdentity;
+    const supabaseSessionReady = Boolean(nextSupabasePresent && nextSession);
+    const externalSessionReady = Boolean(hasValidIdentity && !nextSupabasePresent);
+    let sessionProvider: 'supabase' | 'privy' | 'external' | 'none' = 'none';
+    if (supabaseSessionReady) {
+      sessionProvider = 'supabase';
+    } else if (externalSessionReady) {
+      sessionProvider = nextIdentitySource === 'EXTERNAL' ? 'external' : 'privy';
+    } else if (identityReady) {
+      sessionProvider = 'privy';
+    }
+
     const candidateState: CanonicalAuthState = {
       ...this.state,
       ...partial,
@@ -151,6 +175,10 @@ class CanonicalAuthManager {
       canonicalUserId: nextUserId,
       supabaseSessionPresent: nextSupabasePresent,
       session: nextSession,
+      identityReady,
+      supabaseSessionReady,
+      externalSessionReady,
+      sessionProvider,
     };
 
     if (
@@ -163,6 +191,10 @@ class CanonicalAuthManager {
       this.state.accessTokenPresent === candidateState.accessTokenPresent &&
       this.state.expiresAt === candidateState.expiresAt &&
       this.state.session === candidateState.session &&
+      this.state.identityReady === candidateState.identityReady &&
+      this.state.supabaseSessionReady === candidateState.supabaseSessionReady &&
+      this.state.externalSessionReady === candidateState.externalSessionReady &&
+      this.state.sessionProvider === candidateState.sessionProvider &&
       this.state.error === candidateState.error
     ) {
       return this.state;
@@ -193,6 +225,9 @@ class CanonicalAuthManager {
       sessionState: this.state.sessionState,
       identitySource: this.state.identitySource,
       userId: this.state.canonicalUserId,
+      identityReady: this.state.identityReady,
+      supabaseSessionReady: this.state.supabaseSessionReady,
+      sessionProvider: this.state.sessionProvider,
       supabaseSessionPresent: this.state.supabaseSessionPresent,
       generation: this.authGeneration,
     });
@@ -450,18 +485,14 @@ class CanonicalAuthManager {
       current = this.getState();
     }
 
-    const isFullReady = current.authState === 'AUTH_READY' &&
-      Boolean(current.canonicalUserId && isValidUuid(current.canonicalUserId)) &&
-      current.supabaseSessionPresent &&
-      current.sessionState === 'SESSION_READY';
+    const isReadyIdentity = current.identityReady && Boolean(current.canonicalUserId && isValidUuid(current.canonicalUserId));
+    const isFullReady = (current.authState === 'AUTH_READY' || current.authState === 'AUTH_LOADING') && isReadyIdentity;
 
     let status: 'READY' | 'EXTERNAL_AUTH' | 'WAITING' | 'AUTH_REQUIRED' | 'AUTH_ERROR' | 'SESSION_INVALID' = 'READY';
     if (!isFullReady) {
       if (current.authState === 'AUTH_LOADING' || current.sessionState === 'SESSION_LOADING') {
         status = 'WAITING';
-      } else if (current.authState === 'AUTH_READY' && current.identitySource === 'EXTERNAL') {
-        status = 'EXTERNAL_AUTH';
-      } else if (current.authState === 'AUTH_REQUIRED' || current.sessionState === 'SESSION_ABSENT') {
+      } else if (current.authState === 'AUTH_REQUIRED') {
         status = 'AUTH_REQUIRED';
       } else if (current.authState === 'AUTH_ERROR') {
         status = 'AUTH_ERROR';
@@ -470,7 +501,7 @@ class CanonicalAuthManager {
       }
     }
 
-    return {
+    const result: CanonicalAuthResult = {
       status,
       authState: current.authState,
       sessionState: current.sessionState,
@@ -480,7 +511,22 @@ class CanonicalAuthManager {
       publicUserId: current.canonicalUserId,
       userEmail: current.userEmail,
       generation: this.authGeneration,
+      identityReady: current.identityReady,
+      supabaseSessionReady: current.supabaseSessionReady,
+      externalSessionReady: current.externalSessionReady,
+      sessionProvider: current.sessionProvider,
     };
+
+    console.log('[AUTH_CANONICAL_SNAPSHOT]', {
+      authState: result.authState,
+      identityReady: result.identityReady,
+      sessionProvider: result.sessionProvider,
+      supabaseSessionReady: result.supabaseSessionReady,
+      userId: result.authUserId,
+      generation: result.generation,
+    });
+
+    return result;
   }
 
   /**
@@ -488,18 +534,14 @@ class CanonicalAuthManager {
    */
   public getSnapshot(): CanonicalAuthResult {
     const current = this.getState();
-    const isFullReady = current.authState === 'AUTH_READY' &&
-      Boolean(current.canonicalUserId && isValidUuid(current.canonicalUserId)) &&
-      current.supabaseSessionPresent &&
-      current.sessionState === 'SESSION_READY';
+    const isReadyIdentity = current.identityReady && Boolean(current.canonicalUserId && isValidUuid(current.canonicalUserId));
+    const isFullReady = (current.authState === 'AUTH_READY' || current.authState === 'AUTH_LOADING') && isReadyIdentity;
 
     let status: 'READY' | 'EXTERNAL_AUTH' | 'WAITING' | 'AUTH_REQUIRED' | 'AUTH_ERROR' | 'SESSION_INVALID' = 'READY';
     if (!isFullReady) {
       if (current.authState === 'AUTH_LOADING' || current.sessionState === 'SESSION_LOADING') {
         status = 'WAITING';
-      } else if (current.authState === 'AUTH_READY' && current.identitySource === 'EXTERNAL') {
-        status = 'EXTERNAL_AUTH';
-      } else if (current.authState === 'AUTH_REQUIRED' || current.sessionState === 'SESSION_ABSENT') {
+      } else if (current.authState === 'AUTH_REQUIRED') {
         status = 'AUTH_REQUIRED';
       } else if (current.authState === 'AUTH_ERROR') {
         status = 'AUTH_ERROR';
@@ -508,7 +550,7 @@ class CanonicalAuthManager {
       }
     }
 
-    return {
+    const result: CanonicalAuthResult = {
       status,
       authState: current.authState,
       sessionState: current.sessionState,
@@ -518,7 +560,22 @@ class CanonicalAuthManager {
       publicUserId: current.canonicalUserId,
       userEmail: current.userEmail,
       generation: this.authGeneration,
+      identityReady: current.identityReady,
+      supabaseSessionReady: current.supabaseSessionReady,
+      externalSessionReady: current.externalSessionReady,
+      sessionProvider: current.sessionProvider,
     };
+
+    console.log('[AUTH_CANONICAL_SNAPSHOT]', {
+      authState: result.authState,
+      identityReady: result.identityReady,
+      sessionProvider: result.sessionProvider,
+      supabaseSessionReady: result.supabaseSessionReady,
+      userId: result.authUserId,
+      generation: result.generation,
+    });
+
+    return result;
   }
 
   /**

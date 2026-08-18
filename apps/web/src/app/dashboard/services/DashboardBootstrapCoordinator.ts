@@ -223,7 +223,9 @@ class DashboardBootstrapCoordinator {
           });
         }
 
-        if (authResult.status !== 'READY' || !authResult.authUserId || !authResult.session) {
+        const isAuthValid = (authResult.status === 'READY' || authResult.identityReady) && Boolean(authResult.authUserId && isValidUuid(authResult.authUserId));
+
+        if (!isAuthValid) {
           console.warn('[DASHBOARD_BOOTSTRAP] Auth required or invalid state:', authResult.status);
           return this.updateState({
             step: 'AUTH_REQUIRED',
@@ -278,7 +280,7 @@ class DashboardBootstrapCoordinator {
           storeId: tenantCtx.storeId,
           tenantType: 'umkm',
           userEmail: authResult.userEmail || '',
-          userId: authResult.authUserId,
+          userId: authResult.authUserId || '',
           storeStatus: 'ready',
           verified: true,
           tenantVerified: true,

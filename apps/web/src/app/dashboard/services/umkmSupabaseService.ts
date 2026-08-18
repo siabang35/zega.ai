@@ -432,13 +432,18 @@ const resultBySession = new Map<string, CanonicalTenantResult>();
 
 const _lastEmittedTenantState = new Map<string, string>();
 
-function logTenantStateTransition(sessionKey: string, status: string, storeStatus: string, source: string) {
-  const currentStateSignature = `${status}:${storeStatus}:${source}`;
+function logTenantStateTransition(sessionKey: string, status: string, storeStatus: string, source: string, reason?: string) {
+  const currentStateSignature = `${status}:${storeStatus}:${source}:${reason || ''}`;
   const previousSignature = _lastEmittedTenantState.get(sessionKey);
 
   if (previousSignature !== currentStateSignature) {
+    const prevParts = (previousSignature || 'NONE:none:NONE:initial').split(':');
+    const fromStatus = prevParts[0];
+
     _lastEmittedTenantState.set(sessionKey, currentStateSignature);
     const verified = status === 'READY' && storeStatus === 'ready';
+    const authSnapshot = canonicalAuthManager.getSnapshot();
+
     console.log('[CANONICAL_TENANT]', {
       status,
       storeStatus,
@@ -450,6 +455,19 @@ function logTenantStateTransition(sessionKey: string, status: string, storeStatu
       status,
       storeStatus,
       source
+    });
+    console.log('[TENANT_CACHE_DECISION]', {
+      key: sessionKey,
+      cacheHit: source === 'CACHE',
+      cacheStatus: status,
+      invalidationReason: reason || (source === 'FRESH' ? 'FORCE_FRESH_OR_MISS' : 'NONE')
+    });
+    console.log('[TENANT_TRANSITION]', {
+      from: fromStatus,
+      to: status,
+      reason: reason || (source === 'CACHE' ? 'CACHE_REUSE' : 'PROVISION_OR_RESOLVE'),
+      userId: authSnapshot.authUserId,
+      generation: authSnapshot.generation
     });
   }
 }

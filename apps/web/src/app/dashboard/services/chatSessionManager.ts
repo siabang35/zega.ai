@@ -111,11 +111,22 @@ class ChatSessionManager {
     }
 
     const authReadyState = await canonicalAuthManager.waitUntilReady();
-    if (authReadyState.status !== 'READY' || !authReadyState.authUserId) {
+    const identityValid = Boolean(authReadyState.identityReady && authReadyState.authUserId && isValidUuid(authReadyState.authUserId));
+    const isAuthReady = authReadyState.status === 'READY' || identityValid;
+
+    console.log('[CHAT_AUTH_DECISION]', {
+      canonicalAuthState: authReadyState.authState,
+      identityReady: authReadyState.identityReady,
+      sessionProvider: authReadyState.sessionProvider,
+      sessionPresent: Boolean(authReadyState.session),
+      action: isAuthReady ? 'RESTORE_OR_REUSE' : 'DEFER_AUTH'
+    });
+
+    if (!isAuthReady || !authReadyState.authUserId) {
       console.warn('[CHAT_CONTEXT_DEFERRED]', {
         assistantType,
         action: 'restore',
-        reason: 'AUTH_SESSION_NULL',
+        reason: 'CHAT_WAITING_FOR_AUTH_CONTEXT',
         authState: authReadyState.authState,
         sessionPresent: Boolean(authReadyState.session),
       });
@@ -159,7 +170,7 @@ class ChatSessionManager {
       } catch { }
     }
 
-    const flightKey = `restore:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
+    const flightKey = `restore:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}:${authReadyState.generation}`;
     if (this.inFlightRestoration.has(flightKey)) {
       return await this.inFlightRestoration.get(flightKey)!;
     }
@@ -212,11 +223,22 @@ class ChatSessionManager {
     providedStoreId?: string | null
   ): Promise<ChatSession | null> {
     const authReadyState = await canonicalAuthManager.waitUntilReady();
-    if (authReadyState.status !== 'READY' || !authReadyState.authUserId) {
+    const identityValid = Boolean(authReadyState.identityReady && authReadyState.authUserId && isValidUuid(authReadyState.authUserId));
+    const isAuthReady = authReadyState.status === 'READY' || identityValid;
+
+    console.log('[CHAT_AUTH_DECISION]', {
+      canonicalAuthState: authReadyState.authState,
+      identityReady: authReadyState.identityReady,
+      sessionProvider: authReadyState.sessionProvider,
+      sessionPresent: Boolean(authReadyState.session),
+      action: isAuthReady ? 'CREATE_SESSION' : 'DEFER_AUTH'
+    });
+
+    if (!isAuthReady || !authReadyState.authUserId) {
       console.warn('[CHAT_CONTEXT_DEFERRED]', {
         assistantType,
         action: 'create',
-        reason: 'AUTH_SESSION_NULL',
+        reason: 'CHAT_WAITING_FOR_AUTH_CONTEXT',
         authState: authReadyState.authState,
         sessionPresent: Boolean(authReadyState.session),
       });

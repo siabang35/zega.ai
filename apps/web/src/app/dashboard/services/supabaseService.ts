@@ -10220,7 +10220,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   ): Promise<CanonicalSessionResult> {
     try {
       const authResult = await canonicalAuthManager.waitUntilReady();
-      if (authResult.status !== 'READY' || !authResult.session || !authResult.authUserId) {
+      const isAuthValid = (authResult.status === 'READY' || authResult.identityReady) && Boolean(authResult.authUserId && isValidUuid(authResult.authUserId));
+      if (!isAuthValid) {
         return {
           ok: false,
           status: 'UNAVAILABLE',
