@@ -9683,19 +9683,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         ? tenantCtx.organizationId
         : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) && activeTenant.organizationId !== storeId ? activeTenant.organizationId : '');
 
-      const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
-
-      // Diagnostic Self-Check: Fail closed if store context or user identity is not verified under live RLS contract
-      if (!isStoreReady || !isValidUuid(storeId) || !isValidUuid(organizationId)) {
-        console.warn('[CHAT_CONTEXT_INVALID]', {
-          assistantType: agentRole,
-          status: tenantCtx.overallStatus || tenantCtx.status || activeTenant.storeStatus,
-          storeId,
-          organizationId
-        });
-        return null;
-      }
-
       const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
       let effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
 
@@ -9901,7 +9888,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
 
       if (!isVerified) {
-        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING';
+        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING';
         console.log('[CanonicalSessionResolver]', {
           module: 'AI_ASSISTANT',
           authenticatedUserReady: true,
@@ -10233,19 +10220,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         ? tenantCtx.organizationId
         : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) && activeTenant.organizationId !== storeId ? activeTenant.organizationId : '');
 
-      const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
-
-      // Diagnostic Self-Check: Fail closed if store context or user identity is not verified under live RLS contract
-      if (!isStoreReady || !isValidUuid(storeId) || !isValidUuid(organizationId)) {
-        console.warn('[CHAT_CONTEXT_INVALID]', {
-          assistantType: 'zega_copilot',
-          status: tenantCtx.overallStatus || tenantCtx.status || activeTenant.storeStatus,
-          storeId,
-          organizationId
-        });
-        return null;
-      }
-
       const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
       let effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
 
@@ -10387,7 +10361,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const storeId = tenantCtx.storeId;
 
       if (!isVerified) {
-        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING';
+        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING';
         console.log('[CanonicalSessionResolver]', {
           module: 'ZEGA_COPILOT',
           authenticatedUserReady: !!effectiveUserId,

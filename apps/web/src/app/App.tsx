@@ -1527,7 +1527,7 @@ function AppContent() {
         try {
           let profile: any = null;
           let isNewUser = false;
-          const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+          const apiBase = SocialAuthService.getApiBaseUrl();
 
           if (backendToken || isSuccess) {
             const tokenToUse = backendToken || localStorage.getItem('zega_access_token') || '';

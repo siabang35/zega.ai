@@ -638,6 +638,36 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
+  // Allowed frontend origins for OWASP Anti-Open-Redirect protection
+  const ALLOWED_FRONTEND_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    'https://zegaai.site',
+    'https://www.zegaai.site',
+    'https://app.zegaai.site',
+    'https://console.zegaai.site',
+    'https://zega-ai.onrender.com',
+  ];
+
+  const sanitizeFrontendOrigin = (candidate?: string | null): string => {
+    if (!candidate) return '';
+    try {
+      const u = new URL(candidate);
+      const origin = u.origin.replace(/\/+$/, '');
+      if (ALLOWED_FRONTEND_ORIGINS.includes(origin)) {
+        return origin;
+      }
+      // Allow any subdomains of zegaai.site in production
+      if (u.hostname.endsWith('.zegaai.site') || u.hostname === 'zegaai.site') {
+        return origin;
+      }
+    } catch {}
+    return '';
+  };
+
   // ══════════════════════════════════════════════════════════════
   //  GET /v1/auth/google — Initiate Backend Google OAuth Flow
   // ══════════════════════════════════════════════════════════════
@@ -651,6 +681,13 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const stateToken = crypto.randomBytes(32).toString('hex');
+
+    // Resolve initiating frontend origin (OWASP Anti-Open-Redirect)
+    const rawOrigin = request.headers.origin || request.headers.referer;
+    const validatedOrigin = sanitizeFrontendOrigin(rawOrigin) ||
+      (envConfig.CORS_ORIGIN ? sanitizeFrontendOrigin(envConfig.CORS_ORIGIN) : '') ||
+      (request.headers.host?.includes('localhost') || request.headers.host?.includes('127.0.0.1') ? 'http://localhost:5173' : 'https://zegaai.site');
+
     reply.setCookie('__zega_oauth_state', stateToken, {
       httpOnly: true,
       secure: envConfig.NODE_ENV === 'production',
@@ -659,7 +696,28 @@ export async function authRoutes(app: FastifyInstance) {
       maxAge: 600, // 10 minutes
     });
 
-    const apiBase = envConfig.API_BASE_URL || 'http://localhost:3001';
+    reply.setCookie('__zega_oauth_frontend_origin', validatedOrigin, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutes
+    });
+
+    // Helper to dynamically resolve backend API base URL for Google OAuth callback
+    const resolveApiBase = (req: any) => {
+      if (envConfig.API_BASE_URL && !envConfig.API_BASE_URL.includes('localhost') && !envConfig.API_BASE_URL.includes('127.0.0.1')) {
+        return envConfig.API_BASE_URL.replace(/\/+$/, '');
+      }
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const proto = req.headers['x-forwarded-proto'] || 'https';
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        return `${proto}://${host}`;
+      }
+      return envConfig.API_BASE_URL || 'http://localhost:3001';
+    };
+
+    const apiBase = resolveApiBase(request);
     const redirectUri = `${apiBase}/v1/auth/google/callback`;
 
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -670,7 +728,7 @@ export async function authRoutes(app: FastifyInstance) {
     googleAuthUrl.searchParams.set('state', stateToken);
     googleAuthUrl.searchParams.set('prompt', 'select_account');
 
-    logger.info({ redirectUri }, '[GOOGLE_BACKEND_OAUTH_START] Redirecting to Google Accounts authorization');
+    logger.info({ redirectUri, validatedOrigin }, '[GOOGLE_BACKEND_OAUTH_START] Redirecting to Google Accounts authorization');
     return reply.redirect(googleAuthUrl.toString(), 302);
   });
 
@@ -682,7 +740,26 @@ export async function authRoutes(app: FastifyInstance) {
 
     logger.info({ callbackDetected: Boolean(code) }, '[GOOGLE_BACKEND_CALLBACK]');
 
-    const frontendOrigin = envConfig.CORS_ORIGIN || 'http://localhost:5173';
+    const storedOriginCookie = (request.cookies as any)?.__zega_oauth_frontend_origin;
+    const validatedCookieOrigin = sanitizeFrontendOrigin(storedOriginCookie);
+
+    const isLocalhostHost = request.headers.host?.includes('localhost') || request.headers.host?.includes('127.0.0.1');
+
+    const frontendOrigin = validatedCookieOrigin ||
+      (envConfig.CORS_ORIGIN ? sanitizeFrontendOrigin(envConfig.CORS_ORIGIN) : '') ||
+      (isLocalhostHost ? 'http://localhost:5173' : 'https://zegaai.site');
+
+    const resolveApiBase = (req: any) => {
+      if (envConfig.API_BASE_URL && !envConfig.API_BASE_URL.includes('localhost') && !envConfig.API_BASE_URL.includes('127.0.0.1')) {
+        return envConfig.API_BASE_URL.replace(/\/+$/, '');
+      }
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const proto = req.headers['x-forwarded-proto'] || 'https';
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        return `${proto}://${host}`;
+      }
+      return envConfig.API_BASE_URL || 'http://localhost:3001';
+    };
 
     if (oauthErr || !code) {
       logger.warn({ oauthErr }, '[GOOGLE_BACKEND_CALLBACK] OAuth error returned from Google');
@@ -692,7 +769,7 @@ export async function authRoutes(app: FastifyInstance) {
     try {
       const clientId = envConfig.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '';
       const clientSecret = envConfig.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-      const apiBase = envConfig.API_BASE_URL || 'http://localhost:3001';
+      const apiBase = resolveApiBase(request);
       const redirectUri = `${apiBase}/v1/auth/google/callback`;
 
       // 1. Server-Side Token Exchange

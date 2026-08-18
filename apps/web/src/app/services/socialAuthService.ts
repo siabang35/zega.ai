@@ -71,6 +71,41 @@ export class SocialAuthService {
   }
 
   // ══════════════════════════════════════════════════════════════
+  //  DYNAMIC URL RESOLVERS (Production vs Localhost)
+  // ══════════════════════════════════════════════════════════════
+
+  /** Resolves canonical backend API base URL ensuring production host is never overridden by stale localhost env */
+  public static getApiBaseUrl(): string {
+    if (typeof window !== 'undefined') {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalhost) {
+        const envApi = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string);
+        if (envApi && !envApi.includes('localhost') && !envApi.includes('127.0.0.1')) {
+          return envApi.replace(/\/+$/, '');
+        }
+        return 'https://zega-ai.onrender.com';
+      }
+    }
+    const envApi = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string);
+    return (envApi && envApi.trim()) ? envApi.replace(/\/+$/, '') : 'http://localhost:3001';
+  }
+
+  /** Resolves canonical OAuth callback URI ensuring production OAuth redirects return to production domain */
+  public static getOAuthRedirectUri(): string {
+    if (typeof window !== 'undefined') {
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalhost) {
+        return `${window.location.origin}/auth/callback`;
+      }
+    }
+    const envRedirect = import.meta.env.VITE_OAUTH_REDIRECT_URI as string;
+    if (envRedirect && !envRedirect.includes('localhost') && !envRedirect.includes('127.0.0.1')) {
+      return envRedirect;
+    }
+    return typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : 'http://localhost:5173/auth/callback';
+  }
+
+  // ══════════════════════════════════════════════════════════════
   //  OAUTH REDIRECT INITIATORS
   // ══════════════════════════════════════════════════════════════
 
@@ -81,19 +116,17 @@ export class SocialAuthService {
       provider: 'google',
     });
 
-    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ||
-      (import.meta.env.VITE_API_URL as string) ||
-      (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+    const apiBase = this.getApiBaseUrl();
     const targetUrl = `${apiBase}/v1/auth/google`;
 
-    console.log('[GOOGLE_BACKEND_OAUTH_START]', { targetUrl });
+    console.log('[GOOGLE_BACKEND_OAUTH_START]', { targetUrl, windowOrigin: typeof window !== 'undefined' ? window.location.origin : '' });
     console.log('[GOOGLE_OAUTH_RESULT]', { success: true });
     window.location.assign(targetUrl);
   }
 
   /** Initiate canonical GitHub OAuth2 Authorization redirect via Supabase */
   public static async initiateGitHubOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
-    const redirectUri = import.meta.env.VITE_OAUTH_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+    const redirectUri = this.getOAuthRedirectUri();
 
     savePendingAuthIntent({
       accountType,
