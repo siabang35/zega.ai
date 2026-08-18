@@ -116,6 +116,16 @@ export class SocialAuthService {
       provider: 'google',
     });
 
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.removeItem('zega_mock_session');
+        localStorage.removeItem('zega_access_token');
+        localStorage.removeItem('zega_user_email');
+        localStorage.removeItem('zega_active_store_id');
+        localStorage.removeItem('sb-ikxiclpvywxxnkcaldbx-auth-token');
+      } catch {}
+    }
+
     const apiBase = this.getApiBaseUrl();
     const targetUrl = `${apiBase}/v1/auth/google`;
 

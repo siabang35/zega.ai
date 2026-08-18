@@ -1717,27 +1717,21 @@ export const umkmSupabaseService = {
     const userEmail = sessionUser.email || active.userEmail || null;
 
     if (active.userId && isValidUuid(active.userId) && active.userId !== sessionUserId) {
-      console.warn('[TENANT_RESOLVER] [AUTH_CONTEXT_MISMATCH] Session user ID does not match authState userId:', {
+      console.warn('[TENANT_RESOLVER] [AUTH_CONTEXT_MISMATCH] Session user ID changed. Purging stale tenant context cache:', {
         sessionUserId,
-        activeUserId: active.userId
+        previousUserId: active.userId
       });
-      return {
-        authUserId: sessionUserId,
-        organizationId: null,
-        workspaceId: null,
-        organizationStatus: 'ORG_UNAUTHORIZED',
-        organizationReason: 'NONE',
+      // Purge stale active tenant state so resolution cleanly evaluates for the new user session
+      setActiveTenant({
+        organizationId: '',
+        workspaceId: '',
         storeId: null,
-        storeStatus: 'unavailable',
-        storeReady: false,
-        verified: false,
-        overallStatus: 'BLOCKED',
-        resolutionState: 'AUTH_CONTEXT_MISMATCH',
-        errorReason: 'AUTH_CONTEXT_MISMATCH',
-        status: 'AUTH_CONTEXT_MISMATCH',
+        tenantType: 'umkm',
+        userEmail: userEmail || '',
         userId: sessionUserId,
-        source: 'CACHE'
-      };
+        storeStatus: 'loading'
+      });
+      invalidateTenantResolutionCache();
     }
 
     const accountType = 'INDIVIDUAL_UMKM';

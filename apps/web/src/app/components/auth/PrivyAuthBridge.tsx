@@ -334,12 +334,17 @@ export function PrivyAuthBridge() {
         // 1. Inspect existing active Supabase Auth session first (Canonical Session Preservation Guard)
         const { data: { session: existingSession } } = await supabase.auth.getSession();
         if (existingSession && existingSession.user?.id) {
+          const isEmailMismatch = Boolean(
+            existingSession.user.email && cleanPrivyEmail &&
+            existingSession.user.email.toLowerCase().trim() !== cleanPrivyEmail.toLowerCase().trim()
+          );
+
           // Check if this session userId was flagged as terminal/blocked due to AUTH_IDENTITY_NOT_FOUND
           const isTerminalBlocked = typeof window !== 'undefined' &&
             ((window as any).__ZEGA_TERMINAL_BLOCKED_USERS__?.has(existingSession.user.id) ||
               (window as any).__ZEGA_AUTH_IDENTITY_BLOCKED__ === existingSession.user.id);
 
-          if (!isTerminalBlocked) {
+          if (!isTerminalBlocked && !isEmailMismatch) {
             console.log('[PRIVY AUTH BRIDGE] Active Supabase session detected. Preserving canonical session.', {
               userId: existingSession.user.id,
               email: existingSession.user.email,
@@ -355,8 +360,18 @@ export function PrivyAuthBridge() {
             }
             return;
           } else {
-            console.warn('[PRIVY AUTH BRIDGE] Stale/Blocked session detected in PrivyAuthBridge:', existingSession.user.id, 'Purging...');
+            console.warn('[PRIVY AUTH BRIDGE] Stale/Mismatched session detected in PrivyAuthBridge:', {
+              existingSessionEmail: existingSession.user.email,
+              newPrivyEmail: cleanPrivyEmail,
+              isTerminalBlocked
+            }, 'Purging stale session...');
             await supabase.auth.signOut({ scope: 'local' });
+            if (typeof window !== 'undefined' && window.localStorage) {
+              localStorage.removeItem('zega_mock_session');
+              localStorage.removeItem('zega_access_token');
+              localStorage.removeItem('zega_user_email');
+              localStorage.removeItem('zega_active_store_id');
+            }
           }
         }
 
