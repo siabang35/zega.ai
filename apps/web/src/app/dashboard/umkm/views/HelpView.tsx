@@ -447,10 +447,11 @@ export const HelpView: React.FC = () => {
         const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
         const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
 
-        if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+        if ((orgIdHeader || storeIdHeader) && isStoreReady) {
           const res = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
             method: 'POST',
             headers,
+            credentials: 'include',
             body: JSON.stringify({
               chatId: activeHelpChatId,
               message: userMsg,
@@ -470,6 +471,7 @@ export const HelpView: React.FC = () => {
             const res2 = await fetch(`${cleanBaseUrl}/v1/enterprise/copilot/chat`, {
               method: 'POST',
               headers,
+              credentials: 'include',
               body: JSON.stringify({
                 message: userMsg,
                 language: currentAiLang,

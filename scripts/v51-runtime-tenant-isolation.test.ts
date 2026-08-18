@@ -2,7 +2,7 @@
  * ZEGA.AI v5.1 — Runtime Tenant Isolation Test
  * Validates cross-tenant read/write/delete fail-closed behavior.
  */
-const { describe, it, expect } = require('@jest/globals');
+import { describe, it, expect } from '@jest/globals';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;

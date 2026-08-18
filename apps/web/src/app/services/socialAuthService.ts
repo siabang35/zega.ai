@@ -13,6 +13,13 @@
 
 import { supabase } from '../../lib/supabase';
 import { PrivyWalletService } from './privyWalletService';
+import {
+  CanonicalAccountType,
+  savePendingAuthIntent,
+  resolveCanonicalAccountType,
+  saveVerifiedAccountType,
+  getVerifiedAccountType,
+} from './accountTypeManager';
 
 export interface SocialAuthProfile {
   id: string;
@@ -24,6 +31,7 @@ export interface SocialAuthProfile {
   privyWalletAddress: string;
   privyVerified: boolean;
   csrfStateToken: string;
+  accountType?: CanonicalAccountType;
 }
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -66,141 +74,153 @@ export class SocialAuthService {
   //  OAUTH REDIRECT INITIATORS
   // ══════════════════════════════════════════════════════════════
 
-  /** Initiate real Google OAuth2 PKCE Authorization redirect */
-  public static async initiateGoogleOAuth(): Promise<void> {
-    const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
-    const redirectUri = import.meta.env.VITE_OAUTH_REDIRECT_URI || `${window.location.origin}/auth/callback`;
-
-    const state = this.generateStateToken();
-    const { verifier, challenge } = await this.generatePkce();
-
-    // Persist CSRF state + PKCE verifier in sessionStorage for callback validation
-    sessionStorage.setItem('oauth_state', state);
-    sessionStorage.setItem('oauth_pkce_verifier', verifier);
-    sessionStorage.setItem('oauth_provider', 'google');
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid email profile',
-      state,
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-      access_type: 'offline',
-      prompt: 'consent',
+  /** Initiate canonical Google OAuth2 Authorization redirect via ZEGA Backend */
+  public static async initiateGoogleOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
+    savePendingAuthIntent({
+      accountType,
+      provider: 'google',
     });
 
-    window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+    const targetUrl = `${apiBase}/v1/auth/google`;
+
+    console.log('[GOOGLE_BACKEND_OAUTH_START]', { targetUrl });
+    console.log('[GOOGLE_OAUTH_RESULT]', { success: true });
+    window.location.assign(targetUrl);
   }
 
-  /** Initiate real GitHub OAuth2 Authorization redirect */
-  public static initiateGitHubOAuth(): void {
-    const clientId = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID;
+  /** Initiate canonical GitHub OAuth2 Authorization redirect via Supabase */
+  public static async initiateGitHubOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
     const redirectUri = import.meta.env.VITE_OAUTH_REDIRECT_URI || `${window.location.origin}/auth/callback`;
 
-    const state = this.generateStateToken();
-
-    // Persist CSRF state in sessionStorage for callback validation
-    sessionStorage.setItem('oauth_state', state);
-    sessionStorage.setItem('oauth_provider', 'github');
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      scope: 'read:user user:email',
-      state,
+    savePendingAuthIntent({
+      accountType,
+      provider: 'github',
     });
 
-    window.location.href = `${GITHUB_AUTH_URL}?${params.toString()}`;
+    console.log('[GITHUB_OAUTH_INITIATE]', { redirectUri, accountType });
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: redirectUri,
+      },
+    });
+
+    if (error) {
+      console.error('[GITHUB_OAUTH_INITIATE_ERROR]', error.message);
+      throw error;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
   //  OAUTH CALLBACK HANDLER
   // ══════════════════════════════════════════════════════════════
 
-  /** Handle OAuth callback — validate CSRF state, exchange code via backend, return profile */
+  /** Handle OAuth callback — exchange code via Supabase PKCE for a real Supabase session */
   public static async handleOAuthCallback(
     code: string,
-    returnedState: string
+    returnedState?: string
   ): Promise<{
     profile: SocialAuthProfile;
     isNewUser: boolean;
+    session: any;
   }> {
-    // 1. Validate CSRF State Token
-    const savedState = sessionStorage.getItem('oauth_state');
-    const savedProvider = (sessionStorage.getItem('oauth_provider') || 'google') as 'google' | 'github';
-    const savedPkceVerifier = sessionStorage.getItem('oauth_pkce_verifier');
+    console.log('[GOOGLE_OAUTH_CALLBACK]', { callbackDetected: Boolean(code) });
+    console.log('[GOOGLE_OAUTH_EXCHANGE]', { started: true });
 
-    if (!savedState || savedState !== returnedState) {
-      throw new Error('OAuth CSRF State token mismatch. Possible state tampering detected.');
+    // 1. Exchange authorization code for canonical Supabase Auth PKCE session
+    let currentSession: any = null;
+
+    try {
+      const { data: getSessionResult } = await supabase.auth.getSession();
+      if (getSessionResult?.session?.user?.id) {
+        currentSession = getSessionResult.session;
+      }
+    } catch { /* non-blocking */ }
+
+    if (!currentSession?.user?.id && code) {
+      const { data: exchangeData, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeErr) {
+        console.log('[GOOGLE_OAUTH_EXCHANGE]', { success: false, error: exchangeErr.message });
+        // Fallback re-check: in case detectSessionInUrl exchanged code in parallel
+        const { data: { session: recheckSession } } = await supabase.auth.getSession();
+        currentSession = recheckSession;
+      } else {
+        currentSession = exchangeData.session;
+      }
     }
 
-    // Clean up sessionStorage
-    sessionStorage.removeItem('oauth_state');
-    sessionStorage.removeItem('oauth_pkce_verifier');
-    sessionStorage.removeItem('oauth_provider');
+    if (!currentSession?.user?.id) {
+      console.log('[GOOGLE_OAUTH_EXCHANGE]', { success: false, error: 'NO_SUPABASE_SESSION_RETURNED' });
+      console.log('[SUPABASE_SESSION]', { sessionPresent: false, userIdPresent: false });
+      throw new Error('GOOGLE_OAUTH_SESSION_EXCHANGE_FAILED');
+    }
 
-    // 2. Exchange authorization code for access token via secure backend proxy
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    const redirectUri = import.meta.env.VITE_OAUTH_REDIRECT_URI || `${window.location.origin}/auth/callback`;
-
-    const exchangeRes = await fetch(`${apiUrl}/v1/auth/oauth/exchange`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: savedProvider,
-        code,
-        codeVerifier: savedPkceVerifier || undefined,
-        redirectUri,
-      }),
+    console.log('[GOOGLE_OAUTH_EXCHANGE]', { success: true });
+    console.log('[SUPABASE_SESSION]', {
+      sessionPresent: true,
+      userIdPresent: true,
     });
 
-    if (!exchangeRes.ok) {
-      const err = await exchangeRes.json().catch(() => ({}));
-      throw new Error(err.message || `OAuth token exchange failed (${exchangeRes.status})`);
-    }
+    const realUserId = currentSession.user.id;
+    const email = currentSession.user.email || '';
+    const fullName = currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '';
+    const avatarUrl = currentSession.user.user_metadata?.avatar_url || currentSession.user.user_metadata?.picture || '';
+    const provider = (currentSession.user.app_metadata?.provider || 'google') as 'google' | 'github';
+    const providerUserId = currentSession.user.user_metadata?.sub || currentSession.user.id;
 
-    const { email, name, avatarUrl, providerUserId } = await exchangeRes.json();
-
-    // 3. Derive 1-to-1 Privy Solana Keyless Wallet
+    // 2. Derive 1-to-1 Privy Solana Keyless Wallet & resolve canonical account type
     const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(email);
     const csrfStateToken = this.generateStateToken();
 
+    // Resolve account type (Existing verified account type > Pending Intent > Default) AFTER session exchange
+    const { accountType } = resolveCanonicalAccountType({
+      userEmail: email,
+      consumeIntent: true,
+    });
+
+    // Save as verified account type
+    if (email) {
+      saveVerifiedAccountType(email, accountType);
+    }
+
     const profile: SocialAuthProfile = {
-      id: `user-social-${savedProvider}-${Date.now()}`,
-      provider: savedProvider,
-      providerUserId: providerUserId || `${savedProvider}_${Date.now().toString(36)}`,
+      id: realUserId,
+      provider,
+      providerUserId,
       email,
-      fullName: name || '',
+      fullName,
       avatarUrl,
       privyWalletAddress: walletInfo.address,
       privyVerified: true,
       csrfStateToken,
+      accountType,
     };
 
-    // 4. Check if user already has a stored profile (returning user vs new user)
+    // 3. Check if user already has a stored profile
     const storedProfiles = JSON.parse(localStorage.getItem('zega_social_profiles') || '{}');
     const isNewUser = !storedProfiles[email];
 
-    // 5. Persist to Supabase Database table public.social_oauth_accounts via RPC
+    // 4. Persist to Supabase Database table public.social_oauth_accounts via RPC using REAL auth user ID
     try {
       await supabase.rpc('upsert_social_oauth_account', {
-        p_user_id: profile.id,
-        p_provider: savedProvider,
-        p_provider_user_id: profile.providerUserId,
+        p_user_id: realUserId,
+        p_provider: provider,
+        p_provider_user_id: providerUserId,
         p_email: email,
-        p_full_name: profile.fullName,
-        p_avatar_url: profile.avatarUrl,
+        p_full_name: fullName,
+        p_avatar_url: avatarUrl,
         p_privy_wallet_address: walletInfo.address,
         p_last_login_ip: typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1',
         p_user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'ZEGA-Agent',
       });
-    } catch (e) {
-      console.warn('Supabase social_oauth_accounts RPC note:', e);
+      console.log('[UPSERT_SOCIAL_ACCOUNT]', { success: true, userId: realUserId });
+    } catch (e: any) {
+      console.warn('Supabase social_oauth_accounts RPC note:', e?.message || e);
     }
 
-    return { profile, isNewUser };
+    return { profile, isNewUser, session: currentSession };
   }
 
   // ══════════════════════════════════════════════════════════════

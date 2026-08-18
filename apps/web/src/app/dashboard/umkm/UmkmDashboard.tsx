@@ -22,6 +22,8 @@ import { MarketplaceView } from './views/MarketplaceView';
 import { BillingView } from './views/BillingView';
 import { SettingsView } from './views/SettingsView';
 import { HelpView } from './views/HelpView';
+import { OnboardingView } from './views/OnboardingView';
+import { useAuthorizedUmkmContext } from '../contexts/TenantContext';
 
 export interface UmkmDashboardProps {
   activeTab?: string;
@@ -78,6 +80,16 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
+
+  const authCtx = useAuthorizedUmkmContext();
+
+  if (authCtx.status === 'ONBOARDING_REQUIRED') {
+    return (
+      <div className="space-y-5 pb-16 font-sans text-slate-900 dark:text-slate-100">
+        <OnboardingView onComplete={() => handleTabChange('overview')} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-16 font-sans text-slate-900 dark:text-slate-100">

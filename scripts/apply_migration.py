@@ -30,5 +30,5 @@ def apply_sql(sql_file):
         sys.exit(1)
 
 if __name__ == '__main__':
-    sql_path = os.path.join(os.path.dirname(__file__), '..', 'supabase', 'migrations', '20260816400000_fix_store_provisioning_and_billing_rpcs.sql')
+    sql_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '..', 'supabase', 'migrations', '20260818000000_trusted_user_bootstrap_and_provisioning_fix.sql')
     apply_sql(sql_path)

@@ -44,6 +44,45 @@ const verifyOtpSchema = z.object({
 
 
 
+function generateSupabaseJwt(userId: string, email: string, role: string): string {
+  const secret = envConfig.SUPABASE_JWT_SECRET || process.env.SUPABASE_JWT_SECRET || '';
+  if (!secret) return '';
+
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const cleanEmail = email.toLowerCase().trim();
+  const payload = {
+    aud: 'authenticated',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    sub: userId,
+    email: cleanEmail,
+    role: 'authenticated',
+    iss: 'supabase',
+    app_metadata: { provider: 'email', providers: ['email'] },
+    user_metadata: { full_name: cleanEmail.split('@')[0], role }
+  };
+
+  const base64UrlEncode = (obj: object) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+
+  const encodedHeader = base64UrlEncode(header);
+  const encodedPayload = base64UrlEncode(payload);
+  const dataToSign = `${encodedHeader}.${encodedPayload}`;
+
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(dataToSign)
+    .digest('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  return `${dataToSign}.${signature}`;
+}
+
 export async function authRoutes(app: FastifyInstance) {
   /** POST /v1/auth/request-otp — Step 1: Request Brevo Email OTP with Turnstile bot defense & Rate Limiting */
   app.post(
@@ -500,27 +539,63 @@ export async function authRoutes(app: FastifyInstance) {
 
     // Auto-provision Supabase Auth user in auth.users if not present
     let supabaseAuthUserId: string | null = null;
+    const isValidUuid = (str?: string | null) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
     const supabaseAdmin = SupabaseService.getClient();
     if (supabaseAdmin) {
       try {
+        // 1. Strictly query auth.users via Supabase Auth Admin API first
         const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
         const found = existingUser?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
         if (found) {
           supabaseAuthUserId = found.id;
         } else {
-          const { data: created } = await supabaseAdmin.auth.admin.createUser({
-            email: normalizedEmail,
-            email_confirm: true,
-            user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
-          });
-          if (created?.user?.id) {
-            supabaseAuthUserId = created.user.id;
+          // 2. Query public.users.auth_user_id (NOT public.users.id!)
+          const { data: dbUserRow } = await supabaseAdmin
+            .from('users')
+            .select('auth_user_id')
+            .eq('email', normalizedEmail)
+            .maybeSingle();
+
+          if (dbUserRow?.auth_user_id && isValidUuid(dbUserRow.auth_user_id)) {
+            supabaseAuthUserId = dbUserRow.auth_user_id;
+          } else {
+            // 3. Create real auth.users principal if missing
+            const { data: created } = await supabaseAdmin.auth.admin.createUser({
+              email: normalizedEmail,
+              email_confirm: true,
+              user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
+            });
+            if (created?.user?.id) {
+              supabaseAuthUserId = created.user.id;
+            }
           }
         }
       } catch (e: any) {
         console.warn('Supabase Auth user auto-provision note:', e?.message);
       }
     }
+
+    // Upsert user profile to public.profiles & public.users so user identity exists in DB
+    const dbProfile = await SupabaseService.upsertProfile({
+      email: normalizedEmail,
+      fullName: body.fullName || normalizedEmail.split('@')[0],
+      role: derivedRole,
+    });
+
+    const userId = (isValidUuid(supabaseAuthUserId) ? supabaseAuthUserId : (isValidUuid(dbProfile?.id) ? dbProfile.id : crypto.randomUUID())) as string;
+
+    // Issue signed JWT access token for Fastify app route authorization
+    const accessToken = app.jwt.sign(
+      {
+        sub: userId,
+        email: normalizedEmail,
+        role: derivedRole,
+      },
+      { expiresIn: '1h' }
+    );
+
+    // Issue signed Supabase-compatible JWT token for Supabase session & PostgREST RLS
+    const supabaseAccessToken = generateSupabaseJwt(userId, normalizedEmail, derivedRole) || accessToken;
 
     if (resolvedWalletAddress) {
       await upsertPrivyWalletToDb(body.email, resolvedWalletAddress);
@@ -547,13 +622,180 @@ export async function authRoutes(app: FastifyInstance) {
     return {
       success: true,
       data: {
+        accessToken,
+        supabaseAccessToken,
         email: body.email,
         role: derivedRole,
+        user: {
+          id: userId,
+          email: normalizedEmail,
+          role: derivedRole,
+        },
         privyCloudUser,
         walletAddress: finalWalletAddress,
         message: `User ${body.email} synchronized to Privy Official Cloud & Solana Embedded Wallet created.`,
       },
     };
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  GET /v1/auth/google — Initiate Backend Google OAuth Flow
+  // ══════════════════════════════════════════════════════════════
+  app.get('/google', async (request, reply) => {
+    const clientId = envConfig.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+    if (!clientId) {
+      return reply.status(500).send({
+        success: false,
+        error: { code: 'OAUTH_CONFIG_MISSING', message: 'Google OAuth Client ID is not configured on backend.', statusCode: 500 },
+      });
+    }
+
+    const stateToken = crypto.randomBytes(32).toString('hex');
+    reply.setCookie('__zega_oauth_state', stateToken, {
+      httpOnly: true,
+      secure: envConfig.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutes
+    });
+
+    const apiBase = envConfig.API_BASE_URL || 'http://localhost:3001';
+    const redirectUri = `${apiBase}/v1/auth/google/callback`;
+
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.set('client_id', clientId);
+    googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+    googleAuthUrl.searchParams.set('response_type', 'code');
+    googleAuthUrl.searchParams.set('scope', 'openid email profile');
+    googleAuthUrl.searchParams.set('state', stateToken);
+    googleAuthUrl.searchParams.set('prompt', 'select_account');
+
+    logger.info({ redirectUri }, '[GOOGLE_BACKEND_OAUTH_START] Redirecting to Google Accounts authorization');
+    return reply.redirect(googleAuthUrl.toString(), 302);
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  GET /v1/auth/google/callback — Backend Google OAuth Callback
+  // ══════════════════════════════════════════════════════════════
+  app.get('/google/callback', async (request, reply) => {
+    const { code, state, error: oauthErr } = request.query as { code?: string; state?: string; error?: string };
+
+    logger.info({ callbackDetected: Boolean(code) }, '[GOOGLE_BACKEND_CALLBACK]');
+
+    const frontendOrigin = envConfig.CORS_ORIGIN || 'http://localhost:5173';
+
+    if (oauthErr || !code) {
+      logger.warn({ oauthErr }, '[GOOGLE_BACKEND_CALLBACK] OAuth error returned from Google');
+      return reply.redirect(`${frontendOrigin}/?auth_error=${encodeURIComponent(oauthErr || 'OAuth code missing')}`, 302);
+    }
+
+    try {
+      const clientId = envConfig.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+      const clientSecret = envConfig.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
+      const apiBase = envConfig.API_BASE_URL || 'http://localhost:3001';
+      const redirectUri = `${apiBase}/v1/auth/google/callback`;
+
+      // 1. Server-Side Token Exchange
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        logger.error({ status: tokenRes.status, errText }, '[GOOGLE_BACKEND_CALLBACK] Token exchange failed');
+        return reply.redirect(`${frontendOrigin}/?auth_error=token_exchange_failed`, 302);
+      }
+
+      const tokenData = await tokenRes.json() as any;
+      const accessToken = tokenData.access_token;
+
+      // 2. Fetch Google Profile
+      const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const googleProfile = await profileRes.json() as any;
+
+      if (!googleProfile?.email) {
+        logger.error('[GOOGLE_BACKEND_CALLBACK] Invalid profile returned from Google');
+        return reply.redirect(`${frontendOrigin}/?auth_error=invalid_profile`, 302);
+      }
+
+      const normalizedEmail = googleProfile.email.toLowerCase().trim();
+      const fullName = googleProfile.name || googleProfile.given_name || normalizedEmail.split('@')[0];
+
+      // 3. Sync User Profile in Database
+      const dbProfile = await SupabaseService.upsertProfile({
+        email: normalizedEmail,
+        fullName,
+        role: 'individual',
+      });
+
+      const userId = dbProfile?.id || crypto.randomUUID();
+
+      // 4. Issue JWT Access Token & Refresh Token (7 days)
+      const sessionAccessToken = app.jwt.sign(
+        {
+          sub: userId,
+          email: normalizedEmail,
+          role: dbProfile?.role || 'individual',
+        },
+        { expiresIn: '1h' }
+      );
+
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(sessionAccessToken).digest('hex');
+      const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
+      const supabase = SupabaseService.getClient();
+      if (supabase) {
+        try {
+          await supabase.from('sessions').insert({
+            user_id: userId,
+            token_hash: tokenHash,
+            refresh_token_hash: refreshTokenHash,
+            user_agent: request.headers['user-agent'] || null,
+            ip_address: request.ip,
+            expires_at: expiresAt,
+          });
+        } catch (err) {
+          logger.warn({ err, userId }, '[BACKEND_SESSION_CREATED] Failed to persist session');
+        }
+      }
+
+      logger.info({ userId }, '[BACKEND_SESSION_CREATED] Session successfully established');
+
+      // 5. Set Secure HttpOnly Cookies
+      reply.setCookie('__zega_token', sessionAccessToken, {
+        httpOnly: true,
+        secure: envConfig.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 3600,
+      });
+
+      reply.setCookie('__zega_refresh', refreshToken, {
+        httpOnly: true,
+        secure: envConfig.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/v1/auth/refresh',
+        maxAge: 7 * 24 * 3600,
+      });
+
+      // 6. Redirect to Frontend callback / dashboard
+      return reply.redirect(`${frontendOrigin}/auth/callback?success=true&token=${encodeURIComponent(sessionAccessToken)}`, 302);
+    } catch (err: any) {
+      logger.error({ err }, '[GOOGLE_BACKEND_CALLBACK] Exception handling Google callback');
+      return reply.redirect(`${frontendOrigin}/?auth_error=callback_exception`, 302);
+    }
   });
 
   // ══════════════════════════════════════════════════════════════
@@ -871,11 +1113,59 @@ export async function authRoutes(app: FastifyInstance) {
     return app.inject({ method: 'POST', url: '/v1/auth/logout', headers: request.headers, payload: request.body as any });
   });
 
-  /** GET /v1/auth/me — Get current user */
+  /** GET /v1/auth/me — Get current user (HARDENED CANONICAL CONTRACT) */
   app.get('/me', async (request, reply) => {
     try {
-      const decoded = await request.jwtVerify();
-      return { success: true, data: decoded };
+      const decoded = await request.jwtVerify() as any;
+      const subId = decoded.sub || decoded.id;
+      const email = decoded.email;
+      const isValidUuid = (str?: string) => Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+
+      let canonicalUserId = isValidUuid(subId) ? subId : null;
+      let fullName = decoded.fullName || email?.split('@')[0] || '';
+      let role = decoded.role || 'individual';
+
+      // Query database to ensure canonical application user UUID is resolved
+      const supabase = SupabaseService.getClient();
+      if (supabase && email) {
+        const { data: dbUser } = await supabase
+          .from('users')
+          .select('id, full_name, role, email')
+          .eq('email', email.toLowerCase())
+          .maybeSingle();
+
+        if (dbUser?.id && isValidUuid(dbUser.id)) {
+          canonicalUserId = dbUser.id;
+          if (dbUser.full_name) fullName = dbUser.full_name;
+          if (dbUser.role) role = dbUser.role;
+        }
+      }
+
+      if (!canonicalUserId) {
+        return reply.status(401).send({
+          success: false,
+          error: { code: 'CANONICAL_USER_NOT_FOUND', message: 'Canonical application user identity missing.', statusCode: 401 }
+        });
+      }
+
+      return {
+        success: true,
+        authenticated: true,
+        user: {
+          id: canonicalUserId,
+          email: email,
+          role: role,
+          fullName: fullName,
+        },
+        data: {
+          id: canonicalUserId,
+          email: email,
+          role: role,
+          fullName: fullName,
+          ...decoded,
+          sub: canonicalUserId,
+        }
+      };
     } catch {
       return reply.status(401).send({
         success: false,

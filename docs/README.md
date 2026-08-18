@@ -22,6 +22,7 @@
 
 ## Security & Verification
 
+- **[Multi-Tenant RLS Security Hardening](security/MULTI_TENANT_RLS_SECURITY_HARDENING.md)** — Forensic RLS audit, 4-case authorization decision tree, identity sync, and fail-closed store resolution architecture.
 - **[Security Architecture](security/ARCHITECTURE.md)** — [Tenant Isolation](security/TENANT_ISOLATION.md) | [RBAC Matrix](security/RBAC.md) | [Cross-Tenant Tests](security/CROSS_TENANT_TESTS.md) | [Audit V2 Report](security/AUDIT_V2_REPORT.md)
 - **[Test Matrix](verification/TEST_MATRIX.md)** — 366 executable test cases, test categories, and verification mapping.
 - **[Evidence Standard](governance/EVIDENCE_STANDARD.md)** — Absolute Evidence Hierarchy (E0–E7), status taxonomy, and rules.

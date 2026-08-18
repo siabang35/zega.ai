@@ -9,10 +9,13 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
 } from 'recharts';
 import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '../../services/supabaseService';
+import { umkmSupabaseService, isVerifiedTenantContext } from '../../services/umkmSupabaseService';
 import { getActiveTenantIds } from '../../contexts/TenantContext';
+import { getAuthBridgeState } from '../../../components/auth/PrivyAuthBridge';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
 import { getR2CdnUrl } from '../../../utils/cdn';
+import { chatSessionManager } from '../../services/chatSessionManager';
 
 interface HomeViewProps {
   displayName: string;
@@ -230,6 +233,11 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   );
 
   const fetchHelpHistoryList = async () => {
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState === 'AUTH_INITIALIZING' || authBridge.authState === 'AUTH_REQUIRED' || authBridge.authState !== 'AUTH_READY') {
+      setHelpHistoryList([]);
+      return;
+    }
     try {
       const activeStoreId = getActiveTenantIds().storeId;
       if (!isValidUuid(activeStoreId)) {
@@ -258,6 +266,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   };
 
   useEffect(() => {
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState !== 'AUTH_READY') return;
     if (showHelpHistory) {
       fetchHelpHistoryList();
     }
@@ -266,17 +276,26 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   const handleDeleteHelpSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const ok = await SupabaseDashboardService.deleteUmkmAiAssistantChat(sessionId);
-      if (ok) {
+      const res = await SupabaseDashboardService.deleteUmkmAiAssistantChat(sessionId);
+      if (res && res.ok) {
         setHelpHistoryList((prev) => prev.filter((s) => s.id !== sessionId));
         if (activeHelpChatId === sessionId) {
           setActiveHelpChatId(null);
           setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
         }
         triggerToast(getAiLang() === 'en' ? 'Chat session deleted' : 'Sesi chat berhasil dihapus');
+      } else {
+        // Fallback UI clean up for local client sessions
+        setHelpHistoryList((prev) => prev.filter((s) => s.id !== sessionId));
+        if (activeHelpChatId === sessionId) {
+          setActiveHelpChatId(null);
+          setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
+        }
+        triggerToast(getAiLang() === 'en' ? 'Chat session removed' : 'Sesi chat dihapus dari tampilan');
       }
     } catch (err) {
       console.warn('Error deleting session:', err);
+      setHelpHistoryList((prev) => prev.filter((s) => s.id !== sessionId));
     }
   };
 
@@ -301,6 +320,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
   // Load Help Live Chat History from Supabase DB on modal open
   useEffect(() => {
+    const authBridge = getAuthBridgeState();
+    const activeTenant = getActiveTenantIds();
+    if (authBridge.authState !== 'AUTH_READY' || activeTenant.storeStatus !== 'ready' || !isValidUuid(activeTenant.storeId)) return;
     if (showSupportAssistantModal) {
       const loadHelpHistory = async () => {
         try {
@@ -343,8 +365,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     }
   }, [showSupportAssistantModal]);
 
+  // In-flight guard to prevent double-click session creation
+  const [isCreatingHelpSession, setIsCreatingHelpSession] = useState(false);
+
   // Create New Help Chat Session Function (+ Sesi Baru)
   const handleNewHelpChat = async () => {
+    if (isCreatingHelpSession) return;
+    setIsCreatingHelpSession(true);
     try {
       const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
       if (!activeStoreId) {
@@ -372,6 +399,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       }
     } catch (e) {
       console.warn('Error starting new help chat:', e);
+    } finally {
+      setIsCreatingHelpSession(false);
     }
   };
 
@@ -459,6 +488,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     const textToSend = customText || supportInput;
     if (!textToSend.trim()) return;
 
+    const requestStart = Date.now();
     const currentAiLang = getAiPrefLang();
 
     setSupportChatMessages(prev => [
@@ -471,6 +501,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
     let chatIdToUse = activeHelpChatId;
     if (!chatIdToUse) {
+      const chatStart = Date.now();
       try {
         const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
           undefined,
@@ -481,6 +512,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
         if (resolved.ok && resolved.chatId) {
           chatIdToUse = resolved.chatId;
           setActiveHelpChatId(resolved.chatId);
+          console.log('[CHAT_LATENCY]', { chatId: resolved.chatId, durationMs: Date.now() - chatStart });
           fetchHelpHistoryList();
         } else {
           console.warn('[HomeView] Canonical session resolution notice:', resolved.reason, resolved.error);
@@ -492,16 +524,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
     // Save User Message to DB ONLY IF valid persistent chatId exists
     if (chatIdToUse && isValidUuid(chatIdToUse)) {
-      try {
-        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
-          chat_id: chatIdToUse,
-          user_id: (getActiveTenantIds().userId || ''),
-          sender: 'user',
-          text: textToSend.trim()
-        });
-      } catch (saveErr) {
-        console.warn('[HomeView] Failed to persist user message:', saveErr);
-      }
+      SupabaseDashboardService.saveUmkmAiAssistantMessage({
+        chat_id: chatIdToUse,
+        user_id: (getActiveTenantIds().userId || ''),
+        sender: 'user',
+        text: textToSend.trim()
+      }).catch(saveErr => console.warn('[HomeView] Failed to persist user message:', saveErr));
     }
 
     const envApi = import.meta.env.VITE_API_URL;
@@ -523,18 +551,29 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       const prefFormat = localStorage.getItem('zega_ai_response_format') || 'Ringkas';
       const prefModel = localStorage.getItem('zega_ai_default_model') || 'GPT-4o (Recommended)';
 
-      const headers = getCanonicalAuthHeaders();
-      const orgIdHeader = headers['X-Organization-Id'];
-      const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
+      const activeTenant = getActiveTenantIds();
+      const isVerified = isVerifiedTenantContext(activeTenant, activeTenant.userId);
 
-      const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
+      if (!isVerified) {
+        console.warn('[AI_HARD_GATE] AI execution blocked: tenant unverified or identity blocked');
+        aiResponseText = '⚠️ **AI GATED**: Copilot AI model execution is gated because your tenant identity is unverified or blocked. Verified backend identity required.';
+      } else {
+        const headers = getCanonicalAuthHeaders();
+        if (activeTenant.storeId && isValidUuid(activeTenant.storeId)) {
+          headers['X-Store-Id'] = activeTenant.storeId;
+          if (!headers['X-Organization-Id']) {
+            headers['X-Organization-Id'] = activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : activeTenant.storeId;
+          }
+        }
 
-      if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+        const fetchStart = Date.now();
         const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
           method: 'POST',
+          credentials: 'include',
           headers,
           body: JSON.stringify({
             chatId: chatIdToUse,
+            storeId: activeTenant.storeId || undefined,
             message: textToSend.trim(),
             language: currentAiLang,
             response_style: prefStyle,
@@ -545,76 +584,39 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
           })
         });
 
+        const totalLatency = Date.now() - requestStart;
         if (response.ok) {
           const result = await response.json();
+          const reqId = `req-ai-web-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+          console.log('[AI_MODEL_EXECUTION]', {
+            requestId: reqId,
+            provider: prefModel,
+            model: prefModel,
+            status: result.success ? 'SUCCESS' : 'FAILED',
+          });
+
+          console.log('[AI_LATENCY]', {
+            requestStart,
+            firstTokenLatencyMs: Date.now() - fetchStart,
+            totalLatencyMs: totalLatency,
+            inferenceMs: result.data?.inference_ms || 210
+          });
+
           if (result.success && result.data && result.data.message) {
             aiResponseText = result.data.message;
             inferenceMsToUse = result.data.inference_ms || 210;
             tokensToUse = result.data.total_tokens || 118;
+          } else {
+            aiResponseText = '⚠️ **Model Execution Failed**: Backend AI endpoint returned error.';
           }
+        } else {
+          aiResponseText = `⚠️ **Model Execution Error (${response.status})**: Backend AI service unavailable.`;
         }
-      } else {
-        console.log('[HomeView] Gated Copilot API POST call: store/organization tenant context not ready yet.', { orgIdHeader, storeIdHeader, storeStatus: getActiveTenantIds().storeStatus });
       }
     } catch (err) {
-      console.warn('Real AI Model backend call note:', err);
-    }
-
-    // Dynamic Real Model AI Inference Engine Fallback if API was unavailable
-    if (!aiResponseText) {
-      const promptLower = textToSend.toLowerCase();
-      if (currentAiLang === 'en') {
-        if (promptLower.includes('who') || promptLower.includes('whp') || promptLower.includes('identity') || promptLower.includes('what are you')) {
-          aiResponseText = 'I am **ZEGA AI Operations Specialist**, your autonomous enterprise assistant. I help optimize store transactions, POS cashier workflows, WhatsApp customer service, and inventory analytics in real-time.';
-        } else if (promptLower.includes('fashion') || promptLower.includes('apparel') || promptLower.includes('boutique') || promptLower.includes('clothing')) {
-          aiResponseText = '**ZEGA AI Fashion Store Intelligence:**\n1. **WhatsApp AI Catalog**: 24/7 size & color guidance for customers.\n2. **Sales Swarm Broadcasts**: Flash promos ready for new arrivals.\n3. **POS Inventory Tracking**: Variant size (S, M, L, XL) auto-alerts for fast sellers.';
-        } else if (promptLower.includes('profit') || promptLower.includes('growth') || promptLower.includes('margin') || promptLower.includes('make more') || promptLower.includes('increase')) {
-          aiResponseText = '**ZEGA AI Profit & Growth Strategy:**\n1. **WhatsApp Follow-Ups**: Auto-convert unpaid carts & past customers.\n2. **AI Sales Swarm Cross-Selling**: Auto-recommend bundles to repeat buyers.\n3. **High-Margin POS Analytics**: Focus marketing on top 20% profitable items.';
-        } else if (promptLower.includes('know') || promptLower.includes('unsure') || promptLower.includes('help')) {
-          aiResponseText = '**ZEGA AI Store Operations Advisory:**\nNo problem! Tell me what you need most:\n- **24/7 WhatsApp AI Catalog & Order Bot**\n- **Auto POS Cashier System** for rapid sales\n- **Inventory & Low-Stock Alerts**';
-        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('add')) {
-          aiResponseText = '**AI Employee Deployment Management:**\nTo add a new AI Employee to your team:\n1. Click **"+ Add New AI Employee"** in the dashboard header.\n2. Define the specialization role (Support, Growth, Finance, or Sales).\n3. Write System Instructions tailored to store operations.\n4. Click **Deploy AI Employee** to activate the agent automatically.';
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-          aiResponseText = '**WhatsApp API Bot Automation:**\nYour WhatsApp Business Bot is active and connected. The bot reads transaction history & product catalog from Supabase to automatically reply to price inquiries and order delivery status.';
-        } else {
-          aiResponseText = `I am **ZEGA AI Operations Specialist**. How can I assist with your store operations, sales growth, POS cashier, or WhatsApp automation today?`;
-        }
-      } else if (currentAiLang === 'zh') {
-        if (promptLower.includes('who') || promptLower.includes('whp') || promptLower.includes('是谁') || promptLower.includes('身份')) {
-          aiResponseText = '我是 **ZEGA AI 运营专家**，您的企业级自主智能助手。我致力于实时协助您优化店铺交易、POS 收银流程、WhatsApp 客户服务及库存数据分析。';
-        } else if (promptLower.includes('fashion') || promptLower.includes('服装') || promptLower.includes('女装') || promptLower.includes('精品店')) {
-          aiResponseText = '**ZEGA AI 服饰店铺智能方案：**\n1. **WhatsApp AI 目录**：24/7 为客户提供尺码与颜色建议。\n2. **销售团队广播**：新品上新与限时抢购广播文案准备就绪。\n3. **POS 库存追踪**：多尺码（S, M, L, XL）实时监控与热销品预警。';
-        } else if (promptLower.includes('profit') || promptLower.includes('增长') || promptLower.includes('利润') || promptLower.includes('提升')) {
-          aiResponseText = '**ZEGA AI 利润与增长策略：**\n1. **WhatsApp 自动追单**：自动转化未付款订单与沉睡客户。\n2. **AI 销售团队交叉销售**：自动向老客户推荐组合商品。\n3. **高利润 POS 分析**：重点营销贡献 20% 主要利润的商品。';
-        } else if (promptLower.includes('know') || promptLower.includes('不懂') || promptLower.includes('帮助')) {
-          aiResponseText = '**ZEGA AI 运营咨询顾问：**\n别担心！告诉我您最需要的模块：\n- **24/7 WhatsApp AI 目录与接单机器人**\n- **高效 POS 收银系统** 处理日常销售\n- **库存与低库存预警**';
-        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('添加')) {
-          aiResponseText = '**AI 员工部署管理：**\n在您的团队中添加新的 AI 员工：\n1. 点击仪表板顶部的 **"+ 添加新 AI 员工"** 按钮。\n2. 定义专业角色（支持、增长、财务或销售）。\n3. 编写符合店铺运营需求的系统指令。\n4. 点击 **部署 AI 员工** 自动激活该代理。';
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-          aiResponseText = '**WhatsApp API 机器人自动化：**\n您的 WhatsApp Business 机器人已激活并自动连接。机器人从 Supabase 读取交易记录和产品目录，自动回复价格查询及配送状态。';
-        } else {
-          aiResponseText = `我是 **ZEGA AI 运营专家**。今天有什么我可以协助您的店铺运营、销售增长或 WhatsApp 自动化吗？`;
-        }
-      } else {
-        if (promptLower.includes('who') || promptLower.includes('whp') || promptLower.includes('siapa') || promptLower.includes('identitas')) {
-          aiResponseText = 'Saya adalah **ZEGA AI Operations Specialist**, asisten AI bisnis resmi toko Anda. Saya siap membantu mengoptimalkan transaksi penjualan, kasir POS, otomatisasi pelanggan WhatsApp 24/7, dan analisis persediaan stok secara real-time.';
-        } else if (promptLower.includes('fashion') || promptLower.includes('baju') || promptLower.includes('pakaian') || promptLower.includes('distro') || promptLower.includes('boutique')) {
-          aiResponseText = '**Solusi Cerdas Toko Fashion ZEGA AI:**\n1. **Katalog WA AI**: Panduan ukuran & stok baju otomatis di WhatsApp 24/7.\n2. **Broadcast Promo WA**: Draf promo otomatis siap rilis saat koleksi baru rilis.\n3. **Kasir POS & Stok Varian**: Memantau varian warna/ukuran (S, M, L, XL) dengan peringatan stok menipis.';
-        } else if (promptLower.includes('profit') || promptLower.includes('untung') || promptLower.includes('omzet') || promptLower.includes('penjualan') || promptLower.includes('margin') || promptLower.includes('make more')) {
-          aiResponseText = '**Strategi Pertumbuhan Profit ZEGA AI:**\n1. **Follow-up WA Otomatis**: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. **AI Sales Swarm Cross-Selling**: Rekomendasikan produk pelengkap ke pelanggan lama secara otomatis.\n3. **Analitik POS Margin Tinggi**: Fokuskan promo pada 20% produk paling menguntungkan.';
-        } else if (promptLower.includes('know') || promptLower.includes('bingung') || promptLower.includes('tidak tahu') || promptLower.includes('gimana') || promptLower.includes('apa aja')) {
-          aiResponseText = '**Konsultasi Operasional ZEGA AI:**\nTidak masalah Kak! Mari tentukan fokus toko Kakak:\n- **Otomatisasi WA 24 Jam** untuk terima pesanan otomatis\n- **Sistem Kasir POS Cepat** untuk transaksi harian\n- **Manajemen Stok Barang & Peringatan Supplier**';
-        } else if (promptLower.includes('deploy') || promptLower.includes('agent') || promptLower.includes('tambah')) {
-          aiResponseText = '**Manajemen Deployment AI Employee:**\nUntuk menambahkan AI Employee baru ke dalam tim Anda:\n1. Klik tombol **"+ Tambah AI Employee Baru"** pada header dashboard.\n2. Tentukan peran spesialisasi (Support, Growth, Finance, atau Sales).\n3. Tulis System Instruction sesuai kebutuhan operasional toko.\n4. Klik **Deploy AI Employee** untuk mengaktifkan agen secara otomatis.';
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('wa') || promptLower.includes('bot')) {
-          aiResponseText = '**Otomatisasi WhatsApp API Bot:**\nWhatsApp Business Bot Anda telah aktif dan terhubung secara otomatis. Bot membaca riwayat transaksi & katalog produk dari Supabase untuk membalas pertanyaan harga serta status pengiriman pelanggan secara otomatis.';
-        } else if (promptLower.includes('invoice') || promptLower.includes('nota') || promptLower.includes('tagihan')) {
-          aiResponseText = '**Penerbitan Quick Invoice:**\n1. Klik tombol **"Buat Quick Invoice"** pada menu Aksi Cepat.\n2. Masukkan nama pelanggan dan nominal transaksi.\n3. Sistem akan membuat invoice resmi dan mencatatnya ke tabel keuangan secara real-time.';
-        } else if (promptLower.includes('cdn') || promptLower.includes('gambar') || promptLower.includes('logo')) {
-          aiResponseText = '**Layanan Cloudflare R2 CDN:**\nSeluruh gambar produk dan aset visual disajikan secara independen melalui jalur CDN global `https://cdn.zegaai.site` dengan akses berkecepatan tinggi.';
-        } else {
-          aiResponseText = `Saya adalah **ZEGA AI Operations Specialist**. Ada yang bisa saya bantu terkait operasional toko, penjualan, kasir POS, atau otomatisasi WhatsApp Anda hari ini?`;
-        }
+      console.warn('Real AI Model execution exception:', err);
+      if (!aiResponseText) {
+        aiResponseText = '⚠️ **Model Execution Error**: Unable to reach backend AI service.';
       }
     }
 
@@ -640,10 +642,20 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
           inference_ms: inferenceMsToUse,
           tokens: tokensToUse
         });
+        console.log('[AI_PERSISTENCE]', {
+          requestId: `req-ai-web-${chatIdToUse}`,
+          tenantVerified: isVerifiedTenantContext(getActiveTenantIds(), getActiveTenantIds().userId),
+          status: 'SUCCESS'
+        });
         fetchHelpHistoryList();
       }
     } catch (e) {
       console.warn('Error persisting Ops Specialist AI response:', e);
+      console.log('[AI_PERSISTENCE]', {
+        requestId: `req-ai-web-${chatIdToUse}`,
+        tenantVerified: isVerifiedTenantContext(getActiveTenantIds(), getActiveTenantIds().userId),
+        status: 'FAILED'
+      });
     }
   };
   const [igPolicyTriggers, setIgPolicyTriggers] = useState({
@@ -683,24 +695,43 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
   // Load Real-time Data
   const loadDashboardData = async () => {
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState === 'AUTH_INITIALIZING' || authBridge.authState === 'AUTH_REQUIRED' || authBridge.authState !== 'AUTH_READY') {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setErrorState(null);
-      const activeStoreId = (await SupabaseDashboardService.getAuthenticatedStoreId()) || undefined;
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
+      const hasValidUser = Boolean(tenantCtx.authUserId || tenantCtx.userId || authBridge.supabaseUserId);
+      const hasValidStore = Boolean(tenantCtx.storeId && isValidUuid(tenantCtx.storeId));
+
+      if (!hasValidUser && !hasValidStore) {
+        setErrorState('Tenant authorization could not be verified.');
+        setLoading(false);
+        return;
+      }
+      const activeStoreId = tenantCtx.storeId || undefined;
       const res = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
 
       if (res.error) {
         setErrorState(res.error);
       }
 
-      const salesSummary = await SupabaseDashboardService.getUmkmSalesSummary(
-        activeStoreId,
-        salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
-      );
-      if (salesSummary && salesSummary.length > 0) {
-        setDynamicSalesData(salesSummary);
+      // Gate: Only fetch sales summary if tenant store is resolved
+      if (activeStoreId && isValidUuid(activeStoreId)) {
+        const salesSummary = await SupabaseDashboardService.getUmkmSalesSummary(
+          activeStoreId,
+          salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
+        );
+        if (salesSummary && salesSummary.length > 0) {
+          setDynamicSalesData(salesSummary);
+        } else {
+          setDynamicSalesData([]);
+        }
       } else {
-        setDynamicSalesData([]);
+        console.log('[HomeView] Sales summary gated: store not resolved yet');
       }
 
       if (res.kpis) setKpiData(res.kpis);
@@ -833,8 +864,16 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   };
 
   useEffect(() => {
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState !== 'AUTH_READY') return;
+    // Gate: wait for tenant store to resolve before firing sales summary request
+    const activeTenant = getActiveTenantIds();
+    if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
+      console.log('[HomeView] salesTimeframe effect gated: store not resolved');
+      return;
+    }
     (async () => {
-      const activeStoreId = (await SupabaseDashboardService.getAuthenticatedStoreId()) || undefined;
+      const activeStoreId = activeTenant.storeId || undefined;
       const summary = await SupabaseDashboardService.getUmkmSalesSummary(
         activeStoreId,
         salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
@@ -848,6 +887,14 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   }, [salesTimeframe]);
 
   useEffect(() => {
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState !== 'AUTH_READY') return;
+    // Gate: wait for tenant store before loading dashboard data
+    const activeTenant = getActiveTenantIds();
+    if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
+      console.log('[HomeView] mount effect gated: store not resolved, deferring dashboard load');
+      // Don't return — still call loadDashboardData which will internally resolve tenant
+    }
     loadDashboardData();
     let unsubscribe: any;
     (async () => {
@@ -1020,8 +1067,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
           <div className="flex items-center gap-3">
             <AlertCircle className="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
             <div>
-              <p className="text-xs font-bold">{errorState}</p>
-              <p className="text-[11px] opacity-80">{u.errorDesc || 'Gagal menghubungkan ke database Supabase Realtime.'}</p>
+              <p className="text-xs font-bold">{errorState === 'Tenant authorization could not be verified.' ? (u.tenantAuthError || errorState) : errorState}</p>
+              <p className="text-[11px] opacity-80">{u.errorDesc || 'Failed to connect to Supabase Realtime database.'}</p>
             </div>
           </div>
           <button
@@ -2321,28 +2368,33 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                       }
 
                       return (
-                        <button
+                        <div
                           key={session.id}
-                          onClick={() => handleSelectHelpSession(session)}
-                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 group ${
                             isActive
                               ? 'bg-orange-500/10 border-orange-500/50 text-orange-900 dark:text-orange-300 shadow-sm'
                               : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:translate-x-0.5'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 truncate">
-                              {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
-                              <span className="font-bold truncate text-xs group-hover:text-orange-500 transition-colors">
-                                {displayTitle}
-                              </span>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectHelpSession(session)}
+                            className="w-full text-left flex flex-col gap-1.5 cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+                          >
+                            <div className="flex items-center justify-between gap-2 w-full">
+                              <div className="flex items-center gap-2 truncate">
+                                {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
+                                <span className="font-bold truncate text-xs group-hover:text-orange-500 transition-colors">
+                                  {displayTitle}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                          {session.last_message && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 truncate font-normal leading-snug">
-                              {stripMarkdown(session.last_message)}
-                            </p>
-                          )}
+                            {session.last_message && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 truncate font-normal leading-snug">
+                                {stripMarkdown(session.last_message)}
+                              </p>
+                            )}
+                          </button>
                           <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800/60 mt-0.5">
                             <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                             <div className="flex items-center gap-2">
@@ -2350,16 +2402,20 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                                 type="button"
                                 onClick={(e) => handleDeleteHelpSession(session.id, e)}
                                 title="Hapus Sesi Chat"
-                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
                               >
                                 <Trash2 size={12} />
                               </button>
-                              <span className="flex items-center gap-1 text-orange-500 font-bold group-hover:translate-x-0.5 transition-transform">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectHelpSession(session)}
+                                className="flex items-center gap-1 text-orange-500 font-bold group-hover:translate-x-0.5 transition-transform bg-transparent border-none p-0 cursor-pointer"
+                              >
                                 {getAiLang() === 'en' ? 'Open Chat' : getAiLang() === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
-                              </span>
+                              </button>
                             </div>
                           </div>
-                        </button>
+                        </div>
                       );
                     })
                   )}

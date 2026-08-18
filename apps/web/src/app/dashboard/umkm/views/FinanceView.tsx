@@ -720,10 +720,11 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
       const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
       const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
 
-      if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+      if ((orgIdHeader || storeIdHeader) && isStoreReady) {
         const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
           method: 'POST',
           headers,
+          credentials: 'include',
           body: JSON.stringify({
             chatId: activeSessionId,
             message: userText,

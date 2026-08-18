@@ -391,21 +391,18 @@ export class PrivyWalletService {
         'http://localhost:3001';
 
       if (!email) {
-        throw new Error(
-          'PRIVY_SYNC_EMAIL_MISSING'
-        );
+        console.warn('[PrivyWalletService] Skipping syncUserToPrivyBackend — email is missing');
+        return null;
       }
 
       if (!privyUserId) {
-        throw new Error(
-          'PRIVY_SYNC_USER_ID_MISSING'
-        );
+        console.warn('[PrivyWalletService] Skipping syncUserToPrivyBackend — privyUserId is missing (pre-authentication state)');
+        return null;
       }
 
       if (!wallet?.address) {
-        throw new Error(
-          'PRIVY_SYNC_WALLET_MISSING'
-        );
+        console.warn('[PrivyWalletService] Skipping syncUserToPrivyBackend — wallet address is missing');
+        return null;
       }
 
       if (!this.isValidSolanaAddress(wallet.address)) {

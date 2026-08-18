@@ -307,25 +307,17 @@ ATURAN UTAMA BAHASA & FORMAT:
       }
     }
 
-    // Provider 5 (INSTANT ~15ms): Dynamic Professional Executive NLP Engine
+    // ── LAYER 2.5: Fail-Closed Provider Gate (Zero Production Mock/Static Fallback) ──
     if (!replyText) {
-      const promptLower = rawInput.toLowerCase();
-
-      if (promptLower === 'hi' || promptLower === 'halo' || promptLower === 'hello' || promptLower === 'pagi' || promptLower === 'siang' || promptLower === 'malam') {
-        replyText = `Selamat datang di ZEGA Enterprise Copilot.\n\nSaya siap membantu mengoptimalkan dan memantau kluster enterprise Anda per ${currentDateFormatted}.\n\nLayanan utama yang dapat diakses:\n- Pemantauan Kluster dan Latensi Node\n- Audit Keamanan OWASP dan Akses Kontrol\n- Analisis dan Optimalisasi Biaya Infrastruktur\n- Telemetri Swarm Workflows`;
-      } else if (promptLower.includes('lu siapa') || promptLower.includes('siapa kamu') || promptLower.includes('who are you') || promptLower.includes('identitas')) {
-        replyText = `Saya adalah ZEGA Enterprise Copilot, asisten AI eksekutif resmi untuk platform ZEGA Enterprise AI Operating System.\n\nSaya terhubung langsung dengan telemetri infrastruktur 8 node microservice, log keamanan OWASP Level 3, serta data Supabase Realtime untuk membantu manajemen sistem secara optimal.`;
-      } else if (promptLower.includes('fungsi') || promptLower.includes('apa itu') || promptLower.includes('tentang zega') || promptLower.includes('fitur') || promptLower.includes('kegunaan') || promptLower.includes('keunggulan') || promptLower.includes('manfaat')) {
-        replyText = `ZEGA AI adalah platform orchestration & AI Operating System enterprise terpadu. Fungsi utama ZEGA AI meliputi:\n\n1. Autonomous Swarm Workflows: Eksekusi otomatis ratusan agen AI (Marketing, HR, Finance, DevSecOps, Legal) dalam satu pipa kerja.\n2. ZeroClaw Solana Payment Bridge: Pembayaran instant keyless vault USDC/SOL dengan otomatisasi invoice ke Telegram & WhatsApp.\n3. OWASP Level 3 Security Gate: Perlindungan multi-layer anti-prompt injection, anti-throttling, & enkripsi data zero-trust.\n4. 9Router Multi-LLM Layer: Routing pintar otomatis antar model AI untuk latency tercepat dan efisiensi biaya maksimal.`;
-      } else if (promptLower.includes('cluster') || promptLower.includes('node') || promptLower.includes('status')) {
-        replyText = `Ringkasan Telemetri Kluster Enterprise (${currentDateFormatted}):\n- Microservices Aktif: 8 dari 8 Node Berjalan Normal\n- Latensi Rata-rata: 22 ms (Edge Network)\n- Throughput Database: 18.732 transaksi/menit\n- Kapasitas Auto-Scaling: 64% Tersedia`;
-      } else if (promptLower.includes('security') || promptLower.includes('owasp') || promptLower.includes('threat') || promptLower.includes('audit')) {
-        replyText = `Laporan Audit Keamanan Sistem:\n- Tingkat Kepatuhan: OWASP Level 3 Enforced\n- Anti-Throttling Guard: Aktif\n- Anti-Chunking Payload Validator: Aktif (Maksimal 1 MB)\n- Ancaman Dinetralkan: 23 Percobaan Probe Dinetralkan (24 jam terakhir)`;
-      } else if (promptLower.includes('cost') || promptLower.includes('biaya') || promptLower.includes('spend') || promptLower.includes('budget')) {
-        replyText = `Analisis Pengeluaran Infrastruktur AI:\n- Penggunaan Bulan Ini: $128.430,50 dari Total Anggaran $250.000\n- Alokasi Layanan Utama: 53% Pengolahan Data Utama, 27% Model Analitik\n- Rekomendasi: Penyeimbangan ulang beban kerja dapat menghemat biaya hingga 15% bulan ini.`;
-      } else {
-        replyText = `Terima kasih atas pesan Anda mengenai "${rawInput}".\n\nBerdasarkan pantauan telemetri enterprise per ${currentDateFormatted}, seluruh node dan sistem keamanan berada dalam status optimal. Apakah Anda memerlukan audit teknis lebih mendalam atau laporan eksekutif khusus?`;
-      }
+      fastify.log.warn({ authenticatedOrgId, authenticatedUserId }, '⚠️ [Enterprise Copilot] No configured AI provider succeeded');
+      return reply.status(503).send({
+        success: false,
+        error: {
+          code: 'AI_MODEL_UNAVAILABLE',
+          message: 'No configured AI provider was able to process the model request. Verify GROQ_API_KEY, GEMINI_API_KEY, HUGGINGFACE_API_KEY, or OPENROUTER_API_KEY.',
+          statusCode: 503
+        }
+      });
     }
 
     // ── LAYER 3: Output Sanitization & Leak Inspection (OWASP LLM07) ──

@@ -1669,13 +1669,21 @@ export const enterpriseSupabaseService = {
 
   async updateWebhookSettings(settingsData: Record<string, any>) {
     try {
+      const { data: rows } = await supabase
+        .from('enterprise_webhook_settings')
+        .select('id')
+        .limit(1);
+
+      const rowId = rows && rows.length > 0 ? rows[0].id : null;
+      if (!rowId) return { success: false, error: 'No webhook settings row' };
+
       const { data, error } = await supabase
         .from('enterprise_webhook_settings')
         .update({
           ...settingsData,
           updated_at: new Date().toISOString()
         })
-        .neq('id', '00000000-0000-0000-0000-000000000000') // matches row
+        .eq('id', rowId)
         .select()
         .single();
       if (error) throw error;
@@ -2635,20 +2643,24 @@ export const enterpriseSupabaseService = {
   },
 
   async updateNotificationConfigRealtime(updates: Record<string, any>) {
-    const { data, error } = await supabase.from('enterprise_notifications_config').update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    }).eq('id', '00000000-0000-0000-0000-000000000000').select();
-    
-    if (error) {
-      // fallback without id filter
+    try {
       const { data: allData } = await supabase.from('enterprise_notifications_config').select('id').limit(1);
       if (allData && allData.length > 0) {
-        const { data: updated } = await supabase.from('enterprise_notifications_config').update(updates).eq('id', allData[0].id).select().single();
-        return { success: true, data: updated };
+        const { data: updated, error } = await supabase
+          .from('enterprise_notifications_config')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', allData[0].id)
+          .select()
+          .single();
+        if (!error) return { success: true, data: updated };
       }
+      return { success: false, error: 'No config row found' };
+    } catch (e: any) {
+      return { success: false, error: e?.message };
     }
-    return { success: !error, data };
   },
 
   // --- DATA & PRIVACY REALTIME ---

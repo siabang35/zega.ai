@@ -117,7 +117,7 @@ export async function registerPlugins(app: FastifyInstance) {
     },
     cookie: {
       cookieName: '__zega_token',
-      signed: true,
+      signed: false,
     },
   });
 

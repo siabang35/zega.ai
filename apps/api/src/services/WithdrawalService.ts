@@ -254,21 +254,7 @@ export class WithdrawalService {
     };
 
     if (!supabase) {
-      return {
-        id,
-        user_id: 'mock_user',
-        wallet_id: 'mock_wal',
-        privy_user_id: 'mock_privy',
-        asset: 'SOL',
-        amount: '1.0',
-        amount_base_units: '1000000000',
-        sender: 'mock_sender',
-        recipient: 'mock_recipient',
-        status,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...additionalData,
-      };
+      throw new Error('Database client uninitialized: cannot update withdrawal status');
     }
 
     const { data, error } = await supabase

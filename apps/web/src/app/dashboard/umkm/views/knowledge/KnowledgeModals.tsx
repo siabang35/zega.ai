@@ -959,6 +959,39 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
     { sender: 'ai', text: getInitialAiGreeting(language), confidence: 98.4 }
   ]);
   const [isAsking, setIsAsking] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const initKnowledgeSession = async () => {
+      try {
+        const tenant = getActiveTenantIds();
+        const res = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+          tenant.storeId,
+          tenant.userId,
+          'Knowledge Base Assistant',
+          'ZEGA Knowledge Specialist'
+        );
+        if (res.ok && res.chatId && isMounted) {
+          setChatSessionId(res.chatId);
+          const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(res.chatId);
+          if (msgs && msgs.length > 0 && isMounted) {
+            setChatLog(msgs.map((m: any) => ({
+              sender: m.sender === 'user' ? 'user' : 'ai',
+              text: m.text,
+              confidence: 98.5
+            })));
+          }
+        }
+      } catch (err) {
+        console.warn('Error initializing Knowledge AI session:', err);
+      }
+    };
+    if (isOpen) {
+      initKnowledgeSession();
+    }
+    return () => { isMounted = false; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -1103,39 +1136,7 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
     );
   };
 
-  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const initKnowledgeSession = async () => {
-      try {
-        const tenant = getActiveTenantIds();
-        const res = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
-          tenant.storeId,
-          tenant.userId,
-          'Knowledge Base Assistant',
-          'ZEGA Knowledge Specialist'
-        );
-        if (res.ok && res.chatId && isMounted) {
-          setChatSessionId(res.chatId);
-          const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(res.chatId);
-          if (msgs && msgs.length > 0 && isMounted) {
-            setChatLog(msgs.map((m: any) => ({
-              sender: m.sender === 'user' ? 'user' : 'ai',
-              text: m.text,
-              confidence: 98.5
-            })));
-          }
-        }
-      } catch (err) {
-        console.warn('Error initializing Knowledge AI session:', err);
-      }
-    };
-    if (isOpen) {
-      initKnowledgeSession();
-    }
-    return () => { isMounted = false; };
-  }, [isOpen]);
 
   const handleSend = async (questionText?: string) => {
     const q = questionText || query;

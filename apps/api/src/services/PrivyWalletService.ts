@@ -63,20 +63,7 @@ export class PrivyWalletService {
     // 5. Persist to DB with upsert safety
     const supabase = supabaseService.getClient();
     if (!supabase) {
-      // Mock fallback if DB connection unavailable during test/dev
-      return {
-        id: `wal_${Date.now()}`,
-        user_id: userId,
-        privy_user_id: privyUserId,
-        privy_wallet_id: privyWalletId,
-        wallet_address: walletAddress,
-        chain: 'solana',
-        wallet_type: 'privy_embedded',
-        is_primary: true,
-        status: 'ACTIVE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      throw new Error('Database client uninitialized: cannot persist Solana wallet record');
     }
 
     const { data, error } = await supabase

@@ -12,7 +12,15 @@ const getEnvVar = (key: string, fallback: string): string => {
 };
 
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://ikxiclpvywxxnkcaldbx.supabase.co');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlreGljbHB2eXd4eG5rY2FsZGJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDA4NzcsImV4cCI6MjEwMDg3Njg3N30.vCQzR2ppnAxe7ugL6TTo1K5hqk6PdowjA59zDSf1dmo');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', '');
+
+export const supabaseUrlHost = (() => {
+  try {
+    return new URL(supabaseUrl).hostname;
+  } catch {
+    return 'ikxiclpvywxxnkcaldbx.supabase.co';
+  }
+})();
 
 // Auto-cleanup stale/expired Supabase auth session tokens from localStorage
 if (typeof window !== 'undefined') {
@@ -61,7 +69,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export function setSupabaseTenantHeader(organizationId: string): void {
   // Inject x-organization-id into the REST client's global headers
   // PostgREST passes this to PostgreSQL as request.header.x-organization-id
-  (supabase as any).rest.headers['x-organization-id'] = organizationId;
-  (supabase as any).realtime?.setAuth?.(undefined); // refresh realtime channel
+  if (organizationId && organizationId.trim()) {
+    (supabase as any).rest.headers['x-organization-id'] = organizationId;
+  } else {
+    delete (supabase as any).rest.headers['x-organization-id'];
+  }
 }
 

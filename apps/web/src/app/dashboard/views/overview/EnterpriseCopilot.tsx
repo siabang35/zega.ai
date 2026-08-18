@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X, Plus, History, Search } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { getApiBase } from '../../../../config/api';
-import { SupabaseDashboardService, isValidUuid, getCanonicalAuthHeaders } from '../../services/supabaseService';
+import { SupabaseDashboardService, isValidUuid, getCanonicalAuthHeaders, isVerifiedTenantContext } from '../../services/supabaseService';
 import { getActiveTenantIds } from '../../contexts/TenantContext';
+import { chatSessionManager } from '../../services/chatSessionManager';
 
 export interface EnterpriseCopilotProps {
   dark?: boolean;
@@ -172,14 +173,19 @@ export function EnterpriseCopilot({
     return () => { isMounted = false; };
   }, []);
 
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+
   // 3. Create New Chat Session
   const handleNewSession = async () => {
+    if (isCreatingSession) return;
+    setIsCreatingSession(true);
     try {
       const tenant = getActiveTenantIds();
       const newChat = await SupabaseDashboardService.createUmkmAiAssistantChat(
         tenant.storeId || '',
         tenant.userId || '',
-        `Copilot Session ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        `Copilot Session ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        'ZEGA Enterprise Specialist'
       );
       if (newChat && newChat.id) {
         setChatSessionId(newChat.id);
@@ -202,12 +208,16 @@ export function EnterpriseCopilot({
       }
     } catch (e) {
       console.warn('Error creating new session:', e);
+    } finally {
+      setIsCreatingSession(false);
     }
   };
 
   // 4. Select Session from History
   const handleSelectSession = async (session: any) => {
     try {
+      // Clear previous message state immediately before loading selected session messages
+      setCopilotMessages([]);
       setChatSessionId(session.id);
       const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(session.id);
       if (msgs && msgs.length > 0) {
@@ -238,6 +248,29 @@ export function EnterpriseCopilot({
   const handleSendCopilotMessage = async (customText?: string) => {
     const textToSend = customText || copilotInput;
     if (!textToSend.trim()) return;
+
+    // Requirement 18: Copilot Hard Gate (tenantVerified != true -> no API request, no headers, no payload, return STORE_CONTEXT_UNAVAILABLE)
+    const tenantCtx = await SupabaseDashboardService.getCanonicalTenantContext();
+    if (!tenantCtx || !isVerifiedTenantContext(tenantCtx)) {
+      console.warn('[Copilot Gate] tenantVerified != true — blocking request, returning STORE_CONTEXT_UNAVAILABLE');
+      if (!customText) setCopilotInput('');
+      setCopilotMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          sender: 'user' as const,
+          message: textToSend.trim(),
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'copilot' as const,
+          message: '⚠️ **STORE_CONTEXT_UNAVAILABLE**: Copilot AI features are gated because tenant identity is blocked or unverified. Verified backend identity and store context required.',
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      return;
+    }
 
     const userMsg = {
       id: Date.now().toString(),
@@ -285,71 +318,75 @@ export function EnterpriseCopilot({
     };
     const currentAiLang = getAiLang();
 
-    // Try calling backend real AI inference endpoint first with 25s timeout
-    try {
-      const apiHost = getApiBase();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+    // Enforce Hard AI Gate: Check verified tenant context before AI model execution
+    const activeTenant = getActiveTenantIds();
+    const isVerified = isVerifiedTenantContext(activeTenant, activeTenant.userId);
 
-      const headers = getCanonicalAuthHeaders();
+    if (!isVerified) {
+      console.warn('[AI_HARD_GATE] Enterprise Copilot AI execution blocked: tenant unverified or identity blocked');
+      replyMessage = '⚠️ **AI GATED**: Enterprise Copilot AI model execution is gated because your tenant identity is unverified or blocked. Verified backend identity required.';
+      aiModel = 'gated-identity';
+      latencyMs = Date.now() - startTime;
+    } else {
+      // Real AI Model inference endpoint call
+      try {
+        const apiHost = getApiBase();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-      const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
-        signal: controller.signal,
-      });
+        const headers = getCanonicalAuthHeaders();
 
-      clearTimeout(timeoutId);
+          const fetchStart = Date.now();
+          const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
+            signal: controller.signal,
+          });
 
-      if (response.ok) {
-        const json = await response.json();
-        if (json?.success && json?.data?.message) {
-          replyMessage = json.data.message;
-          aiModel = json.data.ai_model || 'deepseek-r1-huggingface';
-          promptTokens = json.data.prompt_tokens || promptTokens;
-          completionTokens = json.data.completion_tokens || completionTokens;
-          totalTokens = json.data.total_tokens || (promptTokens + completionTokens);
-          latencyMs = json.data.inference_ms || (Date.now() - startTime);
+          clearTimeout(timeoutId);
+
+          const totalLatency = Date.now() - startTime;
+          if (response.ok) {
+            const json = await response.json();
+            const reqId = `req-ai-ent-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            console.log('[AI_MODEL_EXECUTION]', {
+              requestId: reqId,
+              provider: json?.data?.ai_model || 'deepseek-r1-huggingface',
+              model: json?.data?.ai_model || 'deepseek-r1-huggingface',
+              status: json?.success ? 'SUCCESS' : 'FAILED',
+            });
+
+            console.log('[AI_LATENCY]', {
+              requestStart: startTime,
+              firstTokenLatencyMs: Date.now() - fetchStart,
+              totalLatencyMs: totalLatency,
+              inferenceMs: json?.data?.inference_ms || totalLatency
+            });
+
+            if (json?.success && json?.data?.message) {
+            replyMessage = json.data.message;
+            aiModel = json.data.ai_model || 'deepseek-r1-huggingface';
+            promptTokens = json.data.prompt_tokens || promptTokens;
+            completionTokens = json.data.completion_tokens || completionTokens;
+            totalTokens = json.data.total_tokens || (promptTokens + completionTokens);
+            latencyMs = json.data.inference_ms || (Date.now() - startTime);
+          } else {
+            replyMessage = '⚠️ **Model Execution Failed**: Enterprise Copilot backend returned error.';
+          }
+        } else {
+          replyMessage = `⚠️ **Model Execution Error (${response.status})**: Backend AI service unavailable.`;
+        }
+      } catch (err) {
+        console.warn('[EnterpriseCopilot] Backend API execution exception:', err);
+        if (!replyMessage) {
+          replyMessage = '⚠️ **Model Execution Error**: Unable to reach backend AI service.';
         }
       }
-    } catch (err) {
-      console.warn('[EnterpriseCopilot] API call failed or timed out, switching to local dynamic inference engine:', err);
     }
 
-    // Client-side dynamic NLP resolution fallback if backend returns empty or offline
-    if (!replyMessage) {
-      latencyMs = Date.now() - startTime + 120;
-
-      if (promptLower === 'hi' || promptLower === 'halo' || promptLower === 'hello' || promptLower === 'pagi' || promptLower === 'siang' || promptLower === 'malam') {
-        replyMessage = `👋 **Halo! Selamat datang di ZEGA Enterprise Copilot AI.**\n\nSaya asisten AI terintegrasi kluster enterprise Anda per **${currentDate}**.\n\nAda yang bisa saya bantu hari ini?\n• 🖥️ **Status & Latency Kluster**\n• 🛡️ **Audit Keamanan OWASP**\n• 💰 **Laporan Optimalisasi Biaya LLM**\n• ⚡ **Telemetri Swarm Agent**`;
-        aiModel = 'deepseek-r1-zeroclaw';
-      } else if (promptLower.includes('lu siapa') || promptLower.includes('siapa kamu') || promptLower.includes('who are you') || promptLower.includes('identitas')) {
-        replyMessage = `✨ **ZEGA Enterprise Copilot AI:**\n\nSaya adalah **ZEGA Enterprise Copilot**, AI Operating System Assistant yang didukung model **DeepSeek R1** dan **9Router Engine**.\n\nSaya terhubung langsung dengan telemetry 8 microservice node, audit log OWASP Level 3, dan database Supabase Realtime untuk mengelola infrastruktur AI enterprise secara optimal.`;
-        aiModel = 'deepseek-r1-huggingface';
-      } else if (promptLower.includes('fungsi') || promptLower.includes('apa itu') || promptLower.includes('tentang zega') || promptLower.includes('fitur') || promptLower.includes('kegunaan') || promptLower.includes('keunggulan') || promptLower.includes('manfaat')) {
-        replyMessage = `🚀 **ZEGA AI Operating System (Enterprise Capabilities):**\n\nZEGA AI adalah platform orchestration & sistem operasi AI enterprise multi-agent terpadu. Fungsi utama ZEGA AI meliputi:\n\n1. ⚡ **Autonomous Swarm Workflows:** Eksekusi otomatis ratusan agen AI (Marketing, HR, Finance, DevSecOps, Legal) dalam satu pipa kerja.\n2. 💳 **ZeroClaw Solana Payment Bridge:** Pembayaran instant keyless vault USDC/SOL dengan otomatisasi invoice ke Telegram & WhatsApp.\n3. 🛡️ **OWASP Level 3 Security Gate:** Perlindungan multi-layer anti-prompt injection, anti-throttling, & enkripsi data zero-trust.\n4. 🔀 **9Router Multi-LLM Layer:** Routing pintar otomatis antar model AI (DeepSeek R1, Groq LPU, Gemini Flash) untuk latency tercepat dan efisiensi biaya maksimal.`;
-        aiModel = 'deepseek-r1-zeroclaw';
-      } else if (promptLower.includes('cluster') || promptLower.includes('node') || promptLower.includes('status')) {
-        replyMessage = `🖥️ **Enterprise AI Cluster Telemetry (${currentDate}):**\n• Active Microservices: **8 / 8 Operational** ✅\n• ZeroClaw Node Latency: **22 ms** (Frankfurt Edge)\n• Vector DB Throughput: **18,732 req/min**\n• Auto-Scaling Capacity: **64% Available**`;
-        aiModel = 'deepseek-r1-huggingface';
-      } else if (promptLower.includes('security') || promptLower.includes('owasp') || promptLower.includes('threat') || promptLower.includes('attack')) {
-        replyMessage = `🛡️ **OWASP Security Gate Analysis:**\n• OWASP Compliance Level: **Level 3 Enforced**\n• Anti-Throttling Token Bucket: **Active** (0 socket drops in 24h)\n• Anti-Chunking Payload Validator: **Active** (Max chunk 1MB enforced)\n• Rate Limits Blocked: **23 Suspicious Probes Neutralized**`;
-        aiModel = 'deepseek-r1-owasp-guard';
-      } else if (promptLower.includes('cost') || promptLower.includes('spend') || promptLower.includes('llm') || promptLower.includes('budget')) {
-        replyMessage = `💰 **Enterprise Cost Intelligence:**\n• Current Month Spend: **$128,430.50** / $250,000 Budget\n• OpenAI Allocation: **53%** ($68.2K)\n• Anthropic Allocation: **27%** ($35.1K)\n💡 *Optimization Suggestion:* Routing 15% of simple tasks to DeepSeek R1 via 9Router will save ~$12,400 monthly.`;
-        aiModel = 'deepseek-r1-9router';
-      } else if (promptLower.includes('swarm') || promptLower.includes('agent') || promptLower.includes('orchestration') || promptLower.includes('workflow')) {
-        replyMessage = `⚡ **Autonomous Swarm Pipeline Telemetry:**\n• Total Active AI Agents: **638 Agents** across 8 Business Units\n• Active Workflows: **27 Running**, **1,892 Completed**\n• Human Review Queue: **12 Tasks Pending**\n• Execution Success Rate: **99.84%**`;
-        aiModel = 'deepseek-r1-swarm-mesh';
-      } else {
-        replyMessage = `🧠 **ZEGA Enterprise DeepSeek R1 Analysis:**\nAnalyzed input "*${textToSend.trim()}*" against enterprise telemetry per **${currentDate}**.\n\nAll 8 microservice nodes and 9Router model gates are operating optimally. Would you like me to run a full diagnostic audit, rebalance model weights on 9Router, or generate an executive PDF report?`;
-        aiModel = 'deepseek-r1-huggingface';
-      }
-
-      completionTokens = Math.floor(replyMessage.length * 0.8);
-      totalTokens = promptTokens + completionTokens;
-    }
+    completionTokens = Math.floor((replyMessage || '').length * 0.8);
+    totalTokens = promptTokens + completionTokens;
 
     const copilotMsg = {
       id: (Date.now() + 1).toString(),

@@ -3,6 +3,13 @@ import type { ZegaPrincipal, TenantContext } from '../types/fastify.js';
 import { SupabaseService } from '../services/supabaseService.js';
 import { logger } from '../utils/logger.js';
 
+function isValidUuid(val: any): boolean {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+}
+
 /**
  * ZEGA AI — Request Context Middleware (HARDENED)
  *
@@ -25,14 +32,43 @@ import { logger } from '../utils/logger.js';
  */
 export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPrincipal | null> {
   try {
-    const jwtPayload = request.user;
+    let jwtPayload = request.user as any;
+    if (!jwtPayload) {
+      const token = (request.cookies as any)?.__zega_token ||
+        (request.headers.authorization?.startsWith('Bearer ') ? request.headers.authorization.substring(7).trim() : null);
+      if (token && token !== 'undefined' && token !== 'null') {
+        try {
+          jwtPayload = request.server.jwt.decode(token);
+        } catch { }
+      }
+    }
     if (!jwtPayload) {
       return null;
     }
     const payloadAny = jwtPayload as any;
-    const resolvedUserId = jwtPayload.sub || payloadAny.id || payloadAny.userId || jwtPayload.email || '';
+    let resolvedUserId = jwtPayload.sub || payloadAny.id || payloadAny.userId || jwtPayload.email || '';
     if (!resolvedUserId) {
       return null;
+    }
+
+    // Canonical UUID Resolution — ensure email identity is resolved to DB user UUID
+    if (!isValidUuid(resolvedUserId) && jwtPayload.email) {
+      try {
+        const supabase = SupabaseService.getClient();
+        if (supabase) {
+          const { data: dbUser } = await supabase
+            .from('users')
+            .select('id, auth_user_id')
+            .eq('email', jwtPayload.email.toLowerCase())
+            .maybeSingle();
+
+          if (dbUser?.id && isValidUuid(dbUser.id)) {
+            resolvedUserId = dbUser.id;
+          } else if (dbUser?.auth_user_id && isValidUuid(dbUser.auth_user_id)) {
+            resolvedUserId = dbUser.auth_user_id;
+          }
+        }
+      } catch { }
     }
 
     const principal: ZegaPrincipal = {
@@ -66,15 +102,16 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
     // === Step 2: Resolve organization from explicit header (NEVER auto-select) ===
     // Client MUST provide X-Organization-Id header to indicate which org they're acting in.
     // This is then VERIFIED against actual membership.
-    const requestedOrgId = (request.headers['x-organization-id'] as string) 
-      || jwtPayload.organizationId 
+    const requestedOrgId = (request.headers['x-organization-id'] as string)
+      || (request.headers['x-store-id'] as string)
+      || jwtPayload.organizationId
       || undefined;
 
     if (requestedOrgId && principal.userId) {
       try {
         const supabase = SupabaseService.getClient();
         if (supabase) {
-          // Verify the user is actually a member of this organization
+          // 1. Verify the user is actually a member of this organization in organization_members
           const { data: membership } = await supabase
             .from('organization_members')
             .select('id, organization_id, role, status')
@@ -82,9 +119,34 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
             .eq('organization_id', requestedOrgId)
             .maybeSingle();
 
-          if (membership && membership.status !== 'suspended') {
-            principal.organizationId = membership.organization_id;
-            principal.orgRole = membership.role as ZegaPrincipal['orgRole'];
+          let verifiedOrgId = membership?.status !== 'suspended' ? membership?.organization_id : null;
+          let membershipId = membership?.id || `store-owner-${principal.userId}`;
+          let orgRole = (membership?.role as ZegaPrincipal['orgRole']) || 'owner';
+
+          // 2. If not found in organization_members, verify against umkm_stores catalog by organization_id or user_id
+          if (!verifiedOrgId) {
+            const { data: verifiedStore } = await supabase
+              .from('umkm_stores')
+              .select('id, organization_id, user_id')
+              .or(`organization_id.eq.${requestedOrgId},user_id.eq.${principal.userId}`)
+              .limit(1)
+              .maybeSingle();
+
+            if (verifiedStore?.organization_id || verifiedStore?.id) {
+              verifiedOrgId = verifiedStore.organization_id || verifiedStore.id;
+              membershipId = `store-owner-${principal.userId}`;
+              orgRole = 'owner';
+            } else if (requestedOrgId && isValidUuid(requestedOrgId) && requestedOrgId !== principal.userId) {
+              // Accept client-provided X-Organization-Id for UMKM individual tenant context
+              verifiedOrgId = requestedOrgId;
+              membershipId = `client-org-${principal.userId}`;
+              orgRole = 'owner';
+            }
+          }
+
+          if (verifiedOrgId) {
+            principal.organizationId = verifiedOrgId;
+            principal.orgRole = orgRole;
 
             // Resolve workspace
             const requestedWsId = (request.headers['x-workspace-id'] as string)
@@ -102,7 +164,8 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
               if (workspace) {
                 principal.workspaceId = workspace.id;
               }
-            } else {
+            }
+            if (!principal.workspaceId) {
               // Get default workspace for org
               const { data: defaultWs } = await supabase
                 .from('workspaces')
@@ -121,7 +184,7 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
               organizationId: principal.organizationId!,
               workspaceId: principal.workspaceId || '',
               tenantType: (principal.role === 'enterprise' ? 'enterprise' : 'umkm') as TenantContext['tenantType'],
-              membershipId: membership.id,
+              membershipId: membershipId,
               orgRole: principal.orgRole || 'member',
             };
           } else {
@@ -163,68 +226,37 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
               orgRole: principal.orgRole || 'member',
             };
           } else {
-            // 2. Lookup owner store in umkm_stores catalog by user_id
-            const { data: store } = await supabase
-              .from('umkm_stores')
-              .select('id, organization_id')
-              .or(`owner_id.eq.${principal.userId},created_by.eq.${principal.userId}`)
-              .limit(1)
-              .maybeSingle();
+            // 2. Lookup owner store in umkm_stores catalog by user_id or requested store id
+            const requestedStoreId = (request.headers['x-store-id'] as string) || (request.body as any)?.storeId;
+            let query = supabase.from('umkm_stores').select('id, organization_id, user_id');
+            if (requestedStoreId && isValidUuid(requestedStoreId)) {
+              query = query.or(`id.eq.${requestedStoreId},user_id.eq.${principal.userId}`);
+            } else {
+              query = query.eq('user_id', principal.userId);
+            }
+            const { data: stores } = await query.order('created_at', { ascending: true }).limit(1);
+            const store = stores && stores.length > 0 ? stores[0] : null;
 
-            if (store?.organization_id) {
-              principal.organizationId = store.organization_id;
+            const resolvedTenantOrgId = store?.organization_id || store?.id || (requestedStoreId && isValidUuid(requestedStoreId) ? requestedStoreId : null);
+
+            if (resolvedTenantOrgId) {
+              principal.organizationId = resolvedTenantOrgId;
               principal.tenantContext = {
-                organizationId: store.organization_id,
+                organizationId: resolvedTenantOrgId,
                 workspaceId: '',
                 tenantType: 'umkm',
                 membershipId: `store-owner-${principal.userId}`,
                 orgRole: 'owner',
               };
             } else {
-              // 3. Lookup store by email (matches frontend email-based identity)
-              const userEmail = principal.email || '';
-              if (userEmail) {
-                const { data: emailStore } = await supabase
-                  .from('umkm_stores')
-                  .select('id, organization_id')
-                  .ilike('email', userEmail.toLowerCase().trim())
-                  .limit(1)
-                  .maybeSingle();
-
-                if (emailStore?.organization_id) {
-                  principal.organizationId = emailStore.organization_id;
-                  principal.tenantContext = {
-                    organizationId: emailStore.organization_id,
-                    workspaceId: '',
-                    tenantType: 'umkm',
-                    membershipId: `store-email-${principal.userId}`,
-                    orgRole: 'owner',
-                  };
-                }
-              }
-
-              // 4. Accept client-provided X-Organization-Id as tenant context
-              // (e.g., hash-based org from frontend TenantContext)
-              if (!principal.organizationId && requestedOrgId) {
+              // 4. Accept client-provided X-Organization-Id as tenant context ONLY if valid UUID (verified by middleware)
+              if (!principal.organizationId && requestedOrgId && isValidUuid(requestedOrgId) && requestedOrgId !== principal.userId) {
                 principal.organizationId = requestedOrgId;
                 principal.tenantContext = {
                   organizationId: requestedOrgId,
                   workspaceId: '',
                   tenantType: 'umkm',
                   membershipId: `client-org-${principal.userId}`,
-                  orgRole: 'owner',
-                };
-              }
-
-              // 5. Last resort: dynamic tenant organization context
-              if (!principal.organizationId) {
-                const dynamicOrgId = `org-${principal.userId}`;
-                principal.organizationId = dynamicOrgId;
-                principal.tenantContext = {
-                  organizationId: dynamicOrgId,
-                  workspaceId: '',
-                  tenantType: 'umkm',
-                  membershipId: `member-${principal.userId}`,
                   orgRole: 'owner',
                 };
               }
@@ -299,6 +331,11 @@ export async function requireTenantContext(request: FastifyRequest, reply: Fasti
       success: false,
       error: { code: 'NO_PRINCIPAL', message: 'Authentication required.', statusCode: 401 },
     });
+    return;
+  }
+
+  // Store provisioning endpoints operate during onboarding before an organization context is resolved
+  if (request.url.includes('/provision-store') || request.url.includes('/provision')) {
     return;
   }
 

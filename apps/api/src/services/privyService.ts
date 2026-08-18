@@ -454,12 +454,7 @@ export async function getOrCreateUserByEmail(email: string) {
     });
     return created;
   } catch (err: any) {
-    // If importUser is not available or fails, fallback to get user or return mock user structure
-    return {
-      id: `did:privy:${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
-      email: cleanEmail,
-      linkedAccounts: [],
-    };
+    throw new Error(`PRIVY_USER_CREATION_FAILED: ${err?.message || String(err)}`);
   }
 }
 
@@ -475,11 +470,7 @@ export async function createSolanaWalletForUser(privyUserId: string) {
     });
     return wallet;
   } catch (err: any) {
-    return {
-      id: `privy_wal_${Date.now()}`,
-      address: `7xK${Math.random().toString(36).substring(2, 12)}SolanaDevnet`,
-      chainType: 'solana',
-    };
+    throw new Error(`PRIVY_WALLET_CREATION_FAILED: ${err?.message || String(err)}`);
   }
 }
 

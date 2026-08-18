@@ -167,7 +167,7 @@ class SupabaseBackendService {
       // If no existing profile in public.profiles, find user in public.users to match ID or try insert
       const { data: userRow } = await supabase
         .from('users')
-        .select('id')
+        .select('id, email, role, full_name')
         .eq('email', email.toLowerCase())
         .maybeSingle();
 
@@ -194,9 +194,24 @@ class SupabaseBackendService {
           logger.info(`[SupabaseService] Profile synced for ${email}. Profile ID: ${data.id}`);
           return data;
         }
+        if (userRow) {
+          return { id: userRow.id, email: userRow.email, role: userRow.role, full_name: userRow.full_name };
+        }
       }
 
-      return { id: email, email: email.toLowerCase(), role: dbRole };
+      // If userRow was just created by upsert to users table, fetch it again
+      const { data: freshUser } = await supabase
+        .from('users')
+        .select('id, email, role, full_name')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (freshUser?.id) {
+        return { id: freshUser.id, email: freshUser.email, role: freshUser.role, full_name: freshUser.full_name };
+      }
+
+      logger.error({ email }, '[SupabaseService] FAIL-CLOSED: public.users record could not be resolved to a UUID.');
+      return null;
     } catch (err) {
       logger.warn({ err }, '[SupabaseService] Failed to sync profile to Supabase.');
       return null;

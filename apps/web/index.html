@@ -18,6 +18,70 @@
   <meta name="theme-color" content="#0a0b10" />
 
   <!-- Content Security Policy (CSP) for Privy, Cloudflare Turnstile, Cloudflare Insights, TradingView & Solana Web3 Extensions -->
+  <script>
+    (function () {
+      var isExtensionNoise = function (args) {
+        if (!args || !args.length) return false;
+        var joined = "";
+        for (var i = 0; i < args.length; i++) {
+          var arg = args[i];
+          if (!arg) continue;
+          if (typeof arg === "string") {
+            joined += " " + arg;
+          } else if (typeof arg === "object") {
+            try {
+              joined += " " + (arg.message || "") + " " + (arg.stack || "") + " " + (arg.name || "") + " " + String(arg);
+              if (typeof JSON !== "undefined" && JSON.stringify) {
+                try { joined += " " + JSON.stringify(arg); } catch (e) {}
+              }
+            } catch (e) {
+              joined += " " + String(arg);
+            }
+          } else {
+            joined += " " + String(arg);
+          }
+        }
+        return (
+          joined.indexOf("MaxListenersExceededWarning") !== -1 ||
+          joined.indexOf("Possible EventEmitter memory leak detected") !== -1 ||
+          joined.indexOf("close listeners added") !== -1 ||
+          joined.indexOf("end listeners added") !== -1 ||
+          joined.indexOf("Use emitter.setMaxListeners()") !== -1 ||
+          joined.indexOf("ObjectMultiplex - orphaned data for stream") !== -1 ||
+          joined.indexOf("app-init-liveness") !== -1 ||
+          joined.indexOf("background-liveness") !== -1 ||
+          joined.indexOf("contentscript.js") !== -1
+        );
+      };
+
+      var methods = ["warn", "error", "info", "log"];
+      for (var i = 0; i < methods.length; i++) {
+        var m = methods[i];
+        if (typeof console[m] === "function") {
+          (function (orig) {
+            console[m] = function () {
+              if (isExtensionNoise(arguments)) return;
+              return orig.apply(console, arguments);
+            };
+          })(console[m]);
+        }
+      }
+
+      window.addEventListener("error", function (e) {
+        if (e && isExtensionNoise([e.error, e.message, e.filename])) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+      }, true);
+
+      window.addEventListener("unhandledrejection", function (e) {
+        if (e && isExtensionNoise([e.reason])) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+      }, true);
+    })();
+  </script>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dashboard.privy.io https://auth.privy.io https://hcaptcha.com https://*.hcaptcha.com https://challenges.cloudflare.com https://js.stripe.com https://static.cloudflareinsights.com https://*.cloudflareinsights.com https://s3.tradingview.com https://s.tradingview.com https://www.tradingview.com; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https: wss: https://dashboard.privy.io https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com wss://www.walletlink.org https://api.devnet.solana.com https://cloudflareinsights.com https://*.cloudflareinsights.com wss://stream.binance.com:9443 https://*.tradingview.com; frame-src 'self' https://dashboard.privy.io https://auth.privy.io https://verify.privy.io https://embedded-wallet.privy.io https://*.privy.io https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://s.tradingview.com https://www.tradingview.com; child-src 'self' https://dashboard.privy.io https://auth.privy.io https://verify.privy.io https://embedded-wallet.privy.io https://*.privy.io https://challenges.cloudflare.com https://*.challenges.cloudflare.com https://s.tradingview.com https://www.tradingview.com;" />
 
   <!-- Canonical URL | Primary Production Domain zegaai.site -->

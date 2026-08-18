@@ -63,6 +63,13 @@ import { SuperAdminDashboard } from "./dashboard/SuperAdminDashboard";
 import { SupabaseDashboardService } from "./dashboard/services/supabaseService";
 import { PrivyWalletService } from "./services/privyWalletService";
 import { SocialAuthService } from "./services/socialAuthService";
+import {
+  CanonicalAccountType,
+  savePendingAuthIntent,
+  resolveCanonicalAccountType,
+  saveVerifiedAccountType,
+  formatAccountTypeRole,
+} from "./services/accountTypeManager";
 import { LanguageProvider, useLanguage } from "../i18n/translations";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
@@ -878,11 +885,14 @@ function AuthModal({
     setLoading(true);
     setAuthError(null);
 
+    const targetAccountType: CanonicalAccountType =
+      audienceSegment === "enterprise" ? "ENTERPRISE" : "INDIVIDUAL_UMKM";
+
     try {
       if (provider === 'google') {
-        await SocialAuthService.initiateGoogleOAuth();
+        await SocialAuthService.initiateGoogleOAuth(targetAccountType);
       } else {
-        SocialAuthService.initiateGitHubOAuth();
+        SocialAuthService.initiateGitHubOAuth(targetAccountType);
       }
       // Full-page redirect will occur — component unmounts
     } catch (err: any) {
@@ -906,6 +916,21 @@ function AuthModal({
     }
     const userEmail = email.trim();
     const tokenToSend = turnstileToken || "DEVELOPMENT_BYPASS_TOKEN";
+
+    const targetAccountType: CanonicalAccountType =
+      audienceSegment === "enterprise" ? "ENTERPRISE" : "INDIVIDUAL_UMKM";
+
+    savePendingAuthIntent({
+      accountType: targetAccountType,
+      provider: audienceSegment === "enterprise" ? "enterprise" : "email",
+      metadata: {
+        companyName,
+        teamSize,
+        objective,
+        fullName,
+        email: userEmail,
+      },
+    });
 
     try {
       const res = await SupabaseDashboardService.requestOtp(
@@ -964,8 +989,20 @@ function AuthModal({
       }
 
       const session = res.data?.session;
-      const role = session?.role || (audienceSegment === 'enterprise' ? 'enterprise' : 'individual');
-      const name = session?.fullName || fullName || userEmail.split('@')[0];
+      const rawRole = (session as any)?.role;
+      const targetUiType: CanonicalAccountType =
+        audienceSegment === 'enterprise' ? 'ENTERPRISE' : 'INDIVIDUAL_UMKM';
+
+      const { accountType: resolvedAccountType } = resolveCanonicalAccountType({
+        userEmail,
+        userMetadataRole: rawRole,
+        selectedUiType: targetUiType,
+        consumeIntent: true,
+      });
+
+      saveVerifiedAccountType(userEmail, resolvedAccountType);
+      const role = formatAccountTypeRole(resolvedAccountType);
+      const name = (session as any)?.fullName || fullName || userEmail.split('@')[0];
 
       const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(userEmail);
 
@@ -996,7 +1033,16 @@ function AuthModal({
       SupabaseDashboardService.setSessionCookie(realSession);
 
       // Sync user profile & embedded Solana wallet directly to Privy Cloud REST API
-      PrivyWalletService.syncUserToPrivyBackend(userEmail, role as any, 'email', name).catch(() => { });
+      // DEEP FIX #26: Pass actual Privy identity — skip gracefully if unavailable
+      try {
+        const cachedPrivyUserId = (window as any)?.__ZEGA_AUTH_BRIDGE__?.privyUserId || undefined;
+        const resolvedWallet = walletInfo?.address ? walletInfo : undefined;
+        if (cachedPrivyUserId && resolvedWallet?.address) {
+          PrivyWalletService.syncUserToPrivyBackend(userEmail, role as any, 'email', name, cachedPrivyUserId, resolvedWallet as any).catch(() => { });
+        } else {
+          console.log('[PRIVY_SYNC] Deferred — Privy identity not yet established', { hasPrivyUserId: !!cachedPrivyUserId, hasWallet: !!resolvedWallet?.address });
+        }
+      } catch { /* non-blocking */ }
 
       onSubmitSuccess(`Verified successfully as ${name} (${role.toUpperCase()})! Opening Portal...`, role as any);
       onClose();
@@ -1195,6 +1241,29 @@ function AuthModal({
               ) : (
                 <>
                   {/* Enterprise Scale Form */}
+                  <div className="space-y-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => handleOAuthLogin('google')}
+                      disabled={loading}
+                      className="w-full h-10 flex items-center justify-center gap-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold transition-all shadow-2xs active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>Continue Enterprise with Google</span>
+                    </button>
+
+                    <div className="relative flex items-center my-2">
+                      <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                      <span className="flex-shrink mx-2 text-[10px] uppercase font-mono tracking-wider text-slate-400">or Enterprise Work Email</span>
+                      <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Work Email</label>
                     <div className="mt-1 flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-xs focus-within:border-slate-800 dark:focus-within:border-slate-300 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
@@ -1445,74 +1514,120 @@ function AppContent() {
   // ── Process /auth/callback on mount (after Google/GitHub redirect) ──
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.pathname === '/auth/callback') {
+    const hasOAuthParams = url.pathname === '/auth/callback' || url.searchParams.has('code') || url.searchParams.has('token') || url.searchParams.has('success');
+    if (hasOAuthParams) {
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
-      if (code && state) {
-        setOauthCallbackState(prev => ({ ...prev, processing: true }));
-        (async () => {
-          try {
-            const { profile, isNewUser } = await SocialAuthService.handleOAuthCallback(code, state);
-            // Clean URL
-            window.history.replaceState({}, '', '/');
+      const backendToken = url.searchParams.get('token');
+      const isSuccess = url.searchParams.get('success') === 'true';
 
-            if (isNewUser || !profile.fullName) {
-              // Show mandatory profile completion form
-              setOauthDisplayName(profile.fullName || '');
-              setOauthCallbackState({
-                processing: false,
-                showProfileForm: true,
-                profile,
-                provider: profile.provider,
-                error: null,
-              });
-            } else {
-              // Returning user — skip form, go directly to dashboard
-              const storedProfile = SocialAuthService.getStoredProfile(profile.email);
-              const role = storedProfile?.role === 'enterprise' ? 'enterprise' : 'individual';
-              const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(profile.email);
-              const realSession = {
-                user: {
-                  id: profile.id,
-                  email: profile.email,
-                  user_metadata: {
-                    full_name: storedProfile?.displayName || profile.fullName,
-                    role,
-                    is_guest: false,
-                    privy_wallet: walletInfo.address,
-                    privy_verified: true,
-                    provider: profile.provider,
-                    store_name: storedProfile?.storeName || '',
-                  }
-                },
-                role,
-                fullName: storedProfile?.displayName || profile.fullName,
-                email: profile.email,
-                isGuest: false,
-                privyWalletAddress: walletInfo.address,
-                privyVerified: true,
-                providerLabel: `OAuth ${profile.provider.toUpperCase()}`,
-                accessToken: `token-oauth-${profile.provider}-${Date.now()}`,
-              };
-              localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
-              SupabaseDashboardService.setSessionCookie(realSession);
-              PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, profile.fullName).catch(() => { });
-              setShowDashboard(true);
-              setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
-              setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
+      setOauthCallbackState(prev => ({ ...prev, processing: true }));
+
+      (async () => {
+        try {
+          let profile: any = null;
+          let isNewUser = false;
+          const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+
+          if (backendToken || isSuccess) {
+            const tokenToUse = backendToken || localStorage.getItem('zega_access_token') || '';
+            if (tokenToUse) {
+              localStorage.setItem('zega_access_token', tokenToUse);
             }
-          } catch (err: any) {
-            window.history.replaceState({}, '', '/');
+            // Restore backend user identity via GET /v1/auth/me
+            const meRes = await fetch(`${apiBase}/v1/auth/me`, {
+              headers: { Authorization: `Bearer ${tokenToUse}` },
+            });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              const userPayload = meData.data || meData.user || {};
+              profile = {
+                id: userPayload.sub || userPayload.id || crypto.randomUUID(),
+                email: userPayload.email || '',
+                fullName: userPayload.fullName || userPayload.email?.split('@')[0] || 'User',
+                provider: 'google',
+              };
+            }
+          }
+
+          if (!profile && code) {
+            const callbackRes = await SocialAuthService.handleOAuthCallback(code, state || undefined);
+            profile = callbackRes.profile;
+            isNewUser = callbackRes.isNewUser;
+          }
+
+          // Clean URL parameters only after exchange completes successfully
+          window.history.replaceState({}, '', '/');
+
+          if (!profile || !profile.email) {
+            throw new Error('NO_VALID_SESSION_RETURNED');
+          }
+
+          if (isNewUser || !profile.fullName) {
+            // Show mandatory profile completion form
+            setOauthDisplayName(profile.fullName || '');
             setOauthCallbackState({
               processing: false,
-              showProfileForm: false,
-              profile: null,
-              provider: null,
-              error: err.message || 'OAuth authentication failed.',
+              showProfileForm: true,
+              profile,
+              provider: profile.provider || 'google',
+              error: null,
             });
+          } else {
+            // Returning user — skip form, go directly to dashboard
+            const storedProfile = SocialAuthService.getStoredProfile(profile.email);
+            const role = storedProfile?.role === 'enterprise' ? 'enterprise' : 'individual';
+            const walletInfo = PrivyWalletService.getEmbeddedSolanaWallet(profile.email);
+            const realSession = {
+              user: {
+                id: profile.id,
+                email: profile.email,
+                user_metadata: {
+                  full_name: storedProfile?.displayName || profile.fullName,
+                  role,
+                  is_guest: false,
+                  privy_wallet: walletInfo.address,
+                  privy_verified: true,
+                  provider: profile.provider || 'google',
+                  store_name: storedProfile?.storeName || '',
+                }
+              },
+              role,
+              fullName: storedProfile?.displayName || profile.fullName,
+              email: profile.email,
+              isGuest: false,
+              privyWalletAddress: walletInfo.address,
+              privyVerified: true,
+              providerLabel: `OAuth ${(profile.provider || 'google').toUpperCase()}`,
+              accessToken: `token-oauth-${profile.provider || 'google'}-${Date.now()}`,
+            };
+            localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
+            SupabaseDashboardService.setSessionCookie(realSession);
+            window.dispatchEvent(new Event('zega_auth_updated'));
+
+            try {
+              const cachedPrivyUserId = (window as any)?.__ZEGA_AUTH_BRIDGE__?.privyUserId || undefined;
+              const resolvedOAuthWallet = walletInfo?.address ? walletInfo : undefined;
+              if (cachedPrivyUserId && resolvedOAuthWallet?.address) {
+                PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider || 'google', profile.fullName, cachedPrivyUserId, resolvedOAuthWallet as any).catch(() => { });
+              }
+            } catch { /* non-blocking */ }
+
+            setShowDashboard(true);
+            setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');
+            setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
           }
-        })();
-      }
+        } catch (err: any) {
+          window.history.replaceState({}, '', '/');
+          setOauthCallbackState({
+            processing: false,
+            showProfileForm: false,
+            profile: null,
+            provider: null,
+            error: err.message || 'OAuth authentication failed.',
+          });
+        }
+      })();
     }
   }, []);
 
@@ -1550,7 +1665,16 @@ function AppContent() {
     };
     localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
     SupabaseDashboardService.setSessionCookie(realSession);
-    PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, oauthDisplayName.trim()).catch(() => { });
+    // DEEP FIX #26: Pass actual Privy identity — skip gracefully if unavailable
+    try {
+      const cachedPrivyUserId = (window as any)?.__ZEGA_AUTH_BRIDGE__?.privyUserId || undefined;
+      const resolvedProfileWallet = walletInfo?.address ? walletInfo : undefined;
+      if (cachedPrivyUserId && resolvedProfileWallet?.address) {
+        PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider, oauthDisplayName.trim(), cachedPrivyUserId, resolvedProfileWallet as any).catch(() => { });
+      } else {
+        console.log('[PRIVY_SYNC] Deferred — Privy identity not yet established (profile submit)', { hasPrivyUserId: !!cachedPrivyUserId, hasWallet: !!resolvedProfileWallet?.address });
+      }
+    } catch { /* non-blocking */ }
 
     setShowDashboard(true);
     setCurrentPath(role === 'enterprise' ? '/console' : '/dashboard');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getR2CdnUrl } from '../../utils/cdn';
 import {
   LayoutDashboard, Users, Workflow, Target, Layers, Settings,
@@ -14,9 +14,12 @@ import {
 import { UmkmDashboardView } from './UmkmDashboard';
 import { LanguageSelector } from '../../components/LanguageSelector';
 import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '../services/supabaseService';
+import { umkmSupabaseService, isVerifiedTenantContext } from '../services/umkmSupabaseService';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../i18n/translations';
 import { TenantProvider, resolveTenantFromUser, setActiveTenant, getActiveTenantIds } from '../contexts/TenantContext';
+import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+import { chatSessionManager } from '../services/chatSessionManager';
 
 interface UmkmDashboardContainerProps {
   onClose: () => void;
@@ -682,7 +685,6 @@ export function UmkmDashboardContainer({
     }
     return 'Halo! Saya ZEGA Copilot AI. Saya siap menganalisis data bisnis Anda, merekomendasikan strategi promosi WhatsApp, atau mengoptimalkan stok toko secara real-time. Apa yang ingin kita bahas hari ini?';
   };
-
   const [copilotMessages, setCopilotMessages] = useState<Array<{
     id?: string;
     sender: 'user' | 'copilot' | 'system';
@@ -708,12 +710,55 @@ export function UmkmDashboardContainer({
     }
   ]);
 
+  // In-flight guard to prevent duplicate initialization under React StrictMode double mounts
+  const isCopilotResolvingRef = useRef(false);
+
   // Load User Authenticated Copilot Chat Session & Messages from Supabase DB
   useEffect(() => {
     const loadCopilotHistory = async () => {
+      if (isCopilotResolvingRef.current) return;
+      const bootStart = Date.now();
+
+      // CANONICAL AUTH GATE: Check auth bridge first — independent of tenant state
+      const authBridge = getAuthBridgeState();
+      if (authBridge.authState !== 'AUTH_READY') {
+        console.log('[AI_BOOTSTRAP]', {
+          authReady: false,
+          tenantState: 'DEFERRED',
+          reason: `auth not ready: ${authBridge.authState}`,
+          action: 'DEFERRED'
+        });
+        return;
+      }
+
+      isCopilotResolvingRef.current = true;
       try {
-        const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
-        if (!activeStoreId) {
+        // Fast-path: Check active tenant in memory first!
+        const active = getActiveTenantIds();
+        const effectiveAuthUser = userEmail || active.userId || '';
+        let isVerified = isVerifiedTenantContext(active, effectiveAuthUser);
+        let tenantCtx: any = active;
+
+        if (!isVerified) {
+          tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
+          isVerified = isVerifiedTenantContext(tenantCtx, effectiveAuthUser || tenantCtx.userId || '');
+        }
+
+        const tenantState = isVerified ? 'READY' : (tenantCtx.resolutionState || tenantCtx.overallStatus || 'UNKNOWN');
+
+        console.log('[AI_BOOTSTRAP]', {
+          authReady: true,
+          tenantReady: isVerified,
+          activeChatReady: Boolean(activeCopilotChatId),
+          bootstrapDuration: Date.now() - bootStart,
+          tenantState,
+          storeReady: isVerified,
+          storeIdPresent: Boolean(tenantCtx.storeId),
+          action: isVerified ? 'READY' : 'GATED'
+        });
+
+        if (!isVerified) {
+          console.warn('[UmkmDashboardContainer] Copilot gated — Tenant context status:', tenantCtx.overallStatus || (tenantCtx as any).status);
           const initialMsg = getSeedMessage(aiLang);
           setCopilotMessages([{
             id: 'seed-1',
@@ -724,26 +769,26 @@ export function UmkmDashboardContainer({
           return;
         }
 
-        const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalZegaCopilotChat(
-          undefined,
-          (userEmail || getActiveTenantIds().userId || '')
-        );
-        if (resolved.ok && resolved.chatId) {
-          setActiveCopilotChatId(resolved.chatId);
-          const msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(resolved.chatId);
+        if (activeCopilotChatId && isValidUuid(activeCopilotChatId)) {
+          return;
+        }
+
+        const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession('zega_copilot');
+        if (chatId) {
+          setActiveCopilotChatId(chatId);
+          const msgs = await chatSessionManager.loadChatMessages('zega_copilot', chatId);
           if (msgs && msgs.length > 0) {
             const formatted = msgs.map((m: any) => ({
               id: m.id,
               sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
-              message: m.message,
+              message: m.message || m.text || '',
               ai_model: m.model_engine || '9Router-Llama-3.3-70B',
-              inference_ms: m.latency_ms || 185,
+              inference_ms: m.inference_ms || 185,
               total_tokens: m.tokens_used || 94,
               created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }));
             setCopilotMessages(formatted);
           } else {
-            // New session resolved -> insert seed message for user guidance
             const initialMsg = getSeedMessage(aiLang);
             setCopilotMessages([{
               id: 'seed-1',
@@ -751,53 +796,29 @@ export function UmkmDashboardContainer({
               message: initialMsg,
               created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }]);
-            await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
-              chat_id: resolved.chatId,
-              sender: 'assistant',
-              message: initialMsg
-            });
           }
-        } else {
-          console.warn('[UmkmDashboardContainer] Canonical Copilot session resolution warning:', resolved.reason, resolved.error);
         }
       } catch (e) {
         console.warn('Note loading copilot chat history:', e);
+      } finally {
+        isCopilotResolvingRef.current = false;
       }
     };
     loadCopilotHistory();
-  }, [userEmail]);
+  }, [userEmail, aiLang]);
 
   // Create New Chat Session Function (+ Sesi Baru)
   const handleNewCopilotChatSession = async () => {
     try {
-      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
-      if (!activeStoreId) {
-        triggerToast(aiLang === 'en' ? 'Store context unavailable.' : 'Konteks toko belum siap.');
-        return;
-      }
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const title = aiLang === 'en' ? `Session ${timeStr}` : aiLang === 'zh' ? `对话 ${timeStr}` : `Sesi ${timeStr}`;
-      const newSession = await SupabaseDashboardService.createUmkmZegaCopilotChat(activeStoreId, (userEmail || getActiveTenantIds().userId || ''), title);
+      const newSession = await chatSessionManager.createNewChatSession('zega_copilot', title);
       if (newSession && newSession.id) {
         setActiveCopilotChatId(newSession.id);
-        const initialMsg = getSeedMessage(aiLang);
-        setCopilotMessages([
-          {
-            id: Date.now().toString(),
-            sender: 'copilot',
-            message: initialMsg,
-            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-        await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
-          chat_id: newSession.id,
-          sender: 'assistant',
-          message: initialMsg
-        });
         fetchCopilotHistoryList();
       }
     } catch (e) {
-      console.warn('Error starting new copilot chat session:', e);
+      console.warn('Error creating new copilot chat session:', e);
     }
   };
 
@@ -853,6 +874,30 @@ export function UmkmDashboardContainer({
   const handleSendCopilotMessage = async (customText?: string) => {
     const textToSend = customText || copilotInput;
     if (!textToSend.trim()) return;
+
+    // Copilot Hard Gate (tenantVerified != true -> return STORE_CONTEXT_UNAVAILABLE immediately)
+    const tenantCtx = await SupabaseDashboardService.getCanonicalTenantContext();
+    const effectiveAuthUser = userEmail || getActiveTenantIds().userId || tenantCtx.userId || '';
+    if (!tenantCtx || !isVerifiedTenantContext(tenantCtx, effectiveAuthUser)) {
+      console.warn('[Copilot Gate] tenantVerified != true — blocking request, returning STORE_CONTEXT_UNAVAILABLE');
+      if (!customText) setCopilotInput('');
+      setCopilotMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          sender: 'user' as const,
+          message: textToSend.trim(),
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'copilot' as const,
+          message: '⚠️ **STORE_CONTEXT_UNAVAILABLE**: Copilot AI features are gated because tenant identity is blocked or unverified. Verified backend identity and store context required.',
+          created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      return;
+    }
 
     // Read latest AI language preference
     const currentAiLang = localStorage.getItem('zega_ai_default_language') || aiLang || 'id';
@@ -925,15 +970,18 @@ export function UmkmDashboardContainer({
       const prefFormat = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_response_format')) || 'Ringkas';
       const prefModel = (typeof window !== 'undefined' && localStorage.getItem('zega_ai_default_model')) || 'GPT-4o (Recommended)';
 
+      const authBridge = getAuthBridgeState();
       const headers = getCanonicalAuthHeaders();
       const orgIdHeader = headers['X-Organization-Id'];
       const storeIdHeader = headers['X-Store-Id'] || (getActiveTenantIds().storeId || '');
-      const isStoreReady = isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
+      const isAuthReady = authBridge.authState === 'AUTH_READY';
+      const isStoreReady = isAuthReady && isValidUuid(storeIdHeader) && (getActiveTenantIds().storeStatus === 'ready' || isValidUuid(getActiveTenantIds().storeId || null));
 
-      if (orgIdHeader && isValidUuid(orgIdHeader) && isStoreReady) {
+      if ((orgIdHeader || storeIdHeader) && isStoreReady) {
         const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
           method: 'POST',
           headers,
+          credentials: 'include',
           body: JSON.stringify({
             chatId: chatIdToUse,
             message: textToSend.trim(),
@@ -1277,1264 +1325,1264 @@ export function UmkmDashboardContainer({
 
   return (
     <TenantProvider userEmail={userEmail} tenantType="umkm">
-    <div className="fixed inset-0 z-50 flex bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-xs">
-      {/* Toast Notification Banner */}
-      {toastMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl flex items-center gap-2 border border-slate-700 dark:border-slate-300 animate-bounce">
-          <CheckCircle2 size={16} className="text-orange-400" />
-          <span>{toastMsg}</span>
-        </div>
-      )}
+      <div className="fixed inset-0 z-50 flex bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-xs">
+        {/* Toast Notification Banner */}
+        {toastMsg && (
+          <div className="fixed top-4 right-4 z-50 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl flex items-center gap-2 border border-slate-700 dark:border-slate-300 animate-bounce">
+            <CheckCircle2 size={16} className="text-orange-400" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
 
-      {/* COLLAPSIBLE SIDEBAR NAVIGATION */}
-      <aside
-        className={`border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 ease-in-out relative ${isCollapsed ? 'w-20' : 'w-64'
-          }`}
-      >
-        {/* Fixed Header aligned with Top Navbar (h-16 / min-h-16) */}
-        <div className="min-h-16 h-16 px-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
-          {!isCollapsed ? (
-            <>
-              <div className="flex flex-col justify-center min-w-0">
-                <img
-                  src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                  alt="ZEGA AI Platform"
-                  className="h-8 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
-                />
-                <span className="text-[9px] text-slate-400 font-semibold block mt-0.5 whitespace-nowrap truncate">
-                  {t.umkmWidget?.subtitle || 'AI Platform untuk UMKM'}
-                </span>
+        {/* COLLAPSIBLE SIDEBAR NAVIGATION */}
+        <aside
+          className={`border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 ease-in-out relative ${isCollapsed ? 'w-20' : 'w-64'
+            }`}
+        >
+          {/* Fixed Header aligned with Top Navbar (h-16 / min-h-16) */}
+          <div className="min-h-16 h-16 px-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0">
+            {!isCollapsed ? (
+              <>
+                <div className="flex flex-col justify-center min-w-0">
+                  <img
+                    src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                    alt="ZEGA AI Platform"
+                    className="h-8 w-auto object-contain shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] transition-all duration-300"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block mt-0.5 whitespace-nowrap truncate">
+                    {t.umkmWidget?.subtitle || 'AI Platform untuk UMKM'}
+                  </span>
+                </div>
+
+                <button
+                  onClick={toggleSidebar}
+                  title={t.umkmWidget?.collapseSidebar || 'Ciutkan Sidebar'}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                >
+                  <PanelLeftClose size={18} />
+                </button>
+              </>
+            ) : (
+              <div className="w-full flex items-center justify-center">
+                <button
+                  onClick={toggleSidebar}
+                  title={t.umkmWidget?.expandSidebar || 'Perluas Sidebar'}
+                  className="p-2 rounded-xl text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/50 transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <PanelLeftOpen size={20} />
+                </button>
               </div>
+            )}
+          </div>
 
-              <button
-                onClick={toggleSidebar}
-                title={t.umkmWidget?.collapseSidebar || 'Ciutkan Sidebar'}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-              >
-                <PanelLeftClose size={18} />
-              </button>
-            </>
-          ) : (
-            <div className="w-full flex items-center justify-center">
-              <button
-                onClick={toggleSidebar}
-                title={t.umkmWidget?.expandSidebar || 'Perluas Sidebar'}
-                className="p-2 rounded-xl text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/50 transition-all cursor-pointer flex items-center justify-center"
-              >
-                <PanelLeftOpen size={20} />
-              </button>
-            </div>
-          )}
-        </div>
+          {/* Scrollable Nav Body */}
+          <div className="p-4 space-y-4 overflow-y-auto overflow-x-hidden flex-1">
+            {/* 3 Categorized Menu Sections */}
+            <nav className="space-y-4">
+              {renderNavGroup(t.umkmCategories?.overview || 'OVERVIEW', menuOverview)}
+              {renderNavGroup(t.umkmCategories?.business || 'BISNIS', menuBusiness)}
+              {renderNavGroup(t.umkmCategories?.settings || 'PENGATURAN', menuSettings)}
+            </nav>
+          </div>
 
-        {/* Scrollable Nav Body */}
-        <div className="p-4 space-y-4 overflow-y-auto overflow-x-hidden flex-1">
-          {/* 3 Categorized Menu Sections */}
-          <nav className="space-y-4">
-            {renderNavGroup(t.umkmCategories?.overview || 'OVERVIEW', menuOverview)}
-            {renderNavGroup(t.umkmCategories?.business || 'BISNIS', menuBusiness)}
-            {renderNavGroup(t.umkmCategories?.settings || 'PENGATURAN', menuSettings)}
-          </nav>
-        </div>
+          {/* Sidebar Bottom Widgets */}
+          <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 bg-white dark:bg-slate-900">
+            {/* Unified Enterprise User & Plan Card */}
+            {!isCollapsed ? (
+              <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2.5 transition-all duration-300">
+                {/* User Profile Info */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    alt="Profile Avatar"
+                    className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</span>
+                      <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 shrink-0">
+                        Owner
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{userEmail}</p>
+                  </div>
+                </div>
 
-        {/* Sidebar Bottom Widgets */}
-        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 bg-white dark:bg-slate-900">
-          {/* Unified Enterprise User & Plan Card */}
-          {!isCollapsed ? (
-            <div className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2.5 transition-all duration-300">
-              {/* User Profile Info */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <img
-                  src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
-                  alt="Profile Avatar"
-                  className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</span>
-                    <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 shrink-0">
-                      Owner
+                {/* Plan & AI Credits Progress */}
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] font-bold">
+                    <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      {billingOverview?.plan?.plan_name || 'Growth'} Plan
+                    </span>
+                    <span className="text-slate-900 dark:text-slate-100 font-mono text-[9.5px]">
+                      {(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{userEmail}</p>
-                </div>
-              </div>
-
-              {/* Plan & AI Credits Progress */}
-              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-bold">
-                  <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {billingOverview?.plan?.plan_name || 'Growth'} Plan
-                  </span>
-                  <span className="text-slate-900 dark:text-slate-100 font-mono text-[9.5px]">
-                    {(billingOverview?.plan?.credits_remaining || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')} / {(billingOverview?.plan?.credits_limit || 0).toLocaleString(language === 'id' ? 'id-ID' : language === 'zh' ? 'zh-CN' : 'en-US')}
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${billingOverview?.plan?.credits_pct || 0}%` }} />
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setActiveTab('billing');
-                  triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.billing || 'Billing'}...`);
-                }}
-                className="w-full py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold transition-colors cursor-pointer"
-              >
-                {t.umkmWidget?.managePlan || 'Kelola Paket'}
-              </button>
-            </div>
-          ) : (
-            <div
-              onClick={() => setActiveTab('billing')}
-              className="p-2 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
-              title={`${userName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
-            >
-              <img
-                src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
-                alt="Profile Avatar"
-                className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-              />
-              <span className="text-[8.5px] font-black text-orange-600 dark:text-orange-400 mt-1">{billingOverview?.plan?.credits_pct || 0}%</span>
-            </div>
-          )}
-
-          {/* Sidebar Bottom Action Buttons (Help & Sign Out) */}
-          <div className={`pt-1 flex items-center ${isCollapsed ? 'flex-col gap-2' : 'gap-2'}`}>
-            <button
-              onClick={() => {
-                setActiveTab('help');
-                triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.bantuan || 'Bantuan'}...`);
-              }}
-              title={t.umkmWidget?.help || 'Bantuan'}
-              className={`flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'flex-1 px-3'
-                }`}
-            >
-              <HelpCircle size={16} className="text-orange-500" />
-              {!isCollapsed && <span>{t.umkmWidget?.help || 'Bantuan'}</span>}
-            </button>
-
-            <button
-              onClick={async (e) => {
-                e.preventDefault();
-                await SupabaseDashboardService.signOut();
-                onClose();
-              }}
-              title={t.umkmWidget?.signOut || 'Keluar'}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'px-3'
-                }`}
-            >
-              <LogOut size={16} />
-              {!isCollapsed && <span>{t.umkmWidget?.signOut || 'Keluar'}</span>}
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
-        {/* Top Header Navigation */}
-        <header className="min-h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md py-2 sm:py-0">
-          {/* Search Input & Mobile Sidebar Toggle + Mobile Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
-            {/* Solana-Style Boxed Mobile Navigation Toggle Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all md:hidden cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
-              title={mobileMenuOpen ? "Tutup Menu Navigasi" : "Buka Menu Navigasi"}
-            >
-              {mobileMenuOpen ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="11" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="13" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              )}
-            </button>
-
-            {/* Mobile Branding Logo */}
-            <img
-              src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-              alt="ZEGA AI Platform"
-              className="h-6.5 sm:h-7 w-auto object-contain md:hidden shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] ml-0.5"
-            />
-
-            <div
-              onClick={() => setIsSearchOpen(true)}
-              className="relative w-full hidden sm:block cursor-pointer group"
-            >
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-orange-500 transition-colors" />
-              <input
-                type="text"
-                readOnly
-                placeholder={getSearchPlaceholder()}
-                onClick={() => setIsSearchOpen(true)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-orange-500 transition-all font-medium cursor-pointer shadow-2xs"
-              />
-            </div>
-          </div>
-
-          {/* Header Right Actions */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* 1. UPGRADE BUTTON */}
-            <button
-              onClick={() => {
-                setActiveTab('billing');
-                triggerToast('✓ Mengarahkan ke Upgrade Scale Plan...');
-              }}
-              className="group flex items-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform shrink-0"
-              title="Upgrade Scale Plan"
-            >
-              <img
-                src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
-                onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
-                alt="Upgrade Rocket"
-                className="h-6 sm:h-8 w-auto object-contain shrink-0 group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300 drop-shadow-md"
-              />
-              <span className="px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:via-orange-600 hover:to-rose-600 text-white text-[10.5px] sm:text-xs font-black uppercase tracking-wide shadow-xs shadow-orange-500/25 border border-amber-300/40 transition-all duration-300">
-                Upgrade
-              </span>
-            </button>
-
-            {/* 2. REAL-TIME ENTERPRISE CALENDAR & SCHEDULE POPUP */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setCalendarOpen(!calendarOpen)}
-                className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors relative"
-                title="Kalender & Jadwal Real-Time"
-              >
-                <Calendar size={16} />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-orange-500 animate-ping" />
-              </button>
-
-              {calendarOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-xs"
-                    onClick={() => setCalendarOpen(false)}
-                  />
-                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-[70] p-3.5 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200 max-w-[328px] mx-auto sm:mx-0">
-                    <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={15} className="text-orange-500 shrink-0" />
-                        <div>
-                          <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">
-                            {calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                          </h4>
-                          <p className="text-[9.5px] text-orange-500 font-bold flex items-center gap-1">
-                            <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
-                            <span>{liveTime} WIB • Live</span>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          onClick={() => {
-                            const prev = new Date(calendarCurrentMonth);
-                            prev.setMonth(prev.getMonth() - 1);
-                            setCalendarCurrentMonth(prev);
-                          }}
-                          className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-                          title="Bulan Sebelumnya"
-                        >
-                          <ChevronLeft size={14} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            const next = new Date(calendarCurrentMonth);
-                            next.setMonth(next.getMonth() + 1);
-                            setCalendarCurrentMonth(next);
-                          }}
-                          className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
-                          title="Bulan Berikutnya"
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                        {/* Explicit Mobile Close Button */}
-                        <button
-                          onClick={() => setCalendarOpen(false)}
-                          className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer ml-1"
-                          title="Tutup Kalender"
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Calendar Quick Filter Pills */}
-                    <div className="grid grid-cols-3 gap-1.5 text-[10px] font-extrabold">
-                      <button
-                        onClick={() => {
-                          const todayStr = `Hari Ini (${realtimeTodayDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})`;
-                          setSelectedDateRange(todayStr);
-                          triggerToast(`📅 Filter: ${todayStr}`);
-                          setCalendarOpen(false);
-                        }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Hari Ini')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                          }`}
-                      >
-                        Hari Ini
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedDateRange('7 Hari Terakhir');
-                          triggerToast('📅 Filter: 7 Hari Terakhir');
-                          setCalendarOpen(false);
-                        }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('7 Hari')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                          }`}
-                      >
-                        7 Hari
-                      </button>
-                      <button
-                        onClick={() => {
-                          const monthStr = `Bulan Ini (${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})`;
-                          setSelectedDateRange(monthStr);
-                          triggerToast(`📅 Filter: ${monthStr}`);
-                          setCalendarOpen(false);
-                        }}
-                        className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Bulan Ini')
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
-                          }`}
-                      >
-                        Bulan Ini
-                      </button>
-                    </div>
-
-                    {/* Real-Time Mini Calendar Grid */}
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
-                        <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-                      </div>
-                      <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold">
-                        {(() => {
-                          const year = calendarCurrentMonth.getFullYear();
-                          const month = calendarCurrentMonth.getMonth();
-                          const daysInMonth = new Date(year, month + 1, 0).getDate();
-                          const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-
-                          const cells = [];
-                          for (let i = 0; i < firstDayOffset; i++) {
-                            cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
-                          }
-                          for (let d = 1; d <= daysInMonth; d++) {
-                            const isToday = d === realtimeTodayDate.getDate() && month === realtimeTodayDate.getMonth() && year === realtimeTodayDate.getFullYear();
-                            cells.push(
-                              <span
-                                key={`day-${d}`}
-                                onClick={() => {
-                                  const selected = `${d} ${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
-                                  setSelectedDateRange(selected);
-                                  triggerToast(`📅 Filter Tanggal: ${selected}`);
-                                  setCalendarOpen(false);
-                                }}
-                                className={`p-1 rounded-lg transition-all cursor-pointer ${isToday
-                                  ? 'bg-orange-500 text-white font-black shadow-md scale-105'
-                                  : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
-                                  }`}
-                              >
-                                {d}
-                              </span>
-                            );
-                          }
-                          return cells;
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Upcoming Real-time AI Scheduled Events */}
-                    <div className="space-y-2 pt-1">
-                      <h5 className="text-[11px] font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-                        <span>Jadwal Automasi AI Toko</span>
-                        <span className="text-[9px] text-orange-500 font-bold">3 Tugas Hari Ini</span>
-                      </h5>
-                      <div className="space-y-1.5 text-[11px]">
-                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                            <span className="font-bold text-slate-800 dark:text-slate-200">Re-stock Kopi Susu Aren</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-amber-500">10:00 WIB</span>
-                        </div>
-                        <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
-                            <span className="font-bold text-slate-800 dark:text-slate-200">Broadcast Promo WA Sembako</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-orange-500">14:30 WIB</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${billingOverview?.plan?.credits_pct || 0}%` }} />
                   </div>
-                </>
-              )}
-            </div>
+                </div>
 
-            {/* 3. NOTIFICATIONS BELL WITH BADGE '2' */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => {
-                  setNotificationsOpen(!notificationsOpen);
-                }}
-                className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-              >
-                <Bell size={16} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 size-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* NOTIFICATIONS DROPDOWN MENU */}
-              {notificationsOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setNotificationsOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <Bell size={16} className="text-orange-500" />
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
-                          Notifikasi {unreadCount > 0 ? `(${unreadCount} Baru)` : ''}
-                        </h4>
-                      </div>
-                      {notifications.length > 0 && (
-                        <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
-                          Tandai semua dibaca
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                      {notifications.length === 0 ? (
-                        <div className="py-8 text-center space-y-2">
-                          <Bell className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
-                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada notifikasi baru</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500">Notifikasi aktivitas & alert sistem akan muncul di sini.</p>
-                        </div>
-                      ) : (
-                        notifications.slice(0, 5).map((notif, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              if (notif.action_url) setActiveTab(notif.action_url);
-                              setNotificationsOpen(false);
-                            }}
-                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${notif.is_read
-                              ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
-                              : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
-                              }`}
-                          >
-                            <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-                              <Activity size={14} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* 4. USER PROFILE HEADER DROPDOWN */}
-            <div className="relative shrink-0">
+                <button
+                  onClick={() => {
+                    setActiveTab('billing');
+                    triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.billing || 'Billing'}...`);
+                  }}
+                  className="w-full py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-bold transition-colors cursor-pointer"
+                >
+                  {t.umkmWidget?.managePlan || 'Kelola Paket'}
+                </button>
+              </div>
+            ) : (
               <div
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-orange-400 transition-colors"
+                onClick={() => setActiveTab('billing')}
+                className="p-2 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
+                title={`${userName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
               >
                 <img
                   src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
                   onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
                   alt="Profile Avatar"
-                  className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                  className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                 />
-                <div className="text-left hidden sm:block">
-                  <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-none">{userName}</p>
-                  <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Owner</p>
-                </div>
-                <ChevronDown size={13} className="text-slate-400 hidden sm:block" />
+                <span className="text-[8.5px] font-black text-orange-600 dark:text-orange-400 mt-1">{billingOverview?.plan?.credits_pct || 0}%</span>
               </div>
+            )}
 
-              {profileDropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setProfileDropdownOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-3 space-y-2 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* User Info Header */}
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                      <img
-                        src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
-                        alt="Profile Avatar"
-                        className="size-9 rounded-full object-cover border border-orange-400 shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                        <p className="text-[10px] text-slate-400 font-semibold truncate">{userEmail}</p>
-                      </div>
-                    </div>
+            {/* Sidebar Bottom Action Buttons (Help & Sign Out) */}
+            <div className={`pt-1 flex items-center ${isCollapsed ? 'flex-col gap-2' : 'gap-2'}`}>
+              <button
+                onClick={() => {
+                  setActiveTab('help');
+                  triggerToast(`✓ ${t.umkmWidget?.openSubPageToast || 'Membuka'} ${t.sidebarNav?.bantuan || 'Bantuan'}...`);
+                }}
+                title={t.umkmWidget?.help || 'Bantuan'}
+                className={`flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'flex-1 px-3'
+                  }`}
+              >
+                <HelpCircle size={16} className="text-orange-500" />
+                {!isCollapsed && <span>{t.umkmWidget?.help || 'Bantuan'}</span>}
+              </button>
 
-                    {/* Seamless Quick Utility Icon Bar (Apple Control Center Style) */}
-                    <div className="p-1 bg-slate-100/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-3 gap-1.5 items-center">
-                      {/* Theme Toggle Pill (Icon Only for Mobile Best Practices) */}
-                      <button
-                        onClick={() => setDark(!dark)}
-                        className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                        title={dark ? 'Mode Terang' : 'Mode Gelap'}
-                      >
-                        {dark ? <Sun size={15} className="text-amber-400 shrink-0" /> : <Moon size={15} className="text-indigo-400 shrink-0" />}
-                      </button>
-
-                      {/* Real-time Calendar Trigger Pill (Icon Only for Mobile Best Practices) */}
-                      <button
-                        onClick={() => {
-                          setCalendarOpen(true);
-                          setProfileDropdownOpen(false);
-                        }}
-                        className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative"
-                        title="Kalender Real-Time"
-                      >
-                        <Calendar size={15} className="text-orange-500 shrink-0" />
-                        <span className="size-1.5 rounded-full bg-orange-500 animate-ping absolute top-1 right-1" />
-                      </button>
-
-                      {/* Language Selector Pill */}
-                      <div className="h-8.5 flex items-center justify-center">
-                        <LanguageSelector compact={true} className="!h-8.5 !w-full !justify-center !rounded-xl !font-black !text-[10.5px] border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-orange-400" />
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-                    {/* Account Navigation Links */}
-                    <button
-                      onClick={() => {
-                        setActiveTab('settings');
-                        setProfileDropdownOpen(false);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
-                    >
-                      <Settings size={14} className="text-slate-400" />
-                      <span>Profil</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveTab('billing');
-                        setProfileDropdownOpen(false);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
-                    >
-                      <CreditCard size={14} className="text-slate-400" />
-                      <span>Billing</span>
-                    </button>
-
-                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-                    <button
-                      onClick={async () => {
-                        await SupabaseDashboardService.signOut();
-                        onClose();
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 cursor-pointer flex items-center gap-2 font-bold"
-                    >
-                      <LogOut size={14} className="text-rose-500" />
-                      <span>Keluar</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Only) */}
-            <button
-              onClick={() => setDark(!dark)}
-              className="p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer hidden sm:flex shrink-0"
-              title="Toggle Dark Mode"
-            >
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            <div className="hidden sm:block shrink-0">
-              <LanguageSelector />
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await SupabaseDashboardService.signOut();
+                  onClose();
+                }}
+                title={t.umkmWidget?.signOut || 'Keluar'}
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors cursor-pointer ${isCollapsed ? 'w-full px-0' : 'px-3'
+                  }`}
+              >
+                <LogOut size={16} />
+                {!isCollapsed && <span>{t.umkmWidget?.signOut || 'Keluar'}</span>}
+              </button>
             </div>
           </div>
-        </header>
+        </aside>
 
-        {/* View Renderer */}
-        <div className="p-3 sm:p-4 md:p-6 flex-1 pb-24 md:pb-6">
-          <UmkmDashboardView
-            activeTab={activeTab}
-            userName={userName}
-            userEmail={userEmail}
-            isGuest={isGuest}
-            onNavigateTab={setActiveTab}
-            onOpenSearch={() => setIsSearchOpen(true)}
-            onUpdateAvatar={(newUrl) => {
-              setCurrentAvatar(newUrl);
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('zega_user_avatar', newUrl);
-              }
-            }}
-          />
-        </div>
-
-        {/* MOBILE BOTTOM NAVIGATION DOCK (App-like Mobile UX) */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md px-2 py-1.5 flex justify-around items-center shadow-lg">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
-              ? 'text-orange-500 font-extrabold scale-105'
-              : 'text-slate-400 font-medium hover:text-slate-600'
-              }`}
-          >
-            <LayoutDashboard size={20} />
-            <span className="text-[9.5px]">Beranda</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('my_agents')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
-              ? 'text-orange-500 font-extrabold scale-105'
-              : 'text-slate-400 font-medium hover:text-slate-600'
-              }`}
-          >
-            <Bot size={20} />
-            <span className="text-[9.5px]">AI Agent</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('inbox')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
-              ? 'text-orange-500 font-extrabold scale-105'
-              : 'text-slate-400 font-medium hover:text-slate-600'
-              }`}
-          >
-            <MessageSquare size={20} />
-            <span className="text-[9.5px]">Inbox</span>
-            <span className="absolute top-1 right-2 size-2 rounded-full bg-rose-500 animate-pulse" />
-          </button>
-
-          <button
-            onClick={() => setActiveTab('store')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
-              ? 'text-orange-500 font-extrabold scale-105'
-              : 'text-slate-400 font-medium hover:text-slate-600'
-              }`}
-          >
-            <Store size={20} />
-            <span className="text-[9.5px]">Toko</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
-              ? 'text-orange-500 font-extrabold scale-105'
-              : 'text-slate-400 font-medium hover:text-slate-600'
-              }`}
-          >
-            <Settings size={20} />
-            <span className="text-[9.5px]">Pengaturan</span>
-          </button>
-        </div>
-      </main>
-
-      {/* MOBILE DRAWER NAVIGATION OVERLAY */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          {/* Backdrop Blur */}
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-          />
-
-          {/* Slide-out Drawer Panel */}
-          <div className="relative w-[75vw] max-w-[270px] bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 shadow-2xl z-50 overflow-y-auto rounded-r-3xl border-r border-slate-200 dark:border-slate-800 animate-in slide-in-from-left duration-250">
-            <div className="space-y-4">
-              {/* Drawer Top Header with Logo & Close Button */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <img
-                  src={getR2CdnUrl('/assets/logo/zegalogo.png')}
-                  alt="ZEGA AI Platform"
-                  className="h-8.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
-                />
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
-                  title="Tutup Menu Navigasi"
-                >
+        {/* MAIN CONTENT AREA */}
+        <main className="flex-1 flex flex-col overflow-y-auto bg-[#f8f9fa] dark:bg-slate-950">
+          {/* Top Header Navigation */}
+          <header className="min-h-16 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md py-2 sm:py-0">
+            {/* Search Input & Mobile Sidebar Toggle + Mobile Logo */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
+              {/* Solana-Style Boxed Mobile Navigation Toggle Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all md:hidden cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
+                title={mobileMenuOpen ? "Tutup Menu Navigasi" : "Buka Menu Navigasi"}
+              >
+                {mobileMenuOpen ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
                     <line x1="3" y1="6" x2="21" y2="6" />
                     <line x1="11" y1="12" x2="21" y2="12" />
                     <line x1="3" y1="18" x2="21" y2="18" />
                   </svg>
-                </button>
-              </div>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="13" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                )}
+              </button>
 
-              {/* Mobile Profile Banner inside Drawer */}
-              <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5">
-                <img
-                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
-                  alt="Profile"
-                  className="size-8.5 rounded-full object-cover border border-orange-400 shrink-0"
+              {/* Mobile Branding Logo */}
+              <img
+                src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                alt="ZEGA AI Platform"
+                className="h-6.5 sm:h-7 w-auto object-contain md:hidden shrink-0 [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)] ml-0.5"
+              />
+
+              <div
+                onClick={() => setIsSearchOpen(true)}
+                className="relative w-full hidden sm:block cursor-pointer group"
+              >
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-orange-500 transition-colors" />
+                <input
+                  type="text"
+                  readOnly
+                  placeholder={getSearchPlaceholder()}
+                  onClick={() => setIsSearchOpen(true)}
+                  className="w-full pl-9 pr-4 py-2 text-xs rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-orange-500 transition-all font-medium cursor-pointer shadow-2xs"
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                  <p className="text-[9.5px] text-slate-400 font-semibold truncate">{userEmail}</p>
-                </div>
-              </div>
-
-              {/* Navigation Category Groups */}
-              <div className="space-y-4">
-                {navigationCategories.map((cat, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
-                      {cat.title}
-                    </div>
-                    {cat.items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveTab(item.id);
-                            setMobileMenuOpen(false);
-                            triggerToast(`✓ Membuka ${item.label}`);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
-                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
-                            <span>{item.label}</span>
-                          </div>
-                          {(item as any).badge && (
-                            <span className="text-[9.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
-                              {(item as any).badge}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
               </div>
             </div>
 
-            {/* Drawer Bottom Actions */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            {/* Header Right Actions */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* 1. UPGRADE BUTTON */}
               <button
                 onClick={() => {
-                  setActiveTab('help');
-                  setMobileMenuOpen(false);
+                  setActiveTab('billing');
+                  triggerToast('✓ Mengarahkan ke Upgrade Scale Plan...');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
+                className="group flex items-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform shrink-0"
+                title="Upgrade Scale Plan"
               >
-                <HelpCircle size={16} className="text-orange-500" />
-                <span>Pusat Bantuan</span>
+                <img
+                  src={getR2CdnUrl('/assets/logo/rockets_upgrade.png')}
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/assets/logo/rockets_upgrade.png'; }}
+                  alt="Upgrade Rocket"
+                  className="h-6 sm:h-8 w-auto object-contain shrink-0 group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300 drop-shadow-md"
+                />
+                <span className="px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:via-orange-600 hover:to-rose-600 text-white text-[10.5px] sm:text-xs font-black uppercase tracking-wide shadow-xs shadow-orange-500/25 border border-amber-300/40 transition-all duration-300">
+                  Upgrade
+                </span>
               </button>
 
-              <button
-                onClick={async () => {
-                  setMobileMenuOpen(false);
-                  await SupabaseDashboardService.signOut();
-                  onClose();
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer"
-              >
-                <LogOut size={16} />
-                <span>Keluar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Available Globally across all Dashboard Menus) */}
-      <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
-        {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile & Desktop Full-Screen Responsive) */}
-        {copilotOpen && (
-          <div className={
-            isCopilotFullScreen
-              ? 'relative fixed inset-2 sm:inset-6 z-[70] bg-slate-950/98 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 transition-all'
-              : 'relative w-[92vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[540px] max-h-[600px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all'
-          }>
-            {/* Dropdown Header */}
-            <div className="p-3 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
-                  <img
-                    src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                    alt="ZEGA Copilot"
-                    className="w-full h-full object-contain p-0.5"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-black text-xs sm:text-base text-white tracking-tight truncate">
-                    ZEGA Copilot
-                  </h3>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate">Real-Time AI Active</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons: History, New Chat, Maximize/Minimize, Close */}
-              <div className="flex items-center gap-1 shrink-0">
+              {/* 2. REAL-TIME ENTERPRISE CALENDAR & SCHEDULE POPUP */}
+              <div className="relative shrink-0">
                 <button
-                  type="button"
-                  onClick={() => setShowCopilotHistory(!showCopilotHistory)}
-                  className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${showCopilotHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                  title={aiLang === 'en' ? 'Recent Chat History' : aiLang === 'zh' ? '历史对话' : 'Riwayat Chat'}
+                  onClick={() => setCalendarOpen(!calendarOpen)}
+                  className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors relative"
+                  title="Kalender & Jadwal Real-Time"
                 >
-                  <History size={16} />
+                  <Calendar size={16} />
+                  <span className="absolute top-1 right-1 size-2 rounded-full bg-orange-500 animate-ping" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleNewCopilotChatSession}
-                  className="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
-                  title={aiLang === 'en' ? 'Start New Chat Session' : aiLang === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
-                >
-                  <Plus size={13} />
-                  <span className="hidden sm:inline">
-                    {aiLang === 'en' ? 'New Chat' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}
-                  </span>
-                </button>
+                {calendarOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-xs"
+                      onClick={() => setCalendarOpen(false)}
+                    />
+                    <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-80 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-[70] p-3.5 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200 max-w-[328px] mx-auto sm:mx-0">
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={15} className="text-orange-500 shrink-0" />
+                          <div>
+                            <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">
+                              {calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                            </h4>
+                            <p className="text-[9.5px] text-orange-500 font-bold flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-orange-500 animate-pulse" />
+                              <span>{liveTime} WIB • Live</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => {
+                              const prev = new Date(calendarCurrentMonth);
+                              prev.setMonth(prev.getMonth() - 1);
+                              setCalendarCurrentMonth(prev);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+                            title="Bulan Sebelumnya"
+                          >
+                            <ChevronLeft size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const next = new Date(calendarCurrentMonth);
+                              next.setMonth(next.getMonth() + 1);
+                              setCalendarCurrentMonth(next);
+                            }}
+                            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+                            title="Bulan Berikutnya"
+                          >
+                            <ChevronRight size={14} />
+                          </button>
+                          {/* Explicit Mobile Close Button */}
+                          <button
+                            onClick={() => setCalendarOpen(false)}
+                            className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer ml-1"
+                            title="Tutup Kalender"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsCopilotFullScreen(!isCopilotFullScreen)}
-                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                  title={isCopilotFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
-                >
-                  {isCopilotFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
+                      {/* Calendar Quick Filter Pills */}
+                      <div className="grid grid-cols-3 gap-1.5 text-[10px] font-extrabold">
+                        <button
+                          onClick={() => {
+                            const todayStr = `Hari Ini (${realtimeTodayDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})`;
+                            setSelectedDateRange(todayStr);
+                            triggerToast(`📅 Filter: ${todayStr}`);
+                            setCalendarOpen(false);
+                          }}
+                          className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Hari Ini')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                            }`}
+                        >
+                          Hari Ini
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedDateRange('7 Hari Terakhir');
+                            triggerToast('📅 Filter: 7 Hari Terakhir');
+                            setCalendarOpen(false);
+                          }}
+                          className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('7 Hari')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                            }`}
+                        >
+                          7 Hari
+                        </button>
+                        <button
+                          onClick={() => {
+                            const monthStr = `Bulan Ini (${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})`;
+                            setSelectedDateRange(monthStr);
+                            triggerToast(`📅 Filter: ${monthStr}`);
+                            setCalendarOpen(false);
+                          }}
+                          className={`py-1.5 rounded-xl border text-center transition-all cursor-pointer ${selectedDateRange.includes('Bulan Ini')
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-orange-400'
+                            }`}
+                        >
+                          Bulan Ini
+                        </button>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => setCopilotOpen(false)}
-                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Tutup Copilot"
-                >
-                  <ChevronDown size={18} />
-                </button>
-              </div>
-            </div>
+                      {/* Real-Time Mini Calendar Grid */}
+                      <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
+                          <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold">
+                          {(() => {
+                            const year = calendarCurrentMonth.getFullYear();
+                            const month = calendarCurrentMonth.getMonth();
+                            const daysInMonth = new Date(year, month + 1, 0).getDate();
+                            const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
 
-            {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
-            {showCopilotHistory && (
-              <div className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
-                {/* Overlay Header Bar */}
-                <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-800/80 shrink-0">
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowCopilotHistory(false)}
-                      className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-2xs"
-                      title="Kembali ke Chat"
-                    >
-                      <ArrowLeft size={16} />
-                    </button>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                        <History size={15} className="text-orange-400" />
-                        <span>{aiLang === 'en' ? 'ZEGA Copilot History' : aiLang === 'zh' ? 'Copilot 历史' : 'Riwayat ZEGA Copilot'}</span>
-                      </h4>
-                      <span className="text-[10.5px] text-slate-400 font-medium">
-                        {filteredCopilotHistoryList.length} {aiLang === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
-                      </span>
+                            const cells = [];
+                            for (let i = 0; i < firstDayOffset; i++) {
+                              cells.push(<span key={`empty-${i}`} className="text-slate-300 dark:text-slate-700 opacity-40">•</span>);
+                            }
+                            for (let d = 1; d <= daysInMonth; d++) {
+                              const isToday = d === realtimeTodayDate.getDate() && month === realtimeTodayDate.getMonth() && year === realtimeTodayDate.getFullYear();
+                              cells.push(
+                                <span
+                                  key={`day-${d}`}
+                                  onClick={() => {
+                                    const selected = `${d} ${calendarCurrentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+                                    setSelectedDateRange(selected);
+                                    triggerToast(`📅 Filter Tanggal: ${selected}`);
+                                    setCalendarOpen(false);
+                                  }}
+                                  className={`p-1 rounded-lg transition-all cursor-pointer ${isToday
+                                    ? 'bg-orange-500 text-white font-black shadow-md scale-105'
+                                    : 'text-slate-700 dark:text-slate-300 hover:bg-orange-500/20 hover:text-orange-400'
+                                    }`}
+                                >
+                                  {d}
+                                </span>
+                              );
+                            }
+                            return cells;
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Upcoming Real-time AI Scheduled Events */}
+                      <div className="space-y-2 pt-1">
+                        <h5 className="text-[11px] font-extrabold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                          <span>Jadwal Automasi AI Toko</span>
+                          <span className="text-[9px] text-orange-500 font-bold">3 Tugas Hari Ini</span>
+                        </h5>
+                        <div className="space-y-1.5 text-[11px]">
+                          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+                              <span className="font-bold text-slate-800 dark:text-slate-200">Re-stock Kopi Susu Aren</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-amber-500">10:00 WIB</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="size-2 rounded-full bg-orange-500 animate-pulse" />
+                              <span className="font-bold text-slate-800 dark:text-slate-200">Broadcast Promo WA Sembako</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-orange-500">14:30 WIB</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </>
+                )}
+              </div>
 
+              {/* 3. NOTIFICATIONS BELL WITH BADGE '2' */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => {
+                    setNotificationsOpen(!notificationsOpen);
+                  }}
+                  className="relative p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                >
+                  <Bell size={16} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 size-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* NOTIFICATIONS DROPDOWN MENU */}
+                {notificationsOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => setNotificationsOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Bell size={16} className="text-orange-500" />
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100">
+                            Notifikasi {unreadCount > 0 ? `(${unreadCount} Baru)` : ''}
+                          </h4>
+                        </div>
+                        {notifications.length > 0 && (
+                          <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer">
+                            Tandai semua dibaca
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {notifications.length === 0 ? (
+                          <div className="py-8 text-center space-y-2">
+                            <Bell className="size-8 text-slate-300 dark:text-slate-700 mx-auto stroke-1" />
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Belum ada notifikasi baru</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">Notifikasi aktivitas & alert sistem akan muncul di sini.</p>
+                          </div>
+                        ) : (
+                          notifications.slice(0, 5).map((notif, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                if (notif.action_url) setActiveTab(notif.action_url);
+                                setNotificationsOpen(false);
+                              }}
+                              className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${notif.is_read
+                                ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-75'
+                                : 'bg-orange-50/60 dark:bg-slate-800/80 border-orange-200 dark:border-orange-900/50'
+                                }`}
+                            >
+                              <div className="size-7 rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+                                <Activity size={14} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{notif.title}</h5>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">{notif.message}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 4. USER PROFILE HEADER DROPDOWN */}
+              <div className="relative shrink-0">
+                <div
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-orange-400 transition-colors"
+                >
+                  <img
+                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    alt="Profile Avatar"
+                    className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                  />
+                  <div className="text-left hidden sm:block">
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-none">{userName}</p>
+                    <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Owner</p>
+                  </div>
+                  <ChevronDown size={13} className="text-slate-400 hidden sm:block" />
+                </div>
+
+                {profileDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => setProfileDropdownOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 p-3 space-y-2 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-200">
+                      {/* User Info Header */}
+                      <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                        <img
+                          src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                          alt="Profile Avatar"
+                          className="size-9 rounded-full object-cover border border-orange-400 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                        </div>
+                      </div>
+
+                      {/* Seamless Quick Utility Icon Bar (Apple Control Center Style) */}
+                      <div className="p-1 bg-slate-100/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-3 gap-1.5 items-center">
+                        {/* Theme Toggle Pill (Icon Only for Mobile Best Practices) */}
+                        <button
+                          onClick={() => setDark(!dark)}
+                          className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                          title={dark ? 'Mode Terang' : 'Mode Gelap'}
+                        >
+                          {dark ? <Sun size={15} className="text-amber-400 shrink-0" /> : <Moon size={15} className="text-indigo-400 shrink-0" />}
+                        </button>
+
+                        {/* Real-time Calendar Trigger Pill (Icon Only for Mobile Best Practices) */}
+                        <button
+                          onClick={() => {
+                            setCalendarOpen(true);
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="h-8.5 w-full rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-400 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs relative"
+                          title="Kalender Real-Time"
+                        >
+                          <Calendar size={15} className="text-orange-500 shrink-0" />
+                          <span className="size-1.5 rounded-full bg-orange-500 animate-ping absolute top-1 right-1" />
+                        </button>
+
+                        {/* Language Selector Pill */}
+                        <div className="h-8.5 flex items-center justify-center">
+                          <LanguageSelector compact={true} className="!h-8.5 !w-full !justify-center !rounded-xl !font-black !text-[10.5px] border-slate-200/80 dark:border-slate-700/80 shadow-2xs hover:border-orange-400" />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+
+                      {/* Account Navigation Links */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('settings');
+                          setProfileDropdownOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
+                      >
+                        <Settings size={14} className="text-slate-400" />
+                        <span>Profil</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTab('billing');
+                          setProfileDropdownOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl text-left hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-2 font-bold"
+                      >
+                        <CreditCard size={14} className="text-slate-400" />
+                        <span>Billing</span>
+                      </button>
+
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+
+                      <button
+                        onClick={async () => {
+                          await SupabaseDashboardService.signOut();
+                          onClose();
+                        }}
+                        className="w-full px-3 py-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 cursor-pointer flex items-center gap-2 font-bold"
+                      >
+                        <LogOut size={14} className="text-rose-500" />
+                        <span>Keluar</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Only) */}
+              <button
+                onClick={() => setDark(!dark)}
+                className="p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer hidden sm:flex shrink-0"
+                title="Toggle Dark Mode"
+              >
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <div className="hidden sm:block shrink-0">
+                <LanguageSelector />
+              </div>
+            </div>
+          </header>
+
+          {/* View Renderer */}
+          <div className="p-3 sm:p-4 md:p-6 flex-1 pb-24 md:pb-6">
+            <UmkmDashboardView
+              activeTab={activeTab}
+              userName={userName}
+              userEmail={userEmail}
+              isGuest={isGuest}
+              onNavigateTab={setActiveTab}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onUpdateAvatar={(newUrl) => {
+                setCurrentAvatar(newUrl);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('zega_user_avatar', newUrl);
+                }
+              }}
+            />
+          </div>
+
+          {/* MOBILE BOTTOM NAVIGATION DOCK (App-like Mobile UX) */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md px-2 py-1.5 flex justify-around items-center shadow-lg">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
+                ? 'text-orange-500 font-extrabold scale-105'
+                : 'text-slate-400 font-medium hover:text-slate-600'
+                }`}
+            >
+              <LayoutDashboard size={20} />
+              <span className="text-[9.5px]">Beranda</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('my_agents')}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
+                ? 'text-orange-500 font-extrabold scale-105'
+                : 'text-slate-400 font-medium hover:text-slate-600'
+                }`}
+            >
+              <Bot size={20} />
+              <span className="text-[9.5px]">AI Agent</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('inbox')}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
+                ? 'text-orange-500 font-extrabold scale-105'
+                : 'text-slate-400 font-medium hover:text-slate-600'
+                }`}
+            >
+              <MessageSquare size={20} />
+              <span className="text-[9.5px]">Inbox</span>
+              <span className="absolute top-1 right-2 size-2 rounded-full bg-rose-500 animate-pulse" />
+            </button>
+
+            <button
+              onClick={() => setActiveTab('store')}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
+                ? 'text-orange-500 font-extrabold scale-105'
+                : 'text-slate-400 font-medium hover:text-slate-600'
+                }`}
+            >
+              <Store size={20} />
+              <span className="text-[9.5px]">Toko</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
+                ? 'text-orange-500 font-extrabold scale-105'
+                : 'text-slate-400 font-medium hover:text-slate-600'
+                }`}
+            >
+              <Settings size={20} />
+              <span className="text-[9.5px]">Pengaturan</span>
+            </button>
+          </div>
+        </main>
+
+        {/* MOBILE DRAWER NAVIGATION OVERLAY */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            {/* Backdrop Blur */}
+            <div
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            />
+
+            {/* Slide-out Drawer Panel */}
+            <div className="relative w-[75vw] max-w-[270px] bg-white dark:bg-slate-900 h-full flex flex-col justify-between p-4 shadow-2xl z-50 overflow-y-auto rounded-r-3xl border-r border-slate-200 dark:border-slate-800 animate-in slide-in-from-left duration-250">
+              <div className="space-y-4">
+                {/* Drawer Top Header with Logo & Close Button */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <img
+                    src={getR2CdnUrl('/assets/logo/zegalogo.png')}
+                    alt="ZEGA AI Platform"
+                    className="h-8.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
+                  />
                   <button
-                    type="button"
-                    onClick={() => {
-                      handleNewCopilotChatSession();
-                      setShowCopilotHistory(false);
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/90 hover:border-orange-500/50 hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs flex items-center justify-center"
+                    title="Tutup Menu Navigasi"
                   >
-                    <Plus size={14} />
-                    <span>{aiLang === 'en' ? 'New Session' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-slate-800 dark:text-slate-100">
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="11" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
                   </button>
                 </div>
 
-                {/* Search & Filter Bar */}
-                <div className="relative mb-3 shrink-0">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder={aiLang === 'en' ? 'Filter chat history by title or text...' : aiLang === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat ZEGA Copilot...'}
-                    value={copilotHistorySearch}
-                    onChange={(e) => setCopilotHistorySearch(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                {/* Mobile Profile Banner inside Drawer */}
+                <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5">
+                  <img
+                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
+                    alt="Profile"
+                    className="size-8.5 rounded-full object-cover border border-orange-400 shrink-0"
                   />
-                  {copilotHistorySearch && (
-                    <button
-                      onClick={() => setCopilotHistorySearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs font-bold"
-                    >
-                      ✕
-                    </button>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
+                    <p className="text-[9.5px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                  </div>
                 </div>
 
-                {/* Session Cards List */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                  {filteredCopilotHistoryList.length === 0 ? (
-                    <div className="text-center py-14 px-4 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-                      <MessageSquare size={28} className="mx-auto mb-2 text-slate-600" />
-                      <p className="text-xs text-slate-400 font-semibold mb-1">
-                        {aiLang === 'en' ? 'No Copilot sessions found' : 'Belum ada riwayat percakapan ZEGA Copilot'}
-                      </p>
-                      <p className="text-[10.5px] text-slate-500">
-                        {aiLang === 'en' ? 'Click "+ New Session" to start a new chat.' : aiLang === 'zh' ? '点击 "+ 新对话" 开始新聊天。' : 'Klik "+ Sesi Baru" untuk memulai percakapan baru.'}
-                      </p>
+                {/* Navigation Category Groups */}
+                <div className="space-y-4">
+                  {navigationCategories.map((cat, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                        {cat.title}
+                      </div>
+                      {cat.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setActiveTab(item.id);
+                              setMobileMenuOpen(false);
+                              triggerToast(`✓ Membuka ${item.label}`);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
+                              ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
+                              <span>{item.label}</span>
+                            </div>
+                            {(item as any).badge && (
+                              <span className="text-[9.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
+                                {(item as any).badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    filteredCopilotHistoryList.map((session) => {
-                      const isActive = activeCopilotChatId === session.id;
-                      let displayTitle = stripMarkdown(session.title);
-                      if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi ZEGA Copilot' || displayTitle === 'Main Copilot Session') {
-                        displayTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
-                      } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
-                        const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
-                        displayTitle = aiLang === 'en' ? `Session ${timePart}` : aiLang === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
-                      }
-
-                      return (
-                        <button
-                          key={session.id}
-                          onClick={() => handleSelectCopilotSession(session)}
-                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${isActive
-                            ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
-                            : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
-                            }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 truncate">
-                              {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
-                              <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
-                                {displayTitle}
-                              </span>
-                            </div>
-                          </div>
-                          {session.last_message && (
-                            <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
-                              {stripMarkdown(session.last_message)}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 mt-0.5">
-                            <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteCopilotSession(session.id, e)}
-                                title="Hapus Sesi Chat"
-                                className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                              <span className="flex items-center gap-1 text-orange-400/80 group-hover:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
-                                {aiLang === 'en' ? 'Open Chat' : aiLang === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Quick Suggestion Chips */}
-            <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <button
-                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Today store sales analysis' : aiLang === 'zh' ? '今日店铺销售分析' : 'Analisis penjualan toko hari ini')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                {aiLang === 'en' ? '📊 Sales Analysis' : aiLang === 'zh' ? '📊 销售分析' : '📊 Analisis Penjualan'}
-              </button>
-              <button
-                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Draft a WhatsApp promo broadcast' : aiLang === 'zh' ? '草拟 WhatsApp 促销广播文案' : 'Buatkan draf broadcast promo WhatsApp')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                {aiLang === 'en' ? '💬 WhatsApp Promo' : aiLang === 'zh' ? '💬 微信/WhatsApp 推广' : '💬 Promo WhatsApp'}
-              </button>
-              <button
-                onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Check low stock inventory' : aiLang === 'zh' ? '检查低库存商品' : 'Cek stok barang yang hampir habis')}
-                className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-              >
-                {aiLang === 'en' ? '📦 Stock Status' : aiLang === 'zh' ? '📦 实时库存' : '📦 Stok Terkini'}
-              </button>
-            </div>
-
-            {/* Chat Stream List */}
-            <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
-              {copilotMessages.map((msg, idx) => (
-                <div
-                  key={msg.id || idx}
-                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+              {/* Drawer Bottom Actions */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <button
+                  onClick={() => {
+                    setActiveTab('help');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
                 >
-                  <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
-                    {msg.sender === 'copilot' && (
-                      <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
-                        <img
-                          src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                          alt="ZEGA Copilot"
-                          className="w-full h-full object-contain p-0"
-                        />
-                      </div>
-                    )}
+                  <HelpCircle size={16} className="text-orange-500" />
+                  <span>Pusat Bantuan</span>
+                </button>
 
-                    <div
-                      className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
-                        : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
-                        }`}
-                    >
-                      {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
-
-                      {msg.sender === 'copilot' && msg.inference_ms && (
-                        <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
-                          <span className="flex items-center gap-1 text-orange-400 font-bold">
-                            ✨ ZEGA Copilot
-                          </span>
-                          <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
-                    {msg.created_at || (aiLang === 'en' ? 'Just now' : aiLang === 'zh' ? '刚刚' : 'Baru saja')}
-                  </span>
-                </div>
-              ))}
-
-              {isCopilotTyping && (
-                <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
-                  <div className="size-2 rounded-full bg-orange-500 animate-ping" />
-                  <span>{aiLang === 'en' ? 'ZEGA Copilot is thinking...' : aiLang === 'zh' ? 'ZEGA Copilot 正在思考...' : 'ZEGA Copilot sedang berpikir...'}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Input Bar */}
-            <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-              <input
-                type="text"
-                value={copilotInput}
-                onChange={(e) => setCopilotInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
-                placeholder={aiLang === 'en' ? 'Ask ZEGA Copilot about sales, inventory, promos...' : aiLang === 'zh' ? '向 ZEGA Copilot 询问销售、库存与促销...' : 'Tanyakan bisnis, sales, promo ke ZEGA Copilot...'}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
-              />
-              <button
-                onClick={() => handleSendCopilotMessage()}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
-                title="Kirim Pesan"
-              >
-                <Send size={16} />
-              </button>
+                <button
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await SupabaseDashboardService.signOut();
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer"
+                >
+                  <LogOut size={16} />
+                  <span>Keluar</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Floating Trigger Pill Button (Robot Icon Only across all screen sizes) */}
-        <button
-          onClick={() => setCopilotOpen(!copilotOpen)}
-          className="group relative p-1 sm:p-1.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-          title="ZEGA Copilot"
-        >
-          <div className="size-10 sm:size-11 rounded-full bg-orange-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-            <img
-              src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-              alt="ZEGA Copilot"
-              className="w-full h-full object-contain p-0 scale-125"
-            />
-          </div>
-        </button>
-      </div>
-      {/* GLOBAL SEARCH COMMAND PALETTE MODAL (Ctrl + K / Cmd + K) */}
-      {isSearchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsSearchOpen(false)}
-          />
-          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 space-y-0">
-            {/* Search Input Bar */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-              <Search size={20} className="text-orange-500 shrink-0" />
-              <input
-                type="text"
-                autoFocus
-                value={globalSearchQuery}
-                onChange={(e) => {
-                  setGlobalSearchQuery(e.target.value);
-                  setSearchSelectedIndex(0);
-                }}
-                onKeyDown={(e) => {
-                  const filtered = filteredSearchItems;
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setSearchSelectedIndex((prev) => (prev + 1) % (filtered.length || 1));
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setSearchSelectedIndex((prev) => (prev - 1 + filtered.length) % (filtered.length || 1));
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (filtered[searchSelectedIndex]) {
-                      const item = filtered[searchSelectedIndex];
-                      if ('handler' in item && typeof item.handler === 'function') {
-                        item.handler();
-                      } else if ('id' in item) {
-                        setActiveTab(item.id);
-                        triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.label}`);
-                      }
-                      setIsSearchOpen(false);
-                    }
-                  } else if (e.key === 'Escape') {
-                    setIsSearchOpen(false);
-                  }
-                }}
-                placeholder={
-                  language === 'en'
-                    ? 'Type a command or search modules, items, invoices...'
-                    : language === 'zh'
-                      ? '输入命令或搜索模块、商品、发票...'
-                      : 'Ketik perintah atau cari modul, produk, invoice...'
-                }
-                className="w-full bg-transparent text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden"
-              />
-              {isDbSearching && (
-                <div className="size-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
-              )}
-              <button
-                type="button"
-                onClick={() => setIsSearchOpen(false)}
-                className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-mono px-2 py-1 border border-slate-200 dark:border-slate-700 cursor-pointer shrink-0"
-              >
-                ESC
-              </button>
-            </div>
+        {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Available Globally across all Dashboard Menus) */}
+        <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
+          {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile & Desktop Full-Screen Responsive) */}
+          {copilotOpen && (
+            <div className={
+              isCopilotFullScreen
+                ? 'relative fixed inset-2 sm:inset-6 z-[70] bg-slate-950/98 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 transition-all'
+                : 'relative w-[92vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[540px] max-h-[600px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all'
+            }>
+              {/* Dropdown Header */}
+              <div className="p-3 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+                    <img
+                      src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                      alt="ZEGA Copilot"
+                      className="w-full h-full object-contain p-0.5"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-black text-xs sm:text-base text-white tracking-tight truncate">
+                      ZEGA Copilot
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate">Real-Time AI Active</span>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Results List */}
-            <div className="max-h-96 overflow-y-auto p-2 space-y-1">
-              {filteredSearchItems.length > 0 ? (
-                filteredSearchItems.map((item, idx) => {
-                  const Icon = item.icon;
-                  const isSelected = idx === searchSelectedIndex;
-                  return (
+                {/* Action Buttons: History, New Chat, Maximize/Minimize, Close */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowCopilotHistory(!showCopilotHistory)}
+                    className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${showCopilotHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    title={aiLang === 'en' ? 'Recent Chat History' : aiLang === 'zh' ? '历史对话' : 'Riwayat Chat'}
+                  >
+                    <History size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNewCopilotChatSession}
+                    className="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                    title={aiLang === 'en' ? 'Start New Chat Session' : aiLang === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
+                  >
+                    <Plus size={13} />
+                    <span className="hidden sm:inline">
+                      {aiLang === 'en' ? 'New Chat' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCopilotFullScreen(!isCopilotFullScreen)}
+                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    title={isCopilotFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
+                  >
+                    {isCopilotFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCopilotOpen(false)}
+                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Tutup Copilot"
+                  >
+                    <ChevronDown size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
+              {showCopilotHistory && (
+                <div className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Overlay Header Bar */}
+                  <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-800/80 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowCopilotHistory(false)}
+                        className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-2xs"
+                        title="Kembali ke Chat"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                          <History size={15} className="text-orange-400" />
+                          <span>{aiLang === 'en' ? 'ZEGA Copilot History' : aiLang === 'zh' ? 'Copilot 历史' : 'Riwayat ZEGA Copilot'}</span>
+                        </h4>
+                        <span className="text-[10.5px] text-slate-400 font-medium">
+                          {filteredCopilotHistoryList.length} {aiLang === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
+                        </span>
+                      </div>
+                    </div>
+
                     <button
-                      key={item.id}
                       type="button"
                       onClick={() => {
+                        handleNewCopilotChatSession();
+                        setShowCopilotHistory(false);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                    >
+                      <Plus size={14} />
+                      <span>{aiLang === 'en' ? 'New Session' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                    </button>
+                  </div>
+
+                  {/* Search & Filter Bar */}
+                  <div className="relative mb-3 shrink-0">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder={aiLang === 'en' ? 'Filter chat history by title or text...' : aiLang === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat ZEGA Copilot...'}
+                      value={copilotHistorySearch}
+                      onChange={(e) => setCopilotHistorySearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                    />
+                    {copilotHistorySearch && (
+                      <button
+                        onClick={() => setCopilotHistorySearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Session Cards List */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {filteredCopilotHistoryList.length === 0 ? (
+                      <div className="text-center py-14 px-4 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
+                        <MessageSquare size={28} className="mx-auto mb-2 text-slate-600" />
+                        <p className="text-xs text-slate-400 font-semibold mb-1">
+                          {aiLang === 'en' ? 'No Copilot sessions found' : 'Belum ada riwayat percakapan ZEGA Copilot'}
+                        </p>
+                        <p className="text-[10.5px] text-slate-500">
+                          {aiLang === 'en' ? 'Click "+ New Session" to start a new chat.' : aiLang === 'zh' ? '点击 "+ 新对话" 开始新聊天。' : 'Klik "+ Sesi Baru" untuk memulai percakapan baru.'}
+                        </p>
+                      </div>
+                    ) : (
+                      filteredCopilotHistoryList.map((session) => {
+                        const isActive = activeCopilotChatId === session.id;
+                        let displayTitle = stripMarkdown(session.title);
+                        if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi ZEGA Copilot' || displayTitle === 'Main Copilot Session') {
+                          displayTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
+                        } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
+                          const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
+                          displayTitle = aiLang === 'en' ? `Session ${timePart}` : aiLang === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
+                        }
+
+                        return (
+                          <div
+                            key={session.id}
+                            onClick={() => handleSelectCopilotSession(session)}
+                            className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${isActive
+                              ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
+                              : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 truncate">
+                                {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
+                                <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
+                                  {displayTitle}
+                                </span>
+                              </div>
+                            </div>
+                            {session.last_message && (
+                              <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
+                                {stripMarkdown(session.last_message)}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 mt-0.5">
+                              <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteCopilotSession(session.id, e)}
+                                  title="Hapus Sesi Chat"
+                                  className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                                <span className="flex items-center gap-1 text-orange-400/80 group-hover:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
+                                  {aiLang === 'en' ? 'Open Chat' : aiLang === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Suggestion Chips */}
+              <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Today store sales analysis' : aiLang === 'zh' ? '今日店铺销售分析' : 'Analisis penjualan toko hari ini')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  {aiLang === 'en' ? '📊 Sales Analysis' : aiLang === 'zh' ? '📊 销售分析' : '📊 Analisis Penjualan'}
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Draft a WhatsApp promo broadcast' : aiLang === 'zh' ? '草拟 WhatsApp 促销广播文案' : 'Buatkan draf broadcast promo WhatsApp')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  {aiLang === 'en' ? '💬 WhatsApp Promo' : aiLang === 'zh' ? '💬 微信/WhatsApp 推广' : '💬 Promo WhatsApp'}
+                </button>
+                <button
+                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Check low stock inventory' : aiLang === 'zh' ? '检查低库存商品' : 'Cek stok barang yang hampir habis')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  {aiLang === 'en' ? '📦 Stock Status' : aiLang === 'zh' ? '📦 实时库存' : '📦 Stok Terkini'}
+                </button>
+              </div>
+
+              {/* Chat Stream List */}
+              <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+                {copilotMessages.map((msg, idx) => (
+                  <div
+                    key={msg.id || idx}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
+                      {msg.sender === 'copilot' && (
+                        <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                          <img
+                            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                            alt="ZEGA Copilot"
+                            className="w-full h-full object-contain p-0"
+                          />
+                        </div>
+                      )}
+
+                      <div
+                        className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
+                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
+                          }`}
+                      >
+                        {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
+
+                        {msg.sender === 'copilot' && msg.inference_ms && (
+                          <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
+                            <span className="flex items-center gap-1 text-orange-400 font-bold">
+                              ✨ ZEGA Copilot
+                            </span>
+                            <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
+                      {msg.created_at || (aiLang === 'en' ? 'Just now' : aiLang === 'zh' ? '刚刚' : 'Baru saja')}
+                    </span>
+                  </div>
+                ))}
+
+                {isCopilotTyping && (
+                  <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
+                    <div className="size-2 rounded-full bg-orange-500 animate-ping" />
+                    <span>{aiLang === 'en' ? 'ZEGA Copilot is thinking...' : aiLang === 'zh' ? 'ZEGA Copilot 正在思考...' : 'ZEGA Copilot sedang berpikir...'}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Bar */}
+              <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={copilotInput}
+                  onChange={(e) => setCopilotInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
+                  placeholder={aiLang === 'en' ? 'Ask ZEGA Copilot about sales, inventory, promos...' : aiLang === 'zh' ? '向 ZEGA Copilot 询问销售、库存与促销...' : 'Tanyakan bisnis, sales, promo ke ZEGA Copilot...'}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
+                />
+                <button
+                  onClick={() => handleSendCopilotMessage()}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
+                  title="Kirim Pesan"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Floating Trigger Pill Button (Robot Icon Only across all screen sizes) */}
+          <button
+            onClick={() => setCopilotOpen(!copilotOpen)}
+            className="group relative p-1 sm:p-1.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            title="ZEGA Copilot"
+          >
+            <div className="size-10 sm:size-11 rounded-full bg-orange-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <img
+                src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                alt="ZEGA Copilot"
+                className="w-full h-full object-contain p-0 scale-125"
+              />
+            </div>
+          </button>
+        </div>
+        {/* GLOBAL SEARCH COMMAND PALETTE MODAL (Ctrl + K / Cmd + K) */}
+        {isSearchOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              className="fixed inset-0"
+              onClick={() => setIsSearchOpen(false)}
+            />
+            <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 space-y-0">
+              {/* Search Input Bar */}
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                <Search size={20} className="text-orange-500 shrink-0" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={globalSearchQuery}
+                  onChange={(e) => {
+                    setGlobalSearchQuery(e.target.value);
+                    setSearchSelectedIndex(0);
+                  }}
+                  onKeyDown={(e) => {
+                    const filtered = filteredSearchItems;
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSearchSelectedIndex((prev) => (prev + 1) % (filtered.length || 1));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSearchSelectedIndex((prev) => (prev - 1 + filtered.length) % (filtered.length || 1));
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (filtered[searchSelectedIndex]) {
+                        const item = filtered[searchSelectedIndex];
                         if ('handler' in item && typeof item.handler === 'function') {
                           item.handler();
-                        } else {
+                        } else if ('id' in item) {
                           setActiveTab(item.id);
                           triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.label}`);
                         }
                         setIsSearchOpen(false);
-                      }}
-                      onMouseEnter={() => setSearchSelectedIndex(idx)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer ${isSelected
-                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-orange-500'}`}>
-                          <Icon size={16} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="block font-black text-xs truncate">{item.label}</span>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`text-[10px] ${isSelected ? 'text-orange-100' : 'text-slate-400'}`}>{item.category}</span>
-                            {item.subtitle && (
-                              <span className={`text-[10px] font-normal truncate max-w-xs ${isSelected ? 'text-orange-100/90' : 'text-slate-500 dark:text-slate-400'}`}>• {item.subtitle}</span>
-                            )}
+                      }
+                    } else if (e.key === 'Escape') {
+                      setIsSearchOpen(false);
+                    }
+                  }}
+                  placeholder={
+                    language === 'en'
+                      ? 'Type a command or search modules, items, invoices...'
+                      : language === 'zh'
+                        ? '输入命令或搜索模块、商品、发票...'
+                        : 'Ketik perintah atau cari modul, produk, invoice...'
+                  }
+                  className="w-full bg-transparent text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden"
+                />
+                {isDbSearching && (
+                  <div className="size-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(false)}
+                  className="p-1 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-mono px-2 py-1 border border-slate-200 dark:border-slate-700 cursor-pointer shrink-0"
+                >
+                  ESC
+                </button>
+              </div>
+
+              {/* Results List */}
+              <div className="max-h-96 overflow-y-auto p-2 space-y-1">
+                {filteredSearchItems.length > 0 ? (
+                  filteredSearchItems.map((item, idx) => {
+                    const Icon = item.icon;
+                    const isSelected = idx === searchSelectedIndex;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          if ('handler' in item && typeof item.handler === 'function') {
+                            item.handler();
+                          } else {
+                            setActiveTab(item.id);
+                            triggerToast(`✓ ${language === 'en' ? 'Opening' : language === 'zh' ? '打开' : 'Membuka'} ${item.label}`);
+                          }
+                          setIsSearchOpen(false);
+                        }}
+                        onMouseEnter={() => setSearchSelectedIndex(idx)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer ${isSelected
+                          ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-orange-500'}`}>
+                            <Icon size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="block font-black text-xs truncate">{item.label}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-[10px] ${isSelected ? 'text-orange-100' : 'text-slate-400'}`}>{item.category}</span>
+                              {item.subtitle && (
+                                <span className={`text-[10px] font-normal truncate max-w-xs ${isSelected ? 'text-orange-100/90' : 'text-slate-500 dark:text-slate-400'}`}>• {item.subtitle}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono shrink-0 ml-2">
-                        <span className={`px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-                          ↵ {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="p-8 text-center text-slate-400 space-y-2">
-                  <Search size={32} className="mx-auto text-slate-300 dark:text-slate-600 animate-pulse" />
-                  <p className="text-xs font-bold">
-                    {language === 'en'
-                      ? `No results found for "${globalSearchQuery}"`
-                      : language === 'zh'
-                        ? `未找到 "${globalSearchQuery}" 的相关结果`
-                        : `Tidak ada hasil ditemukan untuk "${globalSearchQuery}"`}
-                  </p>
-                  <p className="text-[10px]">
-                    {language === 'en' ? 'Try searching for modules, invoice, WhatsApp, or settings' : language === 'zh' ? '尝试搜索模块、发票、WhatsApp 或设置' : 'Coba cari nama modul, invoice, whatsapp, atau pengaturan'}
-                  </p>
-                </div>
-              )}
-            </div>
+                        <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono shrink-0 ml-2">
+                          <span className={`px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                            ↵ {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-8 text-center text-slate-400 space-y-2">
+                    <Search size={32} className="mx-auto text-slate-300 dark:text-slate-600 animate-pulse" />
+                    <p className="text-xs font-bold">
+                      {language === 'en'
+                        ? `No results found for "${globalSearchQuery}"`
+                        : language === 'zh'
+                          ? `未找到 "${globalSearchQuery}" 的相关结果`
+                          : `Tidak ada hasil ditemukan untuk "${globalSearchQuery}"`}
+                    </p>
+                    <p className="text-[10px]">
+                      {language === 'en' ? 'Try searching for modules, invoice, WhatsApp, or settings' : language === 'zh' ? '尝试搜索模块、发票、WhatsApp 或设置' : 'Coba cari nama modul, invoice, whatsapp, atau pengaturan'}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-            {/* Footer Instructions */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between text-[10px] font-medium text-slate-400 px-4">
-              <div className="hidden sm:flex items-center gap-3">
-                <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↑↓</kbd> {language === 'en' ? 'Navigate' : language === 'zh' ? '导航' : 'Navigasi'}
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↵</kbd> {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">ESC</kbd> {language === 'en' ? 'Close' : language === 'zh' ? '关闭' : 'Tutup'}
-                </span>
+              {/* Footer Instructions */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between text-[10px] font-medium text-slate-400 px-4">
+                <div className="hidden sm:flex items-center gap-3">
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↑↓</kbd> {language === 'en' ? 'Navigate' : language === 'zh' ? '导航' : 'Navigasi'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">↵</kbd> {language === 'en' ? 'Select' : language === 'zh' ? '选择' : 'Pilih'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold text-[9px]">ESC</kbd> {language === 'en' ? 'Close' : language === 'zh' ? '关闭' : 'Tutup'}
+                  </span>
+                </div>
+                <div className="sm:hidden text-[10px] text-slate-400 font-medium">
+                  {language === 'en' ? 'Tap result to open' : language === 'zh' ? '点击结果以打开' : 'Ketuk hasil untuk membuka'}
+                </div>
+                <span className="font-extrabold text-orange-500 text-[10px] shrink-0">ZEGA AI Search</span>
               </div>
-              <div className="sm:hidden text-[10px] text-slate-400 font-medium">
-                {language === 'en' ? 'Tap result to open' : language === 'zh' ? '点击结果以打开' : 'Ketuk hasil untuk membuka'}
-              </div>
-              <span className="font-extrabold text-orange-500 text-[10px] shrink-0">ZEGA AI Search</span>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </TenantProvider>
   );
 }

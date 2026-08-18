@@ -1,17 +1,19 @@
 import { supabase, setSupabaseTenantHeader } from '../../../lib/supabase';
 import { getR2CdnUrl } from '../../utils/cdn';
 import { AgentMetric, WorkflowNode } from '../types';
-import { umkmSupabaseService, isValidUuid } from './umkmSupabaseService';
+import { umkmSupabaseService, isValidUuid, isVerifiedTenantContext } from './umkmSupabaseService';
 import { enterpriseSupabaseService } from './enterpriseSupabaseService';
 import { superAdminSupabaseService } from './superAdminSupabaseService';
 import { getActiveTenantIds } from '../contexts/TenantContext';
 
-export { supabase, umkmSupabaseService, enterpriseSupabaseService, superAdminSupabaseService, isValidUuid };
+import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+
+export { supabase, umkmSupabaseService, enterpriseSupabaseService, superAdminSupabaseService, isValidUuid, isVerifiedTenantContext };
 
 export interface CanonicalSessionResult<T = any> {
   ok: boolean;
   status: 'READY' | 'UNAVAILABLE' | 'LOADING';
-  reason: 'EXISTING_SESSION_RESOLVED' | 'NEW_SESSION_CREATED' | 'NO_HISTORY' | 'SESSION_LOOKUP_FAILED' | 'STORE_CONTEXT_UNAVAILABLE' | 'CHAT_CREATE_FAILED';
+  reason: 'EXISTING_SESSION_RESOLVED' | 'NEW_SESSION_CREATED' | 'NO_HISTORY' | 'SESSION_LOOKUP_FAILED' | 'STORE_CONTEXT_UNAVAILABLE' | 'WAITING_FOR_TENANT' | 'CHAT_CREATE_FAILED' | 'AUTH_REQUIRED' | 'SESSION_REQUIRED';
   chatId: string | null;
   session: T | null;
   error?: string;
@@ -24,11 +26,11 @@ export function getCanonicalAuthHeaders(): Record<string, string> {
 
   if (typeof window === 'undefined') return headers;
 
-  // 1. Resolve Auth Token from standard storage keys
-  let token = localStorage.getItem('zega_access_token') || 
-              localStorage.getItem('zega_jwt') || 
-              localStorage.getItem('token') || 
-              localStorage.getItem('sb-access-token') || '';
+  // 1. Resolve Auth Token from standard storage keys (nullable, no empty string fallback)
+  let token: string | null = localStorage.getItem('zega_access_token') ??
+    localStorage.getItem('zega_jwt') ??
+    localStorage.getItem('token') ??
+    localStorage.getItem('sb-access-token');
 
   if (!token) {
     // Scan localStorage for Supabase JS client auth token (sb-*-auth-token)
@@ -46,49 +48,41 @@ export function getCanonicalAuthHeaders(): Record<string, string> {
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
-  if (!token) {
-    // Check mock session
-    try {
-      const mockStr = localStorage.getItem('zega_mock_session');
-      if (mockStr) {
-        const parsed = JSON.parse(mockStr);
-        if (parsed?.accessToken) token = parsed.accessToken;
-      }
-    } catch {}
-  }
+
 
   if (token && typeof token === 'string' && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
     headers['Authorization'] = `Bearer ${token.trim()}`;
   }
 
   // 2. Resolve Organization Context Header from TenantContext
-  let orgId = getActiveTenantIds().organizationId;
-  if ((!orgId || orgId.trim() === '' || orgId === '00000000-0000-0000-0000-000000000000') && typeof window !== 'undefined') {
-    orgId = localStorage.getItem('zega_organization_id') || localStorage.getItem('active_org_id') || '';
-  }
-  if (orgId && orgId.trim() !== '') {
-    headers['X-Organization-Id'] = orgId;
+  const tenant = getActiveTenantIds();
+  const effectiveOrgId = (isValidUuid(tenant.organizationId) && tenant.organizationId.trim() !== '' && (!tenant.userId || tenant.organizationId !== tenant.userId))
+    ? tenant.organizationId
+    : (isValidUuid(tenant.storeId) && (!tenant.userId || tenant.storeId !== tenant.userId) ? tenant.storeId : null);
+
+  if (effectiveOrgId) {
+    headers['X-Organization-Id'] = effectiveOrgId;
   }
 
   // 3. Resolve Workspace & Store Context Headers from TenantContext
-  const tenant = getActiveTenantIds();
-  if (tenant.workspaceId && tenant.workspaceId.trim() !== '') {
+  if (tenant.workspaceId && isValidUuid(tenant.workspaceId) && (!tenant.userId || tenant.workspaceId !== tenant.userId)) {
     headers['X-Workspace-Id'] = tenant.workspaceId;
   }
-  if (tenant.storeId && tenant.storeId.trim() !== '') {
+  if (tenant.storeId && isValidUuid(tenant.storeId) && (!tenant.userId || tenant.storeId !== tenant.userId)) {
     headers['X-Store-Id'] = tenant.storeId;
   }
 
-  // 4. Resolve User Identity Header Fallback
-  const userEmail = typeof window !== 'undefined'
-    ? (localStorage.getItem('zega_user_email') || localStorage.getItem('privy_user_email') || 'cicikberiuk@gmail.com')
-    : 'cicikberiuk@gmail.com';
-  if (userEmail) {
-    headers['x-user-email'] = userEmail;
-    headers['x-user-id'] = userEmail;
+  // 4. Resolve User Identity Header strictly when valid UUID
+  const tenantUser = getActiveTenantIds();
+  const effectiveEmail = tenantUser.userEmail || (typeof window !== 'undefined' ? (localStorage.getItem('zega_user_email') || localStorage.getItem('privy_user_email') || '') : '');
+  if (effectiveEmail && effectiveEmail.trim() !== '') {
+    headers['x-user-email'] = effectiveEmail.trim();
+  }
+  if (tenantUser.userId && isValidUuid(tenantUser.userId)) {
+    headers['x-user-id'] = tenantUser.userId;
   }
 
   return headers;
@@ -119,7 +113,7 @@ export interface DbSandboxExecution {
   created_at?: string;
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE = ((import.meta as any)?.env?.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
 async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>, fallback: T): Promise<T> {
   try {
@@ -130,6 +124,9 @@ async function safeQuery<T>(builder: PromiseLike<{ data: T | null; error: any }>
     return fallback;
   }
 }
+
+// Single-flight promise map for AI session creation deduplication
+const inFlightAiSessionPromises = new Map<string, Promise<any>>();
 
 export const SupabaseDashboardService = {
   // Domain Sub-Services Composition
@@ -236,7 +233,6 @@ export const SupabaseDashboardService = {
         refreshToken: resData?.data?.refreshToken,
       };
 
-      localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
       this.setSessionCookie(mockSession);
       await this.logAuditTrail('OTP_VERIFIED', { email, role });
       return { data: { session: mockSession }, error: null };
@@ -270,47 +266,22 @@ export const SupabaseDashboardService = {
 
   async signIn(email: string, pass: string, nameInput?: string) {
     try {
-      let role: 'superadmin' | 'enterprise' | 'individual' = 'individual';
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
 
-      // OWASP: Role should be determined server-side. Client only uses session-stored role.
-      if (email.includes('superadmin')) {
-        role = 'superadmin';
-      } else if (email.includes('enterprise')) {
-        role = 'enterprise';
+      if (error) {
+        return { data: null, error };
       }
 
-      const defaultName = role === 'superadmin'
-        ? 'SuperAdmin ZEGA Root'
-        : role === 'enterprise'
-          ? 'Enterprise Admin'
-          : (email ? email.split('@')[0] : 'User');
+      if (data?.session) {
+        this.setSessionCookie(data.session);
+        await this.logAuditTrail('USER_LOGIN', { email, userId: data.user.id });
+      }
 
-      const fullName = nameInput || defaultName;
-
-      const mockSession = {
-        user: {
-          id: 'user-dev-' + Date.now(),
-          email,
-          user_metadata: {
-            full_name: fullName,
-            role,
-            is_guest: false,
-          }
-        },
-        role,
-        fullName,
-        email,
-        isGuest: false,
-        // Dev mode: create minimal mock JWT so Authorization header isn't empty
-        // This allows backend to decode email/role even if signature is invalid
-        accessToken: btoa(JSON.stringify({alg:'none'})) + '.' + btoa(JSON.stringify({sub: 'dev-' + Date.now(), email, role})) + '.dev',
-      };
-
-      localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
-      this.setSessionCookie(mockSession);
-      await this.logAuditTrail('USER_LOGIN', { email, role });
-      return { data: { session: mockSession }, error: null };
-    } catch (err) {
+      return { data, error: null };
+    } catch (err: any) {
       return { data: null, error: err };
     }
   },
@@ -387,6 +358,12 @@ export const SupabaseDashboardService = {
         }
       } catch (e) { }
       this.clearSessionCookie();
+      this.clearAllChatStateAndCache();
+
+      // Clear tenant resolution cache and active tenant state on sign-out (session isolation)
+      try {
+        umkmSupabaseService.clearTenantCache();
+      } catch { }
 
       // Call backend logout/signout endpoint
       await fetch(`${API_BASE}/v1/auth/logout`, {
@@ -403,9 +380,6 @@ export const SupabaseDashboardService = {
 
   async getCurrentSession() {
     try {
-      const mock = localStorage.getItem('zega_mock_session');
-      if (mock) return JSON.parse(mock);
-
       const cookieSession = this.getCookieSession();
       if (cookieSession) return cookieSession;
 
@@ -498,7 +472,8 @@ export const SupabaseDashboardService = {
 
   // Utility: Resolve CDN URLs for assets
   getCdnUrl(path?: string): string {
-    const baseCdn = (import.meta.env.VITE_CDN_URL || import.meta.env.VITE_R2_PUBLIC_DOMAIN || 'https://cdn.zegaai.site').replace(/\/$/, '');
+    const metaEnv = (import.meta as any)?.env;
+    const baseCdn = (metaEnv?.VITE_CDN_URL || metaEnv?.VITE_R2_PUBLIC_DOMAIN || 'https://cdn.zegaai.site').replace(/\/$/, '');
     if (!path) return `${baseCdn}/assets/logo/zegalogo.png`;
     if (
       path.startsWith('http://') ||
@@ -620,7 +595,8 @@ export const SupabaseDashboardService = {
 
   // 7c. Add / Deploy New AI Employee Record to database
   async addUmkmAiEmployee(storeIdOrPayload?: any, payloadArg?: any) {
-    const storeId = typeof storeIdOrPayload === 'string' ? storeIdOrPayload : (getActiveTenantIds().storeId || '');
+    const storeId = typeof storeIdOrPayload === 'string' ? storeIdOrPayload : (getActiveTenantIds().storeId || null);
+    if (!storeId || !isValidUuid(storeId)) return { data: null, error: 'STORE_CONTEXT_UNAVAILABLE' };
     const payload = typeof storeIdOrPayload === 'string' ? payloadArg : storeIdOrPayload;
     try {
       const newAgentCode = payload.agent_code || `AGENT-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -736,7 +712,7 @@ export const SupabaseDashboardService = {
 
   // 8. Subscribe to Realtime WebSocket updates on UMKM tables
   subscribeToUmkmRealtime(storeId?: string | null, onUpdate?: (payload: any) => void) {
-    if (!storeId || !onUpdate) return () => {};
+    if (!storeId || !onUpdate) return () => { };
     try {
       const channel = supabase
         .channel(`umkm-realtime-${storeId}`)
@@ -1332,7 +1308,7 @@ export const SupabaseDashboardService = {
 
   // 21. Realtime Subscription for Inbox Conversations & Messages
   subscribeToInboxRealtime(providedStoreId?: string | null, callback?: () => void) {
-    if (!providedStoreId || !callback) return () => {};
+    if (!providedStoreId || !callback) return () => { };
     const channel = supabase
       .channel(`inbox_realtime_${providedStoreId}_${Date.now()}`)
       .on(
@@ -1544,7 +1520,7 @@ export const SupabaseDashboardService = {
 
   // 25. Realtime Subscription for Sales
   subscribeToSalesRealtime(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`sales_realtime_${storeId}_${Date.now()}`)
       .on(
@@ -1649,7 +1625,7 @@ export const SupabaseDashboardService = {
 
   // 25c. Realtime Subscription for Marketing Activities
   subscribeToMarketingActivities(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`umkm_marketing_activities_realtime_${storeId}`)
       .on(
@@ -1722,7 +1698,7 @@ export const SupabaseDashboardService = {
 
   // 25g. Realtime Subscription for Marketing Reports
   subscribeToMarketingReports(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`umkm_marketing_reports_realtime_${storeId}`)
       .on(
@@ -1796,7 +1772,7 @@ export const SupabaseDashboardService = {
 
   // 25k. Realtime Subscription for Channel Performance
   subscribeToMarketingChannelPerformance(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`umkm_marketing_channel_performance_realtime_${storeId}`)
       .on(
@@ -1832,7 +1808,7 @@ export const SupabaseDashboardService = {
 
   // 25m. Realtime Subscription for Campaigns
   subscribeToMarketingCampaigns(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`umkm_marketing_campaigns_realtime_${storeId}`)
       .on(
@@ -1917,7 +1893,7 @@ export const SupabaseDashboardService = {
   // 25p. Realtime Subscription for Content Studio Items
   subscribeToMarketingContentItems(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
     if (!isValidUuid(storeId)) {
-      return () => {};
+      return () => { };
     }
 
     const channel = supabase
@@ -2162,7 +2138,7 @@ export const SupabaseDashboardService = {
 
   // 30. Realtime Subscription for Marketing
   subscribeToMarketingRealtime(storeId: string = (getActiveTenantIds().storeId || ''), callback: () => void) {
-    if (!isValidUuid(storeId)) return () => {};
+    if (!isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`umkm_marketing_overview_realtime_${storeId}`)
       .on(
@@ -7189,7 +7165,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
   subscribeToNotificationSettingsRealtime(storeIdOrCallback?: string | (() => void), callback?: () => void) {
     const storeId = (typeof storeIdOrCallback === 'string' && storeIdOrCallback) ? storeIdOrCallback : (getActiveTenantIds().storeId || '');
-    const cb = typeof storeIdOrCallback === 'function' ? storeIdOrCallback : (typeof callback === 'function' ? callback : () => {});
+    const cb = typeof storeIdOrCallback === 'function' ? storeIdOrCallback : (typeof callback === 'function' ? callback : () => { });
     const channel = supabase
       .channel(`umkm_notification_realtime_${storeId}`)
       .on(
@@ -7218,17 +7194,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       const fetchMs = Math.max(8, Date.now() - startTime);
 
-      if (error || !data || data.length === 0) {
-        // Fallback default health telemetry if table initial check returns empty before migration run
-        return [
-          { id: 'h1', service_name: 'Supabase PostgreSQL DB', service_key: 'supabase_db', status: 'Connected', ping_ms: fetchMs, uptime_percent: 99.99, details: 'Primary PostgreSQL DB connection active & healthy', last_check_at: new Date().toISOString() },
-          { id: 'h2', service_name: 'Cloudflare R2 CDN', service_key: 'cloudflare_r2', status: '100% Operational', ping_ms: 14, uptime_percent: 100.00, details: 'Bucket cdn.zegaai.site responsive', last_check_at: new Date().toISOString() },
-          { id: 'h3', service_name: 'Supabase Realtime Channel', service_key: 'supabase_realtime', status: 'Active & Listening', ping_ms: fetchMs + 4, uptime_percent: 99.98, details: 'WebSocket channel connected live', last_check_at: new Date().toISOString() },
-          { id: 'h4', service_name: 'ZEGA AI Runtime Gateway', service_key: 'zega_ai_gateway', status: 'Online (Port 3001)', ping_ms: 11, uptime_percent: 99.95, details: 'AI Engine Gateway Node.js / ZeroClaw active', last_check_at: new Date().toISOString() }
-        ];
+      if (error || !data) {
+        return [];
       }
 
-      // Dynamic real-time ping adjustment for current live connection
       return data.map((item: any) => {
         if (item.service_key === 'supabase_db' || item.service_key === 'supabase_realtime') {
           return { ...item, ping_ms: fetchMs };
@@ -7237,12 +7206,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       });
     } catch (err) {
       console.warn('System health fetch error:', err);
-      return [
-        { id: 'h1', service_name: 'Supabase PostgreSQL DB', service_key: 'supabase_db', status: 'Connected', ping_ms: 18, uptime_percent: 99.99, details: 'Primary PostgreSQL DB connection active & healthy', last_check_at: new Date().toISOString() },
-        { id: 'h2', service_name: 'Cloudflare R2 CDN', service_key: 'cloudflare_r2', status: '100% Operational', ping_ms: 14, uptime_percent: 100.00, details: 'Bucket cdn.zegaai.site responsive', last_check_at: new Date().toISOString() },
-        { id: 'h3', service_name: 'Supabase Realtime Channel', service_key: 'supabase_realtime', status: 'Active & Listening', ping_ms: 22, uptime_percent: 99.98, details: 'WebSocket channel connected live', last_check_at: new Date().toISOString() },
-        { id: 'h4', service_name: 'ZEGA AI Runtime Gateway', service_key: 'zega_ai_gateway', status: 'Online (Port 3001)', ping_ms: 11, uptime_percent: 99.95, details: 'AI Engine Gateway Node.js / ZeroClaw active', last_check_at: new Date().toISOString() }
-      ];
+      return [];
     }
   },
 
@@ -7489,7 +7453,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
    */
   subscribeToSystemSecurityRealtime(storeIdOrUpdate?: string | (() => void), maybeUpdate?: () => void) {
     const storeId = (typeof storeIdOrUpdate === 'string' && storeIdOrUpdate) ? storeIdOrUpdate : (getActiveTenantIds().storeId || '');
-    const onUpdate = typeof storeIdOrUpdate === 'function' ? storeIdOrUpdate : (typeof maybeUpdate === 'function' ? maybeUpdate : () => {});
+    const onUpdate = typeof storeIdOrUpdate === 'function' ? storeIdOrUpdate : (typeof maybeUpdate === 'function' ? maybeUpdate : () => { });
     try {
       const channel = supabase
         .channel(`umkm-system-security-${storeId}`)
@@ -7994,7 +7958,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
    */
   subscribeToApiKeysRealtime(storeIdOrUpdate?: string | (() => void), maybeUpdate?: () => void) {
     const storeId = (typeof storeIdOrUpdate === 'string' && storeIdOrUpdate) ? storeIdOrUpdate : (getActiveTenantIds().storeId || '');
-    const onUpdate = typeof storeIdOrUpdate === 'function' ? storeIdOrUpdate : (typeof maybeUpdate === 'function' ? maybeUpdate : () => {});
+    const onUpdate = typeof storeIdOrUpdate === 'function' ? storeIdOrUpdate : (typeof maybeUpdate === 'function' ? maybeUpdate : () => { });
     try {
       const channel = supabase
         .channel(`umkm-api-keys-${storeId}`)
@@ -9425,14 +9389,14 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .single();
 
       if (createError) {
-        console.warn('Fallback inserting Help Live Chat session:', createError);
-        return { id: 'h0010000-0000-0000-0000-000000000001', store_id: storeId, user_id: userId, title: 'Ops Specialist Help Chat' };
+        console.warn('Fallback inserting Help Live Chat session error:', createError);
+        return null;
       }
 
       return newChat;
     } catch (e) {
       console.warn('Failed getUmkmHelpLiveChat:', e);
-      return { id: 'h0010000-0000-0000-0000-000000000001', store_id: storeId, user_id: userId, title: 'Ops Specialist Help Chat' };
+      return null;
     }
   },
 
@@ -9497,6 +9461,28 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * =========================================================================
    * MODULE 1: HOME DASHBOARD AI ASSISTANT (umkm_ai_assistant_chats)
+   * =========================================================================
+   */
+
+  /**
+   * Clear in-flight session promises and composite chat caches
+   */
+  clearAllChatStateAndCache() {
+    inFlightAiSessionPromises.clear();
+    try {
+      if (typeof window !== 'undefined') {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('zega_chat_session_') || k.startsWith('zega_copilot_session_')) {
+            localStorage.removeItem(k);
+          }
+        });
+      }
+    } catch { }
+  },
+
+  /**
+   * =========================================================================
+   * MODULE 1: ZEGA HOME & SPECIALIST AI ASSISTANT (umkm_ai_assistant_chats)
    * Multi-Tenant Hardened — No cascading fallback chains
    * =========================================================================
    */
@@ -9506,17 +9492,20 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     agentRole?: string | null
   ) {
     try {
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
       const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
       const storeId = tenantCtx.storeId;
-      const effectiveUserId = userId || tenantCtx.userId || (getActiveTenantIds().userId || '');
-      if (!isValidUuid(storeId) || !effectiveUserId) return [];
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : tenantCtx.userId;
+
+      if (!isValidUuid(storeId) || !effectiveUserId || !isValidUuid(effectiveUserId)) return [];
 
       let query = supabase
         .from('umkm_ai_assistant_chats')
         .select('*')
         .eq('store_id', storeId)
         .eq('user_id', effectiveUserId)
-        .neq('store_id', '11111111-1111-1111-1111-111111111111')
         .order('created_at', { ascending: false });
 
       if (agentRole) {
@@ -9535,6 +9524,123 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     }
   },
 
+  /**
+   * Safely resolves canonical store, organization, workspace, and user IDs
+   * without injecting invalid filter syntax (e.g. user_id.eq.undefined) into PostgREST
+   * and guaranteeing workspace_id matches a valid public.workspaces row.
+   */
+  async resolveStoreAndWorkspaceContext(
+    canonicalUserId: string,
+    startUserId?: string,
+    providedStoreId?: string | null,
+    providedOrgId?: string | null,
+    providedWsId?: string | null
+  ): Promise<{
+    canonicalUserId: string;
+    storeId: string;
+    organizationId: string;
+    workspaceId: string;
+  }> {
+    let finalUserId = (canonicalUserId && isValidUuid(canonicalUserId)) ? canonicalUserId : '';
+    let finalStoreId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : '';
+    let finalOrgId = (providedOrgId && isValidUuid(providedOrgId)) ? providedOrgId : '';
+    let finalWsId = (providedWsId && isValidUuid(providedWsId)) ? providedWsId : '';
+
+    // 1. Build strict UUID-only OR filter for umkm_stores
+    const orParts: string[] = [];
+    if (isValidUuid(canonicalUserId)) orParts.push(`user_id.eq.${canonicalUserId}`);
+    if (isValidUuid(startUserId) && startUserId !== canonicalUserId) orParts.push(`user_id.eq.${startUserId}`);
+    if (isValidUuid(providedStoreId)) orParts.push(`id.eq.${providedStoreId}`);
+
+    if (orParts.length > 0) {
+      try {
+        const { data: realStores } = await supabase
+          .from('umkm_stores')
+          .select('id, organization_id, workspace_id, user_id')
+          .or(orParts.join(','))
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (realStores && realStores.length > 0) {
+          const s = realStores[0];
+          finalStoreId = s.id;
+          if (s.organization_id && isValidUuid(s.organization_id)) {
+            finalOrgId = s.organization_id;
+          }
+          if (s.workspace_id && isValidUuid(s.workspace_id)) {
+            finalWsId = s.workspace_id;
+          }
+          if (s.user_id && isValidUuid(s.user_id)) {
+            finalUserId = s.user_id;
+          }
+        }
+      } catch (e) {
+        console.warn('[resolveStoreAndWorkspaceContext] store lookup failed:', e);
+      }
+    }
+
+    // 2. Auto-provision if store, organization, or workspace is missing
+    if (!isValidUuid(finalStoreId) || !isValidUuid(finalOrgId) || !isValidUuid(finalWsId)) {
+      try {
+        const prov = await umkmSupabaseService.ensureIndividualUmkmTenant();
+        if (prov.ok && prov.storeId) {
+          finalStoreId = prov.storeId;
+          if (prov.organizationId && isValidUuid(prov.organizationId)) {
+            finalOrgId = prov.organizationId;
+          }
+          if (prov.workspaceId && isValidUuid(prov.workspaceId)) {
+            finalWsId = prov.workspaceId;
+          }
+        }
+      } catch (e) {
+        console.warn('[resolveStoreAndWorkspaceContext] provisioning fallback error:', e);
+      }
+    }
+
+    // 3. Resolve or create workspace_id from public.workspaces matching organization_id if missing
+    if (!isValidUuid(finalWsId) && isValidUuid(finalOrgId)) {
+      try {
+        const { data: wsRow } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('organization_id', finalOrgId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (wsRow?.id && isValidUuid(wsRow.id)) {
+          finalWsId = wsRow.id;
+        } else {
+          // Auto-create workspace under existing organization
+          const newWsId = crypto.randomUUID();
+          const { error: insErr } = await supabase.from('workspaces').insert({
+            id: newWsId,
+            organization_id: finalOrgId,
+            name: 'Main Workspace',
+            slug: `ws-${finalOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
+            status: 'active'
+          });
+          if (!insErr) {
+            finalWsId = newWsId;
+          }
+        }
+
+        if (isValidUuid(finalWsId) && isValidUuid(finalStoreId)) {
+          await supabase.from('umkm_stores').update({ workspace_id: finalWsId }).eq('id', finalStoreId);
+        }
+      } catch (wsRepairErr) {
+        console.warn('[resolveStoreAndWorkspaceContext] workspace repair error:', wsRepairErr);
+      }
+    }
+
+    return {
+      canonicalUserId: finalUserId,
+      storeId: finalStoreId,
+      organizationId: finalOrgId,
+      workspaceId: finalWsId
+    };
+  },
+
   async createUmkmAiAssistantChat(
     providedStoreId?: string | null,
     userId?: string | null,
@@ -9542,37 +9648,191 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     agentRole: string = 'ZEGA Home Assistant'
   ) {
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
-      const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
-        console.warn('[AI Assistant] createUmkmAiAssistantChat aborted: missing/invalid tenant context', { storeId, orgId });
+      const activeTenant = getActiveTenantIds();
+      const tenantCtx: any = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : (isValidUuid(tenantCtx.storeId) ? tenantCtx.storeId : activeTenant.storeId);
+      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId))
+        ? tenantCtx.organizationId
+        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : storeId);
+
+      const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
+
+      // Diagnostic Self-Check: Fail closed if store context or user identity is not verified under live RLS contract
+      if (!isStoreReady || !isValidUuid(storeId) || !isValidUuid(organizationId)) {
+        console.warn('[CHAT_CONTEXT_INVALID]', {
+          assistantType: agentRole,
+          status: tenantCtx.overallStatus || tenantCtx.status || activeTenant.storeStatus,
+          storeId,
+          organizationId
+        });
         return null;
       }
 
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      let effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      // Fail-closed auth check: reject if effectiveUserId is missing or not a valid UUID
+      if (!effectiveUserId || !isValidUuid(effectiveUserId)) {
+        console.warn('[CHAT_CONTEXT_INVALID]', {
+          assistantType: agentRole,
+          reason: 'AUTH_REQUIRED',
+          effectiveUserId
+        });
+        return null;
+      }
+
+      // Canonical Stale Session Check before INSERT
+      const finalSession = await supabase.auth.getSession();
+      const finalUserId = finalSession?.data?.session?.user?.id || startUserId;
+
+      const cleanStart = String(startUserId || effectiveUserId || '').trim().toLowerCase();
+      const cleanFinal = String(finalUserId || effectiveUserId || '').trim().toLowerCase();
+
+      if (cleanStart && cleanFinal && cleanStart !== cleanFinal) {
+        console.warn('[AI Assistant] AUTH_CONTEXT_CHANGED: Session user identity changed mid-flight! Aborting chat creation.', { start: cleanStart, final: cleanFinal });
+        return null;
+      }
+
+      // 1. Resolve canonical application user ID from public.users table (matching public.fn_current_app_user_id())
+      let canonicalUserId = startUserId || effectiveUserId;
+      try {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', startUserId || effectiveUserId)
+          .maybeSingle();
+        if (userRow?.id && isValidUuid(userRow.id)) {
+          canonicalUserId = userRow.id;
+        }
+      } catch {}
+
+      // 2. Safely resolve store, organization, and workspace context without invalid PostgREST filters or workspace collisions
+      const resolvedContext = await this.resolveStoreAndWorkspaceContext(
+        canonicalUserId,
+        startUserId,
+        storeId,
+        organizationId,
+        tenantCtx.workspaceId
+      );
+
+      canonicalUserId = resolvedContext.canonicalUserId;
+      const targetStoreId = resolvedContext.storeId;
+      const targetOrgId = resolvedContext.organizationId;
+      const targetWsId = resolvedContext.workspaceId;
+
+      // Pre-INSERT Canonical UUID Assertion: FAIL CLOSED if any required tenant ID is not a valid UUID
+      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId) || !isValidUuid(targetWsId)) {
+        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+          assistantType: agentRole,
+          canonicalUserId,
+          targetStoreId,
+          targetOrgId,
+          targetWsId,
+          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : (!isValidUuid(targetStoreId) ? 'storeId' : 'workspaceId'))
+        });
+        return null;
+      }
+
+      console.log('[CHAT_IDENTITY]', {
+        authUserId: startUserId || effectiveUserId,
+        payloadUserId: canonicalUserId,
+        identityMode: 'AUTH_UID'
+      });
+
+      const payload: any = {
+        user_id: canonicalUserId,
+        organization_id: targetOrgId,
+        store_id: targetStoreId,
+        workspace_id: targetWsId,
+        title,
+        agent_role: agentRole,
+        status: 'active'
+      };
+
+      console.log('[CHAT_INSERT_SCOPE]', {
+        assistantType: agentRole,
+        authUserId: canonicalUserId,
+        organizationId: targetOrgId,
+        storeId: targetStoreId,
+        workspaceId: targetWsId,
+        identityMode: 'AUTH_UID',
+        sessionValid: true
+      });
+
       const { data, error } = await supabase
         .from('umkm_ai_assistant_chats')
-        .insert([{
-          store_id: storeId,
-          user_id: userId,
-          organization_id: orgId,
-          title,
-          agent_role: agentRole,
-          status: 'active'
-        }])
+        .insert([payload])
         .select()
         .single();
 
       if (error) {
-        console.error('[AI Assistant] PERSISTENCE_FAILURE: create chat failed', { code: error.code, message: error.message });
+        const errCode = String(error.code || '');
+        const logTag = errCode === '22P02' ? '[CHAT_INSERT_INVALID_UUID]' : (errCode === '42501' ? '[CHAT_INSERT_RLS_DENIED]' : '[CHAT_INSERT_FAILED]');
+        console.warn(logTag, {
+          table: 'umkm_ai_assistant_chats',
+          code: errCode || '42501',
+          message: error.message,
+          identityMode: 'AUTH_UID',
+          scopeValidated: true
+        });
         return null;
+      }
+      if (data && data.id) {
+        console.log('[CHAT_PERSISTED]', { table: 'umkm_ai_assistant_chats', chatId: data.id });
       }
       return data;
     } catch (e) {
       console.warn('[AI Assistant] createUmkmAiAssistantChat exception:', e);
       return null;
     }
+  },
+
+  async requireVerifiedTenantContext(providedStoreId?: string | null) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const authUserId = sessionData?.session?.user?.id;
+
+    if (!authUserId || !isValidUuid(authUserId)) {
+      throw new Error('STORE_CONTEXT_UNAVAILABLE');
+    }
+
+    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
+
+    if (
+      !tenantCtx ||
+      !isVerifiedTenantContext(tenantCtx, authUserId) ||
+      tenantCtx.backendVerified !== true ||
+      tenantCtx.tenantVerified !== true ||
+      tenantCtx.storeReady !== true ||
+      (tenantCtx.status !== 'READY' && tenantCtx.overallStatus !== 'READY') ||
+      !tenantCtx.organizationId ||
+      !isValidUuid(tenantCtx.organizationId) ||
+      tenantCtx.organizationId === authUserId ||
+      !tenantCtx.workspaceId ||
+      !isValidUuid(tenantCtx.workspaceId) ||
+      tenantCtx.workspaceId === authUserId ||
+      !tenantCtx.storeId ||
+      !isValidUuid(tenantCtx.storeId) ||
+      tenantCtx.storeId === authUserId
+    ) {
+      throw new Error('STORE_CONTEXT_UNAVAILABLE');
+    }
+
+    return {
+      userId: authUserId,
+      organizationId: tenantCtx.organizationId,
+      workspaceId: tenantCtx.workspaceId,
+      storeId: tenantCtx.storeId,
+      accountType: 'INDIVIDUAL_UMKM',
+      sessionKey: `${authUserId}:session:INDIVIDUAL_UMKM`,
+      status: 'READY' as const,
+      verified: true as const,
+      backendVerified: true as const,
+      tenantVerified: true as const,
+      storeReady: true as const
+    };
   },
 
   async resolveOrCreateCanonicalAiAssistantChat(
@@ -9582,135 +9842,143 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     agentRole: string = 'ZEGA Home Assistant'
   ): Promise<CanonicalSessionResult> {
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+      const active = getActiveTenantIds();
+      const startSession = await supabase.auth.getSession().catch(() => null);
+      const startUserId = startSession?.data?.session?.user?.id;
+      const authBridge = getAuthBridgeState();
+
+      let tenantCtx: any = active;
+      const uuidCandidates = [
+        userId,
+        active.userId,
+        authBridge.supabaseUserId,
+        tenantCtx.userId,
+        startUserId
+      ];
+      const effectiveUserId = uuidCandidates.find(id => id && isValidUuid(id)) || null;
+
+      let isVerified = isVerifiedTenantContext(tenantCtx, effectiveUserId || undefined);
+      if (!isVerified) {
+        tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+        isVerified = isVerifiedTenantContext(tenantCtx, effectiveUserId || tenantCtx.userId || undefined);
+      }
       const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
-      const effectiveUserId: string = userId || tenantCtx.userId || (getActiveTenantIds().userId || '');
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
+      if ((authBridge.authState === 'AUTH_REQUIRED' && !effectiveUserId) || !effectiveUserId || !isValidUuid(effectiveUserId)) {
+        return {
+          ok: false,
+          status: 'UNAVAILABLE',
+          reason: 'AUTH_REQUIRED',
+          chatId: null,
+          session: null,
+          error: 'Authentication required'
+        };
+      }
+
+      if (!isVerified) {
+        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING';
         console.log('[CanonicalSessionResolver]', {
           module: 'AI_ASSISTANT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: isValidUuid(orgId),
-          storeReady: isValidUuid(storeId),
-          action: 'ABORTED',
-          reason: 'STORE_CONTEXT_UNAVAILABLE'
+          authenticatedUserReady: true,
+          storeReady: false,
+          action: isResolving ? 'DEFERRED' : 'ABORTED',
+          reason: isResolving ? 'WAITING_FOR_TENANT' : 'STORE_CONTEXT_UNAVAILABLE'
         });
         return {
           ok: false,
           status: 'UNAVAILABLE',
-          reason: 'STORE_CONTEXT_UNAVAILABLE',
+          reason: isResolving ? 'WAITING_FOR_TENANT' : 'STORE_CONTEXT_UNAVAILABLE',
           chatId: null,
           session: null,
-          error: 'Store or Organization UUID context unavailable'
+          error: isResolving ? 'Waiting for tenant context resolution' : 'Store UUID context unavailable or tenant identity blocked'
         };
       }
 
-      // 1. Query existing active chat session first for specific agentRole
-      let query = supabase
-        .from('umkm_ai_assistant_chats')
-        .select('*')
-        .eq('store_id', storeId)
-        .eq('status', 'active')
-        .eq('agent_role', agentRole)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (effectiveUserId && effectiveUserId !== 'demo-owner') {
-        query = query.eq('user_id', effectiveUserId);
+      // Single-flight in-flight promise guard to prevent duplicate creation on double-click or React StrictMode re-renders
+      const flightKey = `${effectiveUserId}:${storeId}:${agentRole}`;
+      if (inFlightAiSessionPromises.has(flightKey)) {
+        console.log('[CanonicalSessionResolver] Reusing in-flight session resolution promise for key:', flightKey);
+        return await inFlightAiSessionPromises.get(flightKey)!;
       }
 
-      const { data: existingChats, error: lookupError } = await query;
-      if (lookupError) {
-        console.warn('[AI Assistant] Existing session lookup error:', lookupError.message);
-        console.log('[CanonicalSessionResolver]', {
-          module: 'AI_ASSISTANT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'ABORTED',
-          reason: 'SESSION_LOOKUP_FAILED'
-        });
-        return {
-          ok: false,
-          status: 'UNAVAILABLE',
-          reason: 'SESSION_LOOKUP_FAILED',
-          chatId: null,
-          session: null,
-          error: lookupError.message
-        };
-      }
+      const resolverPromise = (async (): Promise<CanonicalSessionResult> => {
+        try {
+          // 1. Query existing active chat session first for specific user, store, and agentRole
+          let query = supabase
+            .from('umkm_ai_assistant_chats')
+            .select('*')
+            .eq('store_id', storeId)
+            .eq('user_id', effectiveUserId)
+            .eq('status', 'active')
+            .eq('agent_role', agentRole)
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-      if (existingChats && existingChats.length > 0) {
-        const session = existingChats[0];
-        console.log('[CanonicalSessionResolver]', {
-          module: 'AI_ASSISTANT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'RESOLVED_EXISTING',
-          reason: 'EXISTING_SESSION_RESOLVED'
-        });
-        return {
-          ok: true,
-          status: 'READY',
-          reason: 'EXISTING_SESSION_RESOLVED',
-          chatId: session.id,
-          session
-        };
-      }
+          const { data: existingChats, error: lookupError } = await query;
+          if (lookupError) {
+            console.warn('[AI Assistant] Existing session lookup error:', lookupError.message);
+            return {
+              ok: false,
+              status: 'UNAVAILABLE',
+              reason: 'SESSION_LOOKUP_FAILED',
+              chatId: null,
+              session: null,
+              error: lookupError.message
+            };
+          }
 
-      // 2. No existing active session found -> create exactly one new session with agentRole
-      const newSession = await this.createUmkmAiAssistantChat(storeId, effectiveUserId, title, agentRole);
-      if (newSession && newSession.id) {
-        console.log('[CanonicalSessionResolver]', {
-          module: 'AI_ASSISTANT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'CREATED_NEW',
-          reason: 'NEW_SESSION_CREATED'
-        });
-        return {
-          ok: true,
-          status: 'READY',
-          reason: 'NEW_SESSION_CREATED',
-          chatId: newSession.id,
-          session: newSession
-        };
-      }
+          if (existingChats && existingChats.length > 0) {
+            const session = existingChats[0];
+            console.log('[CHAT_SCOPE]', {
+              authUserId: effectiveUserId,
+              storeId: storeId,
+              assistantId: agentRole,
+              chatId: session.id
+            });
+            return {
+              ok: true,
+              status: 'READY',
+              reason: 'EXISTING_SESSION_RESOLVED',
+              chatId: session.id,
+              session
+            };
+          }
 
-      // 3. Fallback: If DB insertion was blocked by RLS / 42501, generate a local active session object
-      const fallbackChatId = crypto.randomUUID();
-      const fallbackSession = {
-        id: fallbackChatId,
-        store_id: storeId,
-        user_id: effectiveUserId,
-        organization_id: orgId,
-        title,
-        agent_role: agentRole,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+          // 2. No existing active session found -> create exactly one new session with agentRole
+          const newSession = await this.createUmkmAiAssistantChat(storeId, effectiveUserId, title, agentRole);
+          if (newSession && newSession.id) {
+            console.log('[CHAT_SCOPE]', {
+              authUserId: effectiveUserId,
+              storeId: storeId,
+              assistantId: agentRole,
+              chatId: newSession.id
+            });
+            return {
+              ok: true,
+              status: 'READY',
+              reason: 'NEW_SESSION_CREATED',
+              chatId: newSession.id,
+              session: newSession
+            };
+          }
 
-      console.log('[CanonicalSessionResolver]', {
-        module: 'AI_ASSISTANT',
-        authenticatedUserReady: !!effectiveUserId,
-        organizationReady: true,
-        storeReady: true,
-        action: 'RESOLVED_LOCAL_FALLBACK',
-        reason: 'RLS_FALLBACK_SESSION_CREATED',
-        chatId: fallbackChatId
-      });
+          // 3. Fail closed if DB insertion failed (no fake/emergency session fallback)
+          console.warn('[CanonicalSessionResolver] CHAT_CREATE_FAILED: Unable to create AI Assistant chat session');
+          return {
+            ok: false,
+            status: 'UNAVAILABLE',
+            reason: 'CHAT_CREATE_FAILED',
+            chatId: null,
+            session: null,
+            error: 'Failed to create canonical AI Assistant chat session'
+          };
+        } finally {
+          inFlightAiSessionPromises.delete(flightKey);
+        }
+      })();
 
-      return {
-        ok: true,
-        status: 'READY',
-        reason: 'NEW_SESSION_CREATED',
-        chatId: fallbackChatId,
-        session: fallbackSession
-      };
+      inFlightAiSessionPromises.set(flightKey, resolverPromise);
+      return await resolverPromise;
     } catch (e: any) {
       console.warn('[AI Assistant] resolveOrCreateCanonicalAiAssistantChat exception:', e);
       return {
@@ -9722,6 +9990,32 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         error: e?.message || 'Exception during session resolution'
       };
     }
+  },
+
+  /**
+   * Single-flight, consolidated chat session resolver for isolated assistant namespaces
+   * Key: authUserId + organizationId + storeId + assistantId
+   */
+  async ensureAssistantChatSession(
+    assistantId: 'HOME' | 'HELP' | 'FINANCE' | 'ZEGA_COPILOT' | string,
+    providedStoreId?: string | null,
+    userId?: string | null,
+    title?: string
+  ): Promise<CanonicalSessionResult> {
+    if (assistantId === 'ZEGA_COPILOT') {
+      return this.resolveOrCreateCanonicalZegaCopilotChat(providedStoreId, userId, title || 'Diskusi ZEGA Copilot Utama');
+    }
+
+    let agentRole = 'ZEGA Home Assistant';
+    if (assistantId === 'HELP') {
+      agentRole = 'ZEGA AI Specialist Direct';
+    } else if (assistantId === 'FINANCE') {
+      agentRole = 'ZeroClaw Finance Specialist';
+    } else if (typeof assistantId === 'string' && assistantId !== 'HOME') {
+      agentRole = assistantId;
+    }
+
+    return this.resolveOrCreateCanonicalAiAssistantChat(providedStoreId, userId, title || `Sesi ${agentRole} Baru`, agentRole);
   },
 
   async getUmkmAiAssistantMessages(chatId: string) {
@@ -9759,18 +10053,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return null;
     }
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const orgId = tenantCtx.organizationId;
-      if (!isValidUuid(orgId)) {
-        console.warn('[AI Assistant] saveUmkmAiAssistantMessage aborted: invalid organization_id', orgId);
-        return null;
-      }
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
+
       const { data, error } = await supabase
         .from('umkm_ai_assistant_messages')
         .insert([{
           chat_id: payload.chat_id,
-          user_id: payload.user_id || (getActiveTenantIds().userId || ''),
-          organization_id: orgId,
+          user_id: effectiveUserId,
           sender: payload.sender,
           text: payload.text,
           inference_ms: payload.inference_ms || 185,
@@ -9781,34 +10073,95 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .single();
 
       if (error) {
-        // Soft fallback for client-side RLS restriction
-        return {
-          id: crypto.randomUUID(),
-          chat_id: payload.chat_id,
-          user_id: payload.user_id || (getActiveTenantIds().userId || ''),
-          organization_id: orgId,
-          sender: payload.sender,
-          text: payload.text,
-          inference_ms: payload.inference_ms || 185,
-          tokens: payload.tokens || 94,
-          security_status: 'verified',
-          created_at: new Date().toISOString()
-        };
+        console.warn('[AI Assistant] saveUmkmAiAssistantMessage error:', error.message);
+        return null;
       }
       return data;
     } catch (e) {
-      return {
-        id: crypto.randomUUID(),
-        chat_id: payload.chat_id,
-        user_id: payload.user_id || (getActiveTenantIds().userId || ''),
-        organization_id: '6f287c60-d75e-4101-a11c-0012abcce43f',
-        sender: payload.sender,
-        text: payload.text,
-        inference_ms: payload.inference_ms || 185,
-        tokens: payload.tokens || 94,
-        security_status: 'verified',
-        created_at: new Date().toISOString()
-      };
+      console.warn('[AI Assistant] saveUmkmAiAssistantMessage exception:', e);
+      return null;
+    }
+  },
+
+  async deleteUmkmAiAssistantChat(
+    chatId: string,
+    providedStoreId?: string | null,
+    userId?: string | null,
+    agentRole?: string | null
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!isValidUuid(chatId)) {
+      return { ok: false, error: 'INVALID_CHAT_ID' };
+    }
+    try {
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      if (!isValidUuid(storeId)) {
+        return { ok: false, error: 'TENANT_CONTEXT_UNAVAILABLE' };
+      }
+
+      // Step 1: Verification SELECT before deletion
+      let verifyQuery = supabase
+        .from('umkm_ai_assistant_chats')
+        .select('id')
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        verifyQuery = verifyQuery.eq('user_id', effectiveUserId);
+      }
+      if (agentRole) {
+        verifyQuery = verifyQuery.eq('agent_role', agentRole);
+      }
+
+      const { data: existingRow, error: verifyErr } = await verifyQuery;
+      if (verifyErr || !existingRow || existingRow.length === 0) {
+        console.warn('[AI Assistant] delete target not found or access denied', verifyErr?.message);
+        return { ok: false, error: 'CHAT_NOT_FOUND' };
+      }
+
+      // Step 2: Delete associated messages first
+      await supabase
+        .from('umkm_ai_assistant_messages')
+        .delete()
+        .eq('chat_id', chatId);
+
+      // Step 3: Delete main chat row
+      let deleteQuery = supabase
+        .from('umkm_ai_assistant_chats')
+        .delete()
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        deleteQuery = deleteQuery.eq('user_id', effectiveUserId);
+      }
+      if (agentRole) {
+        deleteQuery = deleteQuery.eq('agent_role', agentRole);
+      }
+
+      const { error: delErr } = await deleteQuery;
+      if (delErr) {
+        console.warn('[AI Assistant] deleteUmkmAiAssistantChat error:', { code: delErr.code, message: delErr.message });
+        return { ok: false, error: delErr.message || 'CHAT_DELETE_DENIED' };
+      }
+
+      // Step 4: Verification check after deletion
+      const { data: postCheck } = await verifyQuery;
+      if (postCheck && postCheck.length > 0) {
+        console.warn('[AI Assistant] delete failed: row still exists after delete query');
+        return { ok: false, error: 'DELETE_VERIFICATION_FAILED' };
+      }
+
+      console.log('[CHAT_DELETED]', { table: 'umkm_ai_assistant_chats', chatId });
+      return { ok: true };
+    } catch (e: any) {
+      console.warn('[AI Assistant] deleteUmkmAiAssistantChat exception:', e);
+      return { ok: false, error: e?.message || 'DELETE_FAILED' };
     }
   },
 
@@ -9830,7 +10183,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .select('*')
         .eq('store_id', storeId)
         .eq('user_id', effectiveUserId)
-        .neq('store_id', '11111111-1111-1111-1111-111111111111')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -9846,31 +10198,139 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
   async createUmkmZegaCopilotChat(providedStoreId?: string | null, userId?: string | null, title: string = 'Diskusi ZEGA Copilot Baru') {
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
-      const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
-        console.warn('[ZEGA Copilot] createUmkmZegaCopilotChat aborted: missing tenant context', { storeId, orgId });
+      const activeTenant = getActiveTenantIds();
+      const tenantCtx: any = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : (isValidUuid(tenantCtx.storeId) ? tenantCtx.storeId : activeTenant.storeId);
+      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId))
+        ? tenantCtx.organizationId
+        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : storeId);
+
+      const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
+
+      // Diagnostic Self-Check: Fail closed if store context or user identity is not verified under live RLS contract
+      if (!isStoreReady || !isValidUuid(storeId) || !isValidUuid(organizationId)) {
+        console.warn('[CHAT_CONTEXT_INVALID]', {
+          assistantType: 'zega_copilot',
+          status: tenantCtx.overallStatus || tenantCtx.status || activeTenant.storeStatus,
+          storeId,
+          organizationId
+        });
         return null;
       }
 
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      let effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      if (!effectiveUserId || !isValidUuid(effectiveUserId)) {
+        console.warn('[CHAT_CONTEXT_INVALID]', {
+          assistantType: 'zega_copilot',
+          reason: 'AUTH_REQUIRED',
+          effectiveUserId
+        });
+        return null;
+      }
+
+      // Canonical Stale Session Check before INSERT
+      const finalSession = await supabase.auth.getSession();
+      const finalUserId = finalSession?.data?.session?.user?.id || startUserId;
+
+      const cleanStart = String(startUserId || effectiveUserId || '').trim().toLowerCase();
+      const cleanFinal = String(finalUserId || effectiveUserId || '').trim().toLowerCase();
+
+      if (cleanStart && cleanFinal && cleanStart !== cleanFinal) {
+        console.warn('[ZEGA Copilot] AUTH_CONTEXT_CHANGED: Session user identity changed mid-flight! Aborting chat creation.', { start: cleanStart, final: cleanFinal });
+        return null;
+      }
+
+      // 1. Resolve canonical application user ID from public.users table (matching public.fn_current_app_user_id())
+      let canonicalUserId = startUserId || effectiveUserId;
+      try {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', startUserId || effectiveUserId)
+          .maybeSingle();
+        if (userRow?.id && isValidUuid(userRow.id)) {
+          canonicalUserId = userRow.id;
+        }
+      } catch {}
+
+      // 2. Safely resolve store, organization, and workspace context without invalid PostgREST filters or workspace collisions
+      const resolvedContext = await this.resolveStoreAndWorkspaceContext(
+        canonicalUserId,
+        startUserId,
+        storeId,
+        organizationId,
+        tenantCtx.workspaceId
+      );
+
+      canonicalUserId = resolvedContext.canonicalUserId;
+      const targetStoreId = resolvedContext.storeId;
+      const targetOrgId = resolvedContext.organizationId;
+      const targetWsId = resolvedContext.workspaceId;
+
+      // Pre-INSERT Canonical UUID Assertion: FAIL CLOSED if any required tenant ID is not a valid UUID
+      if (!isValidUuid(canonicalUserId) || !isValidUuid(targetStoreId) || !isValidUuid(targetOrgId) || !isValidUuid(targetWsId)) {
+        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+          assistantType: 'zega_copilot',
+          canonicalUserId,
+          targetStoreId,
+          targetOrgId,
+          targetWsId,
+          missingField: !isValidUuid(canonicalUserId) ? 'userId' : (!isValidUuid(targetOrgId) ? 'organizationId' : (!isValidUuid(targetStoreId) ? 'storeId' : 'workspaceId'))
+        });
+        return null;
+      }
+
+      console.log('[CHAT_IDENTITY]', {
+        authUserId: startUserId || effectiveUserId,
+        payloadUserId: canonicalUserId,
+        identityMode: 'AUTH_UID'
+      });
+
+      const payload: any = {
+        user_id: canonicalUserId,
+        organization_id: targetOrgId,
+        store_id: targetStoreId,
+        workspace_id: targetWsId,
+        title,
+        status: 'active',
+        copilot_type: 'zega_copilot'
+      };
+
+      console.log('[CHAT_INSERT_SCOPE]', {
+        assistantType: 'zega_copilot',
+        authUserId: canonicalUserId,
+        organizationId: targetOrgId,
+        storeId: targetStoreId,
+        workspaceId: targetWsId,
+        identityMode: 'AUTH_UID',
+        sessionValid: true
+      });
+
       const { data, error } = await supabase
         .from('umkm_zega_copilot_chats')
-        .insert([{
-          store_id: storeId,
-          user_id: userId,
-          organization_id: orgId,
-          title,
-          status: 'active',
-          copilot_type: 'zega_copilot'
-        }])
+        .insert([payload])
         .select()
         .single();
 
       if (error) {
-        console.error('[ZEGA Copilot] PERSISTENCE_FAILURE: create chat failed', { code: error.code, message: error.message });
+        const errCode = String(error.code || '');
+        const logTag = errCode === '22P02' ? '[CHAT_INSERT_INVALID_UUID]' : (errCode === '42501' ? '[CHAT_INSERT_RLS_DENIED]' : '[CHAT_INSERT_FAILED]');
+        console.warn(logTag, {
+          table: 'umkm_zega_copilot_chats',
+          code: errCode || '42501',
+          message: error.message,
+          identityMode: 'AUTH_UID',
+          scopeValidated: true
+        });
         return null;
+      }
+      if (data && data.id) {
+        console.log('[CHAT_PERSISTED]', { table: 'umkm_zega_copilot_chats', chatId: data.id });
       }
       return data;
     } catch (e) {
@@ -9885,28 +10345,46 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     title: string = 'Diskusi ZEGA Copilot Utama'
   ): Promise<CanonicalSessionResult> {
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
-      const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
-      const effectiveUserId: string = userId || tenantCtx.userId || (getActiveTenantIds().userId || '');
+      const active = getActiveTenantIds();
+      const startSession = await supabase.auth.getSession().catch(() => null);
+      const startUserId = startSession?.data?.session?.user?.id;
+      const authBridge = getAuthBridgeState();
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
+      let tenantCtx: any = active;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (active.userId || startUserId || '');
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || active.userId || '');
+
+      let isVerified = isVerifiedTenantContext(tenantCtx, effectiveUserId || undefined);
+      if (!isVerified) {
+        tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+        isVerified = isVerifiedTenantContext(tenantCtx, effectiveUserId || tenantCtx.userId || undefined);
+      }
+      const storeId = tenantCtx.storeId;
+
+      if (!isVerified) {
+        const isResolving = tenantCtx.storeStatus === 'loading' || tenantCtx.resolutionState === 'TENANT_RESOLVING';
         console.log('[CanonicalSessionResolver]', {
           module: 'ZEGA_COPILOT',
           authenticatedUserReady: !!effectiveUserId,
-          organizationReady: isValidUuid(orgId),
-          storeReady: isValidUuid(storeId),
-          action: 'ABORTED',
-          reason: 'STORE_CONTEXT_UNAVAILABLE'
+          tenantStatus: tenantCtx.overallStatus || tenantCtx.resolutionState,
+          storeReady: false,
+          action: isResolving ? 'DEFERRED' : 'ABORTED',
+          reason: isResolving ? 'WAITING_FOR_TENANT' : 'STORE_CONTEXT_UNAVAILABLE'
         });
         return {
           ok: false,
           status: 'UNAVAILABLE',
-          reason: 'STORE_CONTEXT_UNAVAILABLE',
+          reason: isResolving ? 'WAITING_FOR_TENANT' : 'STORE_CONTEXT_UNAVAILABLE',
           chatId: null,
           session: null,
-          error: 'Store or Organization UUID context unavailable'
+          error: isResolving ? 'Waiting for tenant context resolution' : 'Store context is unverified or blocked'
         };
+      }
+
+      const flightKey = `copilot:${effectiveUserId}:${storeId}`;
+      if (inFlightAiSessionPromises.has(flightKey)) {
+        console.log('[CanonicalSessionResolver] Reusing in-flight copilot session resolution promise for key:', flightKey);
+        return await inFlightAiSessionPromises.get(flightKey)!;
       }
 
       // 1. Query existing active copilot session first
@@ -9918,21 +10396,13 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (effectiveUserId && effectiveUserId !== 'demo-owner') {
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
         query = query.eq('user_id', effectiveUserId);
       }
 
       const { data: existingChats, error: lookupError } = await query;
       if (lookupError) {
         console.warn('[ZEGA Copilot] Existing session lookup error:', lookupError.message);
-        console.log('[CanonicalSessionResolver]', {
-          module: 'ZEGA_COPILOT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'ABORTED',
-          reason: 'SESSION_LOOKUP_FAILED'
-        });
         return {
           ok: false,
           status: 'UNAVAILABLE',
@@ -9945,13 +10415,11 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       if (existingChats && existingChats.length > 0) {
         const session = existingChats[0];
-        console.log('[CanonicalSessionResolver]', {
-          module: 'ZEGA_COPILOT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'RESOLVED_EXISTING',
-          reason: 'EXISTING_SESSION_RESOLVED'
+        console.log('[CHAT_SCOPE]', {
+          authUserId: effectiveUserId,
+          storeId: storeId,
+          assistantId: 'zega_copilot',
+          chatId: session.id
         });
         return {
           ok: true,
@@ -9965,13 +10433,11 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       // 2. Create new session if none exists
       const newSession = await this.createUmkmZegaCopilotChat(storeId, effectiveUserId, title);
       if (newSession && newSession.id) {
-        console.log('[CanonicalSessionResolver]', {
-          module: 'ZEGA_COPILOT',
-          authenticatedUserReady: !!effectiveUserId,
-          organizationReady: true,
-          storeReady: true,
-          action: 'CREATED_NEW',
-          reason: 'NEW_SESSION_CREATED'
+        console.log('[CHAT_SCOPE]', {
+          authUserId: effectiveUserId,
+          storeId: storeId,
+          assistantId: 'zega_copilot',
+          chatId: newSession.id
         });
         return {
           ok: true,
@@ -9982,36 +10448,15 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         };
       }
 
-      // 3. Fallback: If DB insertion was blocked by RLS / 42501, generate a local active session object
-      const fallbackChatId = crypto.randomUUID();
-      const fallbackSession = {
-        id: fallbackChatId,
-        store_id: storeId,
-        user_id: effectiveUserId,
-        organization_id: orgId,
-        title,
-        copilot_type: 'zega_copilot',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      console.log('[CanonicalSessionResolver]', {
-        module: 'ZEGA_COPILOT',
-        authenticatedUserReady: !!effectiveUserId,
-        organizationReady: true,
-        storeReady: true,
-        action: 'RESOLVED_LOCAL_FALLBACK',
-        reason: 'RLS_FALLBACK_SESSION_CREATED',
-        chatId: fallbackChatId
-      });
-
+      // 3. Fail closed if DB insertion failed
+      console.warn('[CanonicalSessionResolver] CHAT_CREATE_FAILED: Unable to create Copilot chat session');
       return {
-        ok: true,
-        status: 'READY',
-        reason: 'NEW_SESSION_CREATED',
-        chatId: fallbackChatId,
-        session: fallbackSession
+        ok: false,
+        status: 'UNAVAILABLE',
+        reason: 'CHAT_CREATE_FAILED',
+        chatId: null,
+        session: null,
+        error: 'Failed to create canonical Copilot chat session'
       };
     } catch (e: any) {
       console.warn('[ZEGA Copilot] resolveOrCreateCanonicalZegaCopilotChat exception:', e);
@@ -10023,6 +10468,79 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         session: null,
         error: e?.message || 'Exception during ZEGA Copilot session resolution'
       };
+    }
+  },
+
+  async deleteUmkmZegaCopilotChat(
+    chatId: string,
+    providedStoreId?: string | null,
+    userId?: string | null
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!isValidUuid(chatId)) {
+      return { ok: false, error: 'INVALID_CHAT_ID' };
+    }
+    try {
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
+      const storeId = tenantCtx.storeId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      if (!isValidUuid(storeId)) {
+        return { ok: false, error: 'TENANT_CONTEXT_UNAVAILABLE' };
+      }
+
+      // Verification SELECT before deletion
+      let verifyQuery = supabase
+        .from('umkm_zega_copilot_chats')
+        .select('id')
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        verifyQuery = verifyQuery.eq('user_id', effectiveUserId);
+      }
+
+      const { data: existingRow, error: verifyErr } = await verifyQuery;
+      if (verifyErr || !existingRow || existingRow.length === 0) {
+        console.warn('[ZEGA Copilot] delete target not found or access denied', verifyErr?.message);
+        return { ok: false, error: 'CHAT_NOT_FOUND' };
+      }
+
+      await supabase
+        .from('umkm_zega_copilot_messages')
+        .delete()
+        .eq('chat_id', chatId);
+
+      let deleteQuery = supabase
+        .from('umkm_zega_copilot_chats')
+        .delete()
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        deleteQuery = deleteQuery.eq('user_id', effectiveUserId);
+      }
+
+      const { error: delErr } = await deleteQuery;
+      if (delErr) {
+        console.warn('[ZEGA Copilot] deleteUmkmZegaCopilotChat error:', { code: delErr.code, message: delErr.message });
+        return { ok: false, error: delErr.message || 'SECURITY_DELETE_DENIED' };
+      }
+
+      // Verification check after deletion
+      const { data: postCheck } = await verifyQuery;
+      if (postCheck && postCheck.length > 0) {
+        console.warn('[ZEGA Copilot] delete failed: row still exists after delete query');
+        return { ok: false, error: 'DELETE_VERIFICATION_FAILED' };
+      }
+
+      console.log('[CHAT_DELETED]', { table: 'umkm_zega_copilot_chats', chatId });
+      return { ok: true };
+    } catch (e: any) {
+      console.warn('[ZEGA Copilot] deleteUmkmZegaCopilotChat exception:', e);
+      return { ok: false, error: e?.message || 'DELETE_FAILED' };
     }
   },
 
@@ -10061,17 +10579,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return null;
     }
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const orgId = tenantCtx.organizationId;
-      if (!isValidUuid(orgId)) {
-        console.warn('[ZEGA Copilot] saveUmkmZegaCopilotMessage aborted: invalid orgId', orgId);
-        return null;
-      }
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
+
       const { data, error } = await supabase
         .from('umkm_zega_copilot_messages')
         .insert([{
           chat_id: payload.chat_id,
-          organization_id: orgId,
+          user_id: effectiveUserId,
           sender: payload.sender,
           message: payload.message,
           sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZEGA Copilot AI'),
@@ -10083,34 +10600,13 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .single();
 
       if (error) {
-        // Soft fallback for client-side RLS restriction
-        return {
-          id: crypto.randomUUID(),
-          chat_id: payload.chat_id,
-          organization_id: orgId,
-          sender: payload.sender,
-          message: payload.message,
-          sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZEGA Copilot AI'),
-          model_engine: payload.model_engine || '9Router-Llama-3.3-70B',
-          latency_ms: payload.latency_ms || 185,
-          tokens_used: payload.tokens_used || 94,
-          created_at: new Date().toISOString()
-        };
+        console.warn('[ZEGA Copilot] saveUmkmZegaCopilotMessage error:', error.message);
+        return null;
       }
       return data;
     } catch (e) {
-      return {
-        id: crypto.randomUUID(),
-        chat_id: payload.chat_id,
-        organization_id: '6f287c60-d75e-4101-a11c-0012abcce43f',
-        sender: payload.sender,
-        message: payload.message,
-        sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZEGA Copilot AI'),
-        model_engine: payload.model_engine || '9Router-Llama-3.3-70B',
-        latency_ms: payload.latency_ms || 185,
-        tokens_used: payload.tokens_used || 94,
-        created_at: new Date().toISOString()
-      };
+      console.warn('[ZEGA Copilot] saveUmkmZegaCopilotMessage exception:', e);
+      return null;
     }
   },
 
@@ -10132,7 +10628,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .select('*')
         .eq('store_id', storeId)
         .eq('user_id', effectiveUserId)
-        .neq('store_id', '11111111-1111-1111-1111-111111111111')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -10153,12 +10648,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     agentRole: string = 'ZEGA AI Specialist Direct'
   ) {
     try {
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
       const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId || undefined);
       const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
+      const organizationId = tenantCtx.organizationId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
-        console.warn('[Live Help] createUmkmLiveHelpChat aborted: missing tenant context', { storeId, orgId });
+      if (!isValidUuid(storeId) || !isValidUuid(organizationId) || !effectiveUserId || !isValidUuid(effectiveUserId)) {
+        console.warn('[Live Help] createUmkmLiveHelpChat aborted: missing valid tenant context', { storeId, organizationId, effectiveUserId });
         return null;
       }
 
@@ -10166,8 +10665,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .from('umkm_live_help_chats')
         .insert([{
           store_id: storeId,
-          user_id: userId,
-          organization_id: orgId,
+          organization_id: organizationId,
+          user_id: effectiveUserId,
           title,
           agent_role: agentRole,
           status: 'active'
@@ -10225,7 +10724,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (effectiveUserId && effectiveUserId !== 'demo-owner') {
+      if (effectiveUserId) {
         query = query.eq('user_id', effectiveUserId);
       }
 
@@ -10348,7 +10847,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .from('umkm_finance_ai_chats')
         .select('*')
         .eq('store_id', storeId)
-        .neq('store_id', '11111111-1111-1111-1111-111111111111')
         .order('created_at', { ascending: false });
 
       if (lookupError) {
@@ -10464,18 +10962,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return null;
     }
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const orgId = tenantCtx.organizationId;
-      if (!isValidUuid(orgId)) {
-        console.warn('[Live Help] saveUmkmLiveHelpMessage aborted: invalid orgId', orgId);
-        return null;
-      }
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
+
       const { data, error } = await supabase
         .from('umkm_live_help_messages')
         .insert([{
           chat_id: payload.chat_id,
-          user_id: payload.user_id || (getActiveTenantIds().userId || ''),
-          organization_id: orgId,
+          user_id: effectiveUserId,
           sender: payload.sender,
           text: payload.text,
           inference_ms: payload.inference_ms || 185,
@@ -10540,7 +11036,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .insert([{
           store_id: storeId,
           user_id: userId,
-          organization_id: tenantCtx.organizationId,
           title,
           agent_role: agentRole,
           status: 'active'
@@ -10594,7 +11089,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .insert([{
           store_id: storeId,
           user_id: userId,
-          organization_id: tenantCtx.organizationId,
           title,
           status: 'active',
           copilot_type: 'zega_copilot'
@@ -10610,7 +11104,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           .insert([{
             store_id: storeId,
             user_id: userId,
-            organization_id: tenantCtx.organizationId,
             title,
             status: 'active'
           }])
@@ -10669,13 +11162,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return null;
     }
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const orgId = tenantCtx.organizationId;
       const { data, error } = await supabase
         .from('umkm_copilot_messages')
         .insert([{
           chat_id: payload.chat_id,
-          organization_id: orgId,
           sender: payload.sender,
           message: payload.message,
           sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZEGA Copilot AI'),
@@ -10753,34 +11243,59 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   /**
    * Fetch recent chat history across modules (Copilot, Ops Specialist, & Live Help)
    */
-  async getUmkmRecentChatHistory(userId: string = (getActiveTenantIds().userId || ''), chatType: 'all' | 'copilot' | 'zega_copilot' | 'help' | 'ops_specialist' | 'live_help' | 'ai_assistant' | 'finance_ai' | 'enterprise_copilot' = 'all') {
+  async getUmkmRecentChatHistory(providedUserId?: string, chatType: 'all' | 'copilot' | 'zega_copilot' | 'help' | 'ops_specialist' | 'live_help' | 'ai_assistant' | 'finance_ai' | 'enterprise_copilot' = 'all') {
     try {
+      const sessionData = await supabase.auth.getSession();
+      const authUserId = sessionData?.data?.session?.user?.id;
+      if (!authUserId || !isValidUuid(authUserId)) return [];
+
+      let canonicalUserId = authUserId;
+      try {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', authUserId)
+          .maybeSingle();
+        if (userRow?.id && isValidUuid(userRow.id)) {
+          canonicalUserId = userRow.id;
+        }
+      } catch {}
+
       const { data, error } = await supabase.rpc('get_umkm_recent_chat_history', {
-        p_user_id: userId,
+        p_user_id: canonicalUserId,
         p_chat_type: chatType
       });
-      if (!error && data && data.length > 0) {
+      if (!error && data && Array.isArray(data)) {
         return data;
       }
-    } catch (e) {}
+      if (error) {
+        console.warn('[CHAT_HISTORY] RPC get_umkm_recent_chat_history notice:', error.message);
+      }
+    } catch (e) { }
 
     // Fallback: Query primary chat tables directly if RPC function is missing or returns empty
     try {
-      const resolvedStoreId = (getActiveTenantIds().storeId) || (await umkmSupabaseService.getAuthenticatedStoreId()) || '';
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
+      const resolvedStoreId = tenantCtx.storeId || (getActiveTenantIds().storeId) || '';
+      const targetUserId = tenantCtx.userId || (getActiveTenantIds().userId) || '';
+
       if (chatType === 'ai_assistant' || chatType === 'ops_specialist' || chatType === 'enterprise_copilot') {
-        const list = await this.getUmkmAiAssistantChats(resolvedStoreId, userId);
+        const agentRole = chatType === 'enterprise_copilot'
+          ? 'ZEGA Enterprise Specialist'
+          : (chatType === 'ai_assistant' || chatType === 'ops_specialist' ? 'ZEGA Home Assistant' : undefined);
+        const list = await this.getUmkmAiAssistantChats(resolvedStoreId, targetUserId, agentRole);
         return (list || []).map((c: any) => ({ id: c.id, title: c.title, chat_type: chatType, created_at: c.created_at }));
       }
       if (chatType === 'copilot' || chatType === 'zega_copilot') {
-        const list = await this.getUmkmZegaCopilotChats(resolvedStoreId, userId);
+        const list = await this.getUmkmZegaCopilotChats(resolvedStoreId, targetUserId);
         return (list || []).map((c: any) => ({ id: c.id, title: c.title, chat_type: 'zega_copilot', created_at: c.created_at }));
       }
       if (chatType === 'live_help' || chatType === 'help') {
-        const list = await this.getUmkmLiveHelpChats(resolvedStoreId, userId);
+        const list = await this.getUmkmLiveHelpChats(resolvedStoreId, targetUserId);
         return (list || []).map((c: any) => ({ id: c.id, title: c.title, chat_type: 'live_help', created_at: c.created_at }));
       }
       if (chatType === 'finance_ai') {
-        const list = await this.getUmkmFinanceAiChats(resolvedStoreId, userId);
+        const list = await this.getUmkmFinanceAiChats(resolvedStoreId, targetUserId);
         return (list || []).map((c: any) => ({ id: c.id, title: c.title, chat_type: 'finance_ai', created_at: c.created_at }));
       }
       return [];
@@ -10790,78 +11305,78 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     }
   },
 
-  /**
-   * Delete an AI Assistant Chat Session & Messages
-   */
-  async deleteUmkmAiAssistantChat(chatId: string) {
-    if (!isValidUuid(chatId)) return true;
-    try {
-      // 1. Delete associated messages first
-      await supabase.from('umkm_ai_assistant_messages').delete().eq('chat_id', chatId);
 
-      // 2. Delete main chat session
-      const { error } = await supabase
-        .from('umkm_ai_assistant_chats')
-        .delete()
-        .eq('id', chatId);
-
-      if (error) {
-        console.warn('[AI Assistant] Notice on DB session deletion (local state will clear):', error.message);
-      }
-      return true;
-    } catch (e) {
-      console.warn('[AI Assistant] deleteUmkmAiAssistantChat exception:', e);
-      return true;
-    }
-  },
-
-  /**
-   * Delete a ZEGA Copilot Chat Session & Messages
-   */
-  async deleteUmkmZegaCopilotChat(chatId: string) {
-    if (!isValidUuid(chatId)) return true;
-    try {
-      // 1. Delete associated messages first
-      await supabase.from('umkm_zega_copilot_messages').delete().eq('chat_id', chatId);
-
-      // 2. Delete main chat session
-      const { error } = await supabase
-        .from('umkm_zega_copilot_chats')
-        .delete()
-        .eq('id', chatId);
-
-      if (error) {
-        console.warn('[ZEGA Copilot] Notice on DB session deletion (local state will clear):', error.message);
-      }
-      return true;
-    } catch (e) {
-      console.warn('[ZEGA Copilot] deleteUmkmZegaCopilotChat exception:', e);
-      return true;
-    }
-  },
 
   /**
    * Delete a Live Help Chat Session & Messages
    */
-  async deleteUmkmLiveHelpChat(chatId: string) {
-    if (!isValidUuid(chatId)) return true;
+  async deleteUmkmLiveHelpChat(
+    chatId: string,
+    providedStoreId?: string | null,
+    userId?: string | null
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!isValidUuid(chatId)) return { ok: false, error: 'INVALID_CHAT_ID' };
     try {
-      // 1. Delete associated messages first
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId || undefined);
+      const storeId = tenantCtx.storeId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      if (!isValidUuid(storeId)) {
+        return { ok: false, error: 'TENANT_CONTEXT_UNAVAILABLE' };
+      }
+
+      // Step 1: Verification SELECT before deletion
+      let verifyQuery = supabase
+        .from('umkm_live_help_chats')
+        .select('id')
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        verifyQuery = verifyQuery.eq('user_id', effectiveUserId);
+      }
+
+      const { data: existingRow, error: verifyErr } = await verifyQuery;
+      if (verifyErr || !existingRow || existingRow.length === 0) {
+        console.warn('[Live Help] delete target not found or access denied', verifyErr?.message);
+        return { ok: false, error: 'CHAT_NOT_FOUND' };
+      }
+
+      // Step 2: Delete associated messages first
       await supabase.from('umkm_live_help_messages').delete().eq('chat_id', chatId);
 
-      // 2. Delete main chat session
-      const { error } = await supabase
+      // Step 3: Delete main chat session
+      let deleteQuery = supabase
         .from('umkm_live_help_chats')
         .delete()
-        .eq('id', chatId);
+        .eq('id', chatId)
+        .eq('store_id', storeId);
 
-      if (error) {
-        console.warn('[Live Help] Notice on DB session deletion (local state will clear):', error.message);
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        deleteQuery = deleteQuery.eq('user_id', effectiveUserId);
       }
-      return true;
-    } catch (e) {
+
+      const { error: delErr } = await deleteQuery;
+      if (delErr) {
+        console.warn('[Live Help] deleteUmkmLiveHelpChat error:', { code: delErr.code, message: delErr.message });
+        return { ok: false, error: delErr.message || 'SECURITY_DELETE_DENIED' };
+      }
+
+      // Step 4: Verification check after deletion
+      const { data: postCheck } = await verifyQuery;
+      if (postCheck && postCheck.length > 0) {
+        console.warn('[Live Help] delete failed: row still exists after delete query');
+        return { ok: false, error: 'DELETE_VERIFICATION_FAILED' };
+      }
+
+      console.log('[CHAT_DELETED]', { table: 'umkm_live_help_chats', chatId });
+      return { ok: true };
+    } catch (e: any) {
       console.warn('[Live Help] deleteUmkmLiveHelpChat exception:', e);
-      return true;
+      return { ok: false, error: e?.message || 'DELETE_FAILED' };
     }
   },
 
@@ -10882,7 +11397,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .select('*')
         .eq('store_id', storeId)
         .eq('user_id', effectiveUserId)
-        .neq('store_id', '11111111-1111-1111-1111-111111111111')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -10902,12 +11416,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     title: string = 'Konsultasi Keuangan & Solana Pay AI'
   ) {
     try {
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
       const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId || undefined);
       const storeId = tenantCtx.storeId;
-      const orgId = tenantCtx.organizationId;
+      const organizationId = tenantCtx.organizationId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
 
-      if (!isValidUuid(storeId) || !isValidUuid(orgId)) {
-        console.warn('[Finance AI] createUmkmFinanceAiChat aborted: missing tenant context', { storeId, orgId });
+      if (!isValidUuid(storeId) || !isValidUuid(organizationId) || !effectiveUserId || !isValidUuid(effectiveUserId)) {
+        console.warn('[Finance AI] createUmkmFinanceAiChat aborted: missing valid tenant context', { storeId, organizationId, effectiveUserId });
         return null;
       }
 
@@ -10915,8 +11433,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .from('umkm_finance_ai_chats')
         .insert([{
           store_id: storeId,
-          user_id: userId,
-          organization_id: orgId,
+          organization_id: organizationId,
+          user_id: effectiveUserId,
           title,
           agent_role: 'ZeroClaw Finance Specialist',
           model_engine: 'DeepSeek-R1-Distill-Qwen-32B',
@@ -10972,18 +11490,16 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       return null;
     }
     try {
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const orgId = tenantCtx.organizationId;
-      if (!isValidUuid(orgId)) {
-        console.warn('[Finance AI] saveUmkmFinanceAiMessage aborted: invalid orgId', orgId);
-        return null;
-      }
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
+
       const { data, error } = await supabase
         .from('umkm_finance_ai_messages')
         .insert([{
           chat_id: payload.chat_id,
-          user_id: payload.user_id || (getActiveTenantIds().userId || ''),
-          organization_id: orgId,
+          user_id: effectiveUserId,
           sender: payload.sender,
           sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZeroClaw Finance AI'),
           text: payload.text,
@@ -11007,25 +11523,73 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     }
   },
 
-  async deleteUmkmFinanceAiChat(chatId: string) {
-    if (!isValidUuid(chatId)) return true;
+  async deleteUmkmFinanceAiChat(
+    chatId: string,
+    providedStoreId?: string | null,
+    userId?: string | null
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!isValidUuid(chatId)) return { ok: false, error: 'INVALID_CHAT_ID' };
     try {
-      // 1. Delete associated messages first
+      const startSession = await supabase.auth.getSession();
+      const startUserId = startSession?.data?.session?.user?.id;
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId || undefined);
+      const storeId = tenantCtx.storeId;
+      const rawUserCandidate = (userId && isValidUuid(userId)) ? userId : (tenantCtx.userId || startUserId || (getActiveTenantIds().userId || ''));
+      const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || tenantCtx.userId);
+
+      if (!isValidUuid(storeId)) {
+        return { ok: false, error: 'TENANT_CONTEXT_UNAVAILABLE' };
+      }
+
+      // Step 1: Verification SELECT before deletion
+      let verifyQuery = supabase
+        .from('umkm_finance_ai_chats')
+        .select('id')
+        .eq('id', chatId)
+        .eq('store_id', storeId);
+
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        verifyQuery = verifyQuery.eq('user_id', effectiveUserId);
+      }
+
+      const { data: existingRow, error: verifyErr } = await verifyQuery;
+      if (verifyErr || !existingRow || existingRow.length === 0) {
+        console.warn('[Finance AI] delete target not found or access denied', verifyErr?.message);
+        return { ok: false, error: 'CHAT_NOT_FOUND' };
+      }
+
+      // Step 2: Delete associated messages first
       await supabase.from('umkm_finance_ai_messages').delete().eq('chat_id', chatId);
 
-      // 2. Delete main chat session
-      const { error } = await supabase
+      // Step 3: Delete main chat session
+      let deleteQuery = supabase
         .from('umkm_finance_ai_chats')
         .delete()
-        .eq('id', chatId);
+        .eq('id', chatId)
+        .eq('store_id', storeId);
 
-      if (error) {
-        console.warn('[Finance AI] Notice on DB session deletion (local state will clear):', error.message);
+      if (effectiveUserId && isValidUuid(effectiveUserId)) {
+        deleteQuery = deleteQuery.eq('user_id', effectiveUserId);
       }
-      return true;
-    } catch (e) {
+
+      const { error: delErr } = await deleteQuery;
+      if (delErr) {
+        console.warn('[Finance AI] deleteUmkmFinanceAiChat error:', { code: delErr.code, message: delErr.message });
+        return { ok: false, error: delErr.message || 'SECURITY_DELETE_DENIED' };
+      }
+
+      // Step 4: Verification check after deletion
+      const { data: postCheck } = await verifyQuery;
+      if (postCheck && postCheck.length > 0) {
+        console.warn('[Finance AI] delete failed: row still exists after delete query');
+        return { ok: false, error: 'DELETE_VERIFICATION_FAILED' };
+      }
+
+      console.log('[CHAT_DELETED]', { table: 'umkm_finance_ai_chats', chatId });
+      return { ok: true };
+    } catch (e: any) {
       console.warn('[Finance AI] deleteUmkmFinanceAiChat exception:', e);
-      return true;
+      return { ok: false, error: e?.message || 'DELETE_FAILED' };
     }
   }
 };

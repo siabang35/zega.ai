@@ -9,12 +9,63 @@
  * Business Entity: store_id
  */
 
-import React, { createContext, useContext, useMemo, useEffect } from 'react';
-import { setSupabaseTenantHeader } from '../../../lib/supabase';
+import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
+import { supabase, setSupabaseTenantHeader } from '../../../lib/supabase';
+import { isValidUuid } from '../services/umkmSupabaseService';
+import { getVerifiedAccountType } from '../../services/accountTypeManager';
 
 export type TenantType = 'umkm' | 'enterprise' | 'superadmin';
 
-export type StoreReadinessStatus = 'loading' | 'ready' | 'unavailable' | 'error';
+export type CanonicalTenantContext = {
+  userId: string;
+  organizationId: string;
+  storeId: string;
+  workspaceId: string;
+};
+
+/**
+ * Asserts that a given context possesses valid, non-empty UUIDs for all 4 canonical tenant IDs.
+ * Throws TENANT_CONTEXT_INCOMPLETE if any UUID is missing or invalid.
+ */
+export function assertCanonicalTenantContext(ctx: {
+  userId?: string | null;
+  organizationId?: string | null;
+  storeId?: string | null;
+  workspaceId?: string | null;
+}): CanonicalTenantContext {
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
+  const storeId = ctx.storeId;
+  const workspaceId = ctx.workspaceId;
+
+  if (!userId || !isValidUuid(userId)) {
+    throw new Error(`TENANT_CONTEXT_INCOMPLETE: Invalid or missing userId UUID (value: "${userId || ''}")`);
+  }
+  if (!organizationId || !isValidUuid(organizationId)) {
+    throw new Error(`TENANT_CONTEXT_INCOMPLETE: Invalid or missing organizationId UUID (value: "${organizationId || ''}")`);
+  }
+  if (!storeId || !isValidUuid(storeId)) {
+    throw new Error(`TENANT_CONTEXT_INCOMPLETE: Invalid or missing storeId UUID (value: "${storeId || ''}")`);
+  }
+  if (!workspaceId || !isValidUuid(workspaceId)) {
+    throw new Error(`TENANT_CONTEXT_INCOMPLETE: Invalid or missing workspaceId UUID (value: "${workspaceId || ''}")`);
+  }
+
+  return {
+    userId,
+    organizationId,
+    storeId,
+    workspaceId
+  };
+}
+
+export type StoreReadinessStatus = 
+  | 'loading' 
+  | 'ready' 
+  | 'unavailable' 
+  | 'error' 
+  | 'rpc_schema_error' 
+  | 'store_context_unavailable';
 
 export interface TenantIds {
   /** Primary tenant isolation boundary (canonical) */
@@ -31,6 +82,18 @@ export interface TenantIds {
   userId: string;
   /** Store readiness status */
   storeStatus: StoreReadinessStatus;
+  /** Verification status flags for hard gate checks */
+  verified?: boolean;
+  tenantVerified?: boolean;
+}
+
+export interface TenantSnapshot {
+  userId: string;
+  organizationId: string;
+  storeId: string | null;
+  tenantState: AuthorizedUmkmContextStatus;
+  tenantVerified: boolean;
+  version: number;
 }
 
 /** Unresolved sentinel — indicates tenant context has NOT been resolved from a real authenticated user yet */
@@ -43,7 +106,7 @@ const UNRESOLVED_WS = '';
  */
 export function resolveTenantFromUser(
   userEmail?: string,
-  tenantType: TenantType = 'umkm'
+  tenantType?: TenantType
 ): TenantIds {
   if (!userEmail || !userEmail.trim()) {
     // No authenticated user — return unresolved tenant (fail closed)
@@ -51,7 +114,7 @@ export function resolveTenantFromUser(
       organizationId: UNRESOLVED_ORG,
       workspaceId: UNRESOLVED_WS,
       storeId: null,
-      tenantType,
+      tenantType: tenantType || 'umkm',
       userEmail: '',
       userId: '',
       storeStatus: 'unavailable' as StoreReadinessStatus
@@ -59,68 +122,75 @@ export function resolveTenantFromUser(
   }
   const email = userEmail.toLowerCase().trim();
   
+  // Resolve canonical account type from verified persistence / session if tenantType not explicitly provided
+  const resolvedAccType = getVerifiedAccountType(email);
+  const effectiveTenantType: TenantType = tenantType || (resolvedAccType === 'ENTERPRISE' ? 'enterprise' : 'umkm');
+
+  const storedStoreId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_store_id') : null;
+  const effectiveStoreId = isValidUuid(_activeTenant.storeId) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
+  const effectiveStoreStatus: StoreReadinessStatus = effectiveStoreId ? 'ready' : (_activeTenant.storeStatus || 'loading');
+
+  const isStoreReady = effectiveStoreStatus === 'ready' && Boolean(effectiveStoreId);
+
   // SuperAdmin detection (platform control plane)
   if (email.endsWith('@zegaai.site') || email.endsWith('@zeroclaw.ai')) {
     return {
-      organizationId: hashToUuid('zega-platform-superadmin-org'),
-      workspaceId: hashToUuid('zega-platform-superadmin-ws'),
-      storeId: null,
+      organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
+      workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+      storeId: effectiveStoreId,
       tenantType: 'superadmin',
       userEmail: email,
-      userId: email,
-      storeStatus: 'loading'
+      userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+      storeStatus: effectiveStoreStatus,
+      verified: isStoreReady,
+      tenantVerified: isStoreReady
     };
   }
 
   // Enterprise detection
-  if (tenantType === 'enterprise') {
-    const domain = email.split('@')[1] || 'default';
-    const domainHash = hashToUuid(domain);
+  if (effectiveTenantType === 'enterprise') {
     return {
-      organizationId: domainHash,
-      workspaceId: hashToUuid(`${domain}:ws:default`),
-      storeId: null,
+      organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
+      workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+      storeId: effectiveStoreId,
       tenantType: 'enterprise',
       userEmail: email,
-      userId: email,
-      storeStatus: 'loading'
+      userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+      storeStatus: effectiveStoreStatus,
+      verified: isStoreReady,
+      tenantVerified: isStoreReady
     };
   }
 
-  // UMKM tenant — deterministic per email
-  const userHash = hashToUuid(email);
-  const wsHash = hashToUuid(`${email}:ws:default`);
+  // UMKM tenant — starts unresolved until verified from database catalog
   return {
-    organizationId: userHash,
-    workspaceId: wsHash,
-    storeId: null,
+    organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
+    workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+    storeId: effectiveStoreId,
     tenantType: 'umkm',
     userEmail: email,
-    userId: email,
-    storeStatus: 'loading'
+    userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+    storeStatus: effectiveStoreStatus,
+    verified: isStoreReady,
+    tenantVerified: isStoreReady
   };
 }
 
-/**
- * Deterministic UUID v5-style hash from a string.
- * Produces consistent UUIDs for the same input across sessions.
- */
-function hashToUuid(input: string): string {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Generate deterministic UUID from hash
-  const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  const hex2 = Math.abs(hash * 31 + 17).toString(16).padStart(8, '0');
-  const hex3 = Math.abs(hash * 37 + 23).toString(16).padStart(4, '0');
-  const hex4 = Math.abs(hash * 41 + 29).toString(16).padStart(4, '0');
-  const hex5 = Math.abs(hash * 43 + 31).toString(16).padStart(12, '0');
-  
-  return `${hex.substring(0, 8)}-${hex2.substring(0, 4)}-4${hex3.substring(0, 3)}-a${hex4.substring(0, 3)}-${hex5.substring(0, 12)}`;
+// ============================================================================
+// Global listener system for _activeTenant changes.
+// When the async resolver mutates _activeTenant via updateActiveTenantStore/Org/Workspace,
+// it notifies all subscribed TenantProvider instances so React re-renders.
+// ============================================================================
+type TenantChangeListener = () => void;
+const _tenantChangeListeners = new Set<TenantChangeListener>();
+
+function notifyTenantChanged(): void {
+  _tenantChangeListeners.forEach(listener => { try { listener(); } catch {} });
+}
+
+function subscribeTenantChanges(listener: TenantChangeListener): () => void {
+  _tenantChangeListeners.add(listener);
+  return () => { _tenantChangeListeners.delete(listener); };
 }
 
 
@@ -130,8 +200,13 @@ export type AuthorizedUmkmContextStatus =
   | 'AUTHENTICATED'
   | 'TENANT_RESOLVING'
   | 'STORE_RESOLVING'
+  | 'ONBOARDING_REQUIRED'
+  | 'PROVISIONING'
   | 'READY'
   | 'NO_STORE'
+  | 'STORE_CONTEXT_UNAVAILABLE'
+  | 'IDENTITY_MAPPING_ERROR'
+  | 'RPC_SCHEMA_ERROR'
   | 'ERROR'
   | 'SIGNED_OUT';
 
@@ -148,6 +223,7 @@ export interface AuthorizedUmkmContext {
   organizationReady: boolean;
   storeReady: boolean;
   error?: string | null;
+  provisionStore?: (params: { storeName: string; category?: string; phone?: string; location?: string }) => Promise<{ ok: boolean; storeId?: string; error?: string }>;
 }
 
 const AuthorizedUmkmReactContext = createContext<AuthorizedUmkmContext>({
@@ -192,47 +268,112 @@ interface TenantProviderProps {
   children: React.ReactNode;
 }
 
+import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+
 export function TenantProvider({ userEmail, tenantType = 'umkm', children }: TenantProviderProps) {
+  // Version counter: incremented whenever _activeTenant is mutated by the async resolver.
+  // This forces useMemo recomputation so React sees the latest storeReady/orgId/storeId.
+  const [tenantVersion, setTenantVersion] = useState(0);
+
+  const effectiveEmail = userEmail || getAuthBridgeState().userEmail || (() => {
+    try {
+      const mockStr = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_mock_session') : null;
+      if (mockStr) {
+        const parsed = JSON.parse(mockStr);
+        return parsed?.email || parsed?.user?.email || null;
+      }
+    } catch {}
+    return null;
+  })();
+
   const tenant = useMemo(
-    () => resolveTenantFromUser(userEmail, tenantType),
-    [userEmail, tenantType]
+    () => resolveTenantFromUser(effectiveEmail, tenantType),
+    [effectiveEmail, tenantType]
   );
+
+  // Subscribe to global _activeTenant changes so we re-render when the async resolver finishes
+  useEffect(() => {
+    const unsub = subscribeTenantChanges(() => {
+      setTenantVersion(v => v + 1);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     setActiveTenant(tenant);
-  }, [tenant]);
+    const authBridge = getAuthBridgeState();
+    if (authBridge.authState === 'AUTH_INITIALIZING' || !authBridge.supabaseSessionReady) {
+      console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_INITIALIZING.');
+      return;
+    }
+    if (authBridge.authState === 'AUTH_REQUIRED' || !effectiveEmail) {
+      console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_REQUIRED.');
+      updateActiveTenantStore(null, 'unavailable');
+      return;
+    }
+    if (effectiveEmail && _activeTenant.storeStatus !== 'ready' && _activeTenant.storeStatus !== 'unavailable' && _activeTenant.storeStatus !== 'error') {
+      import('../services/umkmSupabaseService').then(({ umkmSupabaseService }) => {
+        umkmSupabaseService.getCanonicalTenantContext().catch(err => {
+          console.warn('[TenantProvider] Asynchronous tenant resolution warning:', err);
+        });
+      }).catch(err => {
+        console.warn('[TenantProvider] Dynamic import warning:', err);
+      });
+    }
+  }, [tenant, effectiveEmail]);
 
   const authContextValue = useMemo<AuthorizedUmkmContext>(() => {
-    const orgValid = !!tenant.organizationId && tenant.organizationId !== UNRESOLVED_ORG;
-    const storeValid = !!tenant.storeId && tenant.storeStatus === 'ready';
+    // Read from _activeTenant singleton which is mutated by the async resolver
+    const currentTenant = _activeTenant;
+    const authBridge = getAuthBridgeState();
+    const userValid = !!currentTenant.userId && isValidUuid(currentTenant.userId);
+    const orgValid = !!currentTenant.organizationId && currentTenant.organizationId !== UNRESOLVED_ORG && isValidUuid(currentTenant.organizationId);
+    const storeValid = (currentTenant.storeStatus === 'ready' || isValidUuid(currentTenant.storeId)) && isValidUuid(currentTenant.storeId);
+    const wsValid = !!currentTenant.workspaceId && currentTenant.workspaceId !== UNRESOLVED_WS && isValidUuid(currentTenant.workspaceId);
+
+    const effectiveOrgId = orgValid ? currentTenant.organizationId : UNRESOLVED_ORG;
+    const effectiveWsId = wsValid ? currentTenant.workspaceId : UNRESOLVED_WS;
     
+    // DECOUPLED: authReady derived SOLELY from canonical auth bridge, NOT from tenant state
+    const authReady = authBridge.authState === 'AUTH_READY';
+
     let status: AuthorizedUmkmContextStatus = 'BOOTING';
-    if (!userEmail) {
+    if (!authReady && authBridge.authState === 'AUTH_INITIALIZING') {
+      status = 'BOOTING';
+    } else if (!authReady) {
       status = 'AUTHENTICATING';
-    } else if (!orgValid) {
-      status = 'TENANT_RESOLVING';
-    } else if (tenant.storeStatus === 'loading') {
-      status = 'STORE_RESOLVING';
-    } else if (storeValid) {
+    } else if (storeValid && orgValid && wsValid && userValid) {
       status = 'READY';
+    } else if (!orgValid && !storeValid && currentTenant.storeStatus === 'loading') {
+      status = 'TENANT_RESOLVING';
+    } else if (currentTenant.storeStatus === 'loading') {
+      status = 'STORE_RESOLVING';
+    } else if (currentTenant.storeStatus === 'unavailable' && (currentTenant as any).resolutionState === 'NO_PROVISIONED_STORE' && !currentTenant.storeId) {
+      status = 'ONBOARDING_REQUIRED';
+    } else if (storeValid) {
+      // Transitional state: store is valid but full tenant resolution (org/workspace) in progress
+      status = 'TENANT_RESOLVING';
     } else {
-      status = 'NO_STORE';
+      // Auth is ready but tenant not yet — transitional state
+      status = 'TENANT_RESOLVING';
     }
 
     return {
       status,
-      userId: tenant.userId,
-      userEmail: tenant.userEmail,
-      organizationId: tenant.organizationId,
-      workspaceId: tenant.workspaceId,
-      storeId: tenant.storeId,
+      userId: currentTenant.userId,
+      userEmail: currentTenant.userEmail || effectiveEmail,
+      organizationId: effectiveOrgId,
+      workspaceId: effectiveWsId,
+      storeId: currentTenant.storeId,
       store: null,
-      tenantType: tenant.tenantType,
-      authReady: !!userEmail,
+      tenantType: currentTenant.tenantType,
+      authReady,
       organizationReady: orgValid,
-      storeReady: storeValid
+      storeReady: storeValid,
+      provisionStore: provisionUmkmStore
     };
-  }, [tenant, userEmail]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant, userEmail, tenantVersion]);
 
   return (
     <AuthorizedUmkmReactContext.Provider value={authContextValue}>
@@ -258,21 +399,62 @@ let _activeTenant: TenantIds = {
   tenantType: 'umkm',
   userEmail: '',
   userId: '',
-  storeStatus: 'loading'
+  storeStatus: 'unavailable'
 };
 
 /** Called by TenantProvider to sync active tenant to service layer & Supabase REST headers */
 export function setActiveTenant(tenant: TenantIds): void {
-  // Monotonic state guard: Do not overwrite an existing valid UUID organizationId with empty/unresolved string
-  if ((!tenant.organizationId || tenant.organizationId === UNRESOLVED_ORG) && 
-      _activeTenant.organizationId && _activeTenant.organizationId !== UNRESOLVED_ORG) {
+  // Check if this is a true user switch:
+  // ONLY reset if BOTH current and incoming user IDs/emails are valid and do NOT represent the same user.
+  const isSameUser = _activeTenant.userId === tenant.userId ||
+    (_activeTenant.userEmail && tenant.userEmail && _activeTenant.userEmail.toLowerCase() === tenant.userEmail.toLowerCase()) ||
+    (!_activeTenant.userId || !tenant.userId);
+
+  if (!isSameUser) {
+    console.log('[TENANT_RESOLVER] User changed — invalidating cache and resetting tenant state:', {
+      prevUser: _activeTenant.userId || _activeTenant.userEmail,
+      newUser: tenant.userId || tenant.userEmail
+    });
+    _activeTenant = {
+      organizationId: UNRESOLVED_ORG,
+      workspaceId: UNRESOLVED_WS,
+      storeId: null,
+      tenantType: tenant.tenantType,
+      userEmail: tenant.userEmail,
+      userId: tenant.userId,
+      storeStatus: 'loading'
+    };
+    // Invalidate resolver cache on user switch (dynamic import to avoid circular dependency)
+    import('../services/umkmSupabaseService').then(({ invalidateTenantResolutionCache }) => {
+      invalidateTenantResolutionCache();
+    }).catch(() => {});
+    notifyTenantChanged();
+  }
+
+  // Monotonic state guard: Do not overwrite an existing settled tenant state ('ready' or 'unavailable') with unresolved/loading state for the same user
+  const isExistingSettled = (_activeTenant.storeStatus === 'ready' || _activeTenant.storeStatus === 'unavailable') && !!_activeTenant.userId;
+  const isIncomingUnresolved = (!tenant.organizationId || tenant.organizationId === UNRESOLVED_ORG) || tenant.storeStatus === 'loading' || !tenant.storeId;
+
+  if (isExistingSettled && isIncomingUnresolved && isSameUser) {
+    console.log('[TENANT_RESOLVER] [CONTEXT_OVERWRITE_ATTEMPT] Ignored attempt to overwrite settled tenant state with unresolved state', {
+      existingStoreId: _activeTenant.storeId,
+      existingStoreStatus: _activeTenant.storeStatus,
+      incomingStoreStatus: tenant.storeStatus
+    });
     _activeTenant = {
       ...tenant,
       organizationId: _activeTenant.organizationId,
-      workspaceId: _activeTenant.workspaceId
+      workspaceId: _activeTenant.workspaceId,
+      storeId: _activeTenant.storeId,
+      storeStatus: _activeTenant.storeStatus,
+      userEmail: tenant.userEmail || _activeTenant.userEmail,
+      userId: _activeTenant.userId || tenant.userId
     };
   } else {
-    _activeTenant = { ...tenant };
+    _activeTenant = {
+      ...tenant,
+      userId: _activeTenant.userId && isSameUser ? _activeTenant.userId : tenant.userId
+    };
   }
 
   if (_activeTenant.organizationId && _activeTenant.organizationId !== UNRESOLVED_ORG) {
@@ -287,11 +469,30 @@ export function getActiveTenantIds(): TenantIds {
 
 /** Sync resolved storeId and storeStatus into singleton tenant state */
 export function updateActiveTenantStore(storeId: string | null, storeStatus: StoreReadinessStatus = 'ready'): void {
+  const targetStoreId = storeId || _activeTenant.storeId;
+  const isTargetValid = isValidUuid(targetStoreId);
+
+  if (_activeTenant.storeStatus === 'ready' && _activeTenant.storeId && (!storeId || storeStatus === 'loading' || storeStatus === 'unavailable')) {
+    console.log('[TENANT_RESOLVER] [CONTEXT_OVERWRITE_ATTEMPT] Ignored attempt to update store state to non-ready while store is already READY');
+    return;
+  }
+
+  if (isTargetValid && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('zega_active_store_id', targetStoreId!);
+    } catch {}
+  }
+
+  const effectiveUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || '';
   _activeTenant = {
     ..._activeTenant,
-    storeId,
-    storeStatus
+    userId: effectiveUserId,
+    storeId: targetStoreId,
+    storeStatus: isTargetValid ? 'ready' : storeStatus,
+    verified: isTargetValid,
+    tenantVerified: isTargetValid
   };
+  notifyTenantChanged();
 }
 
 /** Adopt a real (DB-sourced) organization_id into singleton tenant state + Supabase headers */
@@ -302,6 +503,7 @@ export function updateActiveTenantOrg(organizationId: string): void {
     organizationId
   };
   setSupabaseTenantHeader(organizationId);
+  notifyTenantChanged();
 }
 
 /** Sync resolved workspaceId into singleton tenant state */
@@ -310,5 +512,74 @@ export function updateActiveTenantWorkspace(workspaceId: string): void {
   _activeTenant = {
     ..._activeTenant,
     workspaceId
+  };
+  notifyTenantChanged();
+}
+
+/**
+ * Provision a legitimate, verified store row for the authenticated user in umkm_stores.
+ * Enforces canonical multi-tenant RLS security by assigning user_id = session.user.id.
+ */
+export async function provisionUmkmStore(params: {
+  storeName: string;
+  category?: string;
+  phone?: string;
+  location?: string;
+}): Promise<{ ok: boolean; storeId?: string; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const activeTenant = getActiveTenantIds();
+    const bridgeState = getAuthBridgeState();
+    const userId = session?.user?.id || bridgeState.supabaseUserId || activeTenant.userId || activeTenant.userEmail;
+
+    if (!userId) {
+      return { ok: false, error: 'User is not authenticated or lacks a valid user identity.' };
+    }
+
+    console.log('[TenantContext] Provisioning new store row for user via server RPC:', userId, params);
+
+    const storeName = params.storeName.trim();
+    const phone = params.phone?.trim() || undefined;
+
+    const { ensureStoreForCurrentUser, umkmSupabaseService } = await import('../services/umkmSupabaseService');
+    const rpcRes = await ensureStoreForCurrentUser({ storeName, phone: phone || undefined });
+
+    if (!rpcRes.ok || !rpcRes.storeId) {
+      console.error('[TenantContext] Error creating umkm_store row via RPC:', rpcRes.error);
+      return { ok: false, error: rpcRes.error || 'Failed to provision store record.' };
+    }
+
+    console.log('[TenantContext] Store provisioned successfully via RPC:', rpcRes.storeId);
+    updateActiveTenantStore(rpcRes.storeId, 'ready');
+    if (rpcRes.organizationId) updateActiveTenantOrg(rpcRes.organizationId);
+    if (rpcRes.workspaceId) updateActiveTenantWorkspace(rpcRes.workspaceId);
+
+    // Invalidate resolution caches & force dynamic resolution
+    const { invalidateTenantResolutionCache } = await import('../services/umkmSupabaseService');
+    invalidateTenantResolutionCache();
+    await umkmSupabaseService.getCanonicalTenantContext(rpcRes.storeId);
+
+    return { ok: true, storeId: rpcRes.storeId };
+  } catch (err: any) {
+    console.error('[TenantContext] Store provisioning exception:', err);
+    return { ok: false, error: err?.message || 'Unexpected store creation exception.' };
+  }
+}
+
+/** Get immutable snapshot of current tenant state */
+export function getTenantSnapshot(): TenantSnapshot {
+  const current = getActiveTenantIds();
+  const storeValid = (current.storeStatus === 'ready' || isValidUuid(current.storeId)) && isValidUuid(current.storeId);
+  const orgValid = !!current.organizationId && current.organizationId !== UNRESOLVED_ORG && isValidUuid(current.organizationId);
+  const effectiveOrgId = orgValid ? current.organizationId : UNRESOLVED_ORG;
+  const state: AuthorizedUmkmContextStatus = storeValid ? 'READY' : (current.storeStatus === 'loading' ? 'TENANT_RESOLVING' : 'ONBOARDING_REQUIRED');
+  
+  return {
+    userId: current.userId,
+    organizationId: effectiveOrgId,
+    storeId: current.storeId,
+    tenantState: state,
+    tenantVerified: storeValid,
+    version: Date.now()
   };
 }
