@@ -708,7 +708,13 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     const prefLang = getAiPrefLang();
 
     // Call 9Router real-model API endpoint
-    const rawBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || window.location.origin) : '';
+    const envApi = import.meta.env.VITE_API_URL;
+    const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
+
+    let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
+      ? 'https://zega-ai.onrender.com'
+      : (envApi || (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : '') || 'http://localhost:3001');
+
     const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
 
     let copilotReplyText = '';
@@ -2561,21 +2567,21 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                           )}
                         </div>
 
-                        {/* Chat Input Form */}
-                        <form onSubmit={handleSendFinanceAiMessage} className="flex items-center gap-2">
+                        {/* Chat Input Form - Expanded Wide & Spacious Input */}
+                        <form onSubmit={handleSendFinanceAiMessage} className="w-full flex items-center gap-2 pt-1">
                           <input
                             type="text"
                             placeholder={language === 'en' ? 'Ask CFO AI about cash flow, tax, Solana Pay...' : language === 'zh' ? '向 CFO AI 咨询现金流、税收、Solana Pay...' : 'Tanyakan CFO AI tentang arus kas, pajak, Solana Pay...'}
                             value={financeInputQuery}
                             onChange={(e) => setFinanceInputQuery(e.target.value)}
-                            className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold focus:outline-none focus:border-purple-500"
+                            className="w-full flex-1 py-3 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all shadow-2xs"
                           />
                           <button
                             type="submit"
                             disabled={isFinanceAiLoading || !financeInputQuery.trim()}
-                            className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold cursor-pointer transition-all shrink-0 shadow-2xs"
+                            className="h-11 px-4 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 disabled:opacity-50 text-white font-extrabold cursor-pointer transition-all shrink-0 shadow-md flex items-center justify-center gap-1.5"
                           >
-                            <Send size={15} />
+                            <Send size={16} />
                           </button>
                         </form>
                       </div>

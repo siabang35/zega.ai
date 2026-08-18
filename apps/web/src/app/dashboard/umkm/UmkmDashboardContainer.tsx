@@ -2124,315 +2124,317 @@ export function UmkmDashboardContainer({
           </div>
         )}
 
-        {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Available Globally across all Dashboard Menus) */}
-        <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
-          {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile & Desktop Full-Screen Responsive) */}
-          {copilotOpen && (
-            <div className={
-              isCopilotFullScreen
-                ? 'relative fixed inset-2 sm:inset-6 z-[70] bg-slate-950/98 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 transition-all'
-                : 'relative w-[92vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[540px] max-h-[600px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all'
-            }>
-              {/* Dropdown Header */}
-              <div className="p-3 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
-                    <img
-                      src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                      alt="ZEGA Copilot"
-                      className="w-full h-full object-contain p-0.5"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-black text-xs sm:text-base text-white tracking-tight truncate">
-                      ZEGA Copilot
-                    </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate">Real-Time AI Active</span>
+        {/* FLOATING ZEGA COPILOT BUTTON & REALTIME AI DROPDOWN PANEL (Exclusively active on Home tab 'umkm' to keep other page views clean & uncluttered) */}
+        {activeTab === 'umkm' && (
+          <div className={`fixed bottom-[76px] sm:bottom-6 right-3 sm:right-6 ${mobileMenuOpen ? 'z-30' : 'z-[60]'} flex flex-col items-end gap-2`}>
+            {/* ZEGA Copilot Floating Dropdown Chat Drawer (Mobile & Desktop Full-Screen Responsive) */}
+            {copilotOpen && (
+              <div className={
+                isCopilotFullScreen
+                  ? 'relative fixed inset-2 sm:inset-6 z-[70] bg-slate-950/98 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 transition-all'
+                  : 'relative w-[92vw] sm:w-[420px] max-w-[420px] h-[72vh] sm:h-[540px] max-h-[600px] bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 transition-all'
+              }>
+                {/* Dropdown Header */}
+                <div className="p-3 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-0.5 shrink-0 shadow-md flex items-center justify-center overflow-hidden">
+                      <img
+                        src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                        alt="ZEGA Copilot"
+                        className="w-full h-full object-contain p-0.5"
+                      />
                     </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons: History, New Chat, Maximize/Minimize, Close */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowCopilotHistory(!showCopilotHistory)}
-                    className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${showCopilotHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                    title={aiLang === 'en' ? 'Recent Chat History' : aiLang === 'zh' ? '历史对话' : 'Riwayat Chat'}
-                  >
-                    <History size={16} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNewCopilotChatSession}
-                    className="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
-                    title={aiLang === 'en' ? 'Start New Chat Session' : aiLang === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
-                  >
-                    <Plus size={13} />
-                    <span className="hidden sm:inline">
-                      {aiLang === 'en' ? 'New Chat' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsCopilotFullScreen(!isCopilotFullScreen)}
-                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                    title={isCopilotFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
-                  >
-                    {isCopilotFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCopilotOpen(false)}
-                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="Tutup Copilot"
-                  >
-                    <ChevronDown size={18} />
-                  </button>
-                </div>
-              </div>
-
-              {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
-              {showCopilotHistory && (
-                <div className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
-                  {/* Overlay Header Bar */}
-                  <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-800/80 shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowCopilotHistory(false)}
-                        className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-2xs"
-                        title="Kembali ke Chat"
-                      >
-                        <ArrowLeft size={16} />
-                      </button>
-                      <div>
-                        <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                          <History size={15} className="text-orange-400" />
-                          <span>{aiLang === 'en' ? 'ZEGA Copilot History' : aiLang === 'zh' ? 'Copilot 历史' : 'Riwayat ZEGA Copilot'}</span>
-                        </h4>
-                        <span className="text-[10.5px] text-slate-400 font-medium">
-                          {filteredCopilotHistoryList.length} {aiLang === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
-                        </span>
+                    <div className="min-w-0">
+                      <h3 className="font-black text-xs sm:text-base text-white tracking-tight truncate">
+                        ZEGA Copilot
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold truncate">Real-Time AI Active</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Action Buttons: History, New Chat, Maximize/Minimize, Close */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowCopilotHistory(!showCopilotHistory)}
+                      className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${showCopilotHistory ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                      title={aiLang === 'en' ? 'Recent Chat History' : aiLang === 'zh' ? '历史对话' : 'Riwayat Chat'}
+                    >
+                      <History size={16} />
+                    </button>
 
                     <button
                       type="button"
-                      onClick={() => {
-                        handleNewCopilotChatSession();
-                        setShowCopilotHistory(false);
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                      onClick={handleNewCopilotChatSession}
+                      className="px-2.5 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/30 font-bold text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer"
+                      title={aiLang === 'en' ? 'Start New Chat Session' : aiLang === 'zh' ? '开始新对话' : 'Mulai Sesi Chat Baru'}
                     >
-                      <Plus size={14} />
-                      <span>{aiLang === 'en' ? 'New Session' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                      <Plus size={13} />
+                      <span className="hidden sm:inline">
+                        {aiLang === 'en' ? 'New Chat' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCopilotFullScreen(!isCopilotFullScreen)}
+                      className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      title={isCopilotFullScreen ? 'Kecilkan Layar' : 'Layar Penuh (Full Screen)'}
+                    >
+                      {isCopilotFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCopilotOpen(false)}
+                      className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="Tutup Copilot"
+                    >
+                      <ChevronDown size={18} />
                     </button>
                   </div>
-
-                  {/* Search & Filter Bar */}
-                  <div className="relative mb-3 shrink-0">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder={aiLang === 'en' ? 'Filter chat history by title or text...' : aiLang === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat ZEGA Copilot...'}
-                      value={copilotHistorySearch}
-                      onChange={(e) => setCopilotHistorySearch(e.target.value)}
-                      className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
-                    />
-                    {copilotHistorySearch && (
-                      <button
-                        onClick={() => setCopilotHistorySearch('')}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs font-bold"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Session Cards List */}
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                    {filteredCopilotHistoryList.length === 0 ? (
-                      <div className="text-center py-14 px-4 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-                        <MessageSquare size={28} className="mx-auto mb-2 text-slate-600" />
-                        <p className="text-xs text-slate-400 font-semibold mb-1">
-                          {aiLang === 'en' ? 'No Copilot sessions found' : 'Belum ada riwayat percakapan ZEGA Copilot'}
-                        </p>
-                        <p className="text-[10.5px] text-slate-500">
-                          {aiLang === 'en' ? 'Click "+ New Session" to start a new chat.' : aiLang === 'zh' ? '点击 "+ 新对话" 开始新聊天。' : 'Klik "+ Sesi Baru" untuk memulai percakapan baru.'}
-                        </p>
-                      </div>
-                    ) : (
-                      filteredCopilotHistoryList.map((session) => {
-                        const isActive = activeCopilotChatId === session.id;
-                        let displayTitle = stripMarkdown(session.title);
-                        if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi ZEGA Copilot' || displayTitle === 'Main Copilot Session') {
-                          displayTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
-                        } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
-                          const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
-                          displayTitle = aiLang === 'en' ? `Session ${timePart}` : aiLang === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
-                        }
-
-                        return (
-                          <div
-                            key={session.id}
-                            onClick={() => handleSelectCopilotSession(session)}
-                            className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${isActive
-                              ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
-                              : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
-                              }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 truncate">
-                                {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
-                                <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
-                                  {displayTitle}
-                                </span>
-                              </div>
-                            </div>
-                            {session.last_message && (
-                              <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
-                                {stripMarkdown(session.last_message)}
-                              </p>
-                            )}
-                            <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 mt-0.5">
-                              <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteCopilotSession(session.id, e)}
-                                  title="Hapus Sesi Chat"
-                                  className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                                <span className="flex items-center gap-1 text-orange-400/80 group-hover:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
-                                  {aiLang === 'en' ? 'Open Chat' : aiLang === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
                 </div>
-              )}
 
-              {/* Quick Suggestion Chips */}
-              <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <button
-                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Today store sales analysis' : aiLang === 'zh' ? '今日店铺销售分析' : 'Analisis penjualan toko hari ini')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  {aiLang === 'en' ? '📊 Sales Analysis' : aiLang === 'zh' ? '📊 销售分析' : '📊 Analisis Penjualan'}
-                </button>
-                <button
-                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Draft a WhatsApp promo broadcast' : aiLang === 'zh' ? '草拟 WhatsApp 促销广播文案' : 'Buatkan draf broadcast promo WhatsApp')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  {aiLang === 'en' ? '💬 WhatsApp Promo' : aiLang === 'zh' ? '💬 微信/WhatsApp 推广' : '💬 Promo WhatsApp'}
-                </button>
-                <button
-                  onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Check low stock inventory' : aiLang === 'zh' ? '检查低库存商品' : 'Cek stok barang yang hampir habis')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
-                >
-                  {aiLang === 'en' ? '📦 Stock Status' : aiLang === 'zh' ? '📦 实时库存' : '📦 Stok Terkini'}
-                </button>
-              </div>
-
-              {/* Chat Stream List */}
-              <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
-                {copilotMessages.map((msg, idx) => (
-                  <div
-                    key={msg.id || idx}
-                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
-                      {msg.sender === 'copilot' && (
-                        <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
-                          <img
-                            src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                            alt="ZEGA Copilot"
-                            className="w-full h-full object-contain p-0"
-                          />
+                {/* ChatGPT-Style Full Overlay Recent Conversations Panel */}
+                {showCopilotHistory && (
+                  <div className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col p-4.5 animate-in fade-in zoom-in-95 duration-200">
+                    {/* Overlay Header Bar */}
+                    <div className="flex items-center justify-between pb-3.5 mb-3 border-b border-slate-800/80 shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowCopilotHistory(false)}
+                          className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shadow-2xs"
+                          title="Kembali ke Chat"
+                        >
+                          <ArrowLeft size={16} />
+                        </button>
+                        <div>
+                          <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                            <History size={15} className="text-orange-400" />
+                            <span>{aiLang === 'en' ? 'ZEGA Copilot History' : aiLang === 'zh' ? 'Copilot 历史' : 'Riwayat ZEGA Copilot'}</span>
+                          </h4>
+                          <span className="text-[10.5px] text-slate-400 font-medium">
+                            {filteredCopilotHistoryList.length} {aiLang === 'en' ? 'Sessions saved' : 'Sesi Tersimpan'}
+                          </span>
                         </div>
-                      )}
-
-                      <div
-                        className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
-                          ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
-                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
-                          }`}
-                      >
-                        {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
-
-                        {msg.sender === 'copilot' && msg.inference_ms && (
-                          <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
-                            <span className="flex items-center gap-1 text-orange-400 font-bold">
-                              ✨ ZEGA Copilot
-                            </span>
-                            <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
-                          </div>
-                        )}
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleNewCopilotChatSession();
+                          setShowCopilotHistory(false);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
+                      >
+                        <Plus size={14} />
+                        <span>{aiLang === 'en' ? 'New Session' : aiLang === 'zh' ? '新对话' : 'Sesi Baru'}</span>
+                      </button>
                     </div>
 
-                    <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
-                      {msg.created_at || (aiLang === 'en' ? 'Just now' : aiLang === 'zh' ? '刚刚' : 'Baru saja')}
-                    </span>
-                  </div>
-                ))}
+                    {/* Search & Filter Bar */}
+                    <div className="relative mb-3 shrink-0">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder={aiLang === 'en' ? 'Filter chat history by title or text...' : aiLang === 'zh' ? '按标题或内容筛选...' : 'Cari riwayat ZEGA Copilot...'}
+                        value={copilotHistorySearch}
+                        onChange={(e) => setCopilotHistorySearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                      />
+                      {copilotHistorySearch && (
+                        <button
+                          onClick={() => setCopilotHistorySearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
 
-                {isCopilotTyping && (
-                  <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
-                    <div className="size-2 rounded-full bg-orange-500 animate-ping" />
-                    <span>{aiLang === 'en' ? 'ZEGA Copilot is thinking...' : aiLang === 'zh' ? 'ZEGA Copilot 正在思考...' : 'ZEGA Copilot sedang berpikir...'}</span>
+                    {/* Session Cards List */}
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                      {filteredCopilotHistoryList.length === 0 ? (
+                        <div className="text-center py-14 px-4 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
+                          <MessageSquare size={28} className="mx-auto mb-2 text-slate-600" />
+                          <p className="text-xs text-slate-400 font-semibold mb-1">
+                            {aiLang === 'en' ? 'No Copilot sessions found' : 'Belum ada riwayat percakapan ZEGA Copilot'}
+                          </p>
+                          <p className="text-[10.5px] text-slate-500">
+                            {aiLang === 'en' ? 'Click "+ New Session" to start a new chat.' : aiLang === 'zh' ? '点击 "+ 新对话" 开始新聊天。' : 'Klik "+ Sesi Baru" untuk memulai percakapan baru.'}
+                          </p>
+                        </div>
+                      ) : (
+                        filteredCopilotHistoryList.map((session) => {
+                          const isActive = activeCopilotChatId === session.id;
+                          let displayTitle = stripMarkdown(session.title);
+                          if (!displayTitle || displayTitle === 'Diskusi Utama ZEGA Copilot' || displayTitle === 'Diskusi ZEGA Copilot' || displayTitle === 'Main Copilot Session') {
+                            displayTitle = aiLang === 'en' ? 'Main Copilot Session' : aiLang === 'zh' ? 'ZEGA Copilot 主要对话' : 'Diskusi Utama ZEGA Copilot';
+                          } else if (displayTitle.startsWith('Sesi ') || displayTitle.startsWith('Session ')) {
+                            const timePart = displayTitle.replace(/^(Sesi|Session)\s*/i, '');
+                            displayTitle = aiLang === 'en' ? `Session ${timePart}` : aiLang === 'zh' ? `对话 ${timePart}` : `Sesi ${timePart}`;
+                          }
+
+                          return (
+                            <div
+                              key={session.id}
+                              onClick={() => handleSelectCopilotSession(session)}
+                              className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 cursor-pointer group ${isActive
+                                ? 'bg-orange-500/15 border-orange-500/50 text-white shadow-sm'
+                                : 'bg-slate-900/80 border-slate-800/80 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white hover:translate-x-0.5'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 truncate">
+                                  {isActive && <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Aktif" />}
+                                  <span className="font-bold truncate text-xs group-hover:text-orange-400 transition-colors">
+                                    {displayTitle}
+                                  </span>
+                                </div>
+                              </div>
+                              {session.last_message && (
+                                <p className="text-[11px] text-slate-400 line-clamp-1 truncate font-normal leading-snug">
+                                  {stripMarkdown(session.last_message)}
+                                </p>
+                              )}
+                              <div className="flex items-center justify-between text-[9.5px] font-mono text-slate-500 pt-1 border-t border-slate-800/60 mt-0.5">
+                                <span>{new Date(session.created_at || Date.now()).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteCopilotSession(session.id, e)}
+                                    title="Hapus Sesi Chat"
+                                    className="p-1 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                  <span className="flex items-center gap-1 text-orange-400/80 group-hover:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">
+                                    {aiLang === 'en' ? 'Open Chat' : aiLang === 'zh' ? '打开对话' : 'Buka Chat'} <ChevronRight size={12} />
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {/* Input Bar */}
-              <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={copilotInput}
-                  onChange={(e) => setCopilotInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
-                  placeholder={aiLang === 'en' ? 'Ask ZEGA Copilot about sales, inventory, promos...' : aiLang === 'zh' ? '向 ZEGA Copilot 询问销售、库存与促销...' : 'Tanyakan bisnis, sales, promo ke ZEGA Copilot...'}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
+                {/* Quick Suggestion Chips */}
+                <div className="px-3 py-2 bg-slate-900/50 border-b border-slate-800/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  <button
+                    onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Today store sales analysis' : aiLang === 'zh' ? '今日店铺销售分析' : 'Analisis penjualan toko hari ini')}
+                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    {aiLang === 'en' ? '📊 Sales Analysis' : aiLang === 'zh' ? '📊 销售分析' : '📊 Analisis Penjualan'}
+                  </button>
+                  <button
+                    onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Draft a WhatsApp promo broadcast' : aiLang === 'zh' ? '草拟 WhatsApp 促销广播文案' : 'Buatkan draf broadcast promo WhatsApp')}
+                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    {aiLang === 'en' ? '💬 WhatsApp Promo' : aiLang === 'zh' ? '💬 微信/WhatsApp 推广' : '💬 Promo WhatsApp'}
+                  </button>
+                  <button
+                    onClick={() => handleSendCopilotMessage(aiLang === 'en' ? 'Check low stock inventory' : aiLang === 'zh' ? '检查低库存商品' : 'Cek stok barang yang hampir habis')}
+                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 border border-slate-700/80 text-[10px] font-extrabold whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    {aiLang === 'en' ? '📦 Stock Status' : aiLang === 'zh' ? '📦 实时库存' : '📦 Stok Terkini'}
+                  </button>
+                </div>
+
+                {/* Chat Stream List */}
+                <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+                  {copilotMessages.map((msg, idx) => (
+                    <div
+                      key={msg.id || idx}
+                      className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <div className="flex items-end gap-2 max-w-[92%] sm:max-w-[90%]">
+                        {msg.sender === 'copilot' && (
+                          <div className="size-8 sm:size-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-0.5 shrink-0 shadow-sm flex items-center justify-center overflow-hidden">
+                            <img
+                              src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                              alt="ZEGA Copilot"
+                              className="w-full h-full object-contain p-0"
+                            />
+                          </div>
+                        )}
+
+                        <div
+                          className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
+                            ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
+                            : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
+                            }`}
+                        >
+                          {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
+
+                          {msg.sender === 'copilot' && msg.inference_ms && (
+                            <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400 font-semibold">
+                              <span className="flex items-center gap-1 text-orange-400 font-bold">
+                                ✨ ZEGA Copilot
+                              </span>
+                              <span>{msg.inference_ms}ms • {msg.total_tokens || 120} Tokens</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <span className="text-[9px] text-slate-500 font-medium mt-1 px-1">
+                        {msg.created_at || (aiLang === 'en' ? 'Just now' : aiLang === 'zh' ? '刚刚' : 'Baru saja')}
+                      </span>
+                    </div>
+                  ))}
+
+                  {isCopilotTyping && (
+                    <div className="flex items-center gap-2 text-xs text-orange-400 font-semibold p-2 bg-slate-900/60 rounded-xl w-fit">
+                      <div className="size-2 rounded-full bg-orange-500 animate-ping" />
+                      <span>{aiLang === 'en' ? 'ZEGA Copilot is thinking...' : aiLang === 'zh' ? 'ZEGA Copilot 正在思考...' : 'ZEGA Copilot sedang berpikir...'}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Bar */}
+                <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={copilotInput}
+                    onChange={(e) => setCopilotInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotMessage()}
+                    placeholder={aiLang === 'en' ? 'Ask ZEGA Copilot about sales, inventory, promos...' : aiLang === 'zh' ? '向 ZEGA Copilot 询问销售、库存与促销...' : 'Tanyakan bisnis, sales, promo ke ZEGA Copilot...'}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-medium"
+                  />
+                  <button
+                    onClick={() => handleSendCopilotMessage()}
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
+                    title="Kirim Pesan"
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Floating Trigger Pill Button (Robot Icon Only across all screen sizes) */}
+            <button
+              onClick={() => setCopilotOpen(!copilotOpen)}
+              className="group relative p-1 sm:p-1.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+              title="ZEGA Copilot"
+            >
+              <div className="size-10 sm:size-11 rounded-full bg-orange-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <img
+                  src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
+                  alt="ZEGA Copilot"
+                  className="w-full h-full object-contain p-0 scale-125"
                 />
-                <button
-                  onClick={() => handleSendCopilotMessage()}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold transition-all cursor-pointer shrink-0 shadow-md active:scale-95"
-                  title="Kirim Pesan"
-                >
-                  <Send size={16} />
-                </button>
               </div>
-            </div>
-          )}
-
-          {/* Floating Trigger Pill Button (Robot Icon Only across all screen sizes) */}
-          <button
-            onClick={() => setCopilotOpen(!copilotOpen)}
-            className="group relative p-1 sm:p-1.5 rounded-full bg-slate-950/95 dark:bg-slate-900/95 border-2 border-orange-500/80 hover:border-orange-500 text-white shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-            title="ZEGA Copilot"
-          >
-            <div className="size-10 sm:size-11 rounded-full bg-orange-500 p-0.5 overflow-hidden flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-              <img
-                src={getR2CdnUrl('/assets/logo/zega_copilot.png')}
-                alt="ZEGA Copilot"
-                className="w-full h-full object-contain p-0 scale-125"
-              />
-            </div>
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
         {/* GLOBAL SEARCH COMMAND PALETTE MODAL (Ctrl + K / Cmd + K) */}
         {isSearchOpen && (
           <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">

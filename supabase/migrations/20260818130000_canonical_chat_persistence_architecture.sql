@@ -62,7 +62,7 @@ BEGIN
 
     SELECT
         COUNT(*),
-        MIN(u.id)
+        MIN(u.id::text)::uuid
     INTO
         v_count,
         v_app_user_id

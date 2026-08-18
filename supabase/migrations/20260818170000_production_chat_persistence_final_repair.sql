@@ -69,7 +69,7 @@ BEGIN
 
     SELECT
         COUNT(*)::INTEGER,
-        MIN(u.id)
+        MIN(u.id::text)::uuid
     INTO
         v_match_count,
         v_app_user_id
