@@ -22,7 +22,7 @@ export function EnterpriseCopilot({
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotInput, setCopilotInput] = useState('');
   const [isCopilotTyping, setIsCopilotTyping] = useState(false);
-  
+
   // Chat session & history state
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
@@ -336,35 +336,35 @@ export function EnterpriseCopilot({
 
         const headers = getCanonicalAuthHeaders();
 
-          const fetchStart = Date.now();
-          const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
-            signal: controller.signal,
+        const fetchStart = Date.now();
+        const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        const totalLatency = Date.now() - startTime;
+        if (response.ok) {
+          const json = await response.json();
+          const reqId = `req-ai-ent-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+          console.log('[AI_MODEL_EXECUTION]', {
+            requestId: reqId,
+            provider: json?.data?.ai_model || 'deepseek-r1-huggingface',
+            model: json?.data?.ai_model || 'deepseek-r1-huggingface',
+            status: json?.success ? 'SUCCESS' : 'FAILED',
           });
 
-          clearTimeout(timeoutId);
+          console.log('[AI_LATENCY]', {
+            requestStart: startTime,
+            firstTokenLatencyMs: Date.now() - fetchStart,
+            totalLatencyMs: totalLatency,
+            inferenceMs: json?.data?.inference_ms || totalLatency
+          });
 
-          const totalLatency = Date.now() - startTime;
-          if (response.ok) {
-            const json = await response.json();
-            const reqId = `req-ai-ent-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-            console.log('[AI_MODEL_EXECUTION]', {
-              requestId: reqId,
-              provider: json?.data?.ai_model || 'deepseek-r1-huggingface',
-              model: json?.data?.ai_model || 'deepseek-r1-huggingface',
-              status: json?.success ? 'SUCCESS' : 'FAILED',
-            });
-
-            console.log('[AI_LATENCY]', {
-              requestStart: startTime,
-              firstTokenLatencyMs: Date.now() - fetchStart,
-              totalLatencyMs: totalLatency,
-              inferenceMs: json?.data?.inference_ms || totalLatency
-            });
-
-            if (json?.success && json?.data?.message) {
+          if (json?.success && json?.data?.message) {
             replyMessage = json.data.message;
             aiModel = json.data.ai_model || 'deepseek-r1-huggingface';
             promptTokens = json.data.prompt_tokens || promptTokens;
@@ -497,11 +497,10 @@ export function EnterpriseCopilot({
                       <button
                         key={s.id}
                         onClick={() => handleSelectSession(s)}
-                        className={`w-full text-left p-2 rounded-xl transition-all border text-xs font-semibold ${
-                          chatSessionId === s.id
+                        className={`w-full text-left p-2 rounded-xl transition-all border text-xs font-semibold ${chatSessionId === s.id
                             ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200'
                             : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="font-bold truncate text-white">{s.title || 'Sesi Enterprise Copilot'}</div>
                         <div className="text-[10px] text-slate-400 truncate mt-0.5">{s.last_message || 'Belum ada pesan'}</div>
@@ -560,11 +559,10 @@ export function EnterpriseCopilot({
                         </div>
                       )}
 
-                      <div className={`p-3 rounded-2xl ${
-                        msg.sender === 'user'
+                      <div className={`p-3 rounded-2xl ${msg.sender === 'user'
                           ? 'bg-indigo-600 text-white rounded-br-xs'
                           : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-xs'
-                      }`}>
+                        }`}>
                         {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <p className="text-xs">{msg.message}</p>}
 
                         {msg.sender === 'copilot' && (

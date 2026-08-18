@@ -1,6 +1,10 @@
 import { supabase } from '../../../lib/supabase';
 import { isValidUuid, umkmSupabaseService, getActiveTenantIds } from './umkmSupabaseService';
 import { SupabaseDashboardService } from './supabaseService';
+import { waitForAuthReady } from '../../components/auth/PrivyAuthBridge';
+
+
+import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 
 export type AssistantType = 'home_assistant' | 'zega_copilot' | 'finance_ai' | 'live_help';
 
@@ -48,6 +52,7 @@ class ChatSessionManager {
   private inFlightRestoration: Map<string, Promise<string | null>> = new Map();
   private inFlightCreation: Map<string, Promise<ChatSession | null>> = new Map();
   private inFlightMessages: Map<string, Promise<ChatMessage[]>> = new Map();
+  private inFlightPersist: Map<string, Promise<ChatMessage | null>> = new Map();
 
   public subscribe(listener: (state: ChatManagerState) => void): () => void {
     this.listeners.add(listener);
@@ -76,6 +81,15 @@ class ChatSessionManager {
         ...this.state[assistantType],
         activeChatId: chatId
       };
+      if (chatId && typeof sessionStorage !== 'undefined') {
+        try {
+          const authUser = canonicalAuthManager.getSnapshot().authUserId;
+          const tenant = getActiveTenantIds();
+          if (authUser && tenant.storeId) {
+            sessionStorage.setItem(`zega_active_chat:${assistantType}:${authUser}:${tenant.storeId}`, chatId);
+          }
+        } catch { }
+      }
       this.notify();
     }
   }
@@ -96,20 +110,56 @@ class ChatSessionManager {
       return currentState.activeChatId;
     }
 
-    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
-    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
-      console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+    const authReadyState = await canonicalAuthManager.waitUntilReady();
+    if (authReadyState.status !== 'READY' || !authReadyState.authUserId) {
+      console.warn('[CHAT_CONTEXT_DEFERRED]', {
         assistantType,
         action: 'restore',
-        verified: tenantCtx.verified,
-        storeId: tenantCtx.storeId,
-        organizationId: tenantCtx.organizationId,
-        workspaceId: tenantCtx.workspaceId
+        reason: 'AUTH_SESSION_NULL',
+        authState: authReadyState.authState,
+        sessionPresent: Boolean(authReadyState.session),
       });
       return null;
     }
 
-    const flightKey = `restore:${assistantType}:${tenantCtx.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
+    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
+    const isResolving = tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.storeStatus === 'loading';
+
+    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
+      if (isResolving) {
+        console.log('[CHAT_CONTEXT_DEFERRED]', {
+          assistantType,
+          action: 'restore',
+          reason: 'TENANT_RESOLVING',
+          storeStatus: tenantCtx.storeStatus
+        });
+      } else {
+        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+          assistantType,
+          action: 'restore',
+          verified: tenantCtx.verified,
+          storeId: tenantCtx.storeId,
+          organizationId: tenantCtx.organizationId,
+          workspaceId: tenantCtx.workspaceId
+        });
+      }
+      return null;
+    }
+
+    // Check SessionStorage Cache (Tier 2 Lookup)
+    const sessionCacheKey = `zega_active_chat:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}`;
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        const cachedChatId = sessionStorage.getItem(sessionCacheKey);
+        if (cachedChatId && isValidUuid(cachedChatId)) {
+          this.setActiveChatId(assistantType, cachedChatId);
+          this.loadChatMessages(assistantType, cachedChatId);
+          return cachedChatId;
+        }
+      } catch { }
+    }
+
+    const flightKey = `restore:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
     if (this.inFlightRestoration.has(flightKey)) {
       return await this.inFlightRestoration.get(flightKey)!;
     }
@@ -161,20 +211,45 @@ class ChatSessionManager {
     title?: string,
     providedStoreId?: string | null
   ): Promise<ChatSession | null> {
-    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
-    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
-      console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+    const authReadyState = await canonicalAuthManager.waitUntilReady();
+    if (authReadyState.status !== 'READY' || !authReadyState.authUserId) {
+      console.warn('[CHAT_CONTEXT_DEFERRED]', {
         assistantType,
         action: 'create',
-        verified: tenantCtx.verified,
-        storeId: tenantCtx.storeId,
-        organizationId: tenantCtx.organizationId,
-        workspaceId: tenantCtx.workspaceId
+        reason: 'AUTH_SESSION_NULL',
+        authState: authReadyState.authState,
+        sessionPresent: Boolean(authReadyState.session),
       });
       return null;
     }
 
-    const flightKey = `create:${assistantType}:${tenantCtx.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
+    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
+
+
+    const isResolving = tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.storeStatus === 'loading';
+
+    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
+      if (isResolving) {
+        console.log('[CHAT_CONTEXT_DEFERRED]', {
+          assistantType,
+          action: 'create',
+          reason: 'TENANT_RESOLVING',
+          storeStatus: tenantCtx.storeStatus
+        });
+      } else {
+        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
+          assistantType,
+          action: 'create',
+          verified: tenantCtx.verified,
+          storeId: tenantCtx.storeId,
+          organizationId: tenantCtx.organizationId,
+          workspaceId: tenantCtx.workspaceId
+        });
+      }
+      return null;
+    }
+
+    const flightKey = `create:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
 
     if (this.inFlightCreation.has(flightKey)) {
       return await this.inFlightCreation.get(flightKey)!;
@@ -293,59 +368,71 @@ class ChatSessionManager {
   ): Promise<ChatMessage | null> {
     if (!chatId || !isValidUuid(chatId)) return null;
 
-    const currentMsgs = this.getAssistantState(assistantType).loadedMessages[chatId] || [];
-    const tempMsg: ChatMessage = {
-      id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      chat_id: chatId,
-      sender,
-      message,
-      text: message,
-      created_at: new Date().toISOString()
-    };
-
-    // Optimistically update memory state
-    const optimisticMsgs = [...currentMsgs, tempMsg];
-    this.updateAssistant(assistantType, {
-      loadedMessages: {
-        ...this.getAssistantState(assistantType).loadedMessages,
-        [chatId]: optimisticMsgs
-      }
-    });
-
-    console.log('[CHAT_MESSAGE_PERSIST]', { assistantType, chatId, sender, length: message.length });
-
-    try {
-      let persisted: ChatMessage | null = null;
-      if (assistantType === 'zega_copilot') {
-        const copilotSender = (sender === 'copilot' || sender === 'ai') ? 'assistant' : (sender === 'user' ? 'user' : 'system');
-        persisted = await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
-          chat_id: chatId,
-          sender: copilotSender,
-          message
-        });
-      } else {
-        const aiSender = (sender === 'copilot' || sender === 'assistant') ? 'ai' : (sender === 'user' ? 'user' : 'system');
-        persisted = await SupabaseDashboardService.saveUmkmAiAssistantMessage({
-          chat_id: chatId,
-          sender: aiSender,
-          text: message
-        });
-      }
-
-      if (persisted && persisted.id) {
-        const finalMsgs = optimisticMsgs.map(m => (m.id === tempMsg.id ? persisted! : m));
-        this.updateAssistant(assistantType, {
-          loadedMessages: {
-            ...this.getAssistantState(assistantType).loadedMessages,
-            [chatId]: finalMsgs
-          }
-        });
-        return persisted;
-      }
-    } catch (err: any) {
-      console.warn(`[ChatSessionManager] appendAndPersistMessage exception:`, err);
+    const flightKey = `persist:${chatId}:${sender}:${message.slice(0, 50)}`;
+    if (this.inFlightPersist.has(flightKey)) {
+      return await this.inFlightPersist.get(flightKey)!;
     }
-    return tempMsg;
+
+    const promise = (async (): Promise<ChatMessage | null> => {
+      const currentMsgs = this.getAssistantState(assistantType).loadedMessages[chatId] || [];
+      const tempMsg: ChatMessage = {
+        id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        chat_id: chatId,
+        sender,
+        message,
+        text: message,
+        created_at: new Date().toISOString()
+      };
+
+      // Optimistically update memory state
+      const optimisticMsgs = [...currentMsgs, tempMsg];
+      this.updateAssistant(assistantType, {
+        loadedMessages: {
+          ...this.getAssistantState(assistantType).loadedMessages,
+          [chatId]: optimisticMsgs
+        }
+      });
+
+      console.log('[CHAT_MESSAGE_PERSIST]', { assistantType, chatId, sender, length: message.length });
+
+      try {
+        let persisted: ChatMessage | null = null;
+        if (assistantType === 'zega_copilot') {
+          const copilotSender = (sender === 'copilot' || sender === 'ai') ? 'assistant' : (sender === 'user' ? 'user' : 'system');
+          persisted = await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
+            chat_id: chatId,
+            sender: copilotSender,
+            message
+          });
+        } else {
+          const aiSender = (sender === 'copilot' || sender === 'assistant') ? 'ai' : (sender === 'user' ? 'user' : 'system');
+          persisted = await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+            chat_id: chatId,
+            sender: aiSender,
+            text: message
+          });
+        }
+
+        if (persisted && persisted.id) {
+          const finalMsgs = optimisticMsgs.map(m => (m.id === tempMsg.id ? persisted! : m));
+          this.updateAssistant(assistantType, {
+            loadedMessages: {
+              ...this.getAssistantState(assistantType).loadedMessages,
+              [chatId]: finalMsgs
+            }
+          });
+          return persisted;
+        }
+      } catch (err: any) {
+        console.warn(`[ChatSessionManager] appendAndPersistMessage exception:`, err);
+      } finally {
+        this.inFlightPersist.delete(flightKey);
+      }
+      return tempMsg;
+    })();
+
+    this.inFlightPersist.set(flightKey, promise);
+    return await promise;
   }
 
   public async fetchChatList(assistantType: AssistantType, providedStoreId?: string | null): Promise<ChatSession[]> {

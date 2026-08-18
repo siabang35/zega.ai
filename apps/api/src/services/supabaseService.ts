@@ -121,17 +121,44 @@ class SupabaseBackendService {
     try {
       const dbRole = role === 'superadmin' ? 'enterprise' : role;
 
-      // 1. Sync to master public.users table
+      // 1. Resolve auth.users ID by email to ensure auth_user_id is linked
+      let authUserId: string | null = null;
       try {
+        const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const found = listData?.users?.find(u => u.email?.toLowerCase().trim() === email.toLowerCase().trim());
+        if (found?.id) {
+          authUserId = found.id;
+        } else {
+          // Auto-provision auth.users entry if missing
+          const { data: created } = await supabase.auth.admin.createUser({
+            email: email.toLowerCase().trim(),
+            email_confirm: true,
+            user_metadata: { full_name: fullName || email.split('@')[0], role: dbRole }
+          });
+          if (created?.user?.id) {
+            authUserId = created.user.id;
+          }
+        }
+      } catch (e: any) {
+        logger.warn(`[SupabaseService] auth.users resolution note: ${e?.message}`);
+      }
+
+      // 2. Sync to master public.users table with auth_user_id
+      try {
+        const userPayload: any = {
+          email: email.toLowerCase(),
+          full_name: fullName || email.split('@')[0],
+          role: dbRole,
+          company_name: companyName || null,
+          last_login_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        if (authUserId) {
+          userPayload.auth_user_id = authUserId;
+        }
+
         await supabase.from('users').upsert(
-          {
-            email: email.toLowerCase(),
-            full_name: fullName || email.split('@')[0],
-            role: dbRole,
-            company_name: companyName || null,
-            last_login_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
+          userPayload,
           { onConflict: 'email' }
         );
       } catch (e: any) {

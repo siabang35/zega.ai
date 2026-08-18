@@ -444,8 +444,8 @@ ATURAN UTAMA BAHASA & FORMAT:
 
     const action = body.action.trim().toLowerCase();
     const validActions = [
-      'health_check', 'optimize_workflows', 'clear_queue', 
-      'pause_all_agents', 'deploy_update', 'export_report', 
+      'health_check', 'optimize_workflows', 'clear_queue',
+      'pause_all_agents', 'deploy_update', 'export_report',
       'incident_manager', 'view_logs'
     ];
 
@@ -615,7 +615,7 @@ ATURAN UTAMA BAHASA & FORMAT:
             .from('enterprise_my_agents_workforce')
             .select('*')
             .order('updated_at', { ascending: false });
-          
+
           if (orgId) {
             query.eq('organization_id', orgId);
           }

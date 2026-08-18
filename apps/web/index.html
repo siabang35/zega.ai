@@ -20,37 +20,91 @@
   <!-- Content Security Policy (CSP) for Privy, Cloudflare Turnstile, Cloudflare Insights, TradingView & Solana Web3 Extensions -->
   <script>
     (function () {
-      var isExtensionNoise = function (args) {
-        if (!args || !args.length) return false;
-        var joined = "";
-        for (var i = 0; i < args.length; i++) {
-          var arg = args[i];
-          if (!arg) continue;
-          if (typeof arg === "string") {
-            joined += " " + arg;
-          } else if (typeof arg === "object") {
-            try {
-              joined += " " + (arg.message || "") + " " + (arg.stack || "") + " " + (arg.name || "") + " " + String(arg);
-              if (typeof JSON !== "undefined" && JSON.stringify) {
-                try { joined += " " + JSON.stringify(arg); } catch (e) {}
-              }
-            } catch (e) {
-              joined += " " + String(arg);
+      // 1. Globally set EventEmitter max listeners & process emitWarning overrides before content scripts run
+      try {
+        if (typeof globalThis !== "undefined") {
+          globalThis.EventEmitter = globalThis.EventEmitter || function () {};
+          if (globalThis.EventEmitter) {
+            globalThis.EventEmitter.defaultMaxListeners = 0;
+            if (globalThis.EventEmitter.prototype) {
+              globalThis.EventEmitter.prototype.defaultMaxListeners = 0;
+              var origSetMax = globalThis.EventEmitter.prototype.setMaxListeners;
+              globalThis.EventEmitter.prototype.setMaxListeners = function () {
+                this._maxListeners = 0;
+                if (typeof origSetMax === "function") {
+                  try { origSetMax.call(this, 0); } catch (e) {}
+                }
+                return this;
+              };
             }
-          } else {
-            joined += " " + String(arg);
+          }
+          if (globalThis.process) {
+            if (typeof globalThis.process.setMaxListeners === "function") {
+              try { globalThis.process.setMaxListeners(0); } catch (e) {}
+            }
+            if (typeof globalThis.process.emitWarning === "function") {
+              var origEmitWarning = globalThis.process.emitWarning;
+              globalThis.process.emitWarning = function (warning, type) {
+                var wStr = String(warning || "") + " " + String(type || "");
+                if (
+                  wStr.indexOf("MaxListenersExceededWarning") !== -1 ||
+                  wStr.indexOf("listeners added") !== -1 ||
+                  wStr.indexOf("ObjectMultiplex") !== -1 ||
+                  wStr.indexOf("contentscript.js") !== -1
+                ) {
+                  return;
+                }
+                return origEmitWarning.apply(globalThis.process, arguments);
+              };
+            }
           }
         }
+      } catch (e) {}
+
+      // 2. Filter third-party extension content script noise (Metamask, Phantom, Privy, contentscript.js)
+      var isExtensionNoise = function (args) {
+        if (!args) return false;
+        var joined = "";
+        try {
+          if (typeof args === "string") {
+            joined = args;
+          } else if (typeof args === "object") {
+            var items = args.length !== undefined ? args : [args];
+            for (var i = 0; i < items.length; i++) {
+              var arg = items[i];
+              if (!arg) continue;
+              if (typeof arg === "string") {
+                joined += " " + arg;
+              } else if (typeof arg === "object") {
+                try {
+                  joined += " " + (arg.message || "") + " " + (arg.stack || "") + " " + (arg.name || "") + " " + (arg.filename || "") + " " + String(arg);
+                } catch (e) {
+                  joined += " " + String(arg);
+                }
+              } else {
+                joined += " " + String(arg);
+              }
+            }
+          } else {
+            joined = String(args);
+          }
+        } catch (e) {
+          joined = String(args || "");
+        }
+        var lower = joined.toLowerCase();
         return (
-          joined.indexOf("MaxListenersExceededWarning") !== -1 ||
-          joined.indexOf("Possible EventEmitter memory leak detected") !== -1 ||
-          joined.indexOf("close listeners added") !== -1 ||
-          joined.indexOf("end listeners added") !== -1 ||
-          joined.indexOf("Use emitter.setMaxListeners()") !== -1 ||
-          joined.indexOf("ObjectMultiplex - orphaned data for stream") !== -1 ||
-          joined.indexOf("app-init-liveness") !== -1 ||
-          joined.indexOf("background-liveness") !== -1 ||
-          joined.indexOf("contentscript.js") !== -1
+          lower.indexOf("maxlistenersexceededwarning") !== -1 ||
+          lower.indexOf("possible eventemitter memory leak") !== -1 ||
+          lower.indexOf("listeners added") !== -1 ||
+          lower.indexOf("close listeners") !== -1 ||
+          lower.indexOf("end listeners") !== -1 ||
+          lower.indexOf("setmaxlisteners") !== -1 ||
+          lower.indexOf("objectmultiplex") !== -1 ||
+          lower.indexOf("orphaned data for stream") !== -1 ||
+          lower.indexOf("app-init-liveness") !== -1 ||
+          lower.indexOf("background-liveness") !== -1 ||
+          lower.indexOf("contentscript.js") !== -1 ||
+          lower.indexOf("emitter.setmaxlisteners") !== -1
         );
       };
 

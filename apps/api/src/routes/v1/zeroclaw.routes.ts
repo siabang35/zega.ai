@@ -53,14 +53,14 @@ const loadServerInvoicesStore = (): any[] => {
       const data = fs.readFileSync(INVOICES_FILE_PATH, 'utf-8');
       return JSON.parse(data) || [];
     }
-  } catch (err) {}
+  } catch (err) { }
   return [];
 };
 
 const saveServerInvoicesStore = (invoices: any[]) => {
   try {
     fs.writeFileSync(INVOICES_FILE_PATH, JSON.stringify(invoices, null, 2), 'utf-8');
-  } catch (err) {}
+  } catch (err) { }
 };
 
 let serverInvoicesStore: any[] = loadServerInvoicesStore();
@@ -393,7 +393,7 @@ export async function isMerchantWalletOwnedByUser(email: string, merchantPubkey:
 
     // 3. SAFE SESSION REGISTER: If caller is authenticated email and wallet is valid Solana Base58, register and allow
     registeredPrivyWalletsStore.set(cleanEmail, cleanWallet);
-    upsertPrivyWalletToDb(cleanEmail, cleanWallet).catch(() => {});
+    upsertPrivyWalletToDb(cleanEmail, cleanWallet).catch(() => { });
     return true;
   }
 
@@ -3581,7 +3581,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const regAddr = await getRegisteredPrivyWalletAddress(userEmail);
         if (regAddr) cleanMerchant = regAddr;
-      } catch {}
+      } catch { }
     }
 
     if (!cleanMerchant || !BASE58_ADDR_REGEX.test(cleanMerchant)) {

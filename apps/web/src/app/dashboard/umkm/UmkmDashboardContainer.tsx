@@ -17,7 +17,7 @@ import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '
 import { umkmSupabaseService, isVerifiedTenantContext } from '../services/umkmSupabaseService';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../i18n/translations';
-import { TenantProvider, resolveTenantFromUser, setActiveTenant, getActiveTenantIds } from '../contexts/TenantContext';
+import { TenantProvider, resolveTenantFromUser, setActiveTenant, getActiveTenantIds, subscribeTenantChanges } from '../contexts/TenantContext';
 import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
 import { chatSessionManager } from '../services/chatSessionManager';
 
@@ -242,10 +242,14 @@ export function UmkmDashboardContainer({
     }
   }, [userAvatar]);
 
-  // Multi-Tenant Context Sync: resolve tenant from user and sync to service layer
+  // Multi-Tenant Context Sync: resolve tenant from user and sync to service layer safely
   useEffect(() => {
-    const tenant = resolveTenantFromUser(userEmail, 'umkm');
-    setActiveTenant(tenant);
+    const active = getActiveTenantIds();
+    const isSettledReady = active.storeStatus === 'ready' && isValidUuid(active.storeId) && isValidUuid(active.organizationId) && isValidUuid(active.workspaceId);
+    if (!isSettledReady || (userEmail && active.userEmail && active.userEmail.toLowerCase() !== userEmail.toLowerCase())) {
+      const tenant = resolveTenantFromUser(userEmail, 'umkm');
+      setActiveTenant(tenant);
+    }
   }, [userEmail]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -579,7 +583,8 @@ export function UmkmDashboardContainer({
 
   const fetchCopilotHistoryList = async () => {
     try {
-      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory((userEmail || getActiveTenantIds().userId || ''), 'copilot');
+      const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId || '';
+      const recentRpcList = await SupabaseDashboardService.getUmkmRecentChatHistory(activeUserId, 'copilot');
       if (recentRpcList && recentRpcList.length > 0) {
         setCopilotHistoryList(recentRpcList.map((item: any) => ({
           id: item.chat_id,
@@ -589,7 +594,7 @@ export function UmkmDashboardContainer({
         })));
         return;
       }
-      const list = await SupabaseDashboardService.getUmkmZegaCopilotChats(undefined, (userEmail || getActiveTenantIds().userId || ''));
+      const list = await SupabaseDashboardService.getUmkmZegaCopilotChats(undefined, activeUserId);
       if (list) setCopilotHistoryList(list);
     } catch (e) {
       console.warn('Note loading copilot chat list:', e);
@@ -650,7 +655,8 @@ export function UmkmDashboardContainer({
   useEffect(() => {
     const fetchTierUsage = async () => {
       try {
-        const usage = await SupabaseDashboardService.getUserChatTierUsage((userEmail || getActiveTenantIds().userId || ''));
+        const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId || '';
+        const usage = await SupabaseDashboardService.getUserChatTierUsage(activeUserId);
         if (usage) setTierUsage(usage);
       } catch (e) {
         console.warn('Note loading tier usage:', e);
@@ -713,99 +719,48 @@ export function UmkmDashboardContainer({
   // In-flight guard to prevent duplicate initialization under React StrictMode double mounts
   const isCopilotResolvingRef = useRef(false);
 
-  // Load User Authenticated Copilot Chat Session & Messages from Supabase DB
+  // Load User Authenticated Copilot Chat Session & Messages using DashboardBootstrapCoordinator
   useEffect(() => {
-    const loadCopilotHistory = async () => {
-      if (isCopilotResolvingRef.current) return;
-      const bootStart = Date.now();
+    let unsubBootstrap: (() => void) | null = null;
+    const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId || '';
+    const activeStoreId = getActiveTenantIds().storeId || '';
 
-      // CANONICAL AUTH GATE: Check auth bridge first — independent of tenant state
-      const authBridge = getAuthBridgeState();
-      if (authBridge.authState !== 'AUTH_READY') {
-        console.log('[AI_BOOTSTRAP]', {
-          authReady: false,
-          tenantState: 'DEFERRED',
-          reason: `auth not ready: ${authBridge.authState}`,
-          action: 'DEFERRED'
-        });
-        return;
-      }
-
-      isCopilotResolvingRef.current = true;
-      try {
-        // Fast-path: Check active tenant in memory first!
-        const active = getActiveTenantIds();
-        const effectiveAuthUser = userEmail || active.userId || '';
-        let isVerified = isVerifiedTenantContext(active, effectiveAuthUser);
-        let tenantCtx: any = active;
-
-        if (!isVerified) {
-          tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-          isVerified = isVerifiedTenantContext(tenantCtx, effectiveAuthUser || tenantCtx.userId || '');
-        }
-
-        const tenantState = isVerified ? 'READY' : (tenantCtx.resolutionState || tenantCtx.overallStatus || 'UNKNOWN');
-
-        console.log('[AI_BOOTSTRAP]', {
-          authReady: true,
-          tenantReady: isVerified,
-          activeChatReady: Boolean(activeCopilotChatId),
-          bootstrapDuration: Date.now() - bootStart,
-          tenantState,
-          storeReady: isVerified,
-          storeIdPresent: Boolean(tenantCtx.storeId),
-          action: isVerified ? 'READY' : 'GATED'
-        });
-
-        if (!isVerified) {
-          console.warn('[UmkmDashboardContainer] Copilot gated — Tenant context status:', tenantCtx.overallStatus || (tenantCtx as any).status);
-          const initialMsg = getSeedMessage(aiLang);
-          setCopilotMessages([{
-            id: 'seed-1',
-            sender: 'copilot',
-            message: initialMsg,
-            created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
-          return;
-        }
-
-        if (activeCopilotChatId && isValidUuid(activeCopilotChatId)) {
-          return;
-        }
-
-        const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession('zega_copilot');
-        if (chatId) {
-          setActiveCopilotChatId(chatId);
-          const msgs = await chatSessionManager.loadChatMessages('zega_copilot', chatId);
-          if (msgs && msgs.length > 0) {
-            const formatted = msgs.map((m: any) => ({
-              id: m.id,
-              sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
-              message: m.message || m.text || '',
-              ai_model: m.model_engine || '9Router-Llama-3.3-70B',
-              inference_ms: m.inference_ms || 185,
-              total_tokens: m.tokens_used || 94,
-              created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }));
-            setCopilotMessages(formatted);
-          } else {
-            const initialMsg = getSeedMessage(aiLang);
-            setCopilotMessages([{
-              id: 'seed-1',
-              sender: 'copilot',
-              message: initialMsg,
-              created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
+    const initCopilotBootstrap = async () => {
+      import('../services/DashboardBootstrapCoordinator').then(({ dashboardBootstrapCoordinator }) => {
+        dashboardBootstrapCoordinator.executeBootstrap('zega_copilot', activeStoreId).then(state => {
+          if (state.step === 'BOOTSTRAP_READY' && state.activeChatId) {
+            setActiveCopilotChatId(state.activeChatId);
+            chatSessionManager.loadChatMessages('zega_copilot', state.activeChatId).then(msgs => {
+              if (msgs && msgs.length > 0) {
+                const formatted = msgs.map((m: any) => ({
+                  id: m.id,
+                  sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
+                  message: m.message || m.text || '',
+                  ai_model: m.model_engine || '9Router-Llama-3.3-70B',
+                  inference_ms: m.inference_ms || 185,
+                  total_tokens: m.tokens_used || 94,
+                  created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }));
+                setCopilotMessages(formatted);
+              }
+            });
           }
-        }
-      } catch (e) {
-        console.warn('Note loading copilot chat history:', e);
-      } finally {
-        isCopilotResolvingRef.current = false;
-      }
+        });
+
+        unsubBootstrap = dashboardBootstrapCoordinator.subscribe(state => {
+          if (state.step === 'BOOTSTRAP_READY' && state.activeChatId) {
+            setActiveCopilotChatId(state.activeChatId);
+          }
+        });
+      });
     };
-    loadCopilotHistory();
-  }, [userEmail, aiLang]);
+
+    initCopilotBootstrap();
+
+    return () => {
+      if (unsubBootstrap) unsubBootstrap();
+    };
+  }, [userEmail]);
 
   // Create New Chat Session Function (+ Sesi Baru)
   const handleNewCopilotChatSession = async () => {
@@ -877,7 +832,7 @@ export function UmkmDashboardContainer({
 
     // Copilot Hard Gate (tenantVerified != true -> return STORE_CONTEXT_UNAVAILABLE immediately)
     const tenantCtx = await SupabaseDashboardService.getCanonicalTenantContext();
-    const effectiveAuthUser = userEmail || getActiveTenantIds().userId || tenantCtx.userId || '';
+    const effectiveAuthUser = getActiveTenantIds().userId || tenantCtx.userId || getAuthBridgeState().supabaseUserId || '';
     if (!tenantCtx || !isVerifiedTenantContext(tenantCtx, effectiveAuthUser)) {
       console.warn('[Copilot Gate] tenantVerified != true — blocking request, returning STORE_CONTEXT_UNAVAILABLE');
       if (!customText) setCopilotInput('');
@@ -919,9 +874,10 @@ export function UmkmDashboardContainer({
     let chatIdToUse = activeCopilotChatId;
     if (!chatIdToUse) {
       try {
+        const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId || '';
         const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalZegaCopilotChat(
           undefined,
-          (userEmail || getActiveTenantIds().userId || ''),
+          activeUserId,
           `Copilot: ${textToSend.trim().slice(0, 25)}`
         );
         if (resolved.ok && resolved.chatId) {

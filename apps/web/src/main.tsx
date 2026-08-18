@@ -1,62 +1,62 @@
-import { createRoot } from "react-dom/client";
-import { PrivyProvider } from "@privy-io/react-auth";
-import App from "./app/App.tsx";
-import { LanguageProvider } from "./i18n/translations.tsx";
-import "./styles/index.css";
-
 import { EventEmitter } from "events";
 
-// Globally set EventEmitter max listeners threshold for Web3 extension streams (Phantom, Solflare, Privy, MetaMask)
+// 🛡️ Web3 Extension Memory Leak & Stream Warning Filter (Phantom, Solflare, Privy, MetaMask contentscript.js)
 if (typeof window !== "undefined") {
-  // Set defaultMaxListeners on standard EventEmitter class and prototype
   if (typeof EventEmitter !== "undefined") {
-    EventEmitter.defaultMaxListeners = 0; // 0 = unlimited listeners
+    EventEmitter.defaultMaxListeners = 0;
     if (EventEmitter.prototype) {
       (EventEmitter.prototype as any).defaultMaxListeners = 0;
-
-      // Auto-set unlimited max listeners on EventEmitter instances dynamically when addListener/on is invoked
       const originalAddListener = EventEmitter.prototype.addListener;
       EventEmitter.prototype.addListener = function (type: any, listener: any) {
         if (typeof (this as any).setMaxListeners === "function") {
-          try {
-            (this as any).setMaxListeners(0);
-          } catch {
-            (this as any)._maxListeners = 0;
-          }
+          try { (this as any).setMaxListeners(0); } catch { (this as any)._maxListeners = 0; }
         } else {
           (this as any)._maxListeners = 0;
         }
         return originalAddListener.call(this, type, listener);
       };
       EventEmitter.prototype.on = EventEmitter.prototype.addListener;
-
+      const originalOnce = EventEmitter.prototype.once;
+      if (typeof originalOnce === "function") {
+        EventEmitter.prototype.once = function (type: any, listener: any) {
+          if (typeof (this as any).setMaxListeners === "function") {
+            try { (this as any).setMaxListeners(0); } catch { (this as any)._maxListeners = 0; }
+          } else {
+            (this as any)._maxListeners = 0;
+          }
+          return originalOnce.call(this, type, listener);
+        };
+      }
       const originalSetMaxListeners = EventEmitter.prototype.setMaxListeners;
       EventEmitter.prototype.setMaxListeners = function (n: number) {
-        const effectiveN = (n === 0 || n > 100) ? n : 0;
+        (this as any)._maxListeners = 0;
         if (typeof originalSetMaxListeners === "function") {
-          return originalSetMaxListeners.call(this, effectiveN);
+          try { return originalSetMaxListeners.call(this, 0); } catch {}
         }
-        (this as any)._maxListeners = effectiveN;
         return this;
       };
     }
   }
 
-  // Attach to window and globalThis so injected content scripts (contentscript.js) share threshold
   const win = window as any;
   win.EventEmitter = EventEmitter;
   (globalThis as any).EventEmitter = EventEmitter;
 
-  if (typeof (globalThis as any).process !== "undefined" && (globalThis as any).process?.setMaxListeners) {
-    try {
-      (globalThis as any).process.setMaxListeners(0);
-    } catch {
-      // Ignore process setMaxListeners if restricted in browser context
+  const proc = (globalThis as any).process || (window as any).process;
+  if (proc) {
+    if (typeof proc.setMaxListeners === "function") {
+      try { proc.setMaxListeners(0); } catch {}
+    }
+    if (typeof proc.emitWarning === "function") {
+      const originalEmitWarning = proc.emitWarning;
+      proc.emitWarning = function (warning: any, ...args: any[]) {
+        if (isExtensionStreamNoise(warning, ...args)) return;
+        return originalEmitWarning.apply(proc, [warning, ...args]);
+      };
     }
   }
 
-  // Helper to detect third-party extension stream warning noise (Error objects, warning objects, or strings)
-  const isExtensionStreamNoise = (...args: any[]): boolean => {
+  function isExtensionStreamNoise(...args: any[]): boolean {
     let joined = "";
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
@@ -65,12 +65,8 @@ if (typeof window !== "undefined") {
         joined += " " + arg;
       } else if (typeof arg === "object") {
         try {
-          joined += " " + (arg.message || "") + " " + (arg.stack || "") + " " + (arg.name || "") + " " + String(arg);
-          try {
-            joined += " " + JSON.stringify(arg);
-          } catch {
-            // ignore circular structures
-          }
+          joined += " " + (arg.message || "") + " " + (arg.stack || "") + " " + (arg.name || "") + " " + (arg.filename || "") + " " + String(arg);
+          try { joined += " " + JSON.stringify(arg); } catch {}
         } catch {
           joined += " " + String(arg);
         }
@@ -78,7 +74,7 @@ if (typeof window !== "undefined") {
         joined += " " + String(arg);
       }
     }
-
+    const lower = joined.toLowerCase();
     return (
       joined.includes("MaxListenersExceededWarning") ||
       joined.includes("Possible EventEmitter memory leak detected") ||
@@ -88,11 +84,21 @@ if (typeof window !== "undefined") {
       joined.includes("ObjectMultiplex - orphaned data for stream") ||
       joined.includes("app-init-liveness") ||
       joined.includes("background-liveness") ||
-      joined.includes("contentscript.js")
+      joined.includes("contentscript.js") ||
+      lower.includes("maxlistenersexceededwarning") ||
+      lower.includes("possible eventemitter memory leak") ||
+      lower.includes("listeners added") ||
+      lower.indexOf("close listeners") !== -1 ||
+      lower.indexOf("end listeners") !== -1 ||
+      lower.includes("setmaxlisteners") ||
+      lower.includes("objectmultiplex") ||
+      lower.includes("orphaned data for stream") ||
+      lower.includes("app-init-liveness") ||
+      lower.includes("background-liveness") ||
+      lower.includes("contentscript.js")
     );
-  };
+  }
 
-  // Filter out non-actionable third-party Web3 extension stream liveness warnings (ObjectMultiplex orphaned streams)
   const consoleMethods = ["warn", "error", "info", "log"] as const;
   consoleMethods.forEach((method) => {
     const original = console[method];
@@ -116,6 +122,12 @@ if (typeof window !== "undefined") {
     }
   }, true);
 }
+
+import { createRoot } from "react-dom/client";
+import { PrivyProvider } from "@privy-io/react-auth";
+import App from "./app/App.tsx";
+import { LanguageProvider } from "./i18n/translations.tsx";
+import "./styles/index.css";
 
 const privyAppId = (import.meta as any)?.env?.VITE_PRIVY_APP_ID || "cms9cnybp002k0bl7ts2nm8ra";
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
   UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '../../services/supabaseService';
 import { umkmSupabaseService, isVerifiedTenantContext } from '../../services/umkmSupabaseService';
-import { getActiveTenantIds } from '../../contexts/TenantContext';
+import { getActiveTenantIds, subscribeTenantChanges } from '../../contexts/TenantContext';
 import { getAuthBridgeState } from '../../../components/auth/PrivyAuthBridge';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
@@ -319,46 +319,40 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   };
 
   // Load Help Live Chat History from Supabase DB on modal open
+  const isResolvingHelpChatRef = useRef(false);
+
   useEffect(() => {
     const authBridge = getAuthBridgeState();
     const activeTenant = getActiveTenantIds();
     if (authBridge.authState !== 'AUTH_READY' || activeTenant.storeStatus !== 'ready' || !isValidUuid(activeTenant.storeId)) return;
     if (showSupportAssistantModal) {
+      if (isResolvingHelpChatRef.current) return;
+      isResolvingHelpChatRef.current = true;
       const loadHelpHistory = async () => {
         try {
-          const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
-          if (!activeStoreId) {
-            setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
-            return;
-          }
           const usage = await SupabaseDashboardService.getUserChatTierUsage((getActiveTenantIds().userId || ''));
           if (usage) setTierUsage(usage);
 
-          const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
-            undefined,
-            (getActiveTenantIds().userId || ''),
-            'Diskusi Home Assistant',
-            'ZEGA Home Assistant'
-          );
-          if (resolved.ok && resolved.chatId) {
-            setActiveHelpChatId(resolved.chatId);
-            const msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(resolved.chatId);
+          const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession('home_assistant');
+          if (chatId) {
+            setActiveHelpChatId(chatId);
+            const msgs = await chatSessionManager.loadChatMessages('home_assistant', chatId);
             if (msgs && msgs.length > 0) {
               const formatted = msgs.map((m: any) => ({
                 sender: m.sender === 'user' ? ('user' as const) : ('ai' as const),
-                text: m.text,
+                text: m.message || m.text || '',
                 inference_ms: m.inference_ms || 185,
-                tokens: m.tokens || 94
+                tokens: m.tokens_used || 94
               }));
               setSupportChatMessages(formatted);
               return;
             }
-          } else {
-            console.warn('[HomeView] Canonical session resolution warning:', resolved.reason, resolved.error);
           }
           setSupportChatMessages([{ sender: 'ai', text: getSeedMessage(), inference_ms: 120, tokens: 45 }]);
         } catch (e) {
           console.warn('Note loading help chat history:', e);
+        } finally {
+          isResolvingHelpChatRef.current = false;
         }
       };
       loadHelpHistory();
@@ -498,164 +492,185 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     if (!customText) setSupportInput('');
     setLoading(true);
 
-    // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
-    let chatIdToUse = activeHelpChatId;
-    if (!chatIdToUse) {
-      const chatStart = Date.now();
-      try {
-        const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
-          undefined,
-          (getActiveTenantIds().userId || ''),
-          `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
-          'ZEGA Home Assistant'
-        );
-        if (resolved.ok && resolved.chatId) {
-          chatIdToUse = resolved.chatId;
-          setActiveHelpChatId(resolved.chatId);
-          console.log('[CHAT_LATENCY]', { chatId: resolved.chatId, durationMs: Date.now() - chatStart });
-          fetchHelpHistoryList();
-        } else {
-          console.warn('[HomeView] Canonical session resolution notice:', resolved.reason, resolved.error);
-        }
-      } catch (sessionErr) {
-        console.warn('[HomeView] Session resolution exception:', sessionErr);
-      }
-    }
-
-    // Save User Message to DB ONLY IF valid persistent chatId exists
-    if (chatIdToUse && isValidUuid(chatIdToUse)) {
-      SupabaseDashboardService.saveUmkmAiAssistantMessage({
-        chat_id: chatIdToUse,
-        user_id: (getActiveTenantIds().userId || ''),
-        sender: 'user',
-        text: textToSend.trim()
-      }).catch(saveErr => console.warn('[HomeView] Failed to persist user message:', saveErr));
-    }
-
-    const envApi = import.meta.env.VITE_API_URL;
-    const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
-
-    let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
-      ? 'https://zega-ai.onrender.com'
-      : (envApi || 'http://localhost:3001');
-
-    const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
-
-    let aiResponseText = '';
-    let inferenceMsToUse = 210;
-    let tokensToUse = 118;
-
     try {
-      const prefStyle = localStorage.getItem('zega_ai_response_style') || 'Profesional';
-      const prefLen = localStorage.getItem('zega_ai_response_length') || 'Sedang';
-      const prefFormat = localStorage.getItem('zega_ai_response_format') || 'Ringkas';
-      const prefModel = localStorage.getItem('zega_ai_default_model') || 'GPT-4o (Recommended)';
-
-      const activeTenant = getActiveTenantIds();
-      const isVerified = isVerifiedTenantContext(activeTenant, activeTenant.userId);
-
-      if (!isVerified) {
-        console.warn('[AI_HARD_GATE] AI execution blocked: tenant unverified or identity blocked');
-        aiResponseText = '⚠️ **AI GATED**: Copilot AI model execution is gated because your tenant identity is unverified or blocked. Verified backend identity required.';
-      } else {
-        const headers = getCanonicalAuthHeaders();
-        if (activeTenant.storeId && isValidUuid(activeTenant.storeId)) {
-          headers['X-Store-Id'] = activeTenant.storeId;
-          if (!headers['X-Organization-Id']) {
-            headers['X-Organization-Id'] = activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : activeTenant.storeId;
-          }
-        }
-
-        const fetchStart = Date.now();
-        const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify({
-            chatId: chatIdToUse,
-            storeId: activeTenant.storeId || undefined,
-            message: textToSend.trim(),
-            language: currentAiLang,
-            response_style: prefStyle,
-            response_length: prefLen,
-            response_format: prefFormat,
-            default_model: prefModel,
-            agent_role: 'ZEGA Ops Specialist'
-          })
-        });
-
-        const totalLatency = Date.now() - requestStart;
-        if (response.ok) {
-          const result = await response.json();
-          const reqId = `req-ai-web-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-          console.log('[AI_MODEL_EXECUTION]', {
-            requestId: reqId,
-            provider: prefModel,
-            model: prefModel,
-            status: result.success ? 'SUCCESS' : 'FAILED',
-          });
-
-          console.log('[AI_LATENCY]', {
-            requestStart,
-            firstTokenLatencyMs: Date.now() - fetchStart,
-            totalLatencyMs: totalLatency,
-            inferenceMs: result.data?.inference_ms || 210
-          });
-
-          if (result.success && result.data && result.data.message) {
-            aiResponseText = result.data.message;
-            inferenceMsToUse = result.data.inference_ms || 210;
-            tokensToUse = result.data.total_tokens || 118;
+      // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
+      let chatIdToUse = activeHelpChatId;
+      if (!chatIdToUse) {
+        const chatStart = Date.now();
+        try {
+          const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+            undefined,
+            (getActiveTenantIds().userId || ''),
+            `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
+            'ZEGA Home Assistant'
+          );
+          if (resolved.ok && resolved.chatId) {
+            chatIdToUse = resolved.chatId;
+            setActiveHelpChatId(resolved.chatId);
+            console.log('[CHAT_LATENCY]', { chatId: resolved.chatId, durationMs: Date.now() - chatStart });
+            fetchHelpHistoryList();
           } else {
-            aiResponseText = '⚠️ **Model Execution Failed**: Backend AI endpoint returned error.';
+            console.warn('[HomeView] Canonical session resolution notice:', resolved.reason, resolved.error);
           }
-        } else {
-          aiResponseText = `⚠️ **Model Execution Error (${response.status})**: Backend AI service unavailable.`;
+        } catch (sessionErr) {
+          console.warn('[HomeView] Session resolution exception:', sessionErr);
         }
       }
-    } catch (err) {
-      console.warn('Real AI Model execution exception:', err);
-      if (!aiResponseText) {
-        aiResponseText = '⚠️ **Model Execution Error**: Unable to reach backend AI service.';
-      }
-    }
 
-    setSupportChatMessages(prev => [
-      ...prev,
-      {
-        sender: 'ai',
-        text: aiResponseText,
-        inference_ms: inferenceMsToUse,
-        tokens: tokensToUse
-      }
-    ]);
-    setLoading(false);
-
-    // ── STEP 2: Persist AI Response Message to Supabase DB if Session Exists ──
-    try {
+      // Save User Message to DB ONLY IF valid persistent chatId exists
       if (chatIdToUse && isValidUuid(chatIdToUse)) {
-        await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+        SupabaseDashboardService.saveUmkmAiAssistantMessage({
           chat_id: chatIdToUse,
           user_id: (getActiveTenantIds().userId || ''),
+          sender: 'user',
+          text: textToSend.trim()
+        }).catch(saveErr => console.warn('[HomeView] Failed to persist user message:', saveErr));
+      }
+
+      const envApi = import.meta.env.VITE_API_URL;
+      const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
+
+      let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
+        ? 'https://zega-ai.onrender.com'
+        : (envApi || 'http://localhost:3001');
+
+      const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
+
+      let aiResponseText = '';
+      let inferenceMsToUse = 210;
+      let tokensToUse = 118;
+
+      try {
+        const prefStyle = localStorage.getItem('zega_ai_response_style') || 'Profesional';
+        const prefLen = localStorage.getItem('zega_ai_response_length') || 'Sedang';
+        const prefFormat = localStorage.getItem('zega_ai_response_format') || 'Ringkas';
+        const prefModel = localStorage.getItem('zega_ai_default_model') || 'GPT-4o (Recommended)';
+
+        let activeTenant: any = getActiveTenantIds();
+        let isVerified = isVerifiedTenantContext(activeTenant, activeTenant.userId || undefined);
+
+        if (!isVerified) {
+          console.log('[AI_GATE]', { state: 'WAITING_FOR_TENANT', activeStoreId: activeTenant.storeId || null });
+          const resolvedTenant = await umkmSupabaseService.getCanonicalTenantContext();
+          if (isVerifiedTenantContext(resolvedTenant, resolvedTenant.userId || undefined)) {
+            activeTenant = resolvedTenant;
+            isVerified = true;
+          }
+        }
+
+        if (!isVerified) {
+          console.warn('[AI_GATE]', { state: 'BLOCKED', reason: activeTenant.overallStatus || 'TENANT_UNVERIFIED' });
+          aiResponseText = '⚠️ **AI GATED**: Copilot AI model execution is gated because your tenant identity is unverified or blocked. Verified backend identity required.';
+        } else {
+          console.log('[AI_GATE]', { state: 'READY', storeId: activeTenant.storeId });
+          const headers = getCanonicalAuthHeaders();
+          if (activeTenant.storeId && isValidUuid(activeTenant.storeId)) {
+            headers['X-Store-Id'] = activeTenant.storeId;
+            if (activeTenant.organizationId && isValidUuid(activeTenant.organizationId)) {
+              headers['X-Organization-Id'] = activeTenant.organizationId;
+            }
+            if (activeTenant.workspaceId && isValidUuid(activeTenant.workspaceId)) {
+              headers['X-Workspace-Id'] = activeTenant.workspaceId;
+            }
+          }
+
+          const fetchStart = Date.now();
+          const response = await fetch(`${cleanBaseUrl}/v1/umkm/copilot/chat`, {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({
+              chatId: chatIdToUse,
+              storeId: activeTenant.storeId || undefined,
+              message: textToSend.trim(),
+              language: currentAiLang,
+              response_style: prefStyle,
+              response_length: prefLen,
+              response_format: prefFormat,
+              default_model: prefModel,
+              agent_role: 'ZEGA Ops Specialist'
+            })
+          });
+
+            const totalLatency = Date.now() - requestStart;
+            const ttft = Date.now() - fetchStart;
+            if (response.ok) {
+              const result = await response.json();
+              const reqId = `req-ai-web-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+              console.log('[AI_MODEL_EXECUTION]', {
+                requestId: reqId,
+                provider: prefModel,
+                model: prefModel,
+                status: result.success ? 'SUCCESS' : 'FAILED',
+              });
+
+              console.log('[AI_LATENCY]', {
+                requestStart,
+                firstTokenLatencyMs: ttft,
+                totalLatencyMs: totalLatency,
+                inferenceMs: result.data?.inference_ms || 210
+              });
+
+              console.log('[AI_LATENCY_BREAKDOWN]', {
+                requestId: reqId,
+                ttftMs: ttft,
+                totalMs: totalLatency,
+                inferenceMs: result.data?.inference_ms || 210,
+                targetTtftMet: ttft < 1500,
+                storeId: activeTenant.storeId
+              });
+
+            if (result.success && result.data && result.data.message) {
+              aiResponseText = result.data.message;
+              inferenceMsToUse = result.data.inference_ms || 210;
+              tokensToUse = result.data.total_tokens || 118;
+            } else {
+              aiResponseText = '⚠️ **Model Execution Failed**: Backend AI endpoint returned error.';
+            }
+          } else {
+            aiResponseText = `⚠️ **Model Execution Error (${response.status})**: Backend AI service unavailable.`;
+          }
+        }
+      } catch (err) {
+        console.warn('Real AI Model execution exception:', err);
+        if (!aiResponseText) {
+          aiResponseText = '⚠️ **Model Execution Error**: Unable to reach backend AI service.';
+        }
+      }
+
+      setSupportChatMessages(prev => [
+        ...prev,
+        {
           sender: 'ai',
           text: aiResponseText,
           inference_ms: inferenceMsToUse,
           tokens: tokensToUse
-        });
-        console.log('[AI_PERSISTENCE]', {
-          requestId: `req-ai-web-${chatIdToUse}`,
-          tenantVerified: isVerifiedTenantContext(getActiveTenantIds(), getActiveTenantIds().userId),
-          status: 'SUCCESS'
-        });
-        fetchHelpHistoryList();
+        }
+      ]);
+
+      // ── STEP 2: Persist AI Response Message to Supabase DB if Session Exists ──
+      try {
+        if (chatIdToUse && isValidUuid(chatIdToUse)) {
+          await SupabaseDashboardService.saveUmkmAiAssistantMessage({
+            chat_id: chatIdToUse,
+            user_id: (getActiveTenantIds().userId || ''),
+            sender: 'ai',
+            text: aiResponseText,
+            inference_ms: inferenceMsToUse,
+            tokens: tokensToUse
+          });
+          console.log('[AI_PERSISTENCE]', {
+            requestId: `req-ai-web-${chatIdToUse}`,
+            tenantVerified: isVerifiedTenantContext(getActiveTenantIds(), getActiveTenantIds().userId),
+            status: 'SUCCESS'
+          });
+          fetchHelpHistoryList();
+        }
+      } catch (persistErr) {
+        console.warn('[HomeView] Failed to persist AI message:', persistErr);
       }
-    } catch (e) {
-      console.warn('Error persisting Ops Specialist AI response:', e);
-      console.log('[AI_PERSISTENCE]', {
-        requestId: `req-ai-web-${chatIdToUse}`,
-        tenantVerified: isVerifiedTenantContext(getActiveTenantIds(), getActiveTenantIds().userId),
-        status: 'FAILED'
-      });
+    } finally {
+      setLoading(false);
     }
   };
   const [igPolicyTriggers, setIgPolicyTriggers] = useState({
@@ -887,25 +902,45 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   }, [salesTimeframe]);
 
   useEffect(() => {
-    const authBridge = getAuthBridgeState();
-    if (authBridge.authState !== 'AUTH_READY') return;
-    // Gate: wait for tenant store before loading dashboard data
-    const activeTenant = getActiveTenantIds();
-    if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
-      console.log('[HomeView] mount effect gated: store not resolved, deferring dashboard load');
-      // Don't return — still call loadDashboardData which will internally resolve tenant
-    }
-    loadDashboardData();
-    let unsubscribe: any;
-    (async () => {
+    let unsubscribe: any = null;
+    let isMounted = true;
+
+    const initDashboard = async () => {
+      const authBridge = getAuthBridgeState();
+      if (authBridge.authState !== 'AUTH_READY') {
+        console.log('[HomeView] mount effect gated: authBridge not ready yet');
+        return;
+      }
+      const activeTenant = getActiveTenantIds();
+      if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
+        console.log('[HomeView] mount effect gated: store not resolved, deferring dashboard load');
+      }
+      if (isMounted) {
+        await loadDashboardData();
+      }
       const activeStoreId = (await SupabaseDashboardService.getAuthenticatedStoreId()) || '';
-      unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
-        activeStoreId,
-        () => loadDashboardData()
-      );
-    })();
+      if (isMounted && activeStoreId) {
+        unsubscribe = SupabaseDashboardService.subscribeToUmkmRealtime(
+          activeStoreId,
+          () => {
+            if (isMounted) loadDashboardData();
+          }
+        );
+      }
+    };
+
+    initDashboard();
+
+    const unsubscribeTenant = subscribeTenantChanges(() => {
+      if (isMounted) initDashboard();
+    });
+
     return () => {
-      if (unsubscribe) unsubscribe();
+      isMounted = false;
+      if (unsubscribeTenant) try { unsubscribeTenant(); } catch { }
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try { unsubscribe(); } catch { }
+      }
     };
   }, []);
 
@@ -2000,8 +2035,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                                   setIsModelDropdownOpen(false);
                                 }}
                                 className={`w-full text-left p-2 rounded-xl transition-all flex items-center gap-2.5 ${isSelected
-                                    ? 'bg-orange-50 dark:bg-orange-950/30 border border-orange-500/40 text-orange-700 dark:text-orange-300 font-bold'
-                                    : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                                  ? 'bg-orange-50 dark:bg-orange-950/30 border border-orange-500/40 text-orange-700 dark:text-orange-300 font-bold'
+                                  : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
                                   }`}
                               >
                                 <div className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
@@ -2370,11 +2405,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                       return (
                         <div
                           key={session.id}
-                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 group ${
-                            isActive
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs transition-all flex flex-col gap-1.5 group ${isActive
                               ? 'bg-orange-500/10 border-orange-500/50 text-orange-900 dark:text-orange-300 shadow-sm'
                               : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:translate-x-0.5'
-                          }`}
+                            }`}
                         >
                           <button
                             type="button"
@@ -2661,8 +2695,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                         }
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${item.status === 'paused'
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
-                          : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        : 'bg-emerald-500 hover:bg-emerald-600 text-white'
                         }`}
                     >
                       {item.status === 'paused' ? 'Paused (Click to Start)' : '✓ Active (Click to Pause)'}
@@ -2830,8 +2864,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                 type="button"
                 onClick={() => setActivityFilter('all')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'all'
-                    ? 'bg-orange-500 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                   }`}
               >
                 Semua Aktivitas
@@ -2840,8 +2874,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                 type="button"
                 onClick={() => setActivityFilter('transaction')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'transaction'
-                    ? 'bg-orange-500 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                   }`}
               >
                 Transaksi & Penjualan
@@ -2850,8 +2884,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                 type="button"
                 onClick={() => setActivityFilter('ai_task')}
                 className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${activityFilter === 'ai_task'
-                    ? 'bg-orange-500 text-white shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                   }`}
               >
                 Aksi Otomatis AI
@@ -3015,8 +3049,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                       key={tabName}
                       onClick={() => setAiTaskFilterTab(tabName)}
                       className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-bold whitespace-nowrap ${aiTaskFilterTab === tabName
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                         }`}
                     >
                       {tabName}

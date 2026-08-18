@@ -662,7 +662,7 @@ export function ZeroClawTerminalView({
     }
 
     // Auto-resume note: handleVerifyPrivyOtpAndResume invokes handleExecuteWithdrawal() directly upon OTP verification success.
-  }, [privyReady, authenticated, privyOtpVerified, solanaWallets, activeMerchantWallet]);
+  }, [privyReady, authenticated, privyOtpVerified, solanaWallets?.[0]?.address, activeMerchantWallet]);
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);

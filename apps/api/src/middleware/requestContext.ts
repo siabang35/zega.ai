@@ -268,6 +268,96 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
       }
     }
 
+    // === Step 2.8: Universal workspace resolution & auto-repair guard ===
+    // Runs unconditionally for ANY request with a resolved organizationId
+    if (principal.organizationId && !principal.workspaceId) {
+      try {
+        const supabase = SupabaseService.getClient();
+        if (supabase) {
+          const requestedWsId = (request.headers['x-workspace-id'] as string)
+            || (request.body as any)?.workspaceId;
+
+          if (requestedWsId && isValidUuid(requestedWsId)) {
+            const { data: workspace } = await supabase
+              .from('workspaces')
+              .select('id')
+              .eq('id', requestedWsId)
+              .maybeSingle();
+
+            if (workspace?.id) {
+              principal.workspaceId = workspace.id;
+            }
+          }
+
+          if (!principal.workspaceId) {
+            // 1. Check umkm_stores catalog for workspace_id
+            const { data: storeWithWs } = await supabase
+              .from('umkm_stores')
+              .select('workspace_id')
+              .or(`organization_id.eq.${principal.organizationId},user_id.eq.${principal.userId}`)
+              .not('workspace_id', 'is', null)
+              .limit(1)
+              .maybeSingle();
+
+            if (storeWithWs?.workspace_id && isValidUuid(storeWithWs.workspace_id)) {
+              principal.workspaceId = storeWithWs.workspace_id;
+            }
+          }
+
+          if (!principal.workspaceId) {
+            // 2. Check default workspace in workspaces table
+            const { data: defaultWs } = await supabase
+              .from('workspaces')
+              .select('id')
+              .eq('organization_id', principal.organizationId)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            if (defaultWs?.id && isValidUuid(defaultWs.id)) {
+              principal.workspaceId = defaultWs.id;
+            }
+          }
+
+          if (!principal.workspaceId && principal.organizationId) {
+            // 3. Auto-repair missing workspace for this organization
+            try {
+              const autoWsId = crypto.randomUUID();
+              const { data: createdWs } = await supabase
+                .from('workspaces')
+                .insert({
+                  id: autoWsId,
+                  organization_id: principal.organizationId,
+                  name: 'Main Workspace',
+                  slug: `ws-${principal.organizationId.substring(0, 8)}-${Date.now().toString(36)}`,
+                  status: 'active'
+                })
+                .select('id')
+                .maybeSingle();
+
+              const resolvedWsId = createdWs?.id || autoWsId;
+              principal.workspaceId = resolvedWsId;
+
+              // Backfill workspace_id to umkm_stores if missing
+              await supabase
+                .from('umkm_stores')
+                .update({ workspace_id: resolvedWsId })
+                .eq('organization_id', principal.organizationId)
+                .is('workspace_id', null);
+            } catch (wsErr) {
+              logger.warn({ wsErr, orgId: principal.organizationId }, '[RequestContext] Workspace auto-repair notice');
+            }
+          }
+
+          if (principal.workspaceId && principal.tenantContext) {
+            principal.tenantContext.workspaceId = principal.workspaceId;
+          }
+        }
+      } catch (err) {
+        logger.warn({ err, orgId: principal.organizationId }, '[RequestContext] Universal workspace resolution error');
+      }
+    }
+
     // === Step 3: Strip client-supplied tenant IDs and security fields from request body ===
     // SECURITY: Prevent mass-assignment of tenant-scoping and security-sensitive fields
     if (request.body && typeof request.body === 'object') {

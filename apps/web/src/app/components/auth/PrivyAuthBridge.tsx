@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { usePrivy, useSolanaWallets } from '@privy-io/react-auth';
-import { supabase } from '../../../lib/supabase';
+import { supabase, syncSupabaseAuthSession } from '../../../lib/supabase';
 import {
   clearSessionAccountState,
   saveVerifiedAccountType,
@@ -38,10 +38,27 @@ const _bridgeListeners = new Set<(state: AuthBridgeState) => void>();
 
 let _authEpoch = 0;
 let _isExplicitLoggedOut = false;
+let _restoreSessionPromise: Promise<void> | null = null;
 
 export function getAuthEpoch(): number {
   return _authEpoch;
 }
+
+function isAuthBridgeStateEqual(a: AuthBridgeState, b: AuthBridgeState): boolean {
+  return (
+    a.privyReady === b.privyReady &&
+    a.privyAuthenticated === b.privyAuthenticated &&
+    a.supabaseSessionReady === b.supabaseSessionReady &&
+    a.supabaseUserId === b.supabaseUserId &&
+    a.userEmail === b.userEmail &&
+    a.syncInFlight === b.syncInFlight &&
+    a.authState === b.authState &&
+    a.privySyncStatus === b.privySyncStatus &&
+    a.privySyncError === b.privySyncError
+  );
+}
+
+import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 
 export function updateBridgeState(partial: Partial<AuthBridgeState>, isExplicitLogout = false): void {
   const prevState = _authBridgeState.authState;
@@ -63,16 +80,34 @@ export function updateBridgeState(partial: Partial<AuthBridgeState>, isExplicitL
     nextUserId = _authBridgeState.supabaseUserId;
   }
 
-  _authBridgeState = {
+  const candidateState: AuthBridgeState = {
     ..._authBridgeState,
     ...partial,
     authState: nextAuthState,
     supabaseUserId: nextUserId
   };
 
+  // State Flapping & Re-render Loop Guard:
+  // If candidate state is identical to current state, bypass assignment & listener invocation
+  if (isAuthBridgeStateEqual(_authBridgeState, candidateState)) {
+    return;
+  }
+
+  _authBridgeState = candidateState;
+
   if (typeof window !== 'undefined') {
     (window as any).__ZEGA_AUTH_BRIDGE__ = _authBridgeState;
   }
+
+  // Sync to CanonicalAuthManager
+  const mappedStatus = _authBridgeState.authState === 'AUTH_INITIALIZING' ? 'AUTH_LOADING' : _authBridgeState.authState;
+  canonicalAuthManager.updateState({
+    authState: mappedStatus as any,
+    canonicalUserId: _authBridgeState.supabaseUserId,
+    userEmail: _authBridgeState.userEmail,
+    supabaseSessionPresent: _authBridgeState.supabaseSessionReady,
+    accessTokenPresent: Boolean(_authBridgeState.supabaseUserId),
+  });
 
   if (prevState !== _authBridgeState.authState || partial.supabaseUserId !== undefined) {
     console.log('[CANONICAL_AUTH]', {
@@ -146,6 +181,46 @@ export function subscribeAuthBridgeState(listener: (state: AuthBridgeState) => v
   };
 }
 
+let _authReadyPromise: Promise<AuthBridgeState> | null = null;
+
+/**
+ * Shared Auth Readiness Promise Barrier.
+ * Multiple concurrent callers await this single shared promise.
+ * Resolves when authState exits AUTH_INITIALIZING.
+ */
+export function waitForAuthReady(timeoutMs: number = 5000): Promise<AuthBridgeState> {
+  const currentState = getAuthBridgeState();
+  if (currentState.authState !== 'AUTH_INITIALIZING') {
+    return Promise.resolve(currentState);
+  }
+
+  if (_authReadyPromise) {
+    return _authReadyPromise;
+  }
+
+  _authReadyPromise = new Promise<AuthBridgeState>((resolve) => {
+    let timer: any = null;
+
+    const unsubscribe = subscribeAuthBridgeState((state) => {
+      if (state.authState !== 'AUTH_INITIALIZING') {
+        if (timer) clearTimeout(timer);
+        unsubscribe();
+        _authReadyPromise = null;
+        resolve(state);
+      }
+    });
+
+    timer = setTimeout(() => {
+      unsubscribe();
+      _authReadyPromise = null;
+      resolve(getAuthBridgeState());
+    }, timeoutMs);
+  });
+
+  return _authReadyPromise;
+}
+
+
 /**
  * PrivyAuthBridge
  *
@@ -165,8 +240,11 @@ export function PrivyAuthBridge() {
       const active = resolveActiveSession();
       if (active.isReady) {
         _isExplicitLoggedOut = false;
+        // Inspect if Supabase client currently holds a genuine active session
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        const hasGenuineSession = Boolean(existingSession?.user?.id);
         updateBridgeState({
-          supabaseSessionReady: true,
+          supabaseSessionReady: hasGenuineSession,
           supabaseUserId: active.userId,
           userEmail: active.email || _authBridgeState.userEmail,
           authState: 'AUTH_READY',
@@ -176,6 +254,16 @@ export function PrivyAuthBridge() {
       // 2. Perform backend verification via GET /v1/auth/me
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
       if (token) {
+        let syncedSessionSuccess = false;
+        try {
+          if ((supabase as any).rest?.headers) {
+            (supabase as any).rest.headers['Authorization'] = `Bearer ${token}`;
+          }
+          syncedSessionSuccess = await syncSupabaseAuthSession(token);
+        } catch (e) {
+          console.warn('[CANONICAL_AUTH] Supabase auth session restore note:', e);
+        }
+
         try {
           const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ||
             (import.meta.env.VITE_API_URL as string) ||
@@ -192,7 +280,7 @@ export function PrivyAuthBridge() {
             if (isValidUuid(canonicalId)) {
               _isExplicitLoggedOut = false;
               updateBridgeState({
-                supabaseSessionReady: true,
+                supabaseSessionReady: syncedSessionSuccess,
                 supabaseUserId: canonicalId,
                 userEmail: u.email || active.email || _authBridgeState.userEmail,
                 authState: 'AUTH_READY',
@@ -230,14 +318,28 @@ export function PrivyAuthBridge() {
 
       if (currentEpoch === _authEpoch && (_authBridgeState.authState as string) !== 'AUTH_READY') {
         updateBridgeState({
-          supabaseSessionReady: true,
+          supabaseSessionReady: false,
           supabaseUserId: null,
           authState: 'AUTH_REQUIRED',
         });
       }
     };
 
-    restoreSession();
+    if (_restoreSessionPromise) {
+      _restoreSessionPromise.then(() => {
+        if (currentEpoch === _authEpoch) {
+          // Session already restored by in-flight execution
+        }
+      });
+    } else {
+      _restoreSessionPromise = (async () => {
+        try {
+          await restoreSession();
+        } finally {
+          _restoreSessionPromise = null;
+        }
+      })();
+    }
 
     const handleStorageOrAuthEvent = () => {
       const active = resolveActiveSession();
@@ -256,9 +358,14 @@ export function PrivyAuthBridge() {
     window.addEventListener('zega_auth_updated', handleStorageOrAuthEvent);
 
     // Isolated Supabase Auth Event Observer
-    // (Only handle explicit SIGNED_OUT, NEVER overwrite AUTH_READY with AUTH_REQUIRED)
+    // (Only handle explicit SIGNED_OUT, NEVER overwrite AUTH_READY with AUTH_REQUIRED unless explicit logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
+        const active = resolveActiveSession();
+        if (active.isReady && !_isExplicitLoggedOut) {
+          console.warn('[CANONICAL_AUTH] Ignored implicit Supabase SIGNED_OUT event because local active session is valid.');
+          return;
+        }
         clearSessionAccountState();
         logAuthTelemetry('AUTH_FLOW', { action: 'SUPABASE_SIGNED_OUT' });
         updateBridgeState({
@@ -304,6 +411,9 @@ export function PrivyAuthBridge() {
   } catch (e) { }
 
   const zegaEmail = zegaSession?.email || zegaSession?.user?.email;
+
+  // Extract stable Solana wallet address primitive to prevent infinite useEffect re-render loop
+  const solanaWalletAddress = solanaWallets?.[0]?.address || '';
 
   // Extract the Privy user's email from their linked accounts or primary email object
   const privyEmail = (privyUser?.email as any)?.address
@@ -429,28 +539,11 @@ export function PrivyAuthBridge() {
             localStorage.setItem('zega_access_token', supabaseToken);
             localStorage.setItem('zega_user_email', cleanPrivyEmail);
 
-            // Populate standard Supabase auth token key in localStorage
-            const sbTokenKey = 'sb-ikxiclpvywxxnkcaldbx-auth-token';
-            const sbSessionObj = {
-              access_token: supabaseToken,
-              token_type: 'bearer',
-              expires_in: 3600,
-              expires_at: Math.floor(Date.now() / 1000) + 3600,
-              refresh_token: supabaseToken,
-              user: {
-                id: userId,
-                email: cleanPrivyEmail,
-                role: 'authenticated',
-                aud: 'authenticated',
-                user_metadata: { full_name: cleanPrivyEmail.split('@')[0] }
-              }
-            };
-            localStorage.setItem(sbTokenKey, JSON.stringify(sbSessionObj));
-
-            // Inject Authorization header into Supabase client rest instance
+            // Inject Authorization header & sync session into canonical Supabase client instance
             if ((supabase as any).rest?.headers) {
               (supabase as any).rest.headers['Authorization'] = `Bearer ${supabaseToken}`;
             }
+            await syncSupabaseAuthSession(supabaseToken);
 
             let sessionUserId = userId;
             let sessionValidated = true;
@@ -529,7 +622,7 @@ export function PrivyAuthBridge() {
     return () => {
       isSubscribed = false;
     };
-  }, [privyAuthenticated, privyUser, privyEmail, zegaEmail, solanaWallets]);
+  }, [privyAuthenticated, privyUser, privyEmail, zegaEmail, solanaWalletAddress]);
 
   // Global Privy Solana Embedded Wallet Cache Synchronizer
   useEffect(() => {
@@ -557,7 +650,7 @@ export function PrivyAuthBridge() {
         (window as any).privyWallets = [];
       }
     }
-  }, [solanaWallets, zegaEmail, privyAuthenticated, privyUser, privyEmail]);
+  }, [solanaWalletAddress, zegaEmail, privyAuthenticated, privyUser, privyEmail]);
 
   return null;
 }

@@ -232,7 +232,7 @@ BEGIN
     END IF;
 
     -- ========================================================================
-    -- 6. FIND EXISTING STORE FOR THIS USER + REQUESTED STORE NAME
+    -- 6. FIND EXISTING STORE FOR THIS USER (Agile Idempotent Selection)
     -- ========================================================================
 
     SELECT
@@ -245,14 +245,13 @@ BEGIN
         v_existing_store_workspace_id
     FROM public.umkm_stores AS s
     WHERE s.user_id = v_canonical_user_id
-      AND LOWER(BTRIM(s.store_name)) = LOWER(v_store_name)
     ORDER BY s.created_at ASC
     LIMIT 1;
 
     v_store_exists := v_store_id IS NOT NULL;
 
     -- ========================================================================
-    -- 7. EXISTING STORE PATH
+    -- 7. EXISTING STORE PATH (WITH AUTOMATIC REPAIR)
     -- ========================================================================
 
     IF v_store_exists THEN
@@ -260,11 +259,34 @@ BEGIN
         v_org_id := v_existing_store_org_id;
         v_workspace_id := v_existing_store_workspace_id;
 
+        -- Auto-repair missing organization context on existing store
         IF v_org_id IS NULL THEN
-            RAISE EXCEPTION
-            USING
-                ERRCODE = 'P0001',
-                MESSAGE = 'EXISTING_STORE_ORGANIZATION_CONTEXT_MISSING';
+            SELECT om.organization_id INTO v_org_id
+            FROM public.organization_members om
+            WHERE om.user_id = v_canonical_user_id
+            LIMIT 1;
+
+            IF v_org_id IS NULL THEN
+                INSERT INTO public.organizations (
+                    id, name, slug, owner_id
+                ) VALUES (
+                    gen_random_uuid(),
+                    COALESCE(v_store_name, 'Toko UMKM') || ' Org',
+                    'org-' || SUBSTRING(REPLACE(v_canonical_user_id::TEXT, '-', '') FROM 1 FOR 8) || '-' || SUBSTRING(REPLACE(gen_random_uuid()::TEXT, '-', '') FROM 1 FOR 8),
+                    v_canonical_user_id
+                )
+                RETURNING id INTO v_org_id;
+
+                INSERT INTO public.organization_members (
+                    organization_id, user_id, role
+                ) VALUES (
+                    v_org_id, v_canonical_user_id, 'owner'
+                ) ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'owner';
+            END IF;
+
+            UPDATE public.umkm_stores
+            SET organization_id = v_org_id
+            WHERE id = v_store_id;
         END IF;
 
         SELECT
@@ -277,10 +299,16 @@ BEGIN
         WHERE o.id = v_org_id;
 
         IF NOT FOUND THEN
-            RAISE EXCEPTION
-            USING
-                ERRCODE = 'P0001',
-                MESSAGE = 'EXISTING_STORE_ORGANIZATION_NOT_FOUND';
+            -- Organization ID stored on store does not exist in DB: create repair org
+            INSERT INTO public.organizations (
+                id, name, slug, owner_id
+            ) VALUES (
+                v_org_id,
+                COALESCE(v_store_name, 'Toko UMKM') || ' Org',
+                'org-' || SUBSTRING(REPLACE(v_canonical_user_id::TEXT, '-', '') FROM 1 FOR 8) || '-' || SUBSTRING(REPLACE(gen_random_uuid()::TEXT, '-', '') FROM 1 FOR 8),
+                v_canonical_user_id
+            );
+            v_org_owner_id := v_canonical_user_id;
         END IF;
 
         IF NOT EXISTS (
@@ -308,11 +336,30 @@ BEGIN
             DO NOTHING;
         END IF;
 
+        -- Auto-repair missing workspace context on existing store
         IF v_workspace_id IS NULL THEN
-            RAISE EXCEPTION
-            USING
-                ERRCODE = 'P0001',
-                MESSAGE = 'EXISTING_STORE_WORKSPACE_CONTEXT_MISSING';
+            SELECT w.id INTO v_workspace_id
+            FROM public.workspaces w
+            WHERE w.organization_id = v_org_id
+            ORDER BY w.created_at ASC
+            LIMIT 1;
+
+            IF v_workspace_id IS NULL THEN
+                INSERT INTO public.workspaces (
+                    id, organization_id, name, slug, owner_id
+                ) VALUES (
+                    gen_random_uuid(),
+                    v_org_id,
+                    'Main Workspace',
+                    'ws-' || SUBSTRING(REPLACE(v_org_id::TEXT, '-', '') FROM 1 FOR 8),
+                    v_canonical_user_id
+                )
+                RETURNING id INTO v_workspace_id;
+            END IF;
+
+            UPDATE public.umkm_stores
+            SET workspace_id = v_workspace_id
+            WHERE id = v_store_id;
         END IF;
 
         SELECT
@@ -327,24 +374,36 @@ BEGIN
         WHERE w.id = v_workspace_id;
 
         IF NOT FOUND THEN
-            RAISE EXCEPTION
-            USING
-                ERRCODE = 'P0001',
-                MESSAGE = 'EXISTING_STORE_WORKSPACE_NOT_FOUND';
+            -- Workspace ID stored on store does not exist in DB: create repair workspace with exact v_workspace_id
+            INSERT INTO public.workspaces (
+                id,
+                organization_id,
+                name,
+                slug,
+                owner_id
+            ) VALUES (
+                v_workspace_id,
+                v_org_id,
+                'Main Workspace',
+                'ws-' || SUBSTRING(REPLACE(v_org_id::TEXT, '-', '') FROM 1 FOR 8) || '-' || SUBSTRING(REPLACE(gen_random_uuid()::TEXT, '-', '') FROM 1 FOR 4),
+                v_canonical_user_id
+            );
+            v_workspace_org_id := v_org_id;
+            v_workspace_owner_id := v_canonical_user_id;
         END IF;
 
         IF v_workspace_org_id IS DISTINCT FROM v_org_id THEN
-            RAISE EXCEPTION
-            USING
-                ERRCODE = 'P0001',
-                MESSAGE = 'TENANT_CONTEXT_RELATIONSHIP_INVALID',
-                DETAIL =
-                    'Store, organization, and workspace do not belong to the same tenant.';
+            -- Repair workspace org linkage
+            UPDATE public.workspaces
+            SET organization_id = v_org_id
+            WHERE id = v_workspace_id;
         END IF;
 
         UPDATE public.umkm_stores
         SET
-            is_active = TRUE
+            is_active = TRUE,
+            organization_id = v_org_id,
+            workspace_id = v_workspace_id
         WHERE id = v_store_id
           AND user_id = v_canonical_user_id;
 

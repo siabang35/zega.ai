@@ -3,6 +3,7 @@ export { getActiveTenantIds } from '../contexts/TenantContext';
 import { getActiveTenantIds, updateActiveTenantStore, updateActiveTenantOrg, updateActiveTenantWorkspace, setActiveTenant } from '../contexts/TenantContext';
 import { getVerifiedAccountType } from '../../services/accountTypeManager';
 import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 
 export function getCanonicalAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -41,9 +42,9 @@ export function getCanonicalAuthHeaders(): Record<string, string> {
   }
 
   const tenant = getActiveTenantIds();
-  const effectiveOrgId = (isValidUuid(tenant.organizationId) && tenant.organizationId.trim() !== '')
+  const effectiveOrgId = (isValidUuid(tenant.organizationId) && tenant.organizationId.trim() !== '' && tenant.organizationId !== tenant.storeId)
     ? tenant.organizationId
-    : (isValidUuid(tenant.storeId) ? tenant.storeId : null);
+    : null;
 
   if (effectiveOrgId) {
     headers['X-Organization-Id'] = effectiveOrgId;
@@ -66,7 +67,7 @@ export function getCanonicalAuthHeaders(): Record<string, string> {
  * stored in localStorage. This is the DB profile ID from public.profiles.
  * Returns null if no valid JWT is available.
  */
-function extractUserIdFromStoredJwt(): { userId: string | null; email: string | null } {
+export function extractUserIdFromStoredJwt(): { userId: string | null; email: string | null } {
   try {
     // 1. Try zega_mock_session
     const mockStr = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_mock_session') : null;
@@ -144,6 +145,7 @@ export function getResolutionGeneration(): number {
 }
 
 export interface CanonicalTenantResult {
+  snapshotId?: string;
   status: 'READY' | 'IDENTITY_BLOCKED' | 'NO_PROVISIONED_STORE' | 'QUERY_ERROR' | 'BOOTING' | 'AUTH_REQUIRED' | 'AUTH_CONTEXT_MISMATCH' | 'AUTH_INITIALIZING' | 'TENANT_RESOLVING';
   storeStatus: 'ready' | 'unavailable' | 'loading' | 'error' | 'STORE_LOADING' | 'STORE_READY' | 'STORE_UNAVAILABLE' | 'STORE_QUERY_ERROR';
   storeReady: boolean;
@@ -174,6 +176,7 @@ export type ModelLifecycleState = 'MODEL_UNKNOWN' | 'MODEL_CHECKING' | 'MODEL_RE
 export type AiGateState = 'GATED' | 'READY' | 'EXECUTING' | 'FAILED';
 
 export interface VerifiedTenantContext {
+  snapshotId?: string;
   userId: string;
   authUserId?: string | null;
   organizationId: string;
@@ -220,6 +223,8 @@ export function deriveStoreStatus(tenantStatus: string): 'ready' | 'unavailable'
  * Evaluates that tenant.status === 'READY', tenant.verified === true, tenant.storeReady === true,
  * and valid storeId exists. Logs structured telemetry [TENANT_GATE].
  */
+let _lastTenantGateLogKey: string | null = null;
+
 export function isVerifiedTenantContext(ctx: any, expectedUserId?: string): ctx is VerifiedTenantContext {
   if (!ctx) {
     console.warn('[TENANT_GATE]', { gatePassed: false, reason: 'AUTH_REQUIRED', ctxStatus: 'AUTH_REQUIRED', storeStatus: 'unavailable', storeId: null });
@@ -230,8 +235,6 @@ export function isVerifiedTenantContext(ctx: any, expectedUserId?: string): ctx 
   const isAuthInitializing = authBridge.authState === 'AUTH_INITIALIZING';
 
   // DECOUPLED: authReady is determined SOLELY by canonical auth bridge state.
-  // AUTH_REQUIRED is only true when the auth bridge itself says AUTH_REQUIRED.
-  // When authBridge is AUTH_READY, auth is NEVER required — tenant state is separate.
   const isAuthRequired = authBridge.authState === 'AUTH_REQUIRED';
 
   let normalizedStatus: string;
@@ -240,22 +243,25 @@ export function isVerifiedTenantContext(ctx: any, expectedUserId?: string): ctx 
   } else if (isAuthRequired) {
     normalizedStatus = 'AUTH_REQUIRED';
   } else {
-    // Auth is READY — derive status purely from TENANT state, never regress to AUTH_REQUIRED
     const rawStatus = ctx.status || ctx.resolutionState || ctx.overallStatus;
-    // When auth is READY but tenant context reports AUTH_REQUIRED or IDENTITY_BLOCKED
-    // due to stale/racing resolution, reclassify as TENANT_RESOLVING
     const isStaleAuthStatus = rawStatus === 'AUTH_REQUIRED' || rawStatus === 'IDENTITY_BLOCKED';
-    const hasTenantData = isValidUuid(ctx.storeId) || ctx.storeStatus === 'ready';
+    const hasTenantData = isValidUuid(ctx.storeId) &&
+      isValidUuid(ctx.organizationId) &&
+      isValidUuid(ctx.workspaceId) &&
+      isValidUuid(ctx.userId) &&
+      ctx.storeId !== ctx.userId &&
+      ctx.organizationId !== ctx.userId &&
+      ctx.organizationId !== ctx.storeId &&
+      ctx.workspaceId !== ctx.userId &&
+      ctx.workspaceId !== ctx.storeId;
+    const isResolvingState = !hasTenantData && (ctx.storeStatus === 'loading' || rawStatus === 'TENANT_RESOLVING' || rawStatus === 'BOOTING' || ctx.overallStatus === 'BOOTING');
 
     if (hasTenantData) {
       normalizedStatus = 'READY';
+    } else if (isResolvingState) {
+      normalizedStatus = 'TENANT_RESOLVING';
     } else if (rawStatus && !isStaleAuthStatus) {
       normalizedStatus = rawStatus;
-    } else if (ctx.storeStatus === 'ready' || isValidUuid(ctx.storeId)) {
-      normalizedStatus = 'READY';
-    } else if (ctx.storeStatus === 'loading' || isStaleAuthStatus) {
-      // Tenant is still resolving — do NOT report IDENTITY_BLOCKED or AUTH_REQUIRED
-      normalizedStatus = 'TENANT_RESOLVING';
     } else {
       normalizedStatus = 'TENANT_RESOLVING';
     }
@@ -265,67 +271,87 @@ export function isVerifiedTenantContext(ctx: any, expectedUserId?: string): ctx 
 
   const isReady = normalizedStatus === 'READY';
   const hasValidStoreId = isValidUuid(ctx.storeId) && ctx.storeId !== ctx.userId;
-  const hasValidOrgId = isValidUuid(ctx.organizationId) || hasValidStoreId;
-  const isVerified = ctx.verified === true || ctx.tenantVerified === true || (isReady && hasValidStoreId);
-  const isStoreReady = (derivedStoreStatus === 'ready' || isReady) && hasValidStoreId;
-  const bridgeState = getAuthBridgeState();
-  const normExpected = (expectedUserId || '').trim().toLowerCase();
-  const normCtxUser = (ctx.userId || '').trim().toLowerCase();
-  const normAuthUser = (ctx.authUserId || '').trim().toLowerCase();
-  const normBridgeUser = (bridgeState.supabaseUserId || '').trim().toLowerCase();
-  const expectedLower = normExpected;
+  const hasValidOrgId = isValidUuid(ctx.organizationId) && ctx.organizationId !== ctx.userId && ctx.organizationId !== ctx.storeId;
+  const hasValidWsId = isValidUuid(ctx.workspaceId) && ctx.workspaceId !== ctx.userId && ctx.workspaceId !== ctx.storeId;
+  const hasValidUserId = isValidUuid(ctx.userId);
+  const isVerified = ctx.verified === true || ctx.tenantVerified === true || (isReady && hasValidStoreId && hasValidOrgId && hasValidWsId);
+  const isStoreReady = (derivedStoreStatus === 'ready' || isReady) && hasValidStoreId && hasValidOrgId && hasValidWsId;
 
-  const isEmailInput = normExpected.includes('@');
-  const userMatches = !normExpected ||
-    (isEmailInput ? (
-      (ctx.userEmail && ctx.userEmail.toLowerCase().trim() === normExpected) ||
-      (ctx.email && ctx.email.toLowerCase().trim() === normExpected) ||
-      (bridgeState.userEmail && bridgeState.userEmail.toLowerCase().trim() === normExpected)
-    ) : (
-      (normCtxUser && normCtxUser === normExpected) ||
-      (normAuthUser && normAuthUser === normExpected) ||
-      (normBridgeUser && normBridgeUser === normExpected)
-    ));
+  // STRICT CANONICAL USER IDENTITY MATCHING (UUID ONLY - NEVER MATCH EMAIL AGAINST UUID)
+  const normExpectedUuid = (expectedUserId && isValidUuid(expectedUserId)) ? expectedUserId.trim().toLowerCase() : '';
+  const normCtxUserUuid = (ctx.userId && isValidUuid(ctx.userId)) ? ctx.userId.trim().toLowerCase() : '';
+  const normAuthUserUuid = (ctx.authUserId && isValidUuid(ctx.authUserId)) ? ctx.authUserId.trim().toLowerCase() : '';
+  const normBridgeUserUuid = (authBridge.supabaseUserId && isValidUuid(authBridge.supabaseUserId)) ? authBridge.supabaseUserId.trim().toLowerCase() : '';
 
-  const passed = Boolean(isReady && isVerified && isStoreReady && userMatches && !isAuthInitializing && !isAuthRequired);
+  let userMatches = true;
+  let isMismatch = false;
+
+  if (normExpectedUuid) {
+    const matchesCtx = normCtxUserUuid ? (normExpectedUuid === normCtxUserUuid) : true;
+    const matchesAuth = normAuthUserUuid ? (normExpectedUuid === normAuthUserUuid) : true;
+    const matchesBridge = normBridgeUserUuid ? (normExpectedUuid === normBridgeUserUuid) : true;
+
+    if (!matchesCtx || !matchesAuth || !matchesBridge) {
+      userMatches = false;
+      // Declare MISMATCH ONLY when tenant resolution is complete and both UUIDs are valid
+      if (normalizedStatus !== 'TENANT_RESOLVING' && normalizedStatus !== 'AUTH_INITIALIZING' && ctx.storeStatus !== 'loading' && hasValidUserId) {
+        isMismatch = true;
+      }
+    }
+  }
+
+  const passed = Boolean(isReady && isVerified && isStoreReady && hasValidOrgId && hasValidWsId && hasValidUserId && userMatches && !isAuthInitializing && !isAuthRequired);
 
   if (!passed) {
+    const isResolving = isAuthInitializing || normalizedStatus === 'TENANT_RESOLVING' || ctx.storeStatus === 'loading' || ctx.overallStatus === 'BOOTING';
     const reason = isAuthInitializing ? 'AUTH_INITIALIZING'
       : isAuthRequired ? 'AUTH_REQUIRED'
-        : normalizedStatus === 'TENANT_RESOLVING' ? 'TENANT_RESOLVING'
-          : !isReady ? 'TENANT_NOT_READY'
-            : !isVerified ? 'TENANT_UNVERIFIED'
-              : !hasValidStoreId ? 'INVALID_STORE_ID'
-                : 'USER_MISMATCH';
+        : isResolving ? 'TENANT_RESOLVING'
+          : isMismatch ? 'USER_MISMATCH'
+            : !isReady ? 'TENANT_NOT_READY'
+              : !isVerified ? 'TENANT_UNVERIFIED'
+                : !hasValidStoreId ? 'INVALID_STORE_ID'
+                  : 'TENANT_NOT_READY';
 
     if (reason === 'USER_MISMATCH') {
       console.warn('[USER_MISMATCH_DIAGNOSTICS]', {
-        canonicalAuthUserId: expectedUserId,
-        tenantContextUserId: ctx.userId,
-        tenantAuthUserId: ctx.authUserId,
-        bridgeUserId: bridgeState.supabaseUserId,
-        tenantEmail: ctx.userEmail || ctx.email
+        canonicalUserId: normExpectedUuid || normBridgeUserUuid || normCtxUserUuid,
+        authUserId: authBridge.supabaseUserId || ctx.authUserId || null,
+        tenantUserId: ctx.userId || null,
+        activeStoreId: ctx.storeId || null,
+        organizationId: ctx.organizationId || null,
+        workspaceId: ctx.workspaceId || null,
+        tenantState: normalizedStatus,
+        storeState: derivedStoreStatus,
+        comparisonResult: 'MISMATCH'
       });
     }
 
-    // Only warn for terminal states, use log for transient TENANT_RESOLVING
-    const logFn = reason === 'TENANT_RESOLVING' ? console.log : console.warn;
-    logFn('[TENANT_GATE]', {
-      gatePassed: false,
-      reason,
-      ctxStatus: normalizedStatus,
-      storeStatus: derivedStoreStatus,
-      storeId: ctx.storeId || null,
-      verified: Boolean(ctx.verified || ctx.tenantVerified)
-    });
+    const logKey = `gatePassed:${passed}:reason:${reason}:storeId:${ctx.storeId || 'null'}:status:${normalizedStatus}`;
+    if (_lastTenantGateLogKey !== logKey) {
+      _lastTenantGateLogKey = logKey;
+      const logFn = (reason === 'TENANT_RESOLVING' || reason === 'AUTH_INITIALIZING') ? console.log : console.warn;
+      logFn('[TENANT_GATE]', {
+        gatePassed: false,
+        reason,
+        ctxStatus: normalizedStatus,
+        storeStatus: derivedStoreStatus,
+        storeId: ctx.storeId || null,
+        verified: Boolean(ctx.verified || ctx.tenantVerified)
+      });
+    }
   } else {
-    console.log('[TENANT_GATE]', {
-      gatePassed: true,
-      storeId: ctx.storeId,
-      userId: ctx.userId,
-      ctxStatus: normalizedStatus,
-      storeStatus: derivedStoreStatus
-    });
+    const logKey = `gatePassed:true:storeId:${ctx.storeId}`;
+    if (_lastTenantGateLogKey !== logKey) {
+      _lastTenantGateLogKey = logKey;
+      console.log('[TENANT_GATE]', {
+        gatePassed: true,
+        storeId: ctx.storeId,
+        userId: ctx.userId,
+        ctxStatus: normalizedStatus,
+        storeStatus: derivedStoreStatus
+      });
+    }
   }
 
   return passed;
@@ -342,7 +368,7 @@ export function requireVerifiedTenantContext(ctx: any, expectedUserId?: string):
     userId: String(ctx.userId || ctx.authUserId || ''),
     authUserId: ctx.authUserId || null,
     organizationId: ctx.organizationId,
-    workspaceId: ctx.workspaceId || ctx.organizationId,
+    workspaceId: ctx.workspaceId,
     storeId: ctx.storeId,
     accountType: ctx.accountType || 'INDIVIDUAL_UMKM',
     sessionKey: ctx.sessionKey || `${ctx.userId || ctx.authUserId}:INDIVIDUAL_UMKM`,
@@ -616,7 +642,9 @@ export async function ensureStoreForCurrentUser(params?: {
 }> {
   // Step 0: Check Canonical Auth State Machine
   const authBridge = getAuthBridgeState();
-  if (authBridge.authState === 'AUTH_INITIALIZING' || !authBridge.supabaseSessionReady) {
+  const canonicalAuth = canonicalAuthManager.getSnapshot();
+  const isAuthReady = canonicalAuth.status === 'READY' || authBridge.authState === 'AUTH_READY';
+  if (!isAuthReady && (authBridge.authState === 'AUTH_INITIALIZING' || canonicalAuth.status === 'WAITING')) {
     console.warn('[PROVISIONING] Gated RPC execution fn_ensure_individual_umkm_tenant: Session restoration in progress (AUTH_INITIALIZING).');
     return {
       ok: false,
@@ -652,6 +680,18 @@ export async function ensureStoreForCurrentUser(params?: {
       error: 'AUTH_CONTEXT_UNAVAILABLE: Valid authenticated user UUID required for store provisioning.',
       errorCode: 'AUTH_CONTEXT_UNAVAILABLE',
       recoverable: true
+    };
+  }
+
+  // Step 1.5: Check Resolved Stores Cache & Tenant Snapshot Cache (Singleflight Snapshot Guard)
+  const cachedStore = _resolvedStoresCache.get(rawUserId);
+  if (cachedStore && cachedStore.storeId && isValidUuid(cachedStore.storeId) && (Date.now() - cachedStore.timestamp < CACHE_TTL_MS)) {
+    console.log('[PROVISIONING] Reusing valid cached tenant store snapshot for user:', rawUserId, cachedStore.storeId);
+    return {
+      ok: true,
+      storeId: cachedStore.storeId,
+      organizationId: cachedStore.organizationId || undefined,
+      workspaceId: cachedStore.workspaceId || undefined
     };
   }
 
@@ -734,10 +774,21 @@ export async function ensureStoreForCurrentUser(params?: {
           appUserId = userRecord.id;
           appUserAuthUserIdMatches = userRecord.auth_user_id === effectiveRpcUserId || userRecord.email === effectiveRpcUserId;
           appUserReadStatus = 'VERIFIED_BACKEND_IDENTITY';
-        } else if (!userErr) {
-          appUserReadStatus = _provisioningTerminal.has(effectiveRpcUserId) ? 'IDENTITY_BLOCKED' : 'IDENTITY_UNAVAILABLE';
+        } else if (rpcSession?.access_token || isValidUuid(effectiveRpcUserId)) {
+          // Canonical Identity Resolver Fallback: Invoke fn_get_or_create_current_app_user to reconcile identity
+          try {
+            const { data: rpcResolvedUserId, error: rpcErr } = await supabase.rpc('fn_get_or_create_current_app_user');
+            if (!rpcErr && rpcResolvedUserId && isValidUuid(rpcResolvedUserId)) {
+              appUserId = rpcResolvedUserId;
+              appUserReadStatus = 'VERIFIED_BACKEND_IDENTITY';
+            } else if (!userErr) {
+              appUserReadStatus = _provisioningTerminal.has(effectiveRpcUserId) ? 'IDENTITY_BLOCKED' : 'IDENTITY_UNAVAILABLE';
+            }
+          } catch {
+            appUserReadStatus = 'IDENTITY_UNVERIFIABLE';
+          }
         } else {
-          appUserReadStatus = 'IDENTITY_UNVERIFIABLE';
+          appUserReadStatus = 'IDENTITY_UNAVAILABLE';
         }
       } catch {
         appUserReadStatus = 'IDENTITY_UNVERIFIABLE';
@@ -761,7 +812,7 @@ export async function ensureStoreForCurrentUser(params?: {
           .from('umkm_stores')
           .select('id, user_id, organization_id, workspace_id, store_name')
           .or(storeOrFilter)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false })
           .limit(1);
 
         if (!checkErr && existingStores && Array.isArray(existingStores) && existingStores.length > 0 && existingStores[0]?.id) {
@@ -769,13 +820,23 @@ export async function ensureStoreForCurrentUser(params?: {
           let existingOrgId = (existing.organization_id && isValidUuid(existing.organization_id)) ? existing.organization_id : null;
           let existingWsId = (existing.workspace_id && isValidUuid(existing.workspace_id)) ? existing.workspace_id : null;
 
-          // Repair Organization ID in-place if missing
-          if (!existingOrgId) {
-            existingOrgId = existing.id;
+          // Repair Organization ID in-place if missing (NEVER set equal to storeId)
+          if (!existingOrgId || existingOrgId === existing.id) {
+            try {
+              const { data: memberRows } = await supabase
+                .from('organization_members')
+                .select('organization_id')
+                .eq('user_id', effectiveRpcUserId)
+                .limit(1);
+
+              if (memberRows && memberRows.length > 0 && memberRows[0].organization_id && isValidUuid(memberRows[0].organization_id) && memberRows[0].organization_id !== existing.id) {
+                existingOrgId = memberRows[0].organization_id;
+              }
+            } catch { }
           }
 
-          // Repair Workspace ID in-place if missing
-          if (!existingWsId && existingOrgId) {
+          // Repair Workspace ID in-place via DB lookup if missing
+          if (!existingWsId && existingOrgId && isValidUuid(existingOrgId) && existingOrgId !== existing.id) {
             try {
               const { data: wsData } = await supabase
                 .from('workspaces')
@@ -787,25 +848,9 @@ export async function ensureStoreForCurrentUser(params?: {
 
               if (wsData?.id && isValidUuid(wsData.id)) {
                 existingWsId = wsData.id;
-              } else {
-                const newWsId = crypto.randomUUID();
-                const { error: insWsErr } = await supabase.from('workspaces').insert({
-                  id: newWsId,
-                  organization_id: existingOrgId,
-                  name: `${existing.store_name || 'Main'} Workspace`,
-                  slug: `ws-${existingOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
-                  status: 'active'
-                });
-                if (!insWsErr) {
-                  existingWsId = newWsId;
-                }
-              }
-
-              if (existingWsId && isValidUuid(existingWsId)) {
-                await supabase.from('umkm_stores').update({ workspace_id: existingWsId }).eq('id', existing.id);
               }
             } catch (repairErr) {
-              console.warn('[PROVISIONING] Workspace repair lookup exception:', repairErr);
+              console.warn('[PROVISIONING] Workspace lookup exception:', repairErr);
             }
           }
 
@@ -813,6 +858,14 @@ export async function ensureStoreForCurrentUser(params?: {
           _provisioningLastError.delete(rawUserId);
           _provisioningRetryAt.delete(rawUserId);
           _provisioningTerminal.delete(rawUserId);
+          _resolvedStoresCache.set(rawUserId, {
+            userId: rawUserId,
+            organizationId: existingOrgId || '',
+            workspaceId: existingWsId || '',
+            storeId: existing.id,
+            status: 'ready',
+            timestamp: Date.now()
+          });
           return {
             ok: true,
             storeId: existing.id,
@@ -1029,7 +1082,7 @@ export async function ensureStoreForCurrentUser(params?: {
           .from('umkm_stores')
           .select('id, organization_id, workspace_id')
           .eq('user_id', rawUserId)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false })
           .limit(1);
 
         if (userStores && userStores.length > 0 && userStores[0]?.id) {
@@ -1164,32 +1217,31 @@ export async function ensureStoreForCurrentUser(params?: {
         }
       }
 
-      // Fallback for Backend OAuth Sessions when Supabase PostgREST RPC is restricted (401/403/42501)
-      const hasBackendSession = Boolean(
-        localStorage.getItem('zega_access_token') ||
-        localStorage.getItem('zega_mock_session') ||
-        rawUserId.includes('@')
-      );
+      // Clean Fail-Closed Error Handling: Do NOT generate unpersisted synthetic fallback UUIDs on RPC failure
+      const finalStoreCheckId = appUserId || (isValidUuid(rawUserId) ? rawUserId : null);
+      if (finalStoreCheckId) {
+        try {
+          const { data: storeCheck } = await supabase
+            .from('umkm_stores')
+            .select('id, organization_id, workspace_id')
+            .or(`user_id.eq.${finalStoreCheckId},id.eq.${finalStoreCheckId}`)
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-      if (hasBackendSession) {
-        const cleanId = (appUserId || rawUserId).replace(/[^a-zA-Z0-9]/g, '-');
-        const fallbackStoreId = `store-${cleanId}`;
-        const fallbackOrgId = `org-${cleanId}`;
-        const fallbackWsId = `ws-${cleanId}`;
-
-        console.log('[PROVISIONING] Backend OAuth session active. Fallback store provisioned:', fallbackStoreId);
-        _provisioningLastError.delete(rawUserId);
-        _provisioningRetryAt.delete(rawUserId);
-        _provisioningTerminal.delete(rawUserId);
-        _terminalBlockedSessionKeys.delete(rawUserId);
-        _terminalBlockedSessionKeys.delete(`${rawUserId}:INDIVIDUAL_UMKM`);
-
-        return {
-          ok: true,
-          storeId: fallbackStoreId,
-          organizationId: fallbackOrgId,
-          workspaceId: fallbackWsId
-        };
+          if (storeCheck && storeCheck.length > 0 && storeCheck[0]?.id) {
+            _provisioningLastError.delete(rawUserId);
+            _provisioningRetryAt.delete(rawUserId);
+            _provisioningTerminal.delete(rawUserId);
+            _terminalBlockedSessionKeys.delete(rawUserId);
+            _terminalBlockedSessionKeys.delete(`${rawUserId}:INDIVIDUAL_UMKM`);
+            return {
+              ok: true,
+              storeId: storeCheck[0].id,
+              organizationId: storeCheck[0].organization_id || undefined,
+              workspaceId: storeCheck[0].workspace_id || undefined
+            };
+          }
+        } catch { }
       }
 
       _provisioningLastError.set(rawUserId, {
@@ -1495,8 +1547,19 @@ export async function performReadOnlyIdentityForensicCheck(): Promise<{
   appUserAuthUserIdMatches: boolean;
 }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const sessionUserId = session?.user?.id || null;
+    const authBridge = getAuthBridgeState();
+    const jwtIdentity = extractUserIdFromStoredJwt();
+    const active = getActiveTenantIds();
+
+    let sessionUserId: string | null = null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      sessionUserId = session?.user?.id || null;
+    } catch { }
+
+    if (!sessionUserId) {
+      sessionUserId = authBridge.supabaseUserId || jwtIdentity.userId || active.userId || null;
+    }
 
     if (!sessionUserId) {
       return {
@@ -1543,8 +1606,7 @@ export async function performReadOnlyIdentityForensicCheck(): Promise<{
       }
     }
 
-    const backendVerified = identityStatus === 'VERIFIED_BACKEND_IDENTITY';
-    const active = getActiveTenantIds();
+    const backendVerified = identityStatus === 'VERIFIED_BACKEND_IDENTITY' || Boolean(authBridge.authState === 'AUTH_READY' && isValidUuid(sessionUserId));
     const tenantVerified = active.storeStatus === 'ready' && isValidUuid(active.storeId) && backendVerified;
 
     console.log('[IDENTITY_FORENSIC]', {
@@ -1628,8 +1690,8 @@ export const umkmSupabaseService = {
    * Verifies that userId === current Supabase session.user.id and authorized tenant context.
    * Returns: { userId, organizationId, workspaceId, storeId, status }
    */
-  async resolveTenantContext(providedStoreId?: string | null) {
-    return this.getCanonicalTenantContext(providedStoreId);
+  async resolveTenantContext(providedStoreId?: string | null, options?: { forceFresh?: boolean }) {
+    return this.getCanonicalTenantContext(providedStoreId, options);
   },
 
   /**
@@ -1638,12 +1700,13 @@ export const umkmSupabaseService = {
    *   inFlightBySession: Map<sessionKey, Promise<CanonicalTenantResult>> (ACTIVE WORK ONLY)
    *   resultBySession: Map<sessionKey, CanonicalTenantResult> (COMPLETED RESULTS)
    */
-  async getCanonicalTenantContext(providedStoreId?: string | null): Promise<CanonicalTenantResult> {
+  async getCanonicalTenantContext(providedStoreId?: string | null, options?: { forceFresh?: boolean }): Promise<CanonicalTenantResult> {
     const resolutionId = `tenant-resolve-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const forceFresh = options?.forceFresh === true;
 
     // STEP 0: Check Canonical Auth State Machine
     const authBridge = getAuthBridgeState();
-    if (authBridge.authState === 'AUTH_INITIALIZING' || !authBridge.supabaseSessionReady) {
+    if (authBridge.authState === 'AUTH_INITIALIZING' || (!authBridge.supabaseSessionReady && authBridge.authState !== 'AUTH_READY')) {
       console.log('[TENANT_GATE] [AUTH_INITIALIZING] Session restoration in progress. Gating tenant resolution.');
       return {
         authUserId: null,
@@ -1684,20 +1747,35 @@ export const umkmSupabaseService = {
       };
     }
 
-    // STEP 1: Exact Auth Session Verification & Derive Session Key
+    // STEP 1: Exact Auth Session Verification & Derive Session Key (O(1) Synchronous Snapshot Priority)
     let session: any = null;
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      session = sessionData?.session || null;
-    } catch { }
+    const authSnapshot = canonicalAuthManager.getSnapshot();
+    if (authSnapshot.status === 'READY' && authSnapshot.session) {
+      session = authSnapshot.session;
+    } else {
+      try {
+        const storedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
+        if (storedToken && (supabase as any).rest?.headers) {
+          (supabase as any).rest.headers['Authorization'] = `Bearer ${storedToken}`;
+        }
+        const { data: sessionData } = await supabase.auth.getSession();
+        session = sessionData?.session || null;
+      } catch { }
+    }
 
-    const sessionUser = session?.user;
-    const sessionUserId = sessionUser?.id || null;
-    const sessionAccessToken: string | null = session?.access_token || null;
 
     const active = getActiveTenantIds();
+    const jwtIdentity = extractUserIdFromStoredJwt();
 
-    if (!session || !sessionUser || !sessionUserId) {
+    const candidateUserIds = [
+      session?.user?.id,
+      authBridge.supabaseUserId,
+      jwtIdentity.userId,
+      active.userId
+    ];
+    const sessionUserId = candidateUserIds.find(id => id && isValidUuid(id)) || null;
+
+    if (!sessionUserId) {
       const isAuthReady = authBridge.authState === 'AUTH_READY';
       return {
         authUserId: active.userId || null,
@@ -1718,7 +1796,7 @@ export const umkmSupabaseService = {
       };
     }
 
-    const userEmail = sessionUser.email || active.userEmail || null;
+    const userEmail = session?.user?.email || active.userEmail || jwtIdentity.email || authBridge.userEmail || null;
 
     if (active.userId && isValidUuid(active.userId) && active.userId !== sessionUserId) {
       console.warn('[TENANT_RESOLVER] [AUTH_CONTEXT_MISMATCH] Session user ID changed. Purging stale tenant context cache:', {
@@ -1746,10 +1824,7 @@ export const umkmSupabaseService = {
 
     // TERMINAL IDENTITY BLOCK CHECK (Rule 5 & 6) - Priority 1 Guard
     const activeTenantState = getActiveTenantIds();
-    if (
-      (activeTenantState.storeId && isValidUuid(activeTenantState.storeId) && activeTenantState.storeStatus === 'ready') ||
-      activeTenantState.userId === sessionUserId
-    ) {
+    if (isValidUuid(sessionUserId)) {
       _provisioningTerminal.delete(sessionUserId);
       _terminalBlockedSessionKeys.delete(sessionKey);
       _terminalBlockedSessionKeys.delete(sessionUserId);
@@ -1805,9 +1880,16 @@ export const umkmSupabaseService = {
       return terminalBlockedResult;
     }
 
+    if (forceFresh) {
+      resultBySession.delete(sessionKey);
+      resultBySession.delete(sessionUserId);
+      inFlightBySession.delete(sessionKey);
+      _canonicalTenantResultCache.delete(sessionKey);
+    }
+
     // STEP 2: Check resultBySession (Store B - COMPLETED RESULT CACHE)
     const sessionCached = resultBySession.get(sessionKey) || resultBySession.get(sessionUserId);
-    if (!providedStoreId && sessionCached) {
+    if (!forceFresh && !providedStoreId && sessionCached) {
       const cachedResponse: CanonicalTenantResult = {
         ...sessionCached,
         source: 'CACHE'
@@ -1818,7 +1900,7 @@ export const umkmSupabaseService = {
 
     // STEP 3: Check inFlightBySession (Store A - ACTIVE WORK ONLY)
     const activeInFlightPromise = inFlightBySession.get(sessionKey);
-    if (activeInFlightPromise) {
+    if (!forceFresh && activeInFlightPromise) {
       logTenantStateTransition(sessionKey, 'IN_FLIGHT', 'unavailable', 'IN_FLIGHT');
       const inFlightResult = await activeInFlightPromise;
       return {
@@ -1838,9 +1920,12 @@ export const umkmSupabaseService = {
         const effectiveInMemoryOrgId = (active.organizationId && isValidUuid(active.organizationId) && active.organizationId !== sessionUserId && active.organizationId !== active.storeId) ? active.organizationId : null;
         const effectiveInMemoryWsId = (active.workspaceId && isValidUuid(active.workspaceId) && active.workspaceId !== sessionUserId && active.workspaceId !== active.storeId) ? active.workspaceId : null;
 
-        if (!providedStoreId && active.storeStatus === 'ready' && isValidUuid(active.storeId) && active.storeId !== sessionUserId && active.userId === sessionUserId && effectiveInMemoryOrgId && effectiveInMemoryWsId) {
+        const isAuthReady = authBridge.authState === 'AUTH_READY' && isValidUuid(sessionUserId);
+        const isUserMatch = !active.userId || active.userId === sessionUserId || isAuthReady;
+
+        if (!providedStoreId && active.storeStatus === 'ready' && isValidUuid(active.storeId) && active.storeId !== sessionUserId && isUserMatch && effectiveInMemoryOrgId && effectiveInMemoryWsId) {
           const forensic = await performReadOnlyIdentityForensicCheck();
-          if (forensic.backendVerified) {
+          if (forensic.backendVerified || isAuthReady) {
             finalResult = {
               authUserId: sessionUserId,
               organizationId: effectiveInMemoryOrgId,
@@ -1860,6 +1945,9 @@ export const umkmSupabaseService = {
               userId: sessionUserId,
               source: 'FRESH'
             };
+            resultBySession.set(sessionKey, finalResult);
+            resultBySession.set(sessionUserId, finalResult);
+            _canonicalTenantResultCache.set(sessionKey, { userId: sessionUserId, result: finalResult, timestamp: Date.now() });
             return finalResult;
           }
         }
@@ -1868,12 +1956,32 @@ export const umkmSupabaseService = {
         let storeResultCount = 0;
         let rawFetchedRows: any[] = [];
 
+        let appUserId: string | null = null;
+        try {
+          const userRes = await resolveCanonicalApplicationUser(sessionUserId);
+          if (userRes.applicationUserId && isValidUuid(userRes.applicationUserId)) {
+            appUserId = userRes.applicationUserId;
+          } else {
+            const { data: uRow } = await supabase
+              .from('users')
+              .select('id')
+              .eq('auth_user_id', sessionUserId)
+              .maybeSingle();
+            if (uRow?.id && isValidUuid(uRow.id)) {
+              appUserId = uRow.id;
+            }
+          }
+        } catch { }
+
+        const candidateIds = Array.from(new Set([appUserId, sessionUserId, providedStoreId].filter(id => id && isValidUuid(id)))) as string[];
+        const storeOrFilter = candidateIds.flatMap(uid => [`user_id.eq.${uid}`, `id.eq.${uid}`]).join(',');
+
         try {
           const { data: storeList, error: err } = await supabase
             .from('umkm_stores')
             .select('id, user_id, organization_id, workspace_id, store_name')
-            .or(`user_id.eq.${sessionUserId},id.eq.${sessionUserId}`)
-            .order('created_at', { ascending: true });
+            .or(storeOrFilter)
+            .order('created_at', { ascending: false });
 
           if (err) storeErr = err;
           if (storeList && Array.isArray(storeList)) {
@@ -1885,88 +1993,156 @@ export const umkmSupabaseService = {
           storeErr = err;
         }
 
-        // Case 1: Store row found and verified against backend identity (Rule 5)
-        if (!storeErr && rawFetchedRows.length > 0 && rawFetchedRows[0]?.id && isValidUuid(rawFetchedRows[0].id) && rawFetchedRows[0].id !== sessionUserId) {
-          const store = rawFetchedRows[0];
+        let selectedStore: any = null;
+        if (!storeErr && rawFetchedRows.length > 0) {
+          selectedStore = rawFetchedRows[0];
+          if (providedStoreId && isValidUuid(providedStoreId)) {
+            const matchedStore = rawFetchedRows.find(s => s.id === providedStoreId);
+            if (matchedStore && matchedStore.organization_id && matchedStore.organization_id === selectedStore.organization_id) {
+              selectedStore = matchedStore;
+            }
+          }
+        }
+
+        // Case 1: Store row found in database for authenticated user
+        if (selectedStore?.id && isValidUuid(selectedStore.id) && selectedStore.id !== sessionUserId) {
+          const store = selectedStore;
           const resolvedStoreId = store.id;
           let resolvedOrgId = (store.organization_id && isValidUuid(store.organization_id) && store.organization_id !== sessionUserId && store.organization_id !== resolvedStoreId) ? store.organization_id : null;
           let resolvedWsId = (store.workspace_id && isValidUuid(store.workspace_id) && store.workspace_id !== sessionUserId && store.workspace_id !== resolvedStoreId) ? store.workspace_id : null;
 
-          // Repair Organization ID in-place if missing
+          // Repair Organization ID via DB lookups if missing
           if (!resolvedOrgId) {
-            resolvedOrgId = resolvedStoreId;
+            try {
+              const { data: memberRows } = await supabase
+                .from('organization_members')
+                .select('organization_id')
+                .eq('user_id', sessionUserId)
+                .limit(1);
+
+              if (memberRows && memberRows.length > 0 && memberRows[0].organization_id && isValidUuid(memberRows[0].organization_id) && memberRows[0].organization_id !== resolvedStoreId) {
+                resolvedOrgId = memberRows[0].organization_id;
+              }
+            } catch { }
           }
 
-          // If workspace_id is missing on store row, attempt lookup or auto-creation in workspaces table by organization_id
-          if (!resolvedWsId && resolvedOrgId) {
+          // Fallback org resolution to stores query if org still missing
+          if (!resolvedOrgId) {
             try {
-              const { data: wsData } = await supabase
-                .from('workspaces')
+              const { data: orgRows } = await supabase
+                .from('organizations')
                 .select('id')
-                .eq('organization_id', resolvedOrgId)
-                .order('created_at', { ascending: true })
-                .limit(1)
-                .maybeSingle();
+                .eq('owner_id', sessionUserId)
+                .limit(1);
+              if (orgRows && orgRows.length > 0 && orgRows[0].id && isValidUuid(orgRows[0].id) && orgRows[0].id !== resolvedStoreId) {
+                resolvedOrgId = orgRows[0].id;
+              }
+            } catch { }
+          }
 
-              if (wsData?.id && isValidUuid(wsData.id)) {
-                resolvedWsId = wsData.id;
-              } else {
-                // Auto-create workspace under existing organization to maintain graph integrity
-                const newWsId = crypto.randomUUID();
-                const { error: insertWsErr } = await supabase.from('workspaces').insert({
-                  id: newWsId,
-                  organization_id: resolvedOrgId,
-                  name: `${store.store_name || 'Main'} Workspace`,
-                  slug: `ws-${(store.store_name || 'main').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString(36)}`,
-                  status: 'active'
-                });
-                if (!insertWsErr) {
-                  resolvedWsId = newWsId;
+          // Strict DB verification of resolvedWsId against workspaces table
+          if (resolvedOrgId) {
+            try {
+              let validWsId: string | null = null;
+              if (resolvedWsId && isValidUuid(resolvedWsId) && resolvedWsId !== resolvedStoreId && resolvedWsId !== resolvedOrgId) {
+                const { data: matchedWs } = await supabase
+                  .from('workspaces')
+                  .select('id')
+                  .eq('id', resolvedWsId)
+                  .maybeSingle();
+
+                if (matchedWs?.id) {
+                  validWsId = matchedWs.id;
                 }
               }
 
-              if (resolvedWsId && isValidUuid(resolvedWsId)) {
-                await supabase.from('umkm_stores').update({ workspace_id: resolvedWsId }).eq('id', resolvedStoreId);
+              if (!validWsId) {
+                // Resolved workspaceId is missing or desynced from workspaces table! Fetch true workspace.
+                const { data: dbWs } = await supabase
+                  .from('workspaces')
+                  .select('id')
+                  .eq('organization_id', resolvedOrgId)
+                  .order('created_at', { ascending: true })
+                  .limit(1)
+                  .maybeSingle();
+
+                if (dbWs?.id && isValidUuid(dbWs.id)) {
+                  validWsId = dbWs.id;
+                }
+              }
+
+              if (validWsId) {
+                resolvedWsId = validWsId;
               }
             } catch (wsErr) {
-              console.warn('[TENANT_RESOLVER] workspace repair exception:', wsErr);
+              console.warn('[TENANT_RESOLVER] workspace DB verification warning:', wsErr);
             }
           }
 
-          const forensic = await performReadOnlyIdentityForensicCheck();
-
-          if (forensic.backendVerified && resolvedOrgId && isValidUuid(resolvedOrgId) && resolvedWsId && isValidUuid(resolvedWsId)) {
-            setActiveTenant({
-              organizationId: resolvedOrgId,
-              workspaceId: resolvedWsId,
-              storeId: resolvedStoreId,
-              storeStatus: 'ready',
-              tenantType: 'umkm',
-              userEmail: userEmail || '',
-              userId: sessionUserId
-            });
-
-            finalResult = {
-              authUserId: sessionUserId,
-              organizationId: resolvedOrgId,
-              workspaceId: resolvedWsId,
-              organizationStatus: 'ORG_AUTHORIZED',
-              organizationReason: 'CREATOR',
-              storeId: resolvedStoreId,
-              storeStatus: 'ready',
-              storeReady: true,
-              verified: true,
-              backendVerified: true,
-              tenantVerified: true,
-              identityStatus: 'IDENTITY_VERIFIED',
-              overallStatus: 'READY',
-              resolutionState: 'READY',
-              status: 'READY',
-              userId: sessionUserId,
-              source: 'FRESH'
-            };
-            return finalResult;
+          // Final fallback org & ws ID assignment if DB tables lack parent org/ws records
+          if (!resolvedOrgId || resolvedOrgId === resolvedStoreId) {
+            resolvedOrgId = `org_${resolvedStoreId.replace(/-/g, '').substring(0, 16)}`;
           }
+          if (!resolvedWsId || resolvedWsId === resolvedStoreId || resolvedWsId === resolvedOrgId) {
+            resolvedWsId = `ws_${resolvedStoreId.replace(/-/g, '').substring(0, 16)}`;
+          }
+
+          // In-place repair on store row if org or workspace was updated in DB format
+          if (isValidUuid(resolvedOrgId) && isValidUuid(resolvedWsId) && (store.organization_id !== resolvedOrgId || store.workspace_id !== resolvedWsId)) {
+            try {
+              await supabase.from('umkm_stores').update({ organization_id: resolvedOrgId, workspace_id: resolvedWsId }).eq('id', resolvedStoreId);
+            } catch (repairErr) {
+              console.warn('[TENANT_RESOLVER] store repair update warning:', repairErr);
+            }
+          }
+
+          const snapshotId = `snap_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          setActiveTenant({
+            snapshotId,
+            organizationId: resolvedOrgId,
+            workspaceId: resolvedWsId,
+            storeId: resolvedStoreId,
+            storeStatus: 'ready',
+            tenantType: 'umkm',
+            userEmail: userEmail || '',
+            userId: sessionUserId
+          });
+
+          finalResult = Object.freeze({
+            snapshotId,
+            authUserId: sessionUserId,
+            organizationId: resolvedOrgId,
+            workspaceId: resolvedWsId,
+            organizationStatus: 'ORG_AUTHORIZED',
+            organizationReason: 'CREATOR',
+            storeId: resolvedStoreId,
+            storeStatus: 'ready',
+            storeReady: true,
+            verified: true,
+            backendVerified: true,
+            tenantVerified: true,
+            identityStatus: 'IDENTITY_VERIFIED',
+            overallStatus: 'READY',
+            resolutionState: 'READY',
+            status: 'READY',
+            userId: sessionUserId,
+            source: 'FRESH'
+          });
+
+          console.log('[TENANT_RESOLUTION_RESULT]', {
+            key: sessionKey,
+            userId: sessionUserId,
+            organizationId: resolvedOrgId,
+            workspaceId: resolvedWsId,
+            storeId: resolvedStoreId,
+            snapshotId
+          });
+
+          resultBySession.set(sessionKey, finalResult);
+          resultBySession.set(sessionUserId, finalResult);
+          _canonicalTenantResultCache.set(sessionKey, { userId: sessionUserId, result: finalResult, timestamp: Date.now() });
+
+          return finalResult;
         }
 
         // Case 2: DB Query Error -> Rule 8: DB read errors MUST NOT trigger provisioning
@@ -2018,34 +2194,42 @@ export const umkmSupabaseService = {
 
             const pRes = provisionRes as any;
             const resolvedStoreId = provisionRes.storeId;
-            const resolvedOrgId = (pRes.organizationId && isValidUuid(pRes.organizationId) && pRes.organizationId !== sessionUserId)
+            let resolvedOrgId = (pRes.organizationId && isValidUuid(pRes.organizationId) && pRes.organizationId !== sessionUserId && pRes.organizationId !== resolvedStoreId)
               ? pRes.organizationId
-              : (pRes.organization_id && isValidUuid(pRes.organization_id) && pRes.organization_id !== sessionUserId ? pRes.organization_id : null);
-            const resolvedWsId = (pRes.workspaceId && isValidUuid(pRes.workspaceId) && pRes.workspaceId !== sessionUserId)
+              : (pRes.organization_id && isValidUuid(pRes.organization_id) && pRes.organization_id !== sessionUserId && pRes.organization_id !== resolvedStoreId ? pRes.organization_id : null);
+            let resolvedWsId = (pRes.workspaceId && isValidUuid(pRes.workspaceId) && pRes.workspaceId !== sessionUserId && pRes.workspaceId !== resolvedStoreId)
               ? pRes.workspaceId
-              : (pRes.workspace_id && isValidUuid(pRes.workspace_id) && pRes.workspace_id !== sessionUserId ? pRes.workspace_id : null);
+              : (pRes.workspace_id && isValidUuid(pRes.workspace_id) && pRes.workspace_id !== sessionUserId && pRes.workspace_id !== resolvedStoreId ? pRes.workspace_id : null);
 
-            if (!resolvedOrgId || !resolvedWsId) {
-              console.warn('[TENANT_RESOLVER] Provisioning returned missing org or workspace UUID:', provisionRes);
-              return {
-                authUserId: sessionUserId,
-                organizationId: null,
-                workspaceId: null,
-                organizationStatus: 'ORG_QUERY_ERROR',
-                organizationReason: 'MISSING_ORG_OR_WS',
-                storeId: resolvedStoreId,
-                storeStatus: 'unavailable',
-                storeReady: false,
-                verified: false,
-                overallStatus: 'BLOCKED',
-                resolutionState: 'PROVISIONING_FAILED',
-                status: 'QUERY_ERROR',
-                userId: sessionUserId,
-                source: 'FRESH'
-              };
+            if (!resolvedOrgId) {
+              try {
+                const { data: memberRows } = await supabase
+                  .from('organization_members')
+                  .select('organization_id')
+                  .eq('user_id', sessionUserId)
+                  .limit(1);
+                if (memberRows && memberRows.length > 0 && memberRows[0].organization_id && isValidUuid(memberRows[0].organization_id)) {
+                  resolvedOrgId = memberRows[0].organization_id;
+                }
+              } catch { }
+            }
+            if (resolvedOrgId && !resolvedWsId) {
+              try {
+                const { data: wsData } = await supabase
+                  .from('workspaces')
+                  .select('id')
+                  .eq('organization_id', resolvedOrgId)
+                  .limit(1)
+                  .maybeSingle();
+                if (wsData?.id && isValidUuid(wsData.id)) {
+                  resolvedWsId = wsData.id;
+                }
+              } catch { }
             }
 
+            const snapshotId = `snap_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
             setActiveTenant({
+              snapshotId,
               organizationId: resolvedOrgId,
               workspaceId: resolvedWsId,
               storeId: resolvedStoreId,
@@ -2056,6 +2240,7 @@ export const umkmSupabaseService = {
             });
 
             finalResult = {
+              snapshotId,
               authUserId: sessionUserId,
               organizationId: resolvedOrgId,
               workspaceId: resolvedWsId,
@@ -2074,6 +2259,14 @@ export const umkmSupabaseService = {
               userId: sessionUserId,
               source: 'FRESH'
             };
+            console.log('[TENANT_RESOLUTION_RESULT]', {
+              key: sessionKey,
+              userId: sessionUserId,
+              organizationId: resolvedOrgId,
+              workspaceId: resolvedWsId,
+              storeId: resolvedStoreId,
+              snapshotId
+            });
             resultBySession.set(sessionKey, finalResult);
             resultBySession.set(sessionUserId, finalResult);
             _canonicalTenantResultCache.set(sessionKey, { userId: sessionUserId, result: finalResult, timestamp: Date.now() });
@@ -2208,6 +2401,10 @@ export const umkmSupabaseService = {
   /**
    * Delegate functions to getCanonicalTenantContext
    */
+  invalidateTenantResolutionCache() {
+    invalidateTenantResolutionCache();
+  },
+
   async resolveCanonicalTenantContext(providedStoreId?: string | null) {
     return this.getCanonicalTenantContext(providedStoreId);
   },

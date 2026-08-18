@@ -50,6 +50,12 @@ export function assertCanonicalTenantContext(ctx: {
   if (!workspaceId || !isValidUuid(workspaceId)) {
     throw new Error(`TENANT_CONTEXT_INCOMPLETE: Invalid or missing workspaceId UUID (value: "${workspaceId || ''}")`);
   }
+  if (organizationId === storeId) {
+    throw new Error(`TENANT_CONTEXT_CORRUPTED: organizationId ("${organizationId}") must not equal storeId`);
+  }
+  if (workspaceId === storeId) {
+    throw new Error(`TENANT_CONTEXT_CORRUPTED: workspaceId ("${workspaceId}") must not equal storeId`);
+  }
 
   return {
     userId,
@@ -59,15 +65,17 @@ export function assertCanonicalTenantContext(ctx: {
   };
 }
 
-export type StoreReadinessStatus = 
-  | 'loading' 
-  | 'ready' 
-  | 'unavailable' 
-  | 'error' 
-  | 'rpc_schema_error' 
+export type StoreReadinessStatus =
+  | 'loading'
+  | 'ready'
+  | 'unavailable'
+  | 'error'
+  | 'rpc_schema_error'
   | 'store_context_unavailable';
 
 export interface TenantIds {
+  /** Unique snapshot trace ID to verify tenant alignment across async boundaries */
+  snapshotId?: string;
   /** Primary tenant isolation boundary (canonical) */
   organizationId: string;
   /** Sub-scope isolation within organization */
@@ -85,9 +93,12 @@ export interface TenantIds {
   /** Verification status flags for hard gate checks */
   verified?: boolean;
   tenantVerified?: boolean;
+  /** Monotonic snapshot version counter */
+  version?: number;
 }
 
 export interface TenantSnapshot {
+  snapshotId?: string;
   userId: string;
   organizationId: string;
   storeId: string | null;
@@ -121,22 +132,35 @@ export function resolveTenantFromUser(
     };
   }
   const email = userEmail.toLowerCase().trim();
-  
+
   // Resolve canonical account type from verified persistence / session if tenantType not explicitly provided
   const resolvedAccType = getVerifiedAccountType(email);
   const effectiveTenantType: TenantType = tenantType || (resolvedAccType === 'ENTERPRISE' ? 'enterprise' : 'umkm');
 
   const storedStoreId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_store_id') : null;
-  const effectiveStoreId = isValidUuid(_activeTenant.storeId) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
-  const effectiveStoreStatus: StoreReadinessStatus = effectiveStoreId ? 'ready' : (_activeTenant.storeStatus || 'loading');
+  const storedOrgId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_org_id') : null;
+  const storedWsId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_workspace_id') : null;
 
-  const isStoreReady = effectiveStoreStatus === 'ready' && Boolean(effectiveStoreId);
+  const effectiveStoreId = isValidUuid(_activeTenant.storeId) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
+  let effectiveOrgId = (isValidUuid(_activeTenant.organizationId) && _activeTenant.organizationId !== UNRESOLVED_ORG) ? _activeTenant.organizationId : (isValidUuid(storedOrgId) ? storedOrgId! : '');
+  let effectiveWsId = (isValidUuid(_activeTenant.workspaceId) && _activeTenant.workspaceId !== UNRESOLVED_WS) ? _activeTenant.workspaceId : (isValidUuid(storedWsId) ? storedWsId! : '');
+
+  if (!effectiveOrgId || !isValidUuid(effectiveOrgId) || effectiveOrgId === effectiveStoreId) {
+    effectiveOrgId = UNRESOLVED_ORG;
+  }
+  if (!effectiveWsId || !isValidUuid(effectiveWsId) || effectiveWsId === effectiveStoreId || effectiveWsId === effectiveOrgId) {
+    effectiveWsId = UNRESOLVED_WS;
+  }
+
+  const effectiveStoreStatus: StoreReadinessStatus = (effectiveStoreId && isValidUuid(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS) ? 'ready' : (_activeTenant.storeStatus || 'loading');
+
+  const isStoreReady = effectiveStoreStatus === 'ready' && Boolean(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS;
 
   // SuperAdmin detection (platform control plane)
   if (email.endsWith('@zegaai.site') || email.endsWith('@zeroclaw.ai')) {
     return {
-      organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
-      workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+      organizationId: effectiveOrgId,
+      workspaceId: effectiveWsId,
       storeId: effectiveStoreId,
       tenantType: 'superadmin',
       userEmail: email,
@@ -150,8 +174,8 @@ export function resolveTenantFromUser(
   // Enterprise detection
   if (effectiveTenantType === 'enterprise') {
     return {
-      organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
-      workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+      organizationId: effectiveOrgId,
+      workspaceId: effectiveWsId,
       storeId: effectiveStoreId,
       tenantType: 'enterprise',
       userEmail: email,
@@ -164,8 +188,8 @@ export function resolveTenantFromUser(
 
   // UMKM tenant — starts unresolved until verified from database catalog
   return {
-    organizationId: _activeTenant.organizationId || UNRESOLVED_ORG,
-    workspaceId: _activeTenant.workspaceId || UNRESOLVED_WS,
+    organizationId: effectiveOrgId,
+    workspaceId: effectiveWsId,
     storeId: effectiveStoreId,
     tenantType: 'umkm',
     userEmail: email,
@@ -185,16 +209,16 @@ type TenantChangeListener = () => void;
 const _tenantChangeListeners = new Set<TenantChangeListener>();
 
 function notifyTenantChanged(): void {
-  _tenantChangeListeners.forEach(listener => { try { listener(); } catch {} });
+  _tenantChangeListeners.forEach(listener => { try { listener(); } catch { } });
 }
 
-function subscribeTenantChanges(listener: TenantChangeListener): () => void {
+export function subscribeTenantChanges(listener: TenantChangeListener): () => void {
   _tenantChangeListeners.add(listener);
   return () => { _tenantChangeListeners.delete(listener); };
 }
 
 
-export type AuthorizedUmkmContextStatus = 
+export type AuthorizedUmkmContextStatus =
   | 'BOOTING'
   | 'AUTHENTICATING'
   | 'AUTHENTICATED'
@@ -282,7 +306,7 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
         const parsed = JSON.parse(mockStr);
         return parsed?.email || parsed?.user?.email || null;
       }
-    } catch {}
+    } catch { }
     return null;
   })();
 
@@ -299,25 +323,46 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
     return unsub;
   }, []);
 
+  const isResolvingTenantRef = React.useRef(false);
+
   useEffect(() => {
-    setActiveTenant(tenant);
     const authBridge = getAuthBridgeState();
+    const isSettledReady = _activeTenant.storeStatus === 'ready' && isValidUuid(_activeTenant.storeId) && isValidUuid(_activeTenant.organizationId) && isValidUuid(_activeTenant.workspaceId);
+
     if (authBridge.authState === 'AUTH_INITIALIZING' || !authBridge.supabaseSessionReady) {
       console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_INITIALIZING.');
       return;
     }
     if (authBridge.authState === 'AUTH_REQUIRED' || !effectiveEmail) {
       console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_REQUIRED.');
-      updateActiveTenantStore(null, 'unavailable');
+      if (!isSettledReady) {
+        updateActiveTenantStore(null, 'unavailable');
+      }
       return;
     }
-    if (effectiveEmail && _activeTenant.storeStatus !== 'ready' && _activeTenant.storeStatus !== 'unavailable' && _activeTenant.storeStatus !== 'error') {
+
+    // Only update active tenant if not settled ready and active tenant identity differs
+    if (!isSettledReady && (_activeTenant.userEmail !== tenant.userEmail || !_activeTenant.userId)) {
+      setActiveTenant(tenant);
+    }
+
+    if (isSettledReady) {
+      isResolvingTenantRef.current = false;
+      return;
+    }
+
+    const isContextIncomplete = !isValidUuid(_activeTenant.organizationId) || _activeTenant.organizationId === UNRESOLVED_ORG || !isValidUuid(_activeTenant.workspaceId) || _activeTenant.workspaceId === UNRESOLVED_WS || !_activeTenant.storeId;
+    if (effectiveEmail && !isResolvingTenantRef.current && (isContextIncomplete || (_activeTenant.storeStatus !== 'ready' && _activeTenant.storeStatus !== 'unavailable' && _activeTenant.storeStatus !== 'error'))) {
+      isResolvingTenantRef.current = true;
       import('../services/umkmSupabaseService').then(({ umkmSupabaseService }) => {
         umkmSupabaseService.getCanonicalTenantContext().catch(err => {
           console.warn('[TenantProvider] Asynchronous tenant resolution warning:', err);
+        }).finally(() => {
+          isResolvingTenantRef.current = false;
         });
       }).catch(err => {
         console.warn('[TenantProvider] Dynamic import warning:', err);
+        isResolvingTenantRef.current = false;
       });
     }
   }, [tenant, effectiveEmail]);
@@ -333,7 +378,7 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
 
     const effectiveOrgId = orgValid ? currentTenant.organizationId : UNRESOLVED_ORG;
     const effectiveWsId = wsValid ? currentTenant.workspaceId : UNRESOLVED_WS;
-    
+
     // DECOUPLED: authReady derived SOLELY from canonical auth bridge, NOT from tenant state
     const authReady = authBridge.authState === 'AUTH_READY';
 
@@ -372,7 +417,7 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
       storeReady: storeValid,
       provisionStore: provisionUmkmStore
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant, userEmail, tenantVersion]);
 
   return (
@@ -388,6 +433,12 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
 // Service Layer Helpers (non-React, for use inside supabaseService.ts)
 // ============================================================================
 
+let _tenantGeneration = 1;
+
+export function getTenantGeneration(): number {
+  return _tenantGeneration;
+}
+
 /** 
  * Singleton tenant state for service layer (set by TenantProvider on mount).
  * This avoids requiring React hooks inside service functions.
@@ -399,7 +450,8 @@ let _activeTenant: TenantIds = {
   tenantType: 'umkm',
   userEmail: '',
   userId: '',
-  storeStatus: 'unavailable'
+  storeStatus: 'unavailable',
+  version: 1
 };
 
 /** Called by TenantProvider to sync active tenant to service layer & Supabase REST headers */
@@ -411,7 +463,8 @@ export function setActiveTenant(tenant: TenantIds): void {
     (!_activeTenant.userId || !tenant.userId);
 
   if (!isSameUser) {
-    console.log('[TENANT_RESOLVER] User changed — invalidating cache and resetting tenant state:', {
+    _tenantGeneration++;
+    console.log('[TENANT_RESOLVER] User changed — incrementing tenantGeneration to', _tenantGeneration, {
       prevUser: _activeTenant.userId || _activeTenant.userEmail,
       newUser: tenant.userId || tenant.userEmail
     });
@@ -422,31 +475,32 @@ export function setActiveTenant(tenant: TenantIds): void {
       tenantType: tenant.tenantType,
       userEmail: tenant.userEmail,
       userId: tenant.userId,
-      storeStatus: 'loading'
+      storeStatus: 'loading',
+      version: _tenantGeneration
     };
     // Invalidate resolver cache on user switch (dynamic import to avoid circular dependency)
     import('../services/umkmSupabaseService').then(({ invalidateTenantResolutionCache }) => {
       invalidateTenantResolutionCache();
-    }).catch(() => {});
+    }).catch(() => { });
     notifyTenantChanged();
+    return;
   }
 
-  // Monotonic state guard: Do not overwrite an existing settled tenant state ('ready' or 'unavailable') with unresolved/loading state for the same user
-  const isExistingSettled = (_activeTenant.storeStatus === 'ready' || _activeTenant.storeStatus === 'unavailable') && !!_activeTenant.userId;
-  const isIncomingUnresolved = (!tenant.organizationId || tenant.organizationId === UNRESOLVED_ORG) || tenant.storeStatus === 'loading' || !tenant.storeId;
+  // Monotonic state guard: An active READY tenant snapshot is IMMUTABLE for the duration of the user session.
+  // Rejects any attempt to overwrite an existing READY state with loading, unavailable, or unresolved states.
+  const isCurrentReady = _activeTenant.storeStatus === 'ready' && isValidUuid(_activeTenant.storeId) && isValidUuid(_activeTenant.organizationId) && isValidUuid(_activeTenant.workspaceId);
+  const isIncomingReady = tenant.storeStatus === 'ready' && isValidUuid(tenant.storeId) && isValidUuid(tenant.organizationId) && isValidUuid(tenant.workspaceId);
 
-  if (isExistingSettled && isIncomingUnresolved && isSameUser) {
-    console.log('[TENANT_RESOLVER] [CONTEXT_OVERWRITE_ATTEMPT] Ignored attempt to overwrite settled tenant state with unresolved state', {
+  if (isCurrentReady && !isIncomingReady && isSameUser) {
+    console.log('[TENANT_RESOLVER] [CONTEXT_OVERWRITE_ATTEMPT] Blocked regression of READY tenant snapshot:', {
       existingStoreId: _activeTenant.storeId,
-      existingStoreStatus: _activeTenant.storeStatus,
+      existingOrgId: _activeTenant.organizationId,
+      existingWsId: _activeTenant.workspaceId,
       incomingStoreStatus: tenant.storeStatus
     });
+    // Retain full READY snapshot, only merging optional metadata updates
     _activeTenant = {
-      ...tenant,
-      organizationId: _activeTenant.organizationId,
-      workspaceId: _activeTenant.workspaceId,
-      storeId: _activeTenant.storeId,
-      storeStatus: _activeTenant.storeStatus,
+      ..._activeTenant,
       userEmail: tenant.userEmail || _activeTenant.userEmail,
       userId: _activeTenant.userId || tenant.userId
     };
@@ -480,7 +534,7 @@ export function updateActiveTenantStore(storeId: string | null, storeStatus: Sto
   if (isTargetValid && typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem('zega_active_store_id', targetStoreId!);
-    } catch {}
+    } catch { }
   }
 
   const effectiveUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || '';
@@ -502,6 +556,11 @@ export function updateActiveTenantOrg(organizationId: string): void {
     ..._activeTenant,
     organizationId
   };
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('zega_active_org_id', organizationId);
+    }
+  } catch { }
   setSupabaseTenantHeader(organizationId);
   notifyTenantChanged();
 }
@@ -513,6 +572,11 @@ export function updateActiveTenantWorkspace(workspaceId: string): void {
     ..._activeTenant,
     workspaceId
   };
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('zega_active_workspace_id', workspaceId);
+    }
+  } catch { }
   notifyTenantChanged();
 }
 
@@ -573,13 +637,39 @@ export function getTenantSnapshot(): TenantSnapshot {
   const orgValid = !!current.organizationId && current.organizationId !== UNRESOLVED_ORG && isValidUuid(current.organizationId);
   const effectiveOrgId = orgValid ? current.organizationId : UNRESOLVED_ORG;
   const state: AuthorizedUmkmContextStatus = storeValid ? 'READY' : (current.storeStatus === 'loading' ? 'TENANT_RESOLVING' : 'ONBOARDING_REQUIRED');
-  
-  return {
+
+  return Object.freeze({
+    snapshotId: current.snapshotId,
     userId: current.userId,
     organizationId: effectiveOrgId,
     storeId: current.storeId,
     tenantState: state,
     tenantVerified: storeValid,
-    version: Date.now()
-  };
+    version: current.version || Date.now()
+  });
 }
+
+export interface CanonicalRequestContext {
+  userId: string;
+  organizationId: string;
+  workspaceId: string;
+  storeId: string;
+  tenantMode: TenantType;
+  authGeneration: number;
+}
+
+/** Get immutable canonical request context for hot path execution */
+export function getCanonicalRequestContext(): CanonicalRequestContext | null {
+  const t = _activeTenant;
+  const isReady = t.storeStatus === 'ready' && isValidUuid(t.storeId) && isValidUuid(t.organizationId) && isValidUuid(t.workspaceId) && isValidUuid(t.userId);
+  if (!isReady) return null;
+  return Object.freeze({
+    userId: t.userId,
+    organizationId: t.organizationId,
+    workspaceId: t.workspaceId,
+    storeId: t.storeId!,
+    tenantMode: t.tenantType,
+    authGeneration: _tenantGeneration
+  });
+}
+

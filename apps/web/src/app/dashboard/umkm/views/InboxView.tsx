@@ -303,7 +303,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
         name: file.name,
         size: formattedSize,
         type: file.type || 'Dokumen',
-        url: res.cdnUrl
+        url: res.cdnUrl || undefined
       });
       triggerToast(`Dokumen terlampir via CDN 📎`);
     }
