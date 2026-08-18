@@ -846,7 +846,11 @@ export async function ensureStoreForCurrentUser(params?: {
       });
 
       // 1. Primary Backend-Canonical Store Provisioning via ZEGA Fastify Backend
-      const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+      const envApiBase = (import.meta.env.VITE_API_BASE_URL as string) || (import.meta.env.VITE_API_URL as string);
+      const isProdHost = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
+      const apiBase = (isProdHost && (!envApiBase || envApiBase.includes('localhost')))
+        ? 'https://zega-ai.onrender.com'
+        : (envApiBase || (typeof window !== 'undefined' && window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://zega-ai.onrender.com'));
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
 
       try {

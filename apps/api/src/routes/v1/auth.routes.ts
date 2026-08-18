@@ -543,30 +543,42 @@ export async function authRoutes(app: FastifyInstance) {
     const supabaseAdmin = SupabaseService.getClient();
     if (supabaseAdmin) {
       try {
-        // 1. Strictly query auth.users via Supabase Auth Admin API first
-        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-        const found = existingUser?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
-        if (found) {
-          supabaseAuthUserId = found.id;
-        } else {
-          // 2. Query public.users.auth_user_id (NOT public.users.id!)
-          const { data: dbUserRow } = await supabaseAdmin
-            .from('users')
-            .select('auth_user_id')
-            .eq('email', normalizedEmail)
-            .maybeSingle();
+        // 1. Query existing public.users record for valid auth_user_id mapping
+        const { data: dbUserRow } = await supabaseAdmin
+          .from('users')
+          .select('id, auth_user_id')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
 
-          if (dbUserRow?.auth_user_id && isValidUuid(dbUserRow.auth_user_id)) {
-            supabaseAuthUserId = dbUserRow.auth_user_id;
-          } else {
-            // 3. Create real auth.users principal if missing
-            const { data: created } = await supabaseAdmin.auth.admin.createUser({
-              email: normalizedEmail,
-              email_confirm: true,
-              user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
-            });
-            if (created?.user?.id) {
-              supabaseAuthUserId = created.user.id;
+        if (dbUserRow?.auth_user_id && isValidUuid(dbUserRow.auth_user_id)) {
+          supabaseAuthUserId = dbUserRow.auth_user_id;
+        }
+
+        // 2. Query auth.users via Supabase Auth Admin listUsers
+        if (!supabaseAuthUserId) {
+          try {
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+            const found = listData?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
+            if (found?.id && isValidUuid(found.id)) {
+              supabaseAuthUserId = found.id;
+            }
+          } catch { /* listUsers non-blocking */ }
+        }
+
+        // 3. Fallback: listUsers or createUser in auth.users
+        if (!supabaseAuthUserId) {
+          const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+            email: normalizedEmail,
+            email_confirm: true,
+            user_metadata: { source: 'privy_auto_sync', full_name: body.fullName || normalizedEmail }
+          });
+          if (created?.user?.id && isValidUuid(created.user.id)) {
+            supabaseAuthUserId = created.user.id;
+          } else if (createErr) {
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+            const found = listData?.users?.find(u => u.email?.toLowerCase().trim() === normalizedEmail);
+            if (found?.id) {
+              supabaseAuthUserId = found.id;
             }
           }
         }
@@ -583,6 +595,20 @@ export async function authRoutes(app: FastifyInstance) {
     });
 
     const userId = (isValidUuid(supabaseAuthUserId) ? supabaseAuthUserId : (isValidUuid(dbProfile?.id) ? dbProfile.id : crypto.randomUUID())) as string;
+
+    // Ensure public.users row has matching auth_user_id mapped to auth.users.id
+    if (supabaseAdmin && isValidUuid(supabaseAuthUserId)) {
+      try {
+        await supabaseAdmin.from('users').upsert({
+          auth_user_id: supabaseAuthUserId,
+          email: normalizedEmail,
+          full_name: body.fullName || normalizedEmail.split('@')[0],
+          role: derivedRole === 'superadmin' ? 'enterprise' : derivedRole
+        }, { onConflict: 'auth_user_id' });
+      } catch (e: any) {
+        console.warn('[PRIVY_SYNC] Public user auth_user_id sync note:', e?.message);
+      }
+    }
 
     // Issue signed JWT access token for Fastify app route authorization
     const accessToken = app.jwt.sign(
