@@ -743,31 +743,80 @@ export async function ensureStoreForCurrentUser(params?: {
         appUserReadStatus = 'IDENTITY_UNVERIFIABLE';
       }
 
-      // Re-query database for existing store belonging to canonical application user_id or email
-      const storeLookupId = appUserId || (isValidUuid(effectiveRpcUserId) ? effectiveRpcUserId : null);
-      if (storeLookupId) {
+      // Re-query database for existing store belonging to canonical application user_id, auth.uid, owner_id, or created_by
+      const candidateUserIds = Array.from(new Set([
+        appUserId,
+        effectiveRpcUserId,
+        rawUserId,
+        rpcSession?.user?.id
+      ].filter(id => isValidUuid(id)))) as string[];
+
+      if (candidateUserIds.length > 0) {
+        const storeOrFilter = candidateUserIds.flatMap(uid => [
+          `user_id.eq.${uid}`,
+          `owner_id.eq.${uid}`,
+          `created_by.eq.${uid}`
+        ]).join(',');
+
         const { data: existingStores, error: checkErr } = await supabase
           .from('umkm_stores')
-          .select('id, user_id, organization_id, workspace_id')
-          .eq('user_id', storeLookupId)
+          .select('id, user_id, organization_id, workspace_id, store_name')
+          .or(storeOrFilter)
           .order('created_at', { ascending: true })
           .limit(1);
 
         if (!checkErr && existingStores && Array.isArray(existingStores) && existingStores.length > 0 && existingStores[0]?.id) {
           const existing = existingStores[0];
+          let existingOrgId = (existing.organization_id && isValidUuid(existing.organization_id)) ? existing.organization_id : null;
           let existingWsId = (existing.workspace_id && isValidUuid(existing.workspace_id)) ? existing.workspace_id : null;
-          const existingOrgId = (existing.organization_id && isValidUuid(existing.organization_id)) ? existing.organization_id : null;
 
+          // Repair Organization ID in-place if missing
+          if (!existingOrgId) {
+            try {
+              const newOrgId = crypto.randomUUID();
+              const { error: orgInsErr } = await supabase.from('organizations').insert({
+                id: newOrgId,
+                name: `${existing.store_name || 'UMKM'} Organization`,
+                slug: `org-${existing.id.slice(0, 8)}`,
+                created_by: existing.user_id || candidateUserIds[0]
+              });
+              if (!orgInsErr) {
+                existingOrgId = newOrgId;
+                await supabase.from('umkm_stores').update({ organization_id: existingOrgId }).eq('id', existing.id);
+              }
+            } catch (orgRepairErr) {
+              console.warn('[PROVISIONING] Org repair exception:', orgRepairErr);
+            }
+          }
+
+          // Repair Workspace ID in-place if missing
           if (!existingWsId && existingOrgId) {
             try {
               const { data: wsData } = await supabase
                 .from('workspaces')
                 .select('id')
                 .eq('organization_id', existingOrgId)
+                .order('created_at', { ascending: true })
                 .limit(1)
                 .maybeSingle();
+
               if (wsData?.id && isValidUuid(wsData.id)) {
                 existingWsId = wsData.id;
+              } else {
+                const newWsId = crypto.randomUUID();
+                const { error: insWsErr } = await supabase.from('workspaces').insert({
+                  id: newWsId,
+                  organization_id: existingOrgId,
+                  name: `${existing.store_name || 'Main'} Workspace`,
+                  slug: `ws-${existingOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
+                  status: 'active'
+                });
+                if (!insWsErr) {
+                  existingWsId = newWsId;
+                }
+              }
+
+              if (existingWsId && isValidUuid(existingWsId)) {
                 await supabase.from('umkm_stores').update({ workspace_id: existingWsId }).eq('id', existing.id);
               }
             } catch (repairErr) {
@@ -1803,14 +1852,16 @@ export const umkmSupabaseService = {
         logTenantStateTransition(sessionKey, 'BOOTING', 'unavailable', 'FRESH');
 
         // In-memory active tenant check
-        const effectiveInMemoryOrgId = (active.organizationId && isValidUuid(active.organizationId) && active.organizationId !== sessionUserId) ? active.organizationId : active.storeId;
-        if (!providedStoreId && active.storeStatus === 'ready' && isValidUuid(active.storeId) && active.storeId !== sessionUserId && active.userId === sessionUserId) {
+        const effectiveInMemoryOrgId = (active.organizationId && isValidUuid(active.organizationId) && active.organizationId !== sessionUserId && active.organizationId !== active.storeId) ? active.organizationId : null;
+        const effectiveInMemoryWsId = (active.workspaceId && isValidUuid(active.workspaceId) && active.workspaceId !== sessionUserId && active.workspaceId !== active.storeId) ? active.workspaceId : null;
+
+        if (!providedStoreId && active.storeStatus === 'ready' && isValidUuid(active.storeId) && active.storeId !== sessionUserId && active.userId === sessionUserId && effectiveInMemoryOrgId && effectiveInMemoryWsId) {
           const forensic = await performReadOnlyIdentityForensicCheck();
-          if (forensic.backendVerified && isValidUuid(effectiveInMemoryOrgId)) {
+          if (forensic.backendVerified) {
             finalResult = {
               authUserId: sessionUserId,
               organizationId: effectiveInMemoryOrgId,
-              workspaceId: active.workspaceId || effectiveInMemoryOrgId,
+              workspaceId: effectiveInMemoryWsId,
               organizationStatus: 'ORG_AUTHORIZED',
               organizationReason: 'CREATOR',
               storeId: active.storeId,
@@ -1855,8 +1906,27 @@ export const umkmSupabaseService = {
         if (!storeErr && rawFetchedRows.length > 0 && rawFetchedRows[0]?.id && isValidUuid(rawFetchedRows[0].id) && rawFetchedRows[0].id !== sessionUserId) {
           const store = rawFetchedRows[0];
           const resolvedStoreId = store.id;
-          const resolvedOrgId = (store.organization_id && isValidUuid(store.organization_id) && store.organization_id !== sessionUserId) ? store.organization_id : null;
-          let resolvedWsId = (store.workspace_id && isValidUuid(store.workspace_id) && store.workspace_id !== sessionUserId) ? store.workspace_id : null;
+          let resolvedOrgId = (store.organization_id && isValidUuid(store.organization_id) && store.organization_id !== sessionUserId && store.organization_id !== resolvedStoreId) ? store.organization_id : null;
+          let resolvedWsId = (store.workspace_id && isValidUuid(store.workspace_id) && store.workspace_id !== sessionUserId && store.workspace_id !== resolvedStoreId) ? store.workspace_id : null;
+
+          // Repair Organization ID in-place if missing
+          if (!resolvedOrgId) {
+            try {
+              const newOrgId = crypto.randomUUID();
+              const { error: insertOrgErr } = await supabase.from('organizations').insert({
+                id: newOrgId,
+                name: `${store.store_name || 'UMKM'} Organization`,
+                slug: `org-${resolvedStoreId.slice(0, 8)}`,
+                created_by: store.user_id || sessionUserId
+              });
+              if (!insertOrgErr) {
+                resolvedOrgId = newOrgId;
+                await supabase.from('umkm_stores').update({ organization_id: resolvedOrgId }).eq('id', resolvedStoreId);
+              }
+            } catch (orgErr) {
+              console.warn('[TENANT_RESOLVER] org repair exception:', orgErr);
+            }
+          }
 
           // If workspace_id is missing on store row, attempt lookup or auto-creation in workspaces table by organization_id
           if (!resolvedWsId && resolvedOrgId) {

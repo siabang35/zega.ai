@@ -9548,15 +9548,21 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
     // 1. Build strict UUID-only OR filter for umkm_stores
     const orParts: string[] = [];
-    if (isValidUuid(canonicalUserId)) orParts.push(`user_id.eq.${canonicalUserId}`);
-    if (isValidUuid(startUserId) && startUserId !== canonicalUserId) orParts.push(`user_id.eq.${startUserId}`);
-    if (isValidUuid(providedStoreId)) orParts.push(`id.eq.${providedStoreId}`);
+    if (isValidUuid(canonicalUserId)) {
+      orParts.push(`user_id.eq.${canonicalUserId}`, `owner_id.eq.${canonicalUserId}`, `created_by.eq.${canonicalUserId}`);
+    }
+    if (isValidUuid(startUserId) && startUserId !== canonicalUserId) {
+      orParts.push(`user_id.eq.${startUserId}`, `owner_id.eq.${startUserId}`, `created_by.eq.${startUserId}`);
+    }
+    if (isValidUuid(providedStoreId)) {
+      orParts.push(`id.eq.${providedStoreId}`);
+    }
 
     if (orParts.length > 0) {
       try {
         const { data: realStores } = await supabase
           .from('umkm_stores')
-          .select('id, organization_id, workspace_id, user_id')
+          .select('id, organization_id, workspace_id, user_id, store_name')
           .or(orParts.join(','))
           .order('created_at', { ascending: true })
           .limit(1);
@@ -9579,8 +9585,63 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
     }
 
-    // 2. Auto-provision if store, organization, or workspace is missing
-    if (!isValidUuid(finalStoreId) || !isValidUuid(finalOrgId) || !isValidUuid(finalWsId)) {
+    // 2. Perform in-place Organization & Workspace repair if store/org exists but workspace_id is missing
+    if (isValidUuid(finalStoreId)) {
+      if (!isValidUuid(finalOrgId)) {
+        try {
+          const newOrgId = crypto.randomUUID();
+          const { error: insOrgErr } = await supabase.from('organizations').insert({
+            id: newOrgId,
+            name: 'UMKM Organization',
+            slug: `org-${finalStoreId.slice(0, 8)}`,
+            created_by: finalUserId || canonicalUserId
+          });
+          if (!insOrgErr) {
+            finalOrgId = newOrgId;
+            await supabase.from('umkm_stores').update({ organization_id: finalOrgId }).eq('id', finalStoreId);
+          }
+        } catch (orgRepairErr) {
+          console.warn('[resolveStoreAndWorkspaceContext] org repair error:', orgRepairErr);
+        }
+      }
+
+      if (!isValidUuid(finalWsId) && isValidUuid(finalOrgId)) {
+        try {
+          const { data: wsRow } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('organization_id', finalOrgId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (wsRow?.id && isValidUuid(wsRow.id)) {
+            finalWsId = wsRow.id;
+          } else {
+            const newWsId = crypto.randomUUID();
+            const { error: insErr } = await supabase.from('workspaces').insert({
+              id: newWsId,
+              organization_id: finalOrgId,
+              name: 'Main Workspace',
+              slug: `ws-${finalOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
+              status: 'active'
+            });
+            if (!insErr) {
+              finalWsId = newWsId;
+            }
+          }
+
+          if (isValidUuid(finalWsId) && isValidUuid(finalStoreId)) {
+            await supabase.from('umkm_stores').update({ workspace_id: finalWsId }).eq('id', finalStoreId);
+          }
+        } catch (wsRepairErr) {
+          console.warn('[resolveStoreAndWorkspaceContext] workspace repair error:', wsRepairErr);
+        }
+      }
+    }
+
+    // 3. ONLY if NO store exists at all, attempt provisioning fallback
+    if (!isValidUuid(finalStoreId)) {
       try {
         const prov = await umkmSupabaseService.ensureIndividualUmkmTenant();
         if (prov.ok && prov.storeId) {
@@ -9594,42 +9655,6 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         }
       } catch (e) {
         console.warn('[resolveStoreAndWorkspaceContext] provisioning fallback error:', e);
-      }
-    }
-
-    // 3. Resolve or create workspace_id from public.workspaces matching organization_id if missing
-    if (!isValidUuid(finalWsId) && isValidUuid(finalOrgId)) {
-      try {
-        const { data: wsRow } = await supabase
-          .from('workspaces')
-          .select('id')
-          .eq('organization_id', finalOrgId)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (wsRow?.id && isValidUuid(wsRow.id)) {
-          finalWsId = wsRow.id;
-        } else {
-          // Auto-create workspace under existing organization
-          const newWsId = crypto.randomUUID();
-          const { error: insErr } = await supabase.from('workspaces').insert({
-            id: newWsId,
-            organization_id: finalOrgId,
-            name: 'Main Workspace',
-            slug: `ws-${finalOrgId.slice(0, 8)}-${Date.now().toString(36)}`,
-            status: 'active'
-          });
-          if (!insErr) {
-            finalWsId = newWsId;
-          }
-        }
-
-        if (isValidUuid(finalWsId) && isValidUuid(finalStoreId)) {
-          await supabase.from('umkm_stores').update({ workspace_id: finalWsId }).eq('id', finalStoreId);
-        }
-      } catch (wsRepairErr) {
-        console.warn('[resolveStoreAndWorkspaceContext] workspace repair error:', wsRepairErr);
       }
     }
 
@@ -9654,9 +9679,9 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const activeTenant = getActiveTenantIds();
       const tenantCtx: any = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
       const storeId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : (isValidUuid(tenantCtx.storeId) ? tenantCtx.storeId : activeTenant.storeId);
-      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId))
+      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId) && tenantCtx.organizationId !== storeId)
         ? tenantCtx.organizationId
-        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : storeId);
+        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) && activeTenant.organizationId !== storeId ? activeTenant.organizationId : '');
 
       const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
 
@@ -10204,9 +10229,9 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const activeTenant = getActiveTenantIds();
       const tenantCtx: any = await umkmSupabaseService.getAuthenticatedTenantContext(providedStoreId);
       const storeId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : (isValidUuid(tenantCtx.storeId) ? tenantCtx.storeId : activeTenant.storeId);
-      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId))
+      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId) && tenantCtx.organizationId !== storeId)
         ? tenantCtx.organizationId
-        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) ? activeTenant.organizationId : storeId);
+        : (activeTenant.organizationId && isValidUuid(activeTenant.organizationId) && activeTenant.organizationId !== storeId ? activeTenant.organizationId : '');
 
       const isStoreReady = (tenantCtx.storeReady || activeTenant.storeStatus === 'ready') && isValidUuid(storeId);
 

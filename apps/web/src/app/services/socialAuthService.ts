@@ -81,7 +81,9 @@ export class SocialAuthService {
       provider: 'google',
     });
 
-    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ||
+      (import.meta.env.VITE_API_URL as string) ||
+      (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
     const targetUrl = `${apiBase}/v1/auth/google`;
 
     console.log('[GOOGLE_BACKEND_OAUTH_START]', { targetUrl });

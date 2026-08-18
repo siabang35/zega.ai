@@ -177,7 +177,9 @@ export function PrivyAuthBridge() {
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
       if (token) {
         try {
-          const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || (window.location.origin.includes('localhost') ? 'http://localhost:3001' : '');
+          const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ||
+            (import.meta.env.VITE_API_URL as string) ||
+            (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
           const meRes = await fetch(`${apiBase}/v1/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -366,7 +368,9 @@ export function PrivyAuthBridge() {
         const walletAddress = embeddedSolana?.address || localStorage.getItem(`zega_privy_wallet_${cleanPrivyEmail}`) || undefined;
 
         // Call API endpoint to sync Privy user and generate signed Supabase JWT access token
-        const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3001' : '';
+        const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
+          (import.meta.env.VITE_API_URL as string) ||
+          (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
         const res = await fetch(`${API_BASE}/v1/auth/privy-sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
