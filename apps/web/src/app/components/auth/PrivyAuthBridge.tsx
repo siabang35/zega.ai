@@ -524,15 +524,32 @@ export function PrivyAuthBridge() {
           console.log('[PRIVY_SYNC_STATUS] READY');
 
           if (supabaseToken) {
+            // Extract authentic Google / OAuth profile details if available
+            const googleAccount = privyUser?.linkedAccounts?.find((a: any) => a.type === 'google_oauth' || a.type === 'google') as any;
+            const googleName = (privyUser as any)?.google?.name || googleAccount?.name || (privyUser as any)?.name || '';
+            const googlePicture = (privyUser as any)?.google?.picture || googleAccount?.picture || (privyUser as any)?.avatarUrl || '';
+            const derivedName = googleName || cleanPrivyEmail.split('@')[0];
+
+            if (googlePicture && typeof window !== 'undefined') {
+              localStorage.setItem('zega_user_avatar', googlePicture);
+            }
+
             // Update local storage session cache
             const mockSession = {
               user: {
                 id: userId,
                 email: cleanPrivyEmail,
-                user_metadata: { full_name: cleanPrivyEmail.split('@')[0], role, is_guest: false }
+                user_metadata: {
+                  full_name: derivedName,
+                  avatar_url: googlePicture,
+                  picture: googlePicture,
+                  role,
+                  is_guest: false
+                }
               },
               role,
-              fullName: cleanPrivyEmail.split('@')[0],
+              fullName: derivedName,
+              avatarUrl: googlePicture,
               email: cleanPrivyEmail,
               isGuest: false,
               accessToken: supabaseToken,

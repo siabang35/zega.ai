@@ -225,6 +225,8 @@ export function UmkmDashboardContainer({
   }, []);
 
   const [umkmData, setUmkmData] = useState<any>(null);
+  const [resolvedUserName, setResolvedUserName] = useState<string>(userName || 'Cik Beriuk');
+  const [resolvedUserEmail, setResolvedUserEmail] = useState<string>(userEmail || '');
   const [currentAvatar, setCurrentAvatar] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('zega_user_avatar');
@@ -234,28 +236,74 @@ export function UmkmDashboardContainer({
   });
 
   useEffect(() => {
+    if (userName && userName !== 'Cik Beriuk') {
+      setResolvedUserName(userName);
+    }
+    if (userEmail) {
+      setResolvedUserEmail(userEmail);
+    }
     if (userAvatar) {
       setCurrentAvatar(userAvatar);
       if (typeof window !== 'undefined') {
         localStorage.setItem('zega_user_avatar', userAvatar);
       }
     }
-  }, [userAvatar]);
+  }, [userName, userEmail, userAvatar]);
+
+  // Google / Gmail User Profile Auto-Synchronization Engine
+  useEffect(() => {
+    async function syncGoogleUserProfile() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const u = session?.user;
+        if (u) {
+          const gName = u.user_metadata?.full_name || u.user_metadata?.name;
+          const gAvatar = u.user_metadata?.avatar_url || u.user_metadata?.picture;
+          const gEmail = u.email;
+          if (gName) setResolvedUserName(gName);
+          if (gEmail) setResolvedUserEmail(gEmail);
+          if (gAvatar) {
+            setCurrentAvatar(gAvatar);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('zega_user_avatar', gAvatar);
+            }
+          }
+        } else if (typeof window !== 'undefined') {
+          const mockStr = localStorage.getItem('zega_mock_session');
+          if (mockStr) {
+            const parsed = JSON.parse(mockStr);
+            const gName = parsed.fullName || parsed.user?.user_metadata?.full_name || parsed.user?.user_metadata?.name;
+            const gAvatar = parsed.avatarUrl || parsed.user?.user_metadata?.avatar_url || parsed.user?.user_metadata?.picture;
+            const gEmail = parsed.email || parsed.user?.email;
+            if (gName) setResolvedUserName(gName);
+            if (gEmail) setResolvedUserEmail(gEmail);
+            if (gAvatar) {
+              setCurrentAvatar(gAvatar);
+              localStorage.setItem('zega_user_avatar', gAvatar);
+            }
+          }
+        }
+      } catch (err) { /* non-blocking */ }
+    }
+    syncGoogleUserProfile();
+  }, [userEmail]);
 
   // Multi-Tenant Context Sync: resolve tenant from user and sync to service layer safely
   useEffect(() => {
     const active = getActiveTenantIds();
+    const effectiveEmail = resolvedUserEmail || userEmail;
     const isSettledReady = active.storeStatus === 'ready' && isValidUuid(active.storeId) && isValidUuid(active.organizationId) && isValidUuid(active.workspaceId);
-    if (!isSettledReady || (userEmail && active.userEmail && active.userEmail.toLowerCase() !== userEmail.toLowerCase())) {
-      const tenant = resolveTenantFromUser(userEmail, 'umkm');
+    if (!isSettledReady || (effectiveEmail && active.userEmail && active.userEmail.toLowerCase() !== effectiveEmail.toLowerCase())) {
+      const tenant = resolveTenantFromUser(effectiveEmail, 'umkm');
       setActiveTenant(tenant);
     }
-  }, [userEmail]);
+  }, [userEmail, resolvedUserEmail]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [whatsNewList, setWhatsNewList] = useState<any[]>([]);
   const [inboxUnreadBadge, setInboxUnreadBadge] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showMoreMobileTools, setShowMoreMobileTools] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -1366,12 +1414,12 @@ export function UmkmDashboardContainer({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{resolvedUserName}</span>
                       <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 shrink-0">
                         Owner
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{userEmail}</p>
+                    <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{resolvedUserEmail || userEmail}</p>
                   </div>
                 </div>
 
@@ -1405,7 +1453,7 @@ export function UmkmDashboardContainer({
               <div
                 onClick={() => setActiveTab('billing')}
                 className="p-2 rounded-2xl bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex flex-col items-center justify-center cursor-pointer group relative"
-                title={`${userName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
+                title={`${resolvedUserName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
               >
                 <img
                   src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
@@ -1786,7 +1834,7 @@ export function UmkmDashboardContainer({
                     className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                   />
                   <div className="text-left hidden sm:block">
-                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-none">{userName}</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 leading-none">{resolvedUserName}</p>
                     <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Owner</p>
                   </div>
                   <ChevronDown size={13} className="text-slate-400 hidden sm:block" />
@@ -1808,8 +1856,8 @@ export function UmkmDashboardContainer({
                           className="size-9 rounded-full object-cover border border-orange-400 shrink-0"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                          <p className="text-[10px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                          <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{resolvedUserName}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold truncate">{resolvedUserEmail || userEmail}</p>
                         </div>
                       </div>
 
@@ -1884,16 +1932,16 @@ export function UmkmDashboardContainer({
                 )}
               </div>
 
-              {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Only) */}
+              {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Only - Mobile controls live in Drawer/Profile) */}
               <button
                 onClick={() => setDark(!dark)}
-                className="p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer hidden sm:flex shrink-0"
+                className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
                 title="Toggle Dark Mode"
               >
                 {dark ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <div className="hidden sm:block shrink-0">
-                <LanguageSelector />
+              <div className="hidden sm:flex shrink-0">
+                <LanguageSelector compact />
               </div>
             </div>
           </header>
@@ -1902,8 +1950,8 @@ export function UmkmDashboardContainer({
           <div className="p-3 sm:p-4 md:p-6 flex-1 pb-24 md:pb-6">
             <UmkmDashboardView
               activeTab={activeTab}
-              userName={userName}
-              userEmail={userEmail}
+              userName={resolvedUserName}
+              userEmail={resolvedUserEmail || userEmail}
               isGuest={isGuest}
               onNavigateTab={setActiveTab}
               onOpenSearch={() => setIsSearchOpen(true)}
@@ -1916,62 +1964,62 @@ export function UmkmDashboardContainer({
             />
           </div>
 
-          {/* MOBILE BOTTOM NAVIGATION DOCK (App-like Mobile UX) */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 backdrop-blur-md px-2 py-1.5 flex justify-around items-center shadow-lg">
+          {/* MOBILE BOTTOM NAVIGATION DOCK (Seamless App-like Mobile UX) */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200/80 dark:border-slate-800/80 backdrop-blur-lg px-1 py-1.5 flex justify-around items-center shadow-lg">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer ${activeTab === 'overview' || activeTab === 'home' || activeTab === 'umkm'
+                ? 'text-orange-500 font-black scale-105'
+                : 'text-slate-400 font-semibold hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
-              <LayoutDashboard size={20} />
-              <span className="text-[9.5px]">Beranda</span>
+              <LayoutDashboard size={19} />
+              <span className="text-[10px] tracking-tight">{language === 'en' ? 'Overview' : language === 'zh' ? '概览' : 'Beranda'}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('my_agents')}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer ${activeTab === 'my_agents' || activeTab === 'my_ai_employees'
+                ? 'text-orange-500 font-black scale-105'
+                : 'text-slate-400 font-semibold hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
-              <Bot size={20} />
-              <span className="text-[9.5px]">AI Agent</span>
+              <Bot size={19} />
+              <span className="text-[10px] tracking-tight">{language === 'en' ? 'AI Agents' : language === 'zh' ? 'AI 员工' : 'AI Agent'}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('inbox')}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer relative ${activeTab === 'inbox' || activeTab === 'wa_bot'
+                ? 'text-orange-500 font-black scale-105'
+                : 'text-slate-400 font-semibold hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
-              <MessageSquare size={20} />
-              <span className="text-[9.5px]">Inbox</span>
-              <span className="absolute top-1 right-2 size-2 rounded-full bg-rose-500 animate-pulse" />
+              <MessageSquare size={19} />
+              <span className="text-[10px] tracking-tight">{language === 'en' ? 'Inbox' : language === 'zh' ? '收件箱' : 'Inbox'}</span>
+              <span className="absolute top-1 right-2 size-2 rounded-full bg-rose-500 animate-pulse ring-2 ring-white dark:ring-slate-900" />
             </button>
 
             <button
               onClick={() => setActiveTab('store')}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer ${activeTab === 'store'
+                ? 'text-orange-500 font-black scale-105'
+                : 'text-slate-400 font-semibold hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
-              <Store size={20} />
-              <span className="text-[9.5px]">Toko</span>
+              <Store size={19} />
+              <span className="text-[10px] tracking-tight">{language === 'en' ? 'Store' : language === 'zh' ? '店铺' : 'Toko'}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
-                ? 'text-orange-500 font-extrabold scale-105'
-                : 'text-slate-400 font-medium hover:text-slate-600'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer ${activeTab === 'settings'
+                ? 'text-orange-500 font-black scale-105'
+                : 'text-slate-400 font-semibold hover:text-slate-600 dark:hover:text-slate-300'
                 }`}
             >
-              <Settings size={20} />
-              <span className="text-[9.5px]">Pengaturan</span>
+              <Settings size={19} />
+              <span className="text-[10px] tracking-tight">{language === 'en' ? 'Settings' : language === 'zh' ? '设置' : 'Pengaturan'}</span>
             </button>
           </div>
         </main>
@@ -1993,7 +2041,7 @@ export function UmkmDashboardContainer({
                   <img
                     src={getR2CdnUrl('/assets/logo/zegalogo.png')}
                     alt="ZEGA AI Platform"
-                    className="h-8.5 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
+                    className="h-8 w-auto object-contain [filter:none] dark:[filter:invert(1)_hue-rotate(180deg)]"
                   />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
@@ -2011,57 +2059,69 @@ export function UmkmDashboardContainer({
                 {/* Mobile Profile Banner inside Drawer */}
                 <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5">
                   <img
-                    src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces"
+                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
                     alt="Profile"
                     className="size-8.5 rounded-full object-cover border border-orange-400 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{userName}</p>
-                    <p className="text-[9.5px] text-slate-400 font-semibold truncate">{userEmail}</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{resolvedUserName}</p>
+                    <p className="text-[9.5px] text-slate-400 font-semibold truncate">{resolvedUserEmail || userEmail}</p>
                   </div>
                 </div>
 
-                {/* Navigation Category Groups */}
+                {/* Navigation Category Groups - Fully Localized & Seamless */}
                 <div className="space-y-4">
-                  {navigationCategories.map((cat, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
-                        {cat.title}
+                  {navigationCategories.map((cat, idx) => {
+                    const catTitleLocalized =
+                      cat.title === 'OVERVIEW' || cat.title === 'RINGKASAN'
+                        ? (language === 'en' ? 'OVERVIEW' : language === 'zh' ? '概览' : 'RINGKASAN')
+                        : cat.title === 'BUSINESS' || cat.title === 'BISNIS'
+                        ? (language === 'en' ? 'BUSINESS' : language === 'zh' ? '业务' : 'BISNIS')
+                        : cat.title === 'SETTINGS' || cat.title === 'PENGATURAN'
+                        ? (language === 'en' ? 'SETTINGS' : language === 'zh' ? '设置' : 'PENGATURAN')
+                        : cat.title;
+
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                          {catTitleLocalized}
+                        </div>
+                        {cat.items.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                setActiveTab(item.id);
+                                setMobileMenuOpen(false);
+                                triggerToast(`✓ Membuka ${item.label}`);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
+                                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                <span>{item.label}</span>
+                              </div>
+                              {(item as any).badge && (
+                                <span className="text-[9.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
+                                  {(item as any).badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
-                      {cat.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeTab === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => {
-                              setActiveTab(item.id);
-                              setMobileMenuOpen(false);
-                              triggerToast(`✓ Membuka ${item.label}`);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${isActive
-                              ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                              }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icon size={17} className={isActive ? 'text-white' : 'text-slate-400'} />
-                              <span>{item.label}</span>
-                            </div>
-                            {(item as any).badge && (
-                              <span className="text-[9.5px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
-                                {(item as any).badge}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Drawer Bottom Actions */}
+              {/* Drawer Bottom Actions - Fully Localized */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <button
                   onClick={() => {
@@ -2071,7 +2131,7 @@ export function UmkmDashboardContainer({
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
                 >
                   <HelpCircle size={16} className="text-orange-500" />
-                  <span>Pusat Bantuan</span>
+                  <span>{t.sidebarNav?.bantuan || (language === 'en' ? 'Help Center' : language === 'zh' ? '帮助中心' : 'Pusat Bantuan')}</span>
                 </button>
 
                 <button
@@ -2083,7 +2143,7 @@ export function UmkmDashboardContainer({
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer"
                 >
                   <LogOut size={16} />
-                  <span>Keluar</span>
+                  <span>{(t.sidebarNav as any)?.keluar || (t.sidebarNav as any)?.logout || (language === 'en' ? 'Sign Out' : language === 'zh' ? '退出' : 'Keluar')}</span>
                 </button>
               </div>
             </div>

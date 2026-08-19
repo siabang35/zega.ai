@@ -1049,34 +1049,37 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 <span className="hidden sm:inline">ZEGA AI</span>
               </button>
 
-              <button
-                onClick={() => setActiveModal('assignAgent')}
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
-                title={u.assignedAgent || "Tugaskan Agen CS"}
-              >
-                <UserPlus size={15} />
-              </button>
-              <button
-                onClick={() => setActiveModal('addTag')}
-                className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
-                title={u.addTag || "Tambah Tag Label"}
-              >
-                <Tag size={15} />
-              </button>
-              <button
-                onClick={async () => {
-                  const nextStar = !activeConv.is_starred;
-                  const updated = conversations.map(c => c.id === activeConv.id ? { ...c, is_starred: nextStar } : c);
-                  setConversations(updated);
-                  await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
-                  triggerToast(nextStar ? 'Percakapan ditandai bintang (Bintang)' : 'Bintang dilepas');
-                }}
-                className={`p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
-                  }`}
-                title={activeConv.is_starred ? (u.unstar || 'Lepas Bintang') : (u.markStarred || 'Tandai Bintang')}
-              >
-                <Star size={15} className={activeConv.is_starred ? 'fill-amber-500 text-amber-500' : ''} />
-              </button>
+              {/* Desktop-Only Quick Action Buttons */}
+              <div className="hidden sm:flex items-center gap-1">
+                <button
+                  onClick={() => setActiveModal('assignAgent')}
+                  className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
+                  title={u.assignedAgent || "Tugaskan Agen CS"}
+                >
+                  <UserPlus size={15} />
+                </button>
+                <button
+                  onClick={() => setActiveModal('addTag')}
+                  className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
+                  title={u.addTag || "Tambah Tag Label"}
+                >
+                  <Tag size={15} />
+                </button>
+                <button
+                  onClick={async () => {
+                    const nextStar = !activeConv.is_starred;
+                    const updated = conversations.map(c => c.id === activeConv.id ? { ...c, is_starred: nextStar } : c);
+                    setConversations(updated);
+                    await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
+                    triggerToast(nextStar ? 'Percakapan ditandai bintang (Bintang)' : 'Bintang dilepas');
+                  }}
+                  className={`p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors ${activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-600 dark:text-slate-300 hover:text-amber-500'
+                    }`}
+                  title={activeConv.is_starred ? (u.unstar || 'Lepas Bintang') : (u.markStarred || 'Tandai Bintang')}
+                >
+                  <Star size={15} className={activeConv.is_starred ? 'fill-amber-500 text-amber-500' : ''} />
+                </button>
+              </div>
 
               {/* 3-Dots Options Dropdown Button */}
               <div className="relative">
@@ -1089,7 +1092,45 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 </button>
 
                 {showMoreMenu && (
-                  <div className="absolute right-0 top-10 z-40 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 space-y-1 text-xs animate-in fade-in zoom-in-95">
+                  <div className="absolute right-0 top-10 z-40 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 space-y-1 text-xs animate-in fade-in zoom-in-95">
+                    {/* Mobile-Only Auxiliary Actions Inside Dropdown */}
+                    <div className="sm:hidden space-y-1 border-b border-slate-100 dark:border-slate-800 pb-1">
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          setActiveModal('assignAgent');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer flex items-center gap-2"
+                      >
+                        <UserPlus size={14} className="text-blue-500" />
+                        <span>{u.assignedAgent || 'Tugaskan Agen CS'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          setActiveModal('addTag');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer flex items-center gap-2"
+                      >
+                        <Tag size={14} className="text-amber-500" />
+                        <span>{u.addTag || 'Tambah Tag Label'}</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setShowMoreMenu(false);
+                          const nextStar = !activeConv.is_starred;
+                          const updated = conversations.map(c => c.id === activeConv.id ? { ...c, is_starred: nextStar } : c);
+                          setConversations(updated);
+                          await SupabaseDashboardService.toggleStarConversation(activeConv.id, nextStar);
+                          triggerToast(nextStar ? 'Percakapan ditandai bintang' : 'Bintang dilepas');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium cursor-pointer flex items-center gap-2"
+                      >
+                        <Star size={14} className={activeConv.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-400'} />
+                        <span>{activeConv.is_starred ? 'Lepas Bintang' : 'Tandai Bintang'}</span>
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => {
                         setShowMoreMenu(false);

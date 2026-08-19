@@ -2471,7 +2471,8 @@ function AppContent() {
         setDark={setDark}
         userRole={role as any}
         userEmail={session?.email || ''}
-        userName={session?.fullName || ''}
+        userName={session?.fullName || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''}
+        userAvatar={session?.avatarUrl || session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture || ''}
         isGuest={false}
         onSwitchToAdminMode={() => {
           const adminSession = {
@@ -4062,7 +4063,8 @@ function AppContent() {
             setDark={setDark}
             userRole={role}
             userEmail={session?.email || ''}
-            userName={session?.fullName || ''}
+            userName={session?.fullName || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || ''}
+            userAvatar={session?.avatarUrl || session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture || ''}
             isGuest={false}
           />
         );
