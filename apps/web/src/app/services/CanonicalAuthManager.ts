@@ -264,6 +264,36 @@ class CanonicalAuthManager {
   }
 
   /**
+   * Explicit sign-out / account switch reset helper.
+   * Forces state reset to AUTH_REQUIRED and clears identity snapshot.
+   */
+  public resetForSignOut(): void {
+    this.authGeneration++;
+    this.state = {
+      authState: 'AUTH_REQUIRED',
+      sessionState: 'SESSION_ABSENT',
+      identitySource: 'NONE',
+      canonicalUserId: null,
+      userEmail: null,
+      supabaseSessionPresent: false,
+      accessTokenPresent: false,
+      expiresAt: null,
+      session: null,
+      identityReady: false,
+      supabaseSessionReady: false,
+      externalSessionReady: false,
+      sessionProvider: 'none',
+      backendVerified: false,
+      initializationComplete: true,
+      error: 'User signed out',
+    };
+    if (typeof window !== 'undefined') {
+      delete (window as any).__ZEGA_CANONICAL_AUTH__;
+    }
+    this.notify();
+  }
+
+  /**
    * Register single global auth state change listener ONCE
    */
   private setupAuthChangeListenerOnce(): void {

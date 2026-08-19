@@ -7,8 +7,9 @@ import { enterpriseSupabaseService } from './enterpriseSupabaseService';
 import { superAdminSupabaseService } from './superAdminSupabaseService';
 import { getActiveTenantIds, updateActiveTenantStore, updateActiveTenantOrg, updateActiveTenantWorkspace } from '../contexts/TenantContext';
 
-import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+import { getAuthBridgeState, resetAuthBridgeForSignOut } from '../../components/auth/PrivyAuthBridge';
 import { purgeAllAuthSessionState } from '../../services/accountTypeManager';
+import { dashboardBootstrapCoordinator } from './DashboardBootstrapCoordinator';
 
 
 export { supabase, umkmSupabaseService, enterpriseSupabaseService, superAdminSupabaseService, isValidUuid, isVerifiedTenantContext };
@@ -353,7 +354,13 @@ export const SupabaseDashboardService = {
   async signOut() {
     try {
       await supabase.removeAllChannels().catch(() => { });
-      await supabase.auth.signOut().catch(() => { });
+      await supabase.auth.signOut({ scope: 'global' }).catch(() => { });
+
+      // Reset Canonical Auth Manager, Privy Auth Bridge, and Bootstrap Coordinator
+      try { resetAuthBridgeForSignOut(); } catch { }
+      try { canonicalAuthManager.resetForSignOut(); } catch { }
+      try { dashboardBootstrapCoordinator.reset(); } catch { }
+
       purgeAllAuthSessionState({ reason: 'USER_EXPLICIT_SIGN_OUT', source: 'supabaseService.signOut' });
       this.clearAllChatStateAndCache();
 

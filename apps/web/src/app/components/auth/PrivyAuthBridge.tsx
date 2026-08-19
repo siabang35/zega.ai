@@ -123,6 +123,43 @@ export function updateBridgeState(partial: Partial<AuthBridgeState>, isExplicitL
   _bridgeListeners.forEach((listener) => listener(_authBridgeState));
 }
 
+/**
+ * Explicit sign-out / account switch reset helper.
+ * Enforces explicit logout state and clears active auth bridge primitives.
+ */
+export function resetAuthBridgeForSignOut(): void {
+  _isExplicitLoggedOut = true;
+  _authEpoch++;
+  _authBridgeState = {
+    privyReady: true,
+    privyAuthenticated: false,
+    supabaseSessionReady: false,
+    supabaseUserId: null,
+    userEmail: null,
+    syncInFlight: false,
+    authState: 'AUTH_REQUIRED',
+    privySyncStatus: 'UNAVAILABLE',
+    privySyncError: undefined,
+  };
+
+  if (typeof window !== 'undefined') {
+    (window as any).__ZEGA_AUTH_BRIDGE__ = _authBridgeState;
+    delete (window as any).__ZEGA_CANONICAL_AUTH__;
+  }
+
+  canonicalAuthManager.updateState({
+    authState: 'AUTH_REQUIRED',
+    canonicalUserId: null,
+    userEmail: null,
+    supabaseSessionPresent: false,
+    accessTokenPresent: false,
+    backendVerified: false,
+    initializationComplete: true,
+  });
+
+  _bridgeListeners.forEach((listener) => listener(_authBridgeState));
+}
+
 function isValidUuid(val: any): boolean {
   if (!val || typeof val !== 'string') return false;
   const trimmed = val.trim();

@@ -382,7 +382,7 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
       try { localStorage.removeItem(key); } catch {}
     });
 
-    // 2. Pattern Matching LocalStorage Purge (sb-*-auth-token, zega_privy_wallet_*, zega_cache_*)
+    // 2. Pattern Matching LocalStorage Purge (sb-*-auth-token, zega_privy_wallet_*, zega_cache_*, @privy-io/*, privy:*)
     try {
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -391,7 +391,12 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
           k &&
           (k.startsWith('zega_privy_wallet_') ||
            k.startsWith('zega_cache_') ||
-           (k.startsWith('sb-') && k.endsWith('-auth-token')))
+           k.startsWith('zega:') ||
+           k.startsWith('@privy-io/') ||
+           k.startsWith('privy:') ||
+           k.startsWith('privy_') ||
+           k.startsWith('privy-') ||
+           (k.startsWith('sb-') && (k.endsWith('-auth-token') || k.includes('auth'))))
         ) {
           keysToRemove.push(k);
         }
@@ -406,6 +411,7 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
       clearPendingAuthIntent();
       sessionStorage.removeItem(SELECTED_TYPE_KEY);
       sessionStorage.removeItem(PENDING_INTENT_KEY);
+      sessionStorage.clear();
     } catch {}
 
     // 4. Cookies Purge
