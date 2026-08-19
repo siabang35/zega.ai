@@ -52,57 +52,71 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Parse URL query parameters strictly from live request
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // 🛡️ ZERO-TRUST CANONICAL INVOICE RESOLUTION BY REFERENCE
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    let isMounted = true;
+    async function loadCanonicalCheckout() {
+      if (typeof window === 'undefined') return;
+      setIsLoading(true);
+      setLoadError(null);
+
       try {
         const searchParams = new URLSearchParams(window.location.search);
         const ref = searchParams.get('reference') || searchParams.get('ref');
-        const amt = searchParams.get('amount');
-        const rawRec = searchParams.get('recipient') || searchParams.get('wallet');
-        const desc = searchParams.get('description') || searchParams.get('memo') || 'Solana Pay Invoice';
-        const targetVal = searchParams.get('target') || searchParams.get('username') || searchParams.get('phone') || '@customer';
-        const customerVal = searchParams.get('customer') || searchParams.get('user') || targetVal;
-        const ch = searchParams.get('channel') || (targetVal.startsWith('+') ? 'whatsapp' : 'telegram');
-        const tierParam = searchParams.get('tier') || 'umkm';
-        const rawCurr = (searchParams.get('currency') || searchParams.get('asset') || searchParams.get('token') || 'USDC').toUpperCase();
 
-        if (rawCurr === 'SOL' || rawCurr === 'SOLANA') {
-          setSelectedCurrency('SOL');
-        } else {
-          setSelectedCurrency('USDC');
+        if (!ref) {
+          if (isMounted) {
+            setLoadError('Alamat tagihan tidak valid: Reference key tidak ditemukan.');
+            setIsLoading(false);
+          }
+          return;
         }
 
-        if (ref && amt && rawRec && isValidBase58SolanaAddress(rawRec)) {
-          setParams({
-            reference: ref,
-            amount: amt,
-            recipient: rawRec.trim(),
-            description: desc,
-            customer: customerVal,
-            target: targetVal,
-            channel: ch,
-            tier: tierParam === 'enterprise' ? 'enterprise' : 'umkm'
-          });
-        } else {
-          const validRec = isValidBase58SolanaAddress(rawRec) ? rawRec!.trim() : PrivyWalletService.getEmbeddedSolanaWallet().address;
-          setParams({
-            reference: ref || `RefDSP_${Date.now().toString().slice(-6)}`,
-            amount: amt || '0.10',
-            recipient: validRec,
-            description: desc,
-            customer: customerVal,
-            target: targetVal,
-            channel: ch,
-            tier: tierParam === 'enterprise' ? 'enterprise' : 'umkm'
-          });
+        const apiBase = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site')
+          ? 'https://zega-ai.onrender.com'
+          : (typeof window !== 'undefined' && window.location.port === '3000' ? 'http://localhost:3001' : '');
+
+        // Fetch Canonical Invoice from Backend by Reference Key (Ignores all tampered URL parameters!)
+        const res = await fetch(`${apiBase}/v1/zeroclaw/checkout?reference=${encodeURIComponent(ref)}`);
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.canonicalInvoice) {
+            const inv = json.canonicalInvoice;
+            if (isMounted) {
+              setParams({
+                reference: inv.reference,
+                amount: String(inv.amount),
+                recipient: inv.merchant_wallet,
+                description: inv.description,
+                customer: inv.customer_target || '@customer',
+                target: inv.customer_target || '@customer',
+                channel: (inv.customer_target || '').startsWith('+') ? 'whatsapp' : 'telegram',
+                tier: inv.tenant_id && inv.tenant_id.includes('enterprise') ? 'enterprise' : 'umkm',
+              });
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // 🛡️ FAIL-CLOSED SECURITY GATE: If canonical lookup fails, DO NOT trust URL parameters for amount/recipient!
+        if (isMounted) {
+          setLoadError('Tagihan tidak ditemukan atau telah kadaluarsa di server.');
+          setIsLoading(false);
         }
       } catch (err) {
-        /* Graceful fallback */
-      } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setLoadError('Gagal memuat data tagihan dari server. Silakan muat ulang halaman.');
+          setIsLoading(false);
+        }
       }
     }
+
+    loadCanonicalCheckout();
+    return () => { isMounted = false; };
   }, []);
 
   // 5-Minute Session Countdown Effect
@@ -288,6 +302,38 @@ export function PublicCheckoutView({ onBack }: PublicCheckoutViewProps) {
     }
     setIsWalletModalOpen(false);
   };
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#060813] text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-full max-w-md bg-slate-900/90 border border-rose-500/40 rounded-3xl p-8 shadow-2xl backdrop-blur-xl flex flex-col items-center">
+          <div className="size-16 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-4 text-rose-400 border border-rose-500/30 shadow-lg">
+            <AlertTriangle className="size-8 animate-bounce" />
+          </div>
+          <h2 className="text-lg font-black text-white mb-2 uppercase tracking-wide">Tagihan Tidak Tersedia / Invalid</h2>
+          <p className="text-xs text-rose-300/90 mb-6 leading-relaxed font-medium">
+            {loadError}
+          </p>
+          <div className="w-full p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 space-y-1 text-left">
+            <div className="flex items-center gap-2 font-bold text-slate-300 mb-1">
+              <ShieldCheck className="size-4 text-emerald-400" />
+              <span>ZEGA Zero-Trust Security Policy</span>
+            </div>
+            <p>• Data tagihan hanya dapat diterbitkan oleh server terverifikasi.</p>
+            <p>• Perubahan parameter URL secara manual diabaikan demi keamanan transaksi.</p>
+          </div>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="mt-6 w-full py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all cursor-pointer"
+            >
+              Kembali
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !params) {
     return (

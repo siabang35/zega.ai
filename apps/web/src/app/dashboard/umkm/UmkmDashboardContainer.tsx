@@ -8,7 +8,7 @@ import {
   Brain, PieChart, Store, Server, Lock, Link2, CheckCircle2, Calendar,
   Megaphone, ShoppingBag, BookOpen, Building, HelpCircle, PanelLeftClose, PanelLeftOpen, Send,
   Maximize2, Minimize2, Plus, History, ArrowLeft, Trash2, TrendingUp, FileCode, Award,
-  Printer, Upload, Code, User, Cpu
+  Printer, Upload, Code, User, Cpu, Copy, Check
 } from 'lucide-react';
 
 import { UmkmDashboardView } from './UmkmDashboard';
@@ -770,6 +770,28 @@ export function UmkmDashboardContainer({
       created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
+
+  const [copiedCopilotMsgId, setCopiedCopilotMsgId] = useState<string | null>(null);
+
+  const handleCopyCopilotMessageText = (text: string, msgId: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedCopilotMsgId(msgId);
+      triggerToast('✓ Pesan ZEGA Copilot tersalin');
+      setTimeout(() => setCopiedCopilotMsgId(null), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
 
   // In-flight guard to prevent duplicate initialization under React StrictMode double mounts
   const isCopilotResolvingRef = useRef(false);
@@ -2392,11 +2414,26 @@ export function UmkmDashboardContainer({
                         )}
 
                         <div
-                          className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${msg.sender === 'user'
+                          className={`p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-sm relative group/copilot ${msg.sender === 'user'
                             ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-br-xs'
                             : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-xs'
                             }`}
                         >
+                          <div className="flex items-center justify-between gap-2 text-[9.5px] opacity-80 font-mono mb-1 font-bold">
+                            <span>{msg.sender === 'user' ? 'Anda' : 'ZEGA Copilot'}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyCopilotMessageText(msg.message, msg.id || `copilot-msg-${idx}`)}
+                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-orange-400 transition-all cursor-pointer shrink-0"
+                              title="Salin Pesan"
+                            >
+                              {copiedCopilotMsgId === (msg.id || `copilot-msg-${idx}`) ? (
+                                <Check size={12} className="text-emerald-400 font-bold" />
+                              ) : (
+                                <Copy size={12} />
+                              )}
+                            </button>
+                          </div>
                           {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <div className="whitespace-pre-line">{msg.message}</div>}
 
                           {msg.sender === 'copilot' && msg.inference_ms && (

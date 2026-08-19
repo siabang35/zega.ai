@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X, Plus, History, Search } from 'lucide-react';
+import { Sparkles, ChevronDown, Send, Bot, ShieldCheck, Activity, Cpu, Zap, RefreshCw, X, Plus, History, Search, Copy, Check } from 'lucide-react';
 import { getR2CdnUrl } from '../../../utils/cdn';
 import { getApiBase } from '../../../../config/api';
 import { SupabaseDashboardService, isValidUuid, getCanonicalAuthHeaders, isVerifiedTenantContext } from '../../services/supabaseService';
@@ -28,6 +28,27 @@ export function EnterpriseCopilot({
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [historySearch, setHistorySearch] = useState('');
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  const handleCopyMessage = (text: string, msgId: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedMsgId(msgId);
+      triggerToast('✓ Copied to clipboard');
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
 
   const getSeedMessageText = () => {
     return 'Welcome to **ZEGA Enterprise Copilot AI** 🚀. I am connected directly to your enterprise clusters, 9Router engine, and OWASP security telemetry. How can I assist with your orchestration, security audit, or cost optimization today?';
@@ -565,6 +586,21 @@ export function EnterpriseCopilot({
                           ? 'bg-indigo-600 text-white rounded-br-xs'
                           : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-xs'
                         }`}>
+                        <div className="flex items-center justify-between gap-2 text-[9.5px] opacity-80 font-mono mb-1 font-bold">
+                          <span>{msg.sender === 'user' ? 'You' : 'ZEGA Copilot'}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(msg.message, msg.id || `ent-copilot-msg-${idx}`)}
+                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-indigo-400 transition-all cursor-pointer shrink-0"
+                            title="Copy Message"
+                          >
+                            {copiedMsgId === (msg.id || `ent-copilot-msg-${idx}`) ? (
+                              <Check size={12} className="text-emerald-400 font-bold" />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </button>
+                        </div>
                         {msg.sender === 'copilot' ? renderFormattedMessage(msg.message) : <p className="text-xs">{msg.message}</p>}
 
                         {msg.sender === 'copilot' && (

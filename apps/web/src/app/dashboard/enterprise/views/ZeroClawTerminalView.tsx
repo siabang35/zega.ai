@@ -92,7 +92,7 @@ interface ZeroClawTerminalViewProps {
 
 interface ReconciledEvent {
   id: string;
-  signature: string;
+  signature?: string | null;
   referenceKey?: string;
   amount: number;
   currency: string;
@@ -2600,13 +2600,19 @@ export function ZeroClawTerminalView({
         }
       }
 
+      const isBase58TxHash = (sig?: string | null): boolean => {
+        if (!sig || typeof sig !== 'string') return false;
+        return /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(sig);
+      };
+
       const allInvEvents: ReconciledEvent[] = (generatedInvoicesHistory || [])
         .map((inv, idx) => {
           const createdIso = inv.rawCreatedAt || inv.createdAtISO || (inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString());
           const isLunas = inv.status === 'FINISHED (EXACT)' || inv.status === 'confirmed' || inv.status === 'settled' || inv.status === 'paid' || Boolean(inv.tx_signature);
+          const realSig = isBase58TxHash(inv.tx_signature) ? inv.tx_signature : null;
           return {
             id: `inv_event_${inv.id}`,
-            signature: inv.tx_signature || inv.referenceKey || `ref_${inv.id}`,
+            signature: realSig,
             referenceKey: inv.referenceKey,
             amount: parseFloat(String(inv.amount || 0)),
             currency: 'USDC',
@@ -2623,9 +2629,11 @@ export function ZeroClawTerminalView({
 
       const mappedEvents: ReconciledEvent[] = (rawData || []).map((e: any, idx: number) => {
         const createdIso = e.rawCreatedAt || e.createdAtISO || e.created_at || (e.created_at ? new Date(e.created_at).toISOString() : new Date().toISOString());
+        const rawSig = e.tx_signature || e.signature;
+        const realSig = isBase58TxHash(rawSig) ? rawSig : null;
         return {
           id: e.id || `evt_${idx}`,
-          signature: e.tx_signature || e.signature || e.reference_key || e.referenceKey || e.id,
+          signature: realSig,
           referenceKey: e.reference_key || e.referenceKey,
           amount: parseFloat(e.amount_usdc || e.amount || 0),
           currency: 'USDC',
@@ -3418,7 +3426,7 @@ export function ZeroClawTerminalView({
                   }, 60);
                 }
               }}
-              className="px-4 py-1.5 rounded-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-2 border border-slate-700 dark:border-slate-300 touch-manipulation select-none"
+              className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-700 dark:border-slate-300 touch-manipulation select-none"
               title="Swap Column Positions (Agentic Payment ↔ Manual Mode)"
             >
               <ArrowLeftRight size={13} className="text-emerald-400 dark:text-emerald-600" />
@@ -4346,11 +4354,11 @@ export function ZeroClawTerminalView({
                     }
                   }}
                   placeholder={zv.aiPromptPlaceholder || 'Type AI instruction... e.g. "Generate invoice 0.2 USDC for @username" or "Invoice 15 USDC to +628123456789"'}
-                  className="w-full bg-transparent font-medium text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none pr-32"
+                  className="w-full bg-transparent font-medium text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none resize-none p-1"
                 />
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 dark:border-slate-800/80 mt-1 text-[10.5px]">
-                  <div className="flex items-center gap-2 text-slate-400">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800/80 mt-1 text-[10.5px]">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-slate-400">
                     <span className="font-mono bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[9.5px]">Enter</span>
                     <span>to execute</span>
                     <span className="text-slate-300 dark:text-slate-700">•</span>
@@ -4362,7 +4370,7 @@ export function ZeroClawTerminalView({
                     type="button"
                     onClick={() => handleExecutePrompt()}
                     disabled={executingPrompt || !agentPrompt.trim()}
-                    className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs disabled:opacity-40 cursor-pointer transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+                    className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs disabled:opacity-40 cursor-pointer transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
                   >
                     <Send size={13} className={executingPrompt ? 'animate-spin' : ''} />
                     <span>{executingPrompt ? 'Executing...' : 'Execute Prompt'}</span>
@@ -4560,8 +4568,8 @@ export function ZeroClawTerminalView({
                           return timeB - timeA; // Strict newest-first
                         })
                         .map((ev) => {
-                          const isRealSignature = ev.signature && ev.signature.length > 20 && !ev.signature.includes('...');
-                          const explorerUrl = `https://explorer.solana.com/tx/${ev.signature}?cluster=devnet`;
+                          const isRealSignature = Boolean(ev.signature && typeof ev.signature === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(ev.signature));
+                          const explorerUrl = (isRealSignature && ev.signature) ? `https://explorer.solana.com/tx/${ev.signature}?cluster=devnet` : (activeMerchantWallet ? `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet` : "https://explorer.solana.com/?cluster=devnet");
                           const displayTimeAgo = (ev.rawCreatedAt || ev.createdAtISO) ? formatRealtimeAgo(ev.rawCreatedAt || ev.createdAtISO) : (ev.timeAgo || 'Baru saja');
 
                           return (
@@ -4581,17 +4589,19 @@ export function ZeroClawTerminalView({
                               </div>
 
                               <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] font-mono">
-                                <span className="text-slate-400 truncate max-w-[240px]">Tx Hash: <span className="text-slate-700 dark:text-slate-300 font-bold">{ev.signature ? `${ev.signature.substring(0, 24)}...` : 'Devnet_Tx'}</span></span>
+                                <span className="text-slate-400 truncate max-w-[240px]">Tx Hash: <span className="text-slate-700 dark:text-slate-300 font-bold">{(isRealSignature && ev.signature) ? `${ev.signature.substring(0, 24)}...` : 'On-Chain Pending'}</span></span>
                                 <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => { navigator.clipboard.writeText(ev.signature || ''); onTriggerToast('Tx Hash Disalin'); }}
-                                    className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10px]"
-                                  >
-                                    Copy
-                                  </button>
+                                  {isRealSignature && (
+                                    <button
+                                      type="button"
+                                      onClick={() => { navigator.clipboard.writeText(ev.signature || ''); onTriggerToast('Tx Hash Disalin'); }}
+                                      className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10px]"
+                                    >
+                                      Copy
+                                    </button>
+                                  )}
                                   <a
-                                    href={isRealSignature ? explorerUrl : "https://explorer.solana.com/address/4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU?cluster=devnet"}
+                                    href={explorerUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1 text-[10px]"
@@ -4783,9 +4793,6 @@ export function ZeroClawTerminalView({
                                           <CheckCircle2 size={10} /> L1 Email OTP
                                         </div>
                                         <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
-                                          <CheckCircle2 size={10} /> L2 Ownership
-                                        </div>
-                                        <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
                                           <CheckCircle2 size={10} /> L3 Base58 Dest
                                         </div>
                                         <div className="p-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
@@ -4800,30 +4807,32 @@ export function ZeroClawTerminalView({
                                       </div>
                                     </div>
 
-                                    {/* Solana Tx Hash / Reference Key */}
-                                    <div className="space-y-1">
-                                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-sans font-semibold">
-                                        <span>Solana Tx Signature / Ref Key:</span>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (item.tx_signature || item.reference_key) {
-                                              navigator.clipboard.writeText(item.tx_signature || item.reference_key || '');
-                                              onTriggerToast('📋 Hash Signature/Key berhasil disalin!');
-                                            }
-                                          }}
-                                          className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
-                                        >
-                                          <Copy size={10} /> Salin
-                                        </button>
-                                      </div>
-                                      <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-emerald-600 dark:text-emerald-400">
-                                        {item.tx_signature || item.reference_key || 'wd_tx_onchain_pending'}
-                                      </div>
-                                    </div>
+                                    {/* Solana Tx Hash (On-Chain) */}
+                                     <div className="space-y-1">
+                                       <div className="flex items-center justify-between text-[10px] text-slate-500 font-sans font-semibold">
+                                         <span>Solana Tx Hash (On-Chain):</span>
+                                         {item.tx_signature && typeof item.tx_signature === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(item.tx_signature) && (
+                                           <button
+                                             type="button"
+                                             onClick={(e) => {
+                                               e.stopPropagation();
+                                               navigator.clipboard.writeText(item.tx_signature || '');
+                                               onTriggerToast('📋 Real Tx Hash berhasil disalin!');
+                                             }}
+                                             className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                                           >
+                                             <Copy size={10} /> Salin
+                                           </button>
+                                         )}
+                                       </div>
+                                       <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] break-all select-all font-bold text-emerald-600 dark:text-emerald-400">
+                                         {(item.tx_signature && typeof item.tx_signature === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(item.tx_signature))
+                                           ? item.tx_signature
+                                           : 'On-Chain Confirmation Pending'}
+                                       </div>
+                                     </div>
 
-                                    {/* HMAC Audit Signature */}
+                                     {/* HMAC Audit Signature */}
                                     {item.audit_signature && (
                                       <div className="space-y-1">
                                         <span className="text-[10px] text-slate-500 font-sans font-semibold">HMAC-SHA256 Audit Signature:</span>
@@ -5208,10 +5217,10 @@ export function ZeroClawTerminalView({
 
           <div className="space-y-2.5">
             {events.map((ev) => {
-              const isRealSignature = ev.signature && ev.signature.length > 40 && !ev.signature.includes('...');
-              const explorerUrl = isRealSignature
+              const isRealSignature = Boolean(ev.signature && typeof ev.signature === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(ev.signature));
+              const explorerUrl = (isRealSignature && ev.signature)
                 ? `https://explorer.solana.com/tx/${ev.signature}?cluster=devnet`
-                : `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet`;
+                : (activeMerchantWallet ? `https://explorer.solana.com/address/${activeMerchantWallet}?cluster=devnet` : "https://explorer.solana.com/?cluster=devnet");
 
               return (
                 <div key={ev.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
@@ -5223,17 +5232,19 @@ export function ZeroClawTerminalView({
                       <span className="text-slate-600 dark:text-slate-400 font-sans text-xs truncate max-w-[200px]">{ev.memo}</span>
                     </div>
                     <p className="text-[10.5px] text-slate-400 truncate">
-                      Signature: <span className="text-slate-700 dark:text-slate-300 font-bold">{ev.signature}</span>
+                      Signature: <span className="text-slate-700 dark:text-slate-300 font-bold">{(isRealSignature && ev.signature) ? ev.signature : 'On-Chain Pending'}</span>
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(ev.signature); onTriggerToast('Tx Hash Copied'); }}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10.5px]"
-                    >
-                      Copy Hash
-                    </button>
+                    {isRealSignature && (
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(ev.signature || ''); onTriggerToast('Tx Hash Copied'); }}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer text-[10.5px]"
+                      >
+                        Copy Hash
+                      </button>
+                    )}
                     <a
                       href={explorerUrl}
                       target="_blank"
@@ -5714,12 +5725,12 @@ checkpoint = "human_approval_on_refund"`}
                 onClick={() => setShowPairModal(false)}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
               >
-                Cancel
+                {language === 'zh' ? '取消' : language === 'id' ? 'Batal' : 'Cancel'}
               </button>
               <button
                 onClick={async () => {
                   if (!pairingCodeInput.trim()) {
-                    onTriggerToast('⚠️ Please enter a pairing code!');
+                    onTriggerToast(language === 'zh' ? '⚠️ 请输入配对码！' : language === 'id' ? '⚠️ Harap masukkan kode pairing!' : '⚠️ Please enter a pairing code!');
                     return;
                   }
                   setPairingLoading(true);
@@ -5735,15 +5746,15 @@ checkpoint = "human_approval_on_refund"`}
                         localStorage.setItem('zeroclaw_gateway_token', json.token || pairingCodeInput.trim());
                         localStorage.setItem('zeroclaw_gateway_paired', 'true');
                       } catch (e) { }
-                      onTriggerToast('🟢 ZeroClaw v0.8.3 Gateway Berhasil Dipasangkan (Paired)!');
+                      onTriggerToast(language === 'zh' ? '🟢 ZeroClaw Gateway 配对成功！' : language === 'id' ? '🟢 ZeroClaw Gateway Berhasil Dipasangkan!' : '🟢 ZeroClaw Gateway Paired Successfully!');
                       setShowPairModal(false);
                       setPairingCodeInput('');
                       fetchZeroClawStatus();
                     } else {
-                      onTriggerToast(`⚠️ Pairing Gagal: ${json.error}`);
+                      onTriggerToast(`${language === 'zh' ? '⚠️ 配对失败: ' : language === 'id' ? '⚠️ Pairing Gagal: ' : '⚠️ Pairing Failed: '}${json.error}`);
                     }
                   } catch (err: any) {
-                    onTriggerToast('⚠️ Gagal terhubung ke backend API ZEGA');
+                    onTriggerToast(language === 'zh' ? '⚠️ 无法连接到 ZEGA 后端 API' : language === 'id' ? '⚠️ Gagal terhubung ke backend API ZEGA' : '⚠️ Failed to connect to ZEGA API backend');
                   } finally {
                     setPairingLoading(false);
                   }
@@ -5752,7 +5763,7 @@ checkpoint = "human_approval_on_refund"`}
                 className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-xs text-white shadow-lg flex items-center justify-center gap-2"
               >
                 {pairingLoading ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                <span>{pairingLoading ? 'Pairing...' : 'Verifikasi Pairing'}</span>
+                <span>{pairingLoading ? (language === 'zh' ? '配对中...' : language === 'id' ? 'Memasangkan...' : 'Pairing...') : (language === 'zh' ? '验证配对' : language === 'id' ? 'Verifikasi Pairing' : 'Verify Pairing')}</span>
               </button>
             </div>
           </div>
@@ -5804,7 +5815,7 @@ checkpoint = "human_approval_on_refund"`}
                 <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
                   {activeQrModalInvoice.amount} USDC (Solana Devnet)
                 </span>
-                <p className="text-[10px] text-slate-500 font-medium mt-1">Pindai QR ini via Wallet Mobile (Phantom/Solflare)</p>
+                <p className="text-[10px] text-slate-500 font-medium mt-1">{language === "zh" ? "使用 mobile 钱包 (Phantom/Solflare) 扫描此二维码" : language === "id" ? "Pindai QR ini via Wallet Mobile (Phantom/Solflare)" : "Scan this QR code via Mobile Wallet (Phantom/Solflare)"}</p>
               </div>
             </div>
 
@@ -5825,7 +5836,7 @@ checkpoint = "human_approval_on_refund"`}
                     ) : (
                       <RefreshCw size={14} className="text-slate-400" />
                     )}
-                    <span>{paymentCheckResult.statusLabel || (paymentCheckResult.paid ? 'LUNAS' : 'Belum Ada Pembayaran')}</span>
+                    <span>{paymentCheckResult.statusLabel || (paymentCheckResult.paid ? (language === 'zh' ? '已结清' : language === 'id' ? 'LUNAS' : 'SETTLED') : (language === 'zh' ? '尚无付款' : language === 'id' ? 'Belum Ada Pembayaran' : 'No Payment Yet'))}</span>
                   </span>
                   {paymentCheckResult.telegramSent && (
                     <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[9px] border border-blue-500/30 flex items-center gap-1">
@@ -5853,16 +5864,16 @@ checkpoint = "human_approval_on_refund"`}
 
                       return (
                         <>
-                          <p>• Diterima On-Chain: <b>{recAmt.toFixed(2)} USDC</b></p>
-                          <p>• Tagihan Invoice: <b>{expAmt.toFixed(2)} USDC</b></p>
+                          <p>• {language === 'zh' ? '链上实收: ' : language === 'id' ? 'Diterima On-Chain: ' : 'Received On-Chain: '}<b>{recAmt.toFixed(2)} USDC</b></p>
+                          <p>• {language === 'zh' ? '账单总额: ' : language === 'id' ? 'Tagihan Invoice: ' : 'Target Invoice: '}<b>{expAmt.toFixed(2)} USDC</b></p>
                           {paymentCheckResult.mode === 'UNDERPAID' && (
-                            <p className="text-amber-300 font-bold">⚠️ Sisa Kekurangan: {shortfallVal.toFixed(2)} USDC (Pesan kekurangan dikirim ke Telegram)</p>
+                            <p className="text-amber-300 font-bold">⚠️ {language === 'zh' ? '剩余欠款: ' : language === 'id' ? 'Sisa Kekurangan: ' : 'Shortfall Amount: '}{shortfallVal.toFixed(2)} USDC {language === 'zh' ? '(欠款通知已发送至 Telegram)' : language === 'id' ? '(Pesan kekurangan dikirim ke Telegram)' : '(Shortfall notice sent to Telegram)'}</p>
                           )}
                           {paymentCheckResult.mode === 'OVERPAID' && (
-                            <p className="text-indigo-300 font-bold">🎉 Kembalian Excess: {excessVal.toFixed(2)} USDC (Pesan Lunas & Escrow Kembalian dikirim ke Telegram)</p>
+                            <p className="text-indigo-300 font-bold">🎉 {language === 'zh' ? '多付金额: ' : language === 'id' ? 'Kembalian Excess: ' : 'Excess Amount: '}{excessVal.toFixed(2)} USDC {language === 'zh' ? '(结清与退款通知已发送至 Telegram)' : language === 'id' ? '(Pesan Lunas & Escrow Kembalian dikirim ke Telegram)' : '(Settlement & excess refund notice sent to Telegram)'}</p>
                           )}
                           {paymentCheckResult.mode === 'EXACT' && (
-                            <p className="text-emerald-300 font-bold">✅ LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.</p>
+                            <p className="text-emerald-300 font-bold">✅ {language === 'zh' ? '100% 已结清。付款凭证已自动发送至 Telegram。' : language === 'id' ? 'LUNAS 100%. Pesan bukti pembayaran dikirim otomatis ke Telegram pelanggan.' : '100% SETTLED. Payment proof auto-sent to customer Telegram.'}</p>
                           )}
 
                           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
@@ -5901,12 +5912,12 @@ checkpoint = "human_approval_on_refund"`}
                 {checkingPayment ? (
                   <>
                     <RefreshCw size={15} className="animate-spin" />
-                    <span>Melakukan Real-Time Solana RPC Check...</span>
+                    <span>{language === 'zh' ? '正在执行 Solana RPC 实时检查...' : language === 'id' ? 'Melakukan Real-Time Solana RPC Check...' : 'Performing Real-Time Solana RPC Check...'}</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={16} />
-                    <span>Check Payments (Cek Pembayaran On-Chain & Kirim Tele)</span>
+                    <span>{language === 'zh' ? '检查付款 (链上验证并发送 Telegram)' : language === 'id' ? 'Check Payments (Cek Pembayaran On-Chain & Kirim Tele)' : 'Check Payments (On-Chain Verification & Notify Tele)'}</span>
                   </>
                 )}
               </button>
@@ -5966,7 +5977,7 @@ checkpoint = "human_approval_on_refund"`}
                 }}
                 className="w-full py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
               >
-                Copy Link Solana Pay
+                {language === 'zh' ? '复制 Solana Pay 链接' : language === 'id' ? 'Salin Link Solana Pay' : 'Copy Solana Pay Link'}
               </button>
             </div>
           </div>
@@ -5989,7 +6000,7 @@ checkpoint = "human_approval_on_refund"`}
                 <Pencil size={18} />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-slate-100">Kelola & Edit Tagihan Enterprise</h3>
+                <h3 className="font-extrabold text-sm text-slate-100">{language === "zh" ? "管理并编辑 Enterprise 账单" : language === "id" ? "Kelola & Edit Tagihan Enterprise" : "Manage & Edit Enterprise Invoice"}</h3>
                 <p className="text-[10px] text-slate-400 font-mono truncate max-w-[280px]">
                   ID Ref: {editInvoiceModal.referenceKey || editInvoiceModal.id}
                 </p>
@@ -5998,7 +6009,7 @@ checkpoint = "human_approval_on_refund"`}
 
             <div className="space-y-3 pt-1">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Catatan / Memo Tagihan:</label>
+                <label className="text-xs font-semibold text-slate-300">{language === "zh" ? "账单备注 / Memo:" : language === "id" ? "Catatan / Memo Tagihan:" : "Invoice Memo / Note:"}</label>
                 <input
                   type="text"
                   value={editMemoInput}
@@ -6009,7 +6020,7 @@ checkpoint = "human_approval_on_refund"`}
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Target Pelanggan (Telegram / WA):</label>
+                <label className="text-xs font-semibold text-slate-300">{language === "zh" ? "目标客户 (Telegram / WA):" : language === "id" ? "Target Pelanggan (Telegram / WA):" : "Customer Target (Telegram / WA):"}</label>
                 <input
                   type="text"
                   value={editTargetInput}
@@ -6020,7 +6031,7 @@ checkpoint = "human_approval_on_refund"`}
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Nominal Tagihan (USDC):</label>
+                <label className="text-xs font-semibold text-slate-300">{language === "zh" ? "账单金额 (USDC):" : language === "id" ? "Nominal Tagihan (USDC):" : "Invoice Amount (USDC):"}</label>
                 <input
                   type="text"
                   value={editAmountInput}
@@ -6036,18 +6047,16 @@ checkpoint = "human_approval_on_refund"`}
               <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-2.5 animate-in fade-in duration-150">
                 <div className="flex items-center gap-2 text-rose-300 font-bold text-xs">
                   <ShieldAlert size={16} />
-                  <span>Konfirmasi Pembatalan & Penghapusan</span>
+                  <span>{language === "zh" ? "确认取消与删除" : language === "id" ? "Konfirmasi Pembatalan & Penghapusan" : "Cancellation & Deletion Confirmation"}</span>
                 </div>
-                <p className="text-[11px] text-rose-200/80 leading-relaxed">
-                  Apakah Anda yakin ingin membatalkan tagihan ini? Rekaman tagihan akan dihapus permanen dari Supabase Master DB dan Cloudflare R2 Vault CDN.
-                </p>
+                <p className="text-[11px] text-rose-200/80 leading-relaxed">{language === "zh" ? "您确定要取消此账单吗？记录将从 Supabase Master DB 和 Cloudflare R2 Vault CDN 中永久删除。" : language === "id" ? "Apakah Anda yakin ingin membatalkan tagihan ini? Rekaman tagihan akan dihapus permanen dari Supabase Master DB dan Cloudflare R2 Vault CDN." : "Are you sure you want to cancel this invoice? Records will be permanently deleted from Supabase Master DB and Cloudflare R2 Vault CDN."}</p>
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirmDialog(false)}
                     className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
                   >
-                    Batalkan Hapus
+                    {language === 'zh' ? '取消删除' : language === 'id' ? 'Batalkan Hapus' : 'Cancel Deletion'}
                   </button>
                   <button
                     type="button"
@@ -6058,7 +6067,7 @@ checkpoint = "human_approval_on_refund"`}
                     }}
                     className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition-colors shadow-md shadow-rose-600/20"
                   >
-                    Ya, Hapus Permanen 🗑️
+                    {language === 'zh' ? '是的，永久删除 🗑️' : language === 'id' ? 'Ya, Hapus Permanen 🗑️' : 'Yes, Delete Permanently 🗑️'}
                   </button>
                 </div>
               </div>
@@ -6070,7 +6079,7 @@ checkpoint = "human_approval_on_refund"`}
                   className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-xs border border-rose-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 size={13} />
-                  <span>Hapus Tagihan</span>
+                  <span>{language === "zh" ? "删除账单" : language === "id" ? "Hapus Tagihan" : "Delete Invoice"}</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -6079,14 +6088,14 @@ checkpoint = "human_approval_on_refund"`}
                     onClick={() => setEditInvoiceModal(null)}
                     className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-colors cursor-pointer"
                   >
-                    Batal
+                    {language === 'zh' ? '取消' : language === 'id' ? 'Batal' : 'Cancel'}
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveInvoiceEdit}
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
                   >
-                    Simpan Perubahan
+                    {language === 'zh' ? '保存更改' : language === 'id' ? 'Simpan Perubahan' : 'Save Changes'}
                   </button>
                 </div>
               </div>
@@ -6336,11 +6345,9 @@ checkpoint = "human_approval_on_refund"`}
                   <div className="size-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/40">
                     <CheckCircle2 size={22} />
                   </div>
-                  <h4 className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
-                    Penarikan Berhasil
-                  </h4>
+                  <h4 className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">{language === "zh" ? "提现成功" : language === "id" ? "Penarikan Berhasil" : "Withdrawal Successful"}</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
-                    <strong className="text-slate-900 dark:text-white font-extrabold">{successfulTxData?.amount} {successfulTxData?.tokenSymbol}</strong> dikirim ke:
+                    <strong className="text-slate-900 dark:text-white font-extrabold">{successfulTxData?.amount} {successfulTxData?.tokenSymbol}</strong> {language === 'zh' ? '已发送至:' : language === 'id' ? 'dikirim ke:' : 'sent to:'}
                   </p>
                   <p className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/80 font-bold truncate max-w-full">
                     {successfulTxData?.destinationAddress}
@@ -6352,7 +6359,7 @@ checkpoint = "human_approval_on_refund"`}
                   <summary className="px-3 py-2 bg-slate-100 dark:bg-slate-900 flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer select-none border-b border-slate-200 dark:border-slate-800">
                     <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
                       <ShieldCheck size={14} />
-                      <span>Rincian Transaksi & Telemetri</span>
+                      <span>{language === "zh" ? "交易详情与遥测" : language === "id" ? "Rincian Transaksi & Telemetri" : "Transaction Details & Telemetry"}</span>
                     </span>
                     <ChevronDown size={14} className="transition-transform group-open:rotate-180 text-slate-400" />
                   </summary>
@@ -6383,7 +6390,7 @@ checkpoint = "human_approval_on_refund"`}
                     {/* Compact Security Badges */}
                     <div className="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-800 font-sans">
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        Status Keamanan:
+                        {language === 'zh' ? '安全状态:' : language === 'id' ? 'Status Keamanan:' : 'Security Status:'}
                       </span>
                       <div className="flex flex-wrap gap-1 text-[10px]">
                         <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold">
@@ -6419,7 +6426,7 @@ checkpoint = "human_approval_on_refund"`}
                           rel="noreferrer"
                           className="text-blue-600 dark:text-blue-400 hover:underline font-bold text-[11px] flex items-center gap-1"
                         >
-                          <ExternalLink size={12} /> Resi CDN Bukti Transfer (JSON)
+                          <ExternalLink size={12} /> {language === 'zh' ? 'CDN 转账凭证收据 (JSON)' : language === 'id' ? 'Resi CDN Bukti Transfer (JSON)' : 'CDN Transfer Proof Receipt (JSON)'}
                         </a>
                         <span className="text-[10px] text-slate-400 font-mono">Verified</span>
                       </div>
@@ -6449,7 +6456,7 @@ checkpoint = "human_approval_on_refund"`}
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 transition-all cursor-pointer text-center"
                   >
-                    Selesai & Kembali
+                    {language === 'zh' ? '完成并返回' : language === 'id' ? 'Selesai & Kembali' : 'Done & Return'}
                   </button>
                 </div>
               </div>
@@ -6487,11 +6494,11 @@ checkpoint = "human_approval_on_refund"`}
 
             {/* Title & Email Instructions */}
             <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2 text-center">
-              Enter confirmation code
+              {language === 'zh' ? '输入验证码' : language === 'id' ? 'Masukkan kode konfirmasi' : 'Enter confirmation code'}
             </h3>
             
             <p className="text-sm text-slate-600 leading-relaxed text-center max-w-[310px] mb-6">
-              Please check <span className="font-bold text-slate-900 font-mono">{userEmail ? maskEmail(userEmail) : 'your email'}</span> for an email from privy.io and enter your code below.
+              {language === 'zh' ? '请检查 ' : language === 'id' ? 'Silakan periksa ' : 'Please check '}<span className="font-bold text-slate-900 font-mono">{userEmail ? maskEmail(userEmail) : 'email'}</span>{language === 'zh' ? ' 中来自 privy.io 的邮件并于下方输入验证码。' : language === 'id' ? ' untuk pesan dari privy.io dan masukkan kode di bawah ini.' : ' for an email from privy.io and enter your code below.'}
             </p>
 
             {privyOtpSuccessNotice && (
@@ -6551,7 +6558,7 @@ checkpoint = "human_approval_on_refund"`}
 
               {/* Didn't get an email? Resend code */}
               <div className="text-xs text-slate-500 mb-8 flex items-center justify-center gap-1.5 font-medium">
-                <span>Didn't get an email?</span>
+                <span>{language === 'zh' ? '没收到邮件？' : language === 'id' ? 'Belum menerima email?' : "Didn't get an email?"}</span>
                 <button
                   type="button"
                   onClick={() => handleTriggerPrivyOtp(true)}
@@ -6559,7 +6566,7 @@ checkpoint = "human_approval_on_refund"`}
                   className="text-indigo-600 hover:text-indigo-700 font-semibold cursor-pointer disabled:opacity-50 transition-colors inline-flex items-center gap-1"
                 >
                   {privyOtpSubmitting && <RefreshCw size={11} className="animate-spin" />}
-                  <span>Resend code</span>
+                  <span>{language === 'zh' ? '重新发送验证码' : language === 'id' ? 'Kirim ulang kode' : 'Resend code'}</span>
                 </button>
               </div>
 
@@ -6572,12 +6579,12 @@ checkpoint = "human_approval_on_refund"`}
                 {privyOtpSubmitting ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    <span>Verifying Code...</span>
+                    <span>{language === 'zh' ? '正在验证...' : language === 'id' ? 'Memverifikasi Kode...' : 'Verifying Code...'}</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={16} />
-                    <span>Verify & Continue</span>
+                    <span>{language === 'zh' ? '验证并继续' : language === 'id' ? 'Verifikasi & Lanjutkan' : 'Verify & Continue'}</span>
                   </>
                 )}
               </button>
@@ -6585,7 +6592,7 @@ checkpoint = "human_approval_on_refund"`}
 
             {/* Footer - Protected by Privy Branding */}
             <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium pt-2 border-t border-slate-100 w-full">
-              <span>Protected by</span>
+              <span>{language === 'zh' ? '技术支持' : language === 'id' ? 'Dilindungi oleh' : 'Protected by'}</span>
               <img 
                 src="/assets/logo/privy-logo.png" 
                 alt="privy" 
@@ -6639,7 +6646,7 @@ checkpoint = "human_approval_on_refund"`}
                 <div className="flex flex-col items-center justify-center text-center p-4 space-y-2">
                   <QrCode size={56} className="text-indigo-400/50 animate-pulse" />
                   <p className="text-xs font-semibold text-slate-300">
-                    {cameraError || 'Ready to scan...'}
+                    {cameraError || (language === 'zh' ? '准备扫描...' : language === 'id' ? 'Siap memindai...' : 'Ready to scan...')}
                   </p>
                 </div>
               )}

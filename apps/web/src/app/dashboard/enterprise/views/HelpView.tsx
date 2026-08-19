@@ -3,7 +3,7 @@ import {
   HelpCircle, Search, BookOpen, MessageSquare, Ticket, 
   Send, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle,
   Sparkles, ExternalLink, Zap, Shield, Code, Headphones, X, RefreshCw,
-  Activity, ArrowUpRight, Bot, User, Check, Plus, Maximize2, Minimize2
+  Activity, ArrowUpRight, Bot, User, Check, Plus, Maximize2, Minimize2, Copy
 } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../services/enterpriseSupabaseService';
 import { getApiBase } from '../../../../config/api';
@@ -31,6 +31,27 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const [copiedHelpMsgId, setCopiedHelpMsgId] = useState<string | null>(null);
+
+  const handleCopyHelpMessage = (text: string, msgId: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedHelpMsgId(msgId);
+      triggerToast('✓ Copied to clipboard');
+      setTimeout(() => setCopiedHelpMsgId(null), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
 
   const [ticketForm, setTicketForm] = useState({
     subject: '',
@@ -748,12 +769,26 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
 
             {/* Messages Body */}
             <div className="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs">
-              {chatMessages.map((msg) => (
+              {chatMessages.map((msg, idx) => (
                 <div 
-                  key={msg.id}
+                  key={msg.id || idx}
                   className={`flex flex-col ${msg.sender_type === 'user' ? 'items-end' : 'items-start'}`}
                 >
-                  <span className="text-[9.5px] font-mono text-slate-400 mb-1">{msg.sender_name}</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9.5px] font-mono text-slate-400">{msg.sender_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyHelpMessage(msg.message, msg.id || `ent-help-msg-${idx}`)}
+                      className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-orange-500 transition-all cursor-pointer"
+                      title="Copy Message"
+                    >
+                      {copiedHelpMsgId === (msg.id || `ent-help-msg-${idx}`) ? (
+                        <Check size={11} className="text-emerald-500 font-bold" />
+                      ) : (
+                        <Copy size={11} />
+                      )}
+                    </button>
+                  </div>
                   <div className={`p-3 rounded-2xl max-w-[85%] font-medium ${
                     msg.sender_type === 'user'
                       ? 'bg-orange-500 text-white rounded-br-none'

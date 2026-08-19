@@ -75,6 +75,7 @@ export class GroqProvider implements AIProvider {
             temperature: options.temperature ?? 0.6,
             max_tokens: options.maxTokens ?? 600,
           }),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (response.ok) {
@@ -178,6 +179,7 @@ export class OpenRouterProvider implements AIProvider {
             temperature: options.temperature ?? 0.6,
             max_tokens: options.maxTokens ?? 600,
           }),
+          signal: AbortSignal.timeout(8000),
         });
 
         if (response.ok) {
@@ -280,6 +282,7 @@ export class GeminiProvider implements AIProvider {
                 maxOutputTokens: options.maxTokens ?? 600,
               },
             }),
+            signal: AbortSignal.timeout(8000),
           }
         );
 
@@ -381,6 +384,7 @@ export class HuggingFaceProvider implements AIProvider {
               temperature: options.temperature ?? 0.6,
               max_tokens: options.maxTokens ?? 600,
             }),
+            signal: AbortSignal.timeout(8000),
           });
 
           if (response.ok) {

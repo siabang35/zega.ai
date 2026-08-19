@@ -3,7 +3,7 @@ import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
   UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
   Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle,
-  Maximize2, Minimize2, History, ArrowLeft, Search, Trash2
+  Maximize2, Minimize2, History, ArrowLeft, Search, Trash2, Copy, Check
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line
@@ -161,6 +161,27 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showSupportAssistantModal, setShowSupportAssistantModal] = useState(false);
   const [isHelpFullScreen, setIsHelpFullScreen] = useState(false);
+  const [copiedHelpMsgId, setCopiedHelpMsgId] = useState<string | null>(null);
+
+  const handleCopyHelpMessageText = (text: string, msgId: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedHelpMsgId(msgId);
+      if (triggerToast) triggerToast('Pesan berhasil disalin!');
+      setTimeout(() => setCopiedHelpMsgId(null), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
   const [activeHelpChatId, setActiveHelpChatId] = useState<string | null>(null);
   const [supportSearchQuery, setSupportSearchQuery] = useState('');
 
@@ -2248,11 +2269,11 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       {/* MODAL 6: INLINE QUICK SUPPORT ASSISTANT SUB-MODAL (Full Screen Responsive & Persistence) */}
       {/* ========================================================================= */}
       {showSupportAssistantModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm">
           <div className={
             isHelpFullScreen
-              ? 'fixed inset-2 sm:inset-6 z-[60] bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 relative'
-              : 'bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-3.5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] relative'
+              ? 'fixed inset-1 sm:inset-6 z-[110] bg-white dark:bg-slate-900 rounded-3xl p-3.5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 relative h-[95vh] sm:h-auto max-h-[95vh] sm:max-h-none'
+              : 'bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full space-y-3 sm:space-y-3.5 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] relative z-[110]'
           }>
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
@@ -2296,8 +2317,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                 <button
                   type="button"
                   onClick={() => setIsHelpFullScreen(!isHelpFullScreen)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  title={isHelpFullScreen ? 'Kecilkan Modal' : 'Layar Penuh (Full Screen)'}
+                  className="p-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-95 text-white shadow-xs transition-all cursor-pointer"
+                  title={isHelpFullScreen ? 'Kecilkan Tampilan' : 'Perbesar Tampilan'}
                 >
                   {isHelpFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
@@ -2484,30 +2505,45 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
 
             {/* Chat Output Stream (Adaptive Height) */}
-            <div className={`overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2 text-xs my-2 ${isHelpFullScreen ? 'flex-1 min-h-[300px]' : 'h-52 sm:h-60'}`}>
-              {supportChatMessages.map((msg, mIdx) => (
-                <div key={mIdx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[88%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none font-medium shadow-xs' : 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700/80 rounded-bl-none font-medium shadow-xs space-y-1.5'}`}>
-                    {msg.sender === 'user' ? (
-                      <p className="text-[11px] leading-relaxed font-semibold">{msg.text}</p>
-                    ) : (
-                      renderFormattedSupportMessage(msg.text)
-                    )}
-                    {msg.sender === 'ai' && (
-                      <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-700/60 text-[8.5px] text-slate-400 font-semibold">
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black flex items-center gap-1">
-                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            ZEGA Ops Specialist
-                          </span>
-                          <span>{getAiLang() === 'en' ? '• Response ' : getAiLang() === 'zh' ? '• 响应 ' : '• Respon '}{msg.inference_ms || 185}ms</span>
-                        </div>
-                        <span className="text-slate-400 font-medium">{getAiLang() === 'en' ? 'Verified' : getAiLang() === 'zh' ? '已验证' : 'Terverifikasi'}</span>
+            <div className={`overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 space-y-2.5 text-xs my-2 custom-scrollbar ${isHelpFullScreen ? 'flex-1 min-h-[300px]' : 'h-52 sm:h-64'}`}>
+              {supportChatMessages.map((msg, mIdx) => {
+                const msgId = `home-msg-${mIdx}`;
+                const isCopied = copiedHelpMsgId === msgId;
+                return (
+                  <div key={mIdx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[88%] p-3 sm:p-3.5 rounded-2xl ${msg.sender === 'user' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none font-medium shadow-xs' : 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700/80 rounded-bl-none font-medium shadow-xs space-y-1.5'}`}>
+                      <div className="flex items-center justify-between gap-2 text-[9.5px] opacity-80 font-mono mb-1 font-bold">
+                        <span>{msg.sender === 'user' ? 'Anda' : 'ZEGA Ops Specialist'}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyHelpMessageText(msg.text, msgId)}
+                          className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-orange-500 transition-all cursor-pointer shrink-0"
+                          title="Salin Pesan"
+                        >
+                          {isCopied ? <Check size={12} className="text-emerald-500 font-bold" /> : <Copy size={12} />}
+                        </button>
                       </div>
-                    )}
+                      {msg.sender === 'user' ? (
+                        <p className="text-[11px] sm:text-xs leading-relaxed font-semibold">{msg.text}</p>
+                      ) : (
+                        renderFormattedSupportMessage(msg.text)
+                      )}
+                      {msg.sender === 'ai' && (
+                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-slate-700/60 text-[8.5px] text-slate-400 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-black flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              ZEGA Ops Specialist
+                            </span>
+                            <span>{getAiLang() === 'en' ? '• Response ' : getAiLang() === 'zh' ? '• 响应 ' : '• Respon '}{msg.inference_ms || 185}ms</span>
+                          </div>
+                          <span className="text-slate-400 font-medium">{getAiLang() === 'en' ? 'Verified' : getAiLang() === 'zh' ? '已验证' : 'Terverifikasi'}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Message Input Box */}

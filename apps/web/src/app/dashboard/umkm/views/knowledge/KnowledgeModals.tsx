@@ -6,7 +6,7 @@ import {
   Eye, Edit3, Bold, Italic, Strikethrough, Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare, Quote, Code, Table as TableIcon,
   AlertTriangle, UploadCloud, Trash2, Paperclip, Globe, Search, Layers,
-  ChevronDown, ExternalLink
+  ChevronDown, ExternalLink, Copy
 } from 'lucide-react';
 import { SupabaseDashboardService, isValidUuid } from '../../../services/supabaseService';
 import { getActiveTenantIds } from '../../../services/umkmSupabaseService';
@@ -965,6 +965,31 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
   ]);
   const [isAsking, setIsAsking] = useState(false);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [copiedMsgIndex, setCopiedMsgIndex] = useState<number | null>(null);
+
+  const handleCopyChatMessage = (text: string, index: number) => {
+    if (!text) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error('Copy fallback failed:', error);
+      }
+      document.body.removeChild(textArea);
+    }
+    setCopiedMsgIndex(index);
+    triggerToast('✓ Pesan disalin ke clipboard!');
+    setTimeout(() => setCopiedMsgIndex(null), 2000);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -1282,12 +1307,26 @@ export function AskAIKnowledgeModal({ isOpen, onClose, triggerToast }: ModalProp
         <div className="h-64 overflow-y-auto space-y-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
           {chatLog.map((c, i) => (
             <div key={i} className={`flex ${c.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`p-3 rounded-2xl max-w-[85%] font-medium leading-relaxed ${
+              <div className={`p-3 rounded-2xl max-w-[85%] font-medium leading-relaxed relative group ${
                 c.sender === 'user'
                   ? 'bg-orange-500 text-white font-bold whitespace-pre-line'
                   : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-xs'
               }`}>
-                {c.sender === 'user' ? c.text : renderFormattedAiMessage(c.text)}
+                <button
+                  type="button"
+                  onClick={() => handleCopyChatMessage(c.text, i)}
+                  className={`absolute top-2 right-2 p-1 rounded-lg transition-colors cursor-pointer ${
+                    c.sender === 'user'
+                      ? 'hover:bg-orange-600 text-orange-100'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                  title="Copy Message"
+                >
+                  {copiedMsgIndex === i ? <Check size={12} className={c.sender === 'user' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'} /> : <Copy size={12} />}
+                </button>
+                <div className="pr-5">
+                  {c.sender === 'user' ? c.text : renderFormattedAiMessage(c.text)}
+                </div>
                 {c.sender === 'ai' && (
                   <div className="mt-2 pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[9px] text-slate-400 font-mono">
                     <span className="text-emerald-600 font-bold flex items-center gap-1">

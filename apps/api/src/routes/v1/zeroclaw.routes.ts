@@ -34,6 +34,7 @@ import {
   VALID_USDC_MINTS,
 } from '../../utils/settlementValidation.js';
 import { requireTenantContext, getTenantOrg, populatePrincipal } from '../../middleware/requestContext.js';
+import { InvoiceSecurityService } from '../../services/invoiceSecurityService.js';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -391,10 +392,9 @@ export async function isMerchantWalletOwnedByUser(email: string, merchantPubkey:
       }
     }
 
-    // 3. SAFE SESSION REGISTER: If caller is authenticated email and wallet is valid Solana Base58, register and allow
-    registeredPrivyWalletsStore.set(cleanEmail, cleanWallet);
-    upsertPrivyWalletToDb(cleanEmail, cleanWallet).catch(() => { });
-    return true;
+    // 3. Unauthorized Wallet: Wallet is not registered or derived for this user context -> DENY
+    logger.warn({ email: cleanEmail, merchantPubkey: cleanWallet }, '🚫 [Security] Merchant wallet ownership lookup failed — requested wallet is not registered to user');
+    return false;
   }
 
   return cleanEmail === cleanWallet;
@@ -765,6 +765,20 @@ async function upsertVerifiedInvoice(params: {
           updated_at: new Date().toISOString()
         })
       });
+    }
+
+    // ⚡ Auto-synchronize real tx_signature in in-memory serverInvoicesStore
+    if (Array.isArray(serverInvoicesStore)) {
+      serverInvoicesStore.forEach((inv) => {
+        if (inv.reference_key === referenceKey || inv.id === referenceKey || inv.referenceKey === referenceKey) {
+          inv.tx_signature = candSig;
+          inv.status = 'paid';
+          inv.settlement_status = settlementStatus;
+          inv.paid_amount_usdc = recAmt;
+          inv.r2_cdn_url = r2CdnUrl;
+        }
+      });
+      saveServerInvoicesStore(serverInvoicesStore);
     }
 
     await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?on_conflict=reference_key`, {
@@ -1788,6 +1802,17 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     zeroClawState.totalReconciledUsdc += (amountUsdc || 15.00);
     zeroClawState.reconciledTxCount += 1;
 
+    // 🛡️ ZERO-TRUST GUARD: Enforce real Base58 Solana transaction signature & on-chain confirmation before vault settlement persistence
+    const isRealBase58Sig = typeof effectiveSig === 'string' && /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(effectiveSig);
+    if (!isRealBase58Sig || (!onChainVerified && !isDemoMode)) {
+      console.warn(`[VaultSettlement] Blocked settlement persistence for invalid or unverified signature: ${effectiveSig}`);
+      return reply.status(400).send({
+        success: false,
+        error: `🛡️ Vault Settlement Rejected: Signature "${effectiveSig}" belum terverifikasi real di Solana blockchain. Settlement vault / payment lunas hanya disimpan jika transaksi memiliki Base58 txhash terkonfirmasi.`,
+        layer: 'VAULT_SETTLEMENT_REAL_TXHASH_GUARD'
+      });
+    }
+
     // Check if authenticated user - attempt Supabase DB persistence
     let persistedInDb = false;
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -2257,9 +2282,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           } catch (rowsErr) { }
         }
 
+        const isBase58TxHash = (sig?: string | null): boolean => {
+          if (!sig || typeof sig !== 'string') return false;
+          return /^[1-9A-HJ-NP-Za-km-z]{70,96}$/.test(sig);
+        };
+
         const mappedEvents = rows.map((r) => ({
           id: r.id,
-          signature: r.tx_signature || r.reference_key,
+          signature: isBase58TxHash(r.tx_signature) ? r.tx_signature : null,
           referenceKey: r.reference_key,
           amount: parseFloat(r.amount_usdc || '0'),
           amountUsdc: parseFloat(r.amount_usdc || '0'),
@@ -2281,9 +2311,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           const createdIso = inv.created_at || new Date().toISOString();
           const st = (inv.status || '').toLowerCase();
           const isLunas = st.includes('finished') || st.includes('paid') || st.includes('lunas') || st.includes('confirmed') || st.includes('settled') || Boolean(inv.tx_signature);
+          const realSig = isBase58TxHash(inv.tx_signature) ? inv.tx_signature : null;
           return {
             id: `inv_settled_${inv.id}`,
-            signature: inv.tx_signature || inv.reference_key || `ref_${inv.id}`,
+            signature: realSig,
             referenceKey: inv.reference_key || inv.referenceKey,
             amount: parseFloat(inv.amount || inv.amount_usdc || '0'),
             amountUsdc: parseFloat(inv.amount || inv.amount_usdc || '0'),
@@ -2307,9 +2338,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             const createdIso = inv.created_at || new Date().toISOString();
             const st = (inv.status || '').toLowerCase();
             const isLunas = st.includes('finished') || st.includes('paid') || st.includes('lunas') || st.includes('confirmed') || st.includes('settled') || Boolean(inv.tx_signature);
+            const realSig = isBase58TxHash(inv.tx_signature) ? inv.tx_signature : null;
             mappedInvoices.push({
               id: `inv_mem_${inv.id}`,
-              signature: inv.tx_signature || inv.reference_key || inv.referenceKey || `ref_${inv.id}`,
+              signature: realSig,
               referenceKey: inv.reference_key || inv.referenceKey,
               amount: parseFloat(inv.amount || inv.amount_usdc || '0'),
               amountUsdc: parseFloat(inv.amount || inv.amount_usdc || '0'),
@@ -3064,25 +3096,48 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: {
       userId?: string;
-      merchantPubkey: string;
+      merchantPubkey?: string;
       amount: string;
-      memo: string;
-      solanaPayUrl: string;
-      referenceKey: string;
+      memo?: string;
+      solanaPayUrl?: string;
+      referenceKey?: string;
       buyerEmail?: string;
       customerTarget?: string;
       telegramChannel?: string;
       isDemo?: boolean;
     }
   }>('/invoice/create', async (request, reply) => {
-    const { userId, merchantPubkey, amount, memo, solanaPayUrl, referenceKey: rawRefKey, buyerEmail, customerTarget, telegramChannel, isDemo } = request.body || {};
+    const { userId, merchantPubkey, amount, memo, solanaPayUrl: rawSolanaPayUrl, referenceKey: rawRefKey, buyerEmail, customerTarget, telegramChannel, isDemo } = request.body || {};
+
+    // 🛡️ ZERO-TRUST AUTHORIZATION & SERVER-SIDE SECURITY GATE
+    const securityRes = await InvoiceSecurityService.validateSecurityContext({
+      request,
+      requestedUserId: userId,
+      requestedMerchantPubkey: merchantPubkey,
+      requestedAmount: amount,
+      customerTarget: customerTarget || telegramChannel || buyerEmail,
+    });
+
+    if (!securityRes.authorized || !securityRes.errorResponse === false) {
+      return reply.status(securityRes.errorResponse!.statusCode).send({
+        success: false,
+        error: securityRes.errorResponse!.code,
+        message: securityRes.errorResponse!.message,
+      });
+    }
+
+    const userEmail = securityRes.userEmail;
+    const effectiveMerchantWallet = securityRes.authorizedMerchantWallet;
+    const amountUsdc = securityRes.canonicalAmountUsdc;
     const referenceKey = (rawRefKey && rawRefKey.trim().length > 0) ? rawRefKey.trim() : generateSolanaPayReferenceKey();
-    const userEmail = userId || 'user@zegaai.site';
-    const amountUsdc = parseFloat(amount) || 15.00;
+    const formattedAmountStr = amountUsdc < 1 ? amountUsdc.toString() : amountUsdc.toFixed(2);
+    const solanaPayUrl = (rawSolanaPayUrl && rawSolanaPayUrl.includes(effectiveMerchantWallet))
+      ? rawSolanaPayUrl
+      : `solana:${effectiveMerchantWallet}?amount=${formattedAmountStr}`;
     const isDemoBool = false;
 
     // 🛡️ Strict Customer Target Validation: Must be valid Telegram @username or Phone number
-    const targetValidation = validateAndExtractCustomerTarget(customerTarget || telegramChannel || buyerEmail, memo);
+    const targetValidation = validateAndExtractCustomerTarget(customerTarget || telegramChannel || buyerEmail, memo || '');
     if (!targetValidation.valid) {
       return reply.status(400).send({
         success: false,
@@ -3095,16 +3150,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     if (referenceKey) {
       zeroClawSignatureMonitor.registerMonitoredAddress(referenceKey, 'reference', userEmail, amountUsdc, customerTarget || telegramChannel, 'telegram');
     }
-    if (merchantPubkey) {
-      zeroClawSignatureMonitor.registerMonitoredAddress(merchantPubkey, 'merchant', userEmail, amountUsdc, customerTarget || telegramChannel, 'telegram');
+    if (effectiveMerchantWallet) {
+      zeroClawSignatureMonitor.registerMonitoredAddress(effectiveMerchantWallet, 'merchant', userEmail, amountUsdc, customerTarget || telegramChannel, 'telegram');
     }
 
     let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
     try {
       const userUuid = await resolveUserUuid(userEmail);
 
-      const effectiveMerchantWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
-      const reqOrgId = getTenantOrg(request) || '';
+      const reqOrgId = securityRes.organizationId || getTenantOrg(request) || '';
       // 1. Upload Cryptographic Audit Certificate to Cloudflare R2 CDN with 2s timeout
       try {
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('R2 upload timeout')), 2000));
@@ -3119,7 +3173,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               referenceKey,
               createdAt: new Date().toISOString()
             },
-            merchantPubkey,
+            merchantPubkey: effectiveMerchantWallet,
             referenceKey,
             txSignature: `gen_inv_${Date.now()}`
           }, reqOrgId),
@@ -3132,7 +3186,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           await SupabaseService.recordPrivyR2AuditCertificate({
             userId: userUuid,
             email: userEmail,
-            privyWalletAddress: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail),
+            privyWalletAddress: effectiveMerchantWallet,
             r2CdnUrl: r2Res.cdnUrl,
             r2ObjectKey: r2Res.objectKey,
             sha256Checksum: r2Res.sha256Checksum,
@@ -3147,14 +3201,14 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       const newInvoiceItem = {
         id: `inv_${Date.now()}`,
         user_id: userEmail,
-        merchant_pubkey: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail),
+        merchant_pubkey: effectiveMerchantWallet,
         amount_usdc: amountUsdc,
         reference_key: referenceKey,
         memo: memo || 'Solana Pay Invoice',
         customer_target: customerTarget || telegramChannel || null,
         solana_pay_url: solanaPayUrl,
         r2_cdn_url: r2CdnUrl,
-        network: 'solana-devnet',
+        network: securityRes.network,
         status: 'active',
         created_at: new Date().toISOString()
       };
@@ -3174,14 +3228,15 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           },
           body: JSON.stringify({
             user_id: userEmail,
-            merchant_pubkey: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail),
+            organization_id: reqOrgId || null,
+            merchant_pubkey: effectiveMerchantWallet,
             amount_usdc: amountUsdc,
             reference_key: referenceKey,
             memo: memo || 'Solana Pay Invoice',
             customer_target: customerTarget || telegramChannel || null,
             solana_pay_url: solanaPayUrl,
             r2_cdn_url: r2CdnUrl,
-            network: 'solana-devnet',
+            network: securityRes.network,
             status: 'active',
             tx_signature: null,
             paid_amount_usdc: 0,
@@ -3202,11 +3257,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           body: JSON.stringify({
             reference_key: referenceKey,
             user_id: userEmail,
-            merchant_pubkey: merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail),
+            organization_id: reqOrgId || null,
+            merchant_pubkey: effectiveMerchantWallet,
             event_type: 'invoice_created',
             amount_usdc: amountUsdc,
             event_data: { memo, customerTarget: customerTarget || telegramChannel, solanaPayUrl, r2CdnUrl },
-            network: 'solana-devnet',
+            network: securityRes.network,
             ip_address: request.ip || null,
           })
         }).catch(() => { });
@@ -3230,9 +3286,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             const reqLang = (request.body as any)?.lang || (request.body as any)?.language || (request.query as any)?.lang || (request.query as any)?.language;
             const t = getTelegramTranslations(reqLang);
             const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(solanaPayUrl)}&size=600&format=png`;
-            const effectiveWallet = merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
-            const checksumBadge = `${effectiveWallet.slice(0, 4)}...${effectiveWallet.slice(-4)}`;
-            const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveWallet)}&description=${encodeURIComponent(memo || 'Solana Pay Invoice')}`;
+            const checksumBadge = `${effectiveMerchantWallet.slice(0, 4)}...${effectiveMerchantWallet.slice(-4)}`;
+            const checkoutUrl = `https://zegaai.site/checkout?reference=${referenceKey}&amount=${amountUsdc.toFixed(2)}&recipient=${encodeURIComponent(effectiveMerchantWallet)}&description=${encodeURIComponent(memo || 'Solana Pay Invoice')}`;
             const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const captionText =
               `${t.invoiceCaption.headerTitle}\n` +
@@ -3242,7 +3297,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
               `• <b>${t.invoiceCaption.orderDetailsLabel}:</b> ${escHtml(memo || 'Solana Pay Invoice')}\n` +
               `• <b>${t.invoiceCaption.amountLabel}:</b> <code>${amountUsdc.toFixed(2)} USDC</code>\n` +
               `• <b>${t.invoiceCaption.refKeyLabel}:</b> <code>${referenceKey}</code>\n` +
-              `💳 <b>${t.invoiceCaption.merchantWalletLabel}:</b>\n<code>${effectiveWallet}</code>\n` +
+              `💳 <b>${t.invoiceCaption.merchantWalletLabel}:</b>\n<code>${effectiveMerchantWallet}</code>\n` +
               `🛡️ <b>${t.invoiceCaption.owaspChecksumLabel}:</b> <code>${checksumBadge}</code>\n` +
               `• <b>${t.invoiceCaption.r2CdnAuditLabel}:</b> <a href="${r2CdnUrl}">Audit Certificate</a>\n` +
               `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -3277,15 +3332,90 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       r2CdnUrl,
       invoice: {
         id: `inv_${Date.now()}`,
-        amount,
-        memo,
+        amount: amountUsdc.toString(),
+        memo: memo || 'Solana Pay Invoice',
         buyerEmail,
         solanaPayUrl,
         createdAt: new Date().toLocaleTimeString(),
-        merchantWallet: merchantPubkey,
+        merchantWallet: effectiveMerchantWallet,
         referenceKey,
         status: 'active',
         r2CdnUrl
+      }
+    });
+  });
+
+  // ── GET /v1/zeroclaw/checkout ── Zero-Trust Canonical Public Invoice Resolver by Reference Key
+  fastify.get<{ Querystring: { reference?: string; referenceKey?: string; ref?: string } }>('/checkout', async (request, reply) => {
+    const { reference, referenceKey, ref } = request.query || {};
+    const targetRef = (reference || referenceKey || ref || '').trim();
+
+    if (!targetRef) {
+      return reply.status(400).send({
+        success: false,
+        error: 'REFERENCE_REQUIRED',
+        message: 'A valid invoice reference key is required to load public checkout.'
+      });
+    }
+
+    // 1. Search Server-Side Memory Store
+    let invoiceMatch = serverInvoicesStore.find(i => i.reference_key === targetRef || i.id === targetRef);
+
+    // 2. Search Supabase Master DB if not found in memory store
+    if (!invoiceMatch) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+      if (supabaseUrl && supabaseKey) {
+        try {
+          const refEnc = encodeURIComponent(targetRef);
+          const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?or=(reference_key.eq.${refEnc},id.eq.${refEnc})&order=created_at.desc&limit=1`, {
+            headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+          });
+          if (invRes.ok) {
+            const rows = await invRes.json() as any[];
+            if (rows && rows.length > 0) {
+              invoiceMatch = rows[0];
+            }
+          }
+        } catch (err) {
+          logger.warn({ err, targetRef }, 'GET /v1/zeroclaw/checkout DB query error');
+        }
+      }
+    }
+
+    if (!invoiceMatch) {
+      return reply.status(404).send({
+        success: false,
+        error: 'INVOICE_NOT_FOUND',
+        message: 'Canonical invoice unavailable or invalid.'
+      });
+    }
+
+    const merchantWallet = invoiceMatch.merchant_pubkey || derivePrivyEmbeddedSolanaWallet(invoiceMatch.user_id);
+    const amountUsdc = parseFloat(invoiceMatch.amount_usdc || invoiceMatch.amount) || 0.20;
+    const formattedAmountStr = amountUsdc < 1 ? amountUsdc.toString() : amountUsdc.toFixed(2);
+    const solanaPayUrl = invoiceMatch.solana_pay_url || `solana:${merchantWallet}?amount=${formattedAmountStr}`;
+
+    return reply.send({
+      success: true,
+      canonicalInvoice: {
+        invoice_id: invoiceMatch.id || `inv_${targetRef}`,
+        reference: invoiceMatch.reference_key || targetRef,
+        tenant_id: invoiceMatch.organization_id || invoiceMatch.user_id || 'zega-enterprise',
+        merchant_identity: 'ZEGA AI Enterprise Terminal',
+        merchant_wallet: merchantWallet,
+        amount: amountUsdc,
+        formatted_amount: formattedAmountStr,
+        token: 'USDC',
+        network: invoiceMatch.network || process.env.SOLANA_NETWORK || 'solana-devnet',
+        description: invoiceMatch.memo || 'Solana Pay Invoice',
+        customer_target: invoiceMatch.customer_target || '@customer',
+        status: invoiceMatch.status || 'active',
+        created_at: invoiceMatch.created_at || new Date().toISOString(),
+        expires_at: invoiceMatch.created_at ? new Date(new Date(invoiceMatch.created_at).getTime() + 5 * 60 * 1000).toISOString() : null,
+        solana_pay_url: solanaPayUrl,
+        r2_cdn_url: invoiceMatch.r2_cdn_url || 'https://cdn.zegaai.site/privy-audits/demo/audit.json'
       }
     });
   });
@@ -5425,9 +5555,35 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      const merchantAddress = merchantContext?.usdcAddress || derivePrivyEmbeddedSolanaWallet((merchantContext as any)?.email || 'user@zegaai.site');
+      // 🛡️ ZERO-TRUST MERCHANT WALLET & AUTHORIZATION SECURITY GATE
+      const securityRes = await InvoiceSecurityService.validateSecurityContext({
+        request,
+        requestedMerchantPubkey: merchantContext?.usdcAddress,
+        requestedAmount: amount,
+        requestedNetwork: merchantContext?.network,
+        agentRole: (merchantContext as any)?.agentRole || (merchantContext as any)?.role,
+        customerTarget: rawCustomerTarget,
+      });
+
+      if (!securityRes.authorized || !securityRes.errorResponse === false) {
+        return reply.status(securityRes.errorResponse!.statusCode).send({
+          success: false,
+          executionStatus: 'denied_authorization',
+          error: securityRes.errorResponse!.code,
+          message: `⚠️ Security Policy Enforced: ${securityRes.errorResponse!.message}`,
+          modelUsed: 'OWASP-Invoice-Security-Gate',
+          latencyMs: 5,
+          tps: 500,
+          solanaPayUrl: null,
+          referenceKey: null,
+        });
+      }
+
+      const merchantAddress = securityRes.authorizedMerchantWallet;
+      const canonicalAmt = securityRes.canonicalAmountUsdc;
       // Standard scannable Solana Pay URI with dynamic decimal formatting (preserves exact decimals like 0.32)
-      const formattedAmountStr = amount < 1 ? amount.toString() : amount.toFixed(2);
+      const formattedAmountStr = canonicalAmt < 1 ? canonicalAmt.toString() : canonicalAmt.toFixed(2);
+      referenceKey = generateSolanaPayReferenceKey();
       solanaPayUrl = `solana:${merchantAddress}?amount=${formattedAmountStr}`;
 
     }

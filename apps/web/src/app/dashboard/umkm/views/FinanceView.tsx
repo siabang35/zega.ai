@@ -3,7 +3,7 @@ import {
   DollarSign, Scale, TrendingUp, ChevronDown, ChevronUp, Sparkles, X, ArrowRight, QrCode, ExternalLink,
   Calendar, Filter, CheckCircle2, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CreditCard,
   PieChart, RefreshCw, FileText, Plus, ShieldCheck, ChevronRight, Copy, Check, Bot, Settings,
-  Send, MessageSquare, History, Trash2, Search, Clock, LayoutDashboard, Banknote, Coins, Building2
+  Send, MessageSquare, History, Trash2, Search, Clock, LayoutDashboard, Banknote, Coins, Building2, Maximize2, Minimize2
 } from 'lucide-react';
 import { UmkmZeroClawTerminalView } from './UmkmZeroClawTerminalView';
 import { SupabaseDashboardService, isValidUuid, getCanonicalAuthHeaders } from '../../services/supabaseService';
@@ -385,6 +385,22 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
+  const [isMobileAiDrawerOpen, setIsMobileAiDrawerOpen] = useState(false);
+  const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  const handleCopyMessageText = (text: string, msgId: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedMsgId(msgId);
+      if (triggerToast) {
+        triggerToast(language === 'en' ? 'Message copied!' : language === 'zh' ? '消息已复制！' : 'Pesan berhasil disalin!');
+      }
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch (e) {
+      console.error('Failed to copy', e);
+    }
+  };
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isManageSwarmModalOpen, setIsManageSwarmModalOpen] = useState(false);
   const [isConfigureModelModalOpen, setIsConfigureModelModalOpen] = useState(false);
@@ -2295,18 +2311,26 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                   <div className="flex items-center gap-1.5">
                     <Sparkles size={16} className="text-purple-600 dark:text-purple-400" />
                     <h3 className="font-extrabold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-200">{f.aiAssistantTitle || 'AI Finance Assistant'}</h3>
-                    <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800/60">
-                      Active
-                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAccordionExpanded(!isAccordionExpanded)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-2xs"
-                  >
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsExpandedModalOpen(true)}
+                      className="p-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition-all cursor-pointer border border-purple-500 shadow-xs active:scale-95 touch-manipulation"
+                      title="Perbesar Tampilan AI Assistant"
+                    >
+                      <Maximize2 size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsAccordionExpanded(!isAccordionExpanded)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                    >
                     <span>{isAccordionExpanded ? (f.close || (language === 'en' ? 'Close' : language === 'zh' ? '关闭' : 'Tutup')) : (f.open || (language === 'en' ? 'Open' : language === 'zh' ? '展开' : 'Buka'))}</span>
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isAccordionExpanded ? 'rotate-180' : ''}`} />
                   </button>
+                </div>
                 </div>
 
                 {isAccordionExpanded && (
@@ -2538,7 +2562,7 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                         )}
 
                         {/* Chat Messages Log */}
-                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5 max-h-72 overflow-y-auto">
+                        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 h-96 sm:h-[440px] overflow-y-auto custom-scrollbar">
                           {financeChatMessages.length === 0 ? (
                             <div className="p-4 text-center text-slate-400 text-[11px]">
                               {language === 'en' ? 'Ask anything about your cash flow, Solana Pay, taxes, or profit margins.' : language === 'zh' ? '询问有关您的现金流、Solana Pay、税收或利润率的任何问题。' : 'Tanyakan apapun mengenai arus kas, Solana Pay, e-Faktur pajak, atau margin laba Anda.'}
@@ -2563,7 +2587,17 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
                                       : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-2xs'
                                     }`}
                                 >
-                                  <div className="text-[9px] opacity-70 font-mono mb-1 font-bold">{msg.sender_name || (msg.sender === 'user' ? 'Anda' : 'ZeroClaw AI')}</div>
+                                  <div className="flex items-center justify-between gap-2 text-[9.5px] opacity-80 font-mono mb-1 font-bold">
+  <span>{msg.sender_name || (msg.sender === 'user' ? 'Anda' : 'ZeroClaw AI')}</span>
+  <button
+    type="button"
+    onClick={() => handleCopyMessageText(msg.text, msg.id || `inline-${idx}`)}
+    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-purple-600 dark:hover:text-purple-300 transition-all cursor-pointer shrink-0"
+    title="Copy Message"
+  >
+    {copiedMsgId === (msg.id || `inline-${idx}`) ? <Check size={12} className="text-emerald-500 font-bold" /> : <Copy size={12} />}
+  </button>
+</div>
                                   <div>
                                     {msg.sender === 'user' ? msg.text : renderFormattedFinanceMessage(msg.text)}
                                   </div>
@@ -2722,6 +2756,349 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           </div>
         </>
       )}
+        </div>
+      )}
+
+      
+      {/* Mobile Floating Quick AI Assistant FAB Button */}
+      <button
+        type="button"
+        onClick={() => setIsMobileAiDrawerOpen(true)}
+        className="fixed bottom-20 right-4 z-40 lg:hidden px-3.5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-xl flex items-center gap-2 border border-purple-300/40 active:scale-95 transition-all cursor-pointer touch-manipulation"
+      >
+        <Sparkles size={16} className="text-amber-300 animate-pulse" />
+        <span>CFO AI Assistant</span>
+        <span className="size-2 rounded-full bg-emerald-400 animate-ping" />
+      </button>
+
+      {/* Mobile Seamless Slide-Over / Bottom Sheet AI Assistant Drawer */}
+      {isMobileAiDrawerOpen && (
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-slate-950/75 backdrop-blur-md lg:hidden animate-in fade-in duration-200">
+          <div className="fixed inset-0" onClick={() => setIsMobileAiDrawerOpen(false)} />
+          <div className="relative w-full h-[60vh] max-h-[60vh] sm:h-[65vh] sm:max-h-[65vh] bg-white dark:bg-slate-900 rounded-t-3xl border-t border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-2xl overflow-y-auto z-[110] flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Drawer Drag Bar & Header */}
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto" />
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">AI Finance Assistant</h3>
+                  
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileAiDrawerOpen(false);
+                    setIsExpandedModalOpen(true);
+                  }}
+                  className="p-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white cursor-pointer border border-purple-400 shadow-2xs active:scale-95 touch-manipulation"
+                  title="Perbesar Layar Penuh"
+                >
+                  <Maximize2 size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileAiDrawerOpen(false)}
+                  className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* AI Assistant Mode Tabs inside Mobile Drawer */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setAiAssistantTab('insights')}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${aiAssistantTab === 'insights'
+                    ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+              >
+                <Sparkles size={13} />
+                <span>AI Insights</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiAssistantTab('chat')}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${aiAssistantTab === 'chat'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+              >
+                <MessageSquare size={13} />
+                <span>{language === 'en' ? 'Chat' : language === 'zh' ? '咨询' : 'Konsultasi'}</span>
+              </button>
+            </div>
+
+            {/* Mobile Drawer Chat Log */}
+            {aiAssistantTab === 'chat' ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5 flex-1 h-[280px] max-h-[42vh] overflow-y-auto custom-scrollbar">
+                  {financeChatMessages.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-[11px]">
+                      {language === 'en' ? 'Ask anything about your cash flow, Solana Pay, taxes, or profit margins.' : 'Tanyakan apapun mengenai arus kas, Solana Pay, e-Faktur pajak, atau margin laba Anda.'}
+                    </div>
+                  ) : (
+                    financeChatMessages.map((msg: any, idx: number) => (
+                      <div
+                        key={msg.id || idx}
+                        className={`flex gap-2 text-xs ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {msg.sender !== 'user' && (
+                          <img
+                            src={SupabaseDashboardService.getCdnUrl('assets/logo/zeroclaw.jpeg')}
+                            alt="AI"
+                            className="size-6 rounded-lg object-cover shrink-0 mt-0.5 border border-purple-300 dark:border-purple-800"
+                          />
+                        )}
+                        <div
+                          className={`p-2.5 rounded-2xl max-w-[85%] leading-relaxed ${msg.sender === 'user'
+                              ? 'bg-purple-600 text-white font-medium rounded-tr-none'
+                              : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-2xs'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 text-[9.5px] opacity-80 font-mono mb-1 font-bold">
+  <span>{msg.sender_name || (msg.sender === 'user' ? 'Anda' : 'ZeroClaw AI')}</span>
+  <button
+    type="button"
+    onClick={() => handleCopyMessageText(msg.text, msg.id || `inline-${idx}`)}
+    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-purple-600 dark:hover:text-purple-300 transition-all cursor-pointer shrink-0"
+    title="Copy Message"
+  >
+    {copiedMsgId === (msg.id || `inline-${idx}`) ? <Check size={12} className="text-emerald-500 font-bold" /> : <Copy size={12} />}
+  </button>
+</div>
+                          <div>{msg.sender === 'user' ? msg.text : renderFormattedFinanceMessage(msg.text)}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <form onSubmit={handleSendFinanceAiMessage} className="w-full flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder={language === 'en' ? 'Ask CFO AI...' : language === 'zh' ? '咨询 CFO AI...' : 'Tanyakan CFO AI...'}
+                    value={financeInputQuery}
+                    onChange={(e) => setFinanceInputQuery(e.target.value)}
+                    className="w-full flex-1 py-2.5 px-3 rounded-2xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-100 min-w-0"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isFinanceAiLoading || !financeInputQuery.trim()}
+                    className="h-10 px-4 rounded-2xl bg-purple-600 text-white font-bold cursor-pointer shrink-0 flex items-center justify-center"
+                  >
+                    <Send size={15} />
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="space-y-2 text-xs max-h-64 overflow-y-auto">
+                {(financeData.insights || []).map((ins: any, idx: number) => (
+                  <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
+                    <div className="font-extrabold text-slate-900 dark:text-white">{ins.title}</div>
+                    <p className="text-[10.5px] text-slate-600 dark:text-slate-300 leading-relaxed">{ins.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      
+      {/* Full-Screen Large Expanded AI Finance Assistant Modal (Desktop & Mobile) */}
+      {isExpandedModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="fixed inset-0" onClick={() => setIsExpandedModalOpen(false)} />
+          <div className="relative w-full max-w-5xl h-[92vh] max-h-[900px] bg-white dark:bg-slate-900 rounded-3xl border border-purple-300 dark:border-purple-800/80 p-5 sm:p-6 space-y-4 shadow-2xl flex flex-col overflow-hidden z-[110] animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg">
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-black text-sm sm:text-base text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                      AI Finance Assistant
+                    </h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExpandedModalOpen(false)}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  title="Kecilkan Tampilan"
+                >
+                  <Minimize2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExpandedModalOpen(false)}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Workspace Content */}
+            <div className="flex-1 flex flex-col min-h-0 space-y-3">
+              {/* Toolbar & History Toggle */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAiAssistantTab('chat')}
+                    className={`py-1.5 px-4 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${aiAssistantTab === 'chat'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900'
+                      }`}
+                  >
+                    <MessageSquare size={15} />
+                    <span>{language === 'en' ? 'Chat' : language === 'zh' ? '咨询' : 'Konsultasi'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiAssistantTab('insights')}
+                    className={`py-1.5 px-4 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${aiAssistantTab === 'insights'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900'
+                      }`}
+                  >
+                    <Sparkles size={15} />
+                    <span>{language === 'en' ? 'Insights' : language === 'zh' ? '洞察' : 'Insights'} ({financeData.insights?.length || 0})</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFinanceHistory(!showFinanceHistory)}
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 font-extrabold text-xs flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer"
+                  >
+                    <History size={14} />
+                    <span>{language === 'en' ? 'History' : language === 'zh' ? '历史' : 'Riwayat'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNewFinanceChat}
+                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Plus size={14} />
+                    <span>{language === 'en' ? 'New' : language === 'zh' ? '新建' : 'Baru'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Large Chat Logs Area */}
+              {aiAssistantTab === 'chat' ? (
+                <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                  <div className="flex-1 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-4 overflow-y-auto custom-scrollbar">
+                    {financeChatMessages.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
+                        <div className="size-16 rounded-3xl bg-purple-500/10 text-purple-600 dark:text-purple-400 grid place-items-center">
+                          <Bot size={32} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <h3 className="font-extrabold text-xs text-slate-800 dark:text-slate-200">CFO AI Financial Specialist</h3>
+                          <p className="text-[11px] text-slate-400">Siap membantu analisis arus kas, Solana Pay & pajak Anda.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      financeChatMessages.map((msg: any, idx: number) => (
+                        <div
+                          key={msg.id || idx}
+                          className={`flex gap-3 text-xs sm:text-sm ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {msg.sender !== 'user' && (
+                            <img
+                              src={SupabaseDashboardService.getCdnUrl('assets/logo/zeroclaw.jpeg')}
+                              alt="AI"
+                              className="size-8 rounded-xl object-cover shrink-0 mt-0.5 border border-purple-300 dark:border-purple-800 shadow-xs"
+                              onError={(e: any) => { e.target.src = SupabaseDashboardService.getCdnUrl('assets/logo/zegalogo.png'); }}
+                            />
+                          )}
+                          <div
+                            className={`p-3.5 sm:p-4 rounded-3xl max-w-[85%] leading-relaxed ${msg.sender === 'user'
+                                ? 'bg-purple-600 text-white font-medium rounded-tr-none shadow-md'
+                                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-xs'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between gap-3 text-[10px] opacity-80 font-mono mb-1.5 font-bold border-b border-white/10 dark:border-slate-800 pb-1">
+                              <span>{msg.sender_name || (msg.sender === 'user' ? 'Anda' : 'ZeroClaw AI Financial Specialist')}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessageText(msg.text, msg.id || `modal-${idx}`)}
+                                className="px-2 py-0.5 rounded bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-all cursor-pointer shrink-0 flex items-center gap-1 text-[10px]"
+                                title="Copy Message"
+                              >
+                                {copiedMsgId === (msg.id || `modal-${idx}`) ? (
+                                  <Check size={12} className="text-emerald-400 font-bold" />
+                                ) : (
+                                  <Copy size={12} />
+                                )}
+                              </button>
+                            </div>
+                            <div className="text-xs sm:text-sm">
+                              {msg.sender === 'user' ? msg.text : renderFormattedFinanceMessage(msg.text)}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+
+                    {isFinanceAiLoading && (
+                      <div className="flex gap-2 text-xs items-center text-purple-600 dark:text-purple-400 font-bold animate-pulse p-2">
+                        <Bot size={16} className="animate-spin" />
+                        <span>ZeroClaw DeepSeek-R1 is calculating ledger metrics & generating response...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Large Input Form */}
+                  <form onSubmit={handleSendFinanceAiMessage} className="w-full flex items-center gap-2 pt-1 shrink-0">
+                    <input
+                      type="text"
+                      placeholder={language === 'en' ? 'Ask CFO AI...' : language === 'zh' ? '咨询 CFO AI...' : 'Tanyakan CFO AI...'}
+                      value={financeInputQuery}
+                      onChange={(e) => setFinanceInputQuery(e.target.value)}
+                      className="w-full flex-1 py-3.5 px-5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 shadow-xs"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isFinanceAiLoading || !financeInputQuery.trim()}
+                      className="h-12 px-6 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 disabled:opacity-50 text-white font-extrabold cursor-pointer transition-all shadow-md flex items-center justify-center gap-2 shrink-0 text-xs sm:text-sm"
+                    >
+                      <Send size={16} />
+                      <span>{language === 'en' ? 'Send' : language === 'zh' ? '发送' : 'Kirim'}</span>
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto space-y-3 p-2">
+                  {(financeData.insights || []).map((ins: any, idx: number) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="font-extrabold text-slate-900 dark:text-white text-sm">{ins.title}</div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{ins.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
         </div>
       )}
 

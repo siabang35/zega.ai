@@ -3,7 +3,7 @@ import {
   Brain, Plus, Search, Filter, Database, FileText, Globe, Upload, Sparkles, 
   Folder, Lock, Users, MoreVertical, ShieldCheck, X, LayoutGrid, List, Table, Clock, 
   MessageSquare, ChevronRight, TrendingUp, ArrowUpRight, BarChart2, CheckCircle2,
-  Share2, Download, Trash2, ExternalLink
+  Share2, Download, Trash2, ExternalLink, Copy, Check
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip 
@@ -28,6 +28,31 @@ export function KnowledgeBrainView({ onTriggerToast }: KnowledgeBrainViewProps) 
   const [showAiModal, setShowAiModal] = useState(false);
   const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [copiedAiMsg, setCopiedAiMsg] = useState(false);
+
+  const handleCopyAiMsg = (text: string) => {
+    if (!text) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error('Copy fallback failed:', error);
+      }
+      document.body.removeChild(textArea);
+    }
+    setCopiedAiMsg(true);
+    onTriggerToast?.('✓ Pesan AI disalin ke clipboard!');
+    setTimeout(() => setCopiedAiMsg(false), 2000);
+  };
 
   // New item modal form state
   const [newItemName, setNewItemName] = useState('');
@@ -1330,8 +1355,22 @@ export function KnowledgeBrainView({ onTriggerToast }: KnowledgeBrainViewProps) 
               <button onClick={() => setShowAiModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer"><X size={18} /></button>
             </div>
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900">
-                <p className="font-semibold">
+              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900 relative group">
+                <button
+                  onClick={() => {
+                    const text = activeTab === 'collections' ? 'Halo! Saya AI Assistant Knowledge Hub ZEGA. Saya telah mengindeks 42 Koleksi dan 1,216 Dokumen.' :
+                                 activeTab === 'all_documents' ? 'Halo! Saya Document RAG Assistant. Saya dapat menganalisis isi 3,128 dokumen PDF/Word perusahaan Anda.' :
+                                 activeTab === 'datasets' ? 'Halo! Saya Dataset AI. Tanyakan query agregasi, statistik baris (18.4M rows), atau visualisasi data.' :
+                                 activeTab === 'databases' ? 'Halo! Saya Database AI Agent. Saya dapat menginspeksi schema PostgreSQL/MySQL/BigQuery Anda.' :
+                                 'Halo! Saya Web Scraper Agent. Saya dapat menganalisis 24.8K halaman web yang telah di-crawl.';
+                    handleCopyAiMsg(text);
+                  }}
+                  className="absolute top-2.5 right-2.5 p-1 rounded-lg bg-indigo-100/80 dark:bg-indigo-900/80 hover:bg-indigo-200 dark:hover:bg-indigo-800 text-indigo-700 dark:text-indigo-300 transition-colors cursor-pointer"
+                  title="Copy AI Message"
+                >
+                  {copiedAiMsg ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                </button>
+                <p className="font-semibold pr-7">
                   {activeTab === 'collections' && 'Halo! Saya AI Assistant Knowledge Hub ZEGA. Saya telah mengindeks 42 Koleksi dan 1,216 Dokumen.'}
                   {activeTab === 'all_documents' && 'Halo! Saya Document RAG Assistant. Saya dapat menganalisis isi 3,128 dokumen PDF/Word perusahaan Anda.'}
                   {activeTab === 'datasets' && 'Halo! Saya Dataset AI. Tanyakan query agregasi, statistik baris (18.4M rows), atau visualisasi data.'}
