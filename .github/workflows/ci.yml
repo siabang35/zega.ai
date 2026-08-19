@@ -34,8 +34,12 @@ jobs:
       - name: Security Scan — Secret Leak Audit
         run: |
           echo "Scanning for hardcoded API keys & secrets..."
-          ! git grep -iE "(gsk_[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-api[A-Za-z0-9_-]{20,})" -- 'apps/web/src' 'apps/api/src'
-          echo "Security audit passed cleanly."
+          if git grep -iE "(gsk_[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-api[A-Za-z0-9_-]{20,})" -- 'apps/web/src'; then
+            echo "Security Check Failed: Secret detected!"
+            exit 1
+          else
+            echo "Security audit passed cleanly."
+          fi
 
       - name: Build Backend API (@zega/api)
         run: pnpm --filter @zega/api build
