@@ -1046,8 +1046,9 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
     const rawAssistantType = body.assistantType || body.copilot_type || body.agent_role || 'zega_copilot';
     const canonicalType = resolveCanonicalAssistantType(rawAssistantType);
 
-    const clientUserName = body.userName || body.user_name || body.fullname || body.full_name || '';
-    const clientUserEmail = body.userEmail || body.email || '';
+    const reqBody = body as any;
+    const clientUserName = reqBody.userName || reqBody.user_name || reqBody.fullname || reqBody.full_name || '';
+    const clientUserEmail = reqBody.userEmail || reqBody.email || '';
 
     // Multi-Domain Real-Time Store Context Hydration
     const hydratedContext = await buildStoreContextForAssistant(
