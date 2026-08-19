@@ -18,6 +18,7 @@ import { logger } from '../../utils/logger.js';
 export async function paymentRoutes(fastify: FastifyInstance) {
   // SECURITY: Strict JWT authentication for ALL payment routes
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.method === 'OPTIONS') return;
     try {
       await request.jwtVerify();
     } catch {

@@ -6,6 +6,7 @@ import { populatePrincipal, requireTenantContext, getTenantOrg } from '../../mid
 export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
   // SECURITY (F-15/F-16 FIX): Require authentication for ALL enterprise routes
   fastify.addHook('onRequest', async (request, reply) => {
+    if (request.method === 'OPTIONS') return;
     try {
       await request.jwtVerify();
     } catch {

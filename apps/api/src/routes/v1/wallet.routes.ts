@@ -16,6 +16,7 @@ import { populatePrincipal, requireTenantContext } from '../../middleware/reques
 export async function walletRoutes(fastify: FastifyInstance) {
   // SECURITY: Strict JWT authentication
   fastify.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.method === 'OPTIONS') return;
     try {
       await request.jwtVerify();
     } catch {

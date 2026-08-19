@@ -31,6 +31,9 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
 
   // SECURITY 1: Anti-DDoS & OWASP Anti-Tamper Verification & Zero-Fallback Bearer Auth
   fastify.addHook('onRequest', async (request, reply) => {
+    // 0. Preflight OPTIONS requests must bypass authentication & rate limits
+    if (request.method === 'OPTIONS') return;
+
     // A. Anti-DDoS Rate Limiting Guard
     const clientIp = (request.headers['x-forwarded-for'] as string)?.split(',')[0] || request.ip || '127.0.0.1';
     if (!checkRateLimit(`ip_${clientIp}`, 60, 60000)) {

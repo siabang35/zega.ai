@@ -33,92 +33,113 @@ export async function registerPlugins(app: FastifyInstance) {
   });
 
   // ── 2. Dynamic Enterprise CORS ──
-  const configuredOrigins = envConfig.CORS_ORIGIN.split(',').map((o) => o.trim());
+  const ZEGA_ALLOWED_HEADERS = [
+    'Authorization',
+    'authorization',
+    'Content-Type',
+    'content-type',
+    'Accept',
+    'accept',
+    'Origin',
+    'origin',
+    'User-Agent',
+    'user-agent',
+    'X-Requested-With',
+    'x-requested-with',
+    'apikey',
+    'APIKEY',
+    'x-client-info',
+    'X-Client-Info',
+    'X-Request-ID',
+    'x-request-id',
+    'X-CSRF-Token',
+    'x-csrf-token',
+    'x-user-email',
+    'X-User-Email',
+    'x-user-id',
+    'X-User-Id',
+    'x-merchant-pubkey',
+    'X-Merchant-Pubkey',
+    'x-correlation-id',
+    'X-Correlation-Id',
+    'x-privy-authorization',
+    'X-Privy-Authorization',
+    'x-authorization-attempt-id',
+    'X-Authorization-Attempt-Id',
+    'x-withdrawal-id',
+    'X-Withdrawal-Id',
+    'X-Organization-Id',
+    'x-organization-id',
+    'X-Store-Id',
+    'x-store-id',
+    'X-Workspace-Id',
+    'x-workspace-id',
+    'X-Request-Fingerprint',
+    'x-request-fingerprint',
+    'X-ZEGA-Timestamp',
+    'x-zega-timestamp',
+    'X-ZEGA-Anti-Tamper-Sig',
+    'x-zega-anti-tamper-sig',
+    'X-ZEGA-Version',
+    'x-zega-version',
+    'X-ZEGA-Source',
+    'x-zega-source',
+    'X-ZEGA-Signature',
+    'x-zega-signature'
+  ];
 
-  const isAllowedOrigin = (origin: string) => {
+  const configuredOrigins = envConfig.CORS_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
+
+  const isAllowedOrigin = (rawOrigin: string) => {
+    if (!rawOrigin) return false;
+    const origin = rawOrigin.trim().replace(/\/$/, '');
+
+    // 1. Production frontend origins (Explicit allowlist - No wildcard)
+    const isProductionOrigin =
+      origin === 'https://www.zegaai.site' ||
+      origin === 'https://zegaai.site' ||
+      origin === 'https://zega-ai.onrender.com' ||
+      /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
+      origin.endsWith('.zegaai.site') ||
+      origin.endsWith('.zega.ai');
+
+    // 2. Environment configured origins
     const isConfigured = configuredOrigins.some((allowed) => {
       if (allowed === origin) return true;
       if (allowed.includes('*')) {
-        const pattern = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+        const pattern = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$', 'i');
         return pattern.test(origin);
       }
       return false;
     });
 
-    const isAllowedDomain =
-      /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
-      origin.endsWith('.zegaai.site') ||
-      origin.endsWith('.zega.ai');
-
+    // 3. Localhost / Dev origins (strictly non-production)
     const isLocalhost =
       envConfig.NODE_ENV !== 'production' &&
       /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
-    return isConfigured || isAllowedDomain || isLocalhost;
+    return isProductionOrigin || isConfigured || isLocalhost;
   };
 
-  await app.register(fastifyCors, () => {
-    return (req: any, callback: any) => {
-      const requestedHeaders = req.headers['access-control-request-headers'];
-      const origin = req.headers.origin;
-
-      if (origin) {
-        app.log.info({
-          diagnostic: 'PROD_NETWORK_DIAGNOSTIC',
-          environment: envConfig.NODE_ENV,
-          origin,
-          method: req.method,
-          url: req.url,
-          hasAuthorization: Boolean(req.headers.authorization),
-          hasCredentials: Boolean(req.headers.cookie),
-          isPreflight: req.method === 'OPTIONS',
-        }, '[PROD_NETWORK_DIAGNOSTIC] Incoming request network transport inspection');
+  await app.register(fastifyCors, {
+    origin: (requestOrigin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+      if (!requestOrigin || isAllowedOrigin(requestOrigin)) {
+        cb(null, true);
+      } else {
+        app.log.warn({ origin: requestOrigin }, 'CORS request blocked from origin');
+        cb(new Error(`CORS policy: Origin ${requestOrigin} is not allowed by Access-Control-Allow-Origin`), false);
       }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ZEGA_ALLOWED_HEADERS,
+    exposedHeaders: ['x-correlation-id', 'x-request-id', 'X-ZEGA-Timestamp', 'x-zega-timestamp'],
+    maxAge: 86400,
+  });
 
-      const corsOptions = {
-        origin: (requestOrigin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
-          if (!requestOrigin || isAllowedOrigin(requestOrigin)) {
-            cb(null, true);
-          } else {
-            app.log.warn({ origin: requestOrigin }, 'CORS request blocked from origin');
-            cb(new Error(`CORS policy: Origin ${requestOrigin} is not allowed by Access-Control-Allow-Origin`), false);
-          }
-        },
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: requestedHeaders || [
-          'Content-Type',
-          'Authorization',
-          'apikey',
-          'x-client-info',
-          'X-Request-ID',
-          'X-CSRF-Token',
-          'x-user-email',
-          'X-User-Email',
-          'x-user-id',
-          'X-User-Id',
-          'x-merchant-pubkey',
-          'x-correlation-id',
-          'x-privy-authorization',
-          'x-authorization-attempt-id',
-          'x-withdrawal-id',
-          'X-Organization-Id',
-          'x-organization-id',
-          'X-Store-Id',
-          'x-store-id',
-          'X-Workspace-Id',
-          'x-workspace-id',
-          'X-Request-Fingerprint',
-          'x-request-fingerprint',
-          'X-ZEGA-Timestamp',
-          'x-zega-timestamp',
-          'X-ZEGA-Anti-Tamper-Sig',
-          'x-zega-anti-tamper-sig'
-        ],
-        maxAge: 86400,
-      };
-      callback(null, corsOptions);
-    };
+  // Ensure Vary: Origin header is set on all responses to prevent proxy cache pollution
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header('Vary', 'Origin');
   });
 
   // ── 3. Cookies ──
