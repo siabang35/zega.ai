@@ -10702,7 +10702,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .insert([{
           chat_id: payload.chat_id,
           user_id: effectiveUserId,
-          organization_id: (isValidUuid(activeTenant.orgId || '') ? activeTenant.orgId : null),
+          organization_id: (isValidUuid(activeTenant.organizationId || '') ? activeTenant.organizationId : null),
           workspace_id: (isValidUuid(activeTenant.workspaceId || '') ? activeTenant.workspaceId : null),
           sender: payload.sender,
           message: payload.message,

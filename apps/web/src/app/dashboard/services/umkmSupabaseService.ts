@@ -277,21 +277,29 @@ export function isVerifiedTenantContext(ctx: any, expectedUserId?: string): ctx 
   const isVerified = ctx.verified === true || ctx.tenantVerified === true || (isReady && hasValidStoreId && hasValidOrgId && hasValidWsId);
   const isStoreReady = (derivedStoreStatus === 'ready' || isReady) && hasValidStoreId && hasValidOrgId && hasValidWsId;
 
-  // STRICT CANONICAL USER IDENTITY MATCHING (UUID ONLY - NEVER MATCH EMAIL AGAINST UUID)
+  // CANONICAL USER IDENTITY MATCHING (SUPPORTS DUAL UUID SCHEME: auth.users.id vs public.users.id)
   const normExpectedUuid = (expectedUserId && isValidUuid(expectedUserId)) ? expectedUserId.trim().toLowerCase() : '';
   const normCtxUserUuid = (ctx.userId && isValidUuid(ctx.userId)) ? ctx.userId.trim().toLowerCase() : '';
   const normAuthUserUuid = (ctx.authUserId && isValidUuid(ctx.authUserId)) ? ctx.authUserId.trim().toLowerCase() : '';
   const normBridgeUserUuid = (authBridge.supabaseUserId && isValidUuid(authBridge.supabaseUserId)) ? authBridge.supabaseUserId.trim().toLowerCase() : '';
 
+  // Collect all valid UUIDs associated with the current session
+  const knownSessionUuids = new Set<string>();
+  if (normCtxUserUuid) knownSessionUuids.add(normCtxUserUuid);
+  if (normAuthUserUuid) knownSessionUuids.add(normAuthUserUuid);
+  if (normBridgeUserUuid) knownSessionUuids.add(normBridgeUserUuid);
+
+  const jwtIdentity = extractUserIdFromStoredJwt();
+  if (jwtIdentity.userId && isValidUuid(jwtIdentity.userId)) {
+    knownSessionUuids.add(jwtIdentity.userId.trim().toLowerCase());
+  }
+
   let userMatches = true;
   let isMismatch = false;
 
   if (normExpectedUuid) {
-    const matchesCtx = normCtxUserUuid ? (normExpectedUuid === normCtxUserUuid) : true;
-    const matchesAuth = normAuthUserUuid ? (normExpectedUuid === normAuthUserUuid) : true;
-    const matchesBridge = normBridgeUserUuid ? (normExpectedUuid === normBridgeUserUuid) : true;
-
-    if (!matchesCtx || !matchesAuth || !matchesBridge) {
+    // If an expected user ID is provided, verify it exists within the active session's known UUID set
+    if (knownSessionUuids.size > 0 && !knownSessionUuids.has(normExpectedUuid)) {
       userMatches = false;
       // Declare MISMATCH ONLY when tenant resolution is complete and both UUIDs are valid
       if (normalizedStatus !== 'TENANT_RESOLVING' && normalizedStatus !== 'AUTH_INITIALIZING' && ctx.storeStatus !== 'loading' && hasValidUserId) {
