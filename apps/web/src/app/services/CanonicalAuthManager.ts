@@ -7,6 +7,7 @@ import {
 } from './accountTypeManager';
 
 export type CanonicalAuthStateStatus =
+  | 'AUTH_BOOTSTRAPPING'
   | 'AUTH_LOADING'
   | 'AUTH_READY'
   | 'AUTH_REQUIRED'
@@ -38,6 +39,7 @@ export interface CanonicalAuthState {
   supabaseSessionReady: boolean;
   externalSessionReady: boolean;
   sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
+  initializationComplete: boolean;
 }
 
 export interface CanonicalAuthResult {
@@ -55,6 +57,7 @@ export interface CanonicalAuthResult {
   supabaseSessionReady: boolean;
   externalSessionReady: boolean;
   sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
+  initializationComplete: boolean;
 }
 
 function isValidUuid(val: any): boolean {
@@ -66,7 +69,7 @@ function isValidUuid(val: any): boolean {
 
 class CanonicalAuthManager {
   private state: CanonicalAuthState = {
-    authState: 'AUTH_LOADING',
+    authState: 'AUTH_BOOTSTRAPPING',
     sessionState: 'SESSION_LOADING',
     identitySource: 'NONE',
     canonicalUserId: null,
@@ -81,6 +84,7 @@ class CanonicalAuthManager {
     supabaseSessionReady: false,
     externalSessionReady: false,
     sessionProvider: 'none',
+    initializationComplete: false,
   };
 
   private listeners: Set<(state: CanonicalAuthState) => void> = new Set();
@@ -116,7 +120,7 @@ class CanonicalAuthManager {
 
     // Retain canonical userId if present and valid during transitional updates
     let nextUserId = partial.canonicalUserId !== undefined ? partial.canonicalUserId : this.state.canonicalUserId;
-    if (prevState === 'AUTH_READY' && !nextUserId && isValidUuid(prevUserId) && partial.authState !== 'AUTH_REQUIRED') {
+    if ((prevState === 'AUTH_READY' || prevState === 'AUTH_LOADING') && !nextUserId && isValidUuid(prevUserId) && partial.authState !== 'AUTH_REQUIRED') {
       nextUserId = prevUserId;
     }
 
@@ -125,13 +129,13 @@ class CanonicalAuthManager {
     let nextIdentitySource = partial.identitySource !== undefined ? partial.identitySource : this.state.identitySource;
     let nextSession = partial.session !== undefined ? partial.session : this.state.session;
     let nextSupabasePresent = partial.supabaseSessionPresent !== undefined ? partial.supabaseSessionPresent : this.state.supabaseSessionPresent;
+    let initializationComplete = partial.initializationComplete !== undefined ? partial.initializationComplete : this.state.initializationComplete;
 
-    // STRICT INVARIANT ENFORCEMENT:
     // 1. If session is present and valid, sessionState MUST be SESSION_READY and identitySource SUPABASE.
     if (nextSession && nextSession.user && isValidUuid(nextSession.user.id)) {
       nextSupabasePresent = true;
       nextSessionState = 'SESSION_READY';
-      if (nextAuthState === 'AUTH_READY' || nextAuthState === 'AUTH_LOADING') {
+      if (nextAuthState === 'AUTH_READY' || nextAuthState === 'AUTH_LOADING' || nextAuthState === 'AUTH_BOOTSTRAPPING') {
         nextAuthState = 'AUTH_READY';
         nextIdentitySource = 'SUPABASE';
       }
@@ -142,24 +146,24 @@ class CanonicalAuthManager {
       }
     }
 
-    // 2. FORBIDDEN CONTRADICTION: AUTH_READY + sessionState=SESSION_LOADING
-    // If authState is set to AUTH_READY while sessionState is SESSION_LOADING, authState MUST remain AUTH_LOADING!
-    if (nextAuthState === 'AUTH_READY' && nextSessionState === 'SESSION_LOADING') {
-      nextAuthState = 'AUTH_LOADING';
-    }
-
-    // 3. FORBIDDEN CONTRADICTION: AUTH_READY with invalid user identity UUID
+    // 2. FORBIDDEN CONTRADICTION: AUTH_READY + sessionState=SESSION_LOADING with no valid external user ID
     const hasValidIdentity = Boolean(nextUserId && isValidUuid(nextUserId));
-    if (nextAuthState === 'AUTH_READY' && !hasValidIdentity) {
-      nextAuthState = 'AUTH_REQUIRED';
-      nextSessionState = 'SESSION_ABSENT';
-      nextIdentitySource = 'NONE';
+
+    // 3. EXTERNAL AUTH PROMOTION:
+    // If valid user identity exists (from external JWT or Privy session), promote state to AUTH_READY
+    if (hasValidIdentity && (nextAuthState === 'AUTH_BOOTSTRAPPING' || nextAuthState === 'AUTH_LOADING' || nextAuthState === 'AUTH_READY')) {
+      nextAuthState = 'AUTH_READY';
+      if (!nextSupabasePresent) {
+        nextIdentitySource = 'EXTERNAL';
+        nextSessionState = 'SESSION_ABSENT';
+      }
     }
 
-    // 4. Set identitySource appropriately if EXTERNAL identity
-    if (nextAuthState === 'AUTH_READY' && !nextSupabasePresent && hasValidIdentity) {
-      nextIdentitySource = 'EXTERNAL';
-      nextSessionState = 'SESSION_ABSENT';
+    // 4. FORBIDDEN PREMATURE REJECTION:
+    // Do NOT allow transition to AUTH_REQUIRED while bootstrapping or loading if initialization is incomplete
+    if (nextAuthState === 'AUTH_REQUIRED' && !initializationComplete && (prevState === 'AUTH_BOOTSTRAPPING' || prevState === 'AUTH_LOADING')) {
+      console.log('[CANONICAL_AUTH_MANAGER] Gating transition to AUTH_REQUIRED: Initialization incomplete.');
+      nextAuthState = 'AUTH_LOADING';
     }
 
     const identityReady = (nextAuthState === 'AUTH_READY' || nextAuthState === 'AUTH_LOADING') && hasValidIdentity;
@@ -177,6 +181,10 @@ class CanonicalAuthManager {
       sessionProvider = 'privy';
     }
 
+    if (nextAuthState === 'AUTH_READY') {
+      initializationComplete = true;
+    }
+
     const candidateState: CanonicalAuthState = {
       ...this.state,
       ...partial,
@@ -191,6 +199,7 @@ class CanonicalAuthManager {
       supabaseSessionReady,
       externalSessionReady,
       sessionProvider,
+      initializationComplete,
     };
 
     if (
@@ -207,6 +216,7 @@ class CanonicalAuthManager {
       this.state.supabaseSessionReady === candidateState.supabaseSessionReady &&
       this.state.externalSessionReady === candidateState.externalSessionReady &&
       this.state.sessionProvider === candidateState.sessionProvider &&
+      this.state.initializationComplete === candidateState.initializationComplete &&
       this.state.error === candidateState.error
     ) {
       return this.state;
@@ -245,6 +255,7 @@ class CanonicalAuthManager {
       supabaseSessionReady: this.state.supabaseSessionReady,
       sessionProvider: this.state.sessionProvider,
       supabaseSessionPresent: this.state.supabaseSessionPresent,
+      initializationComplete: this.state.initializationComplete,
       generation: this.authGeneration,
     });
 
@@ -274,6 +285,7 @@ class CanonicalAuthManager {
               accessTokenPresent: Boolean(session.access_token),
               expiresAt: session.expires_at || null,
               session,
+              initializationComplete: true,
               error: null,
             });
           }
@@ -289,6 +301,7 @@ class CanonicalAuthManager {
             accessTokenPresent: false,
             expiresAt: null,
             session: null,
+            initializationComplete: true,
             error: null,
           });
         }
@@ -302,7 +315,7 @@ class CanonicalAuthManager {
    * Singleflight initialization of canonical auth state.
    */
   public async initialize(): Promise<CanonicalAuthState> {
-    if (this.state.authState !== 'AUTH_LOADING' && this.state.authState !== 'AUTH_ERROR') {
+    if (this.state.authState === 'AUTH_READY') {
       return this.getState();
     }
 
@@ -310,16 +323,21 @@ class CanonicalAuthManager {
       return this.authInitPromise;
     }
 
+    console.log('[AUTH_RESTORE_START]', { timestamp: new Date().toISOString() });
+
     this.authInitPromise = (async () => {
       try {
         // 1. Inspect existing Supabase session first
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError) {
-          console.warn('[CANONICAL_AUTH_MANAGER] Supabase getSession note:', sessionError.message);
-        }
+        console.log('[AUTH_SUPABASE_SESSION_STATE]', {
+          sessionPresent: Boolean(session),
+          userId: session?.user?.id || null,
+          error: sessionError?.message || null
+        });
 
         if (session && session.user && isValidUuid(session.user.id)) {
+          console.log('[AUTH_CANONICAL_RESOLUTION]', { provider: 'supabase', userId: session.user.id });
           return this.updateState({
             authState: 'AUTH_READY',
             sessionState: 'SESSION_READY',
@@ -330,20 +348,37 @@ class CanonicalAuthManager {
             accessTokenPresent: Boolean(session.access_token),
             expiresAt: session.expires_at || null,
             session,
+            initializationComplete: true,
             error: null,
           });
         }
 
-        // 2. Fallback check for cached access token or external JWT
+        // 2. Fallback check for cached access token or external JWT or mock session
         const localToken = typeof localStorage !== 'undefined'
           ? (localStorage.getItem('zega_access_token') || localStorage.getItem('zega_jwt') || localStorage.getItem('token'))
           : null;
 
+        const mockSessionStr = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_mock_session') : null;
+        let mockUserId: string | null = null;
+        let mockUserEmail: string | null = null;
+        if (mockSessionStr) {
+          try {
+            const parsed = JSON.parse(mockSessionStr);
+            if (parsed?.user?.id) mockUserId = parsed.user.id;
+            if (parsed?.email || parsed?.user?.email) mockUserEmail = parsed.email || parsed.user.email;
+          } catch {}
+        }
+
+        let effectiveUserId: string | null = null;
+        let effectiveEmail: string | null = mockUserEmail;
+
         if (localToken) {
           const synced = await syncSupabaseAuthSession(localToken);
           const { data: { session: freshSession } } = await supabase.auth.getSession();
-          let effectiveUserId = freshSession?.user?.id;
-          let effectiveEmail = freshSession?.user?.email;
+          if (freshSession?.user?.id) {
+            effectiveUserId = freshSession.user.id;
+            effectiveEmail = freshSession.user.email || mockUserEmail;
+          }
 
           if (!effectiveUserId && localToken.includes('.')) {
             try {
@@ -351,29 +386,36 @@ class CanonicalAuthManager {
               const sub = payload?.sub || payload?.id;
               if (isValidUuid(sub)) {
                 effectiveUserId = sub;
-                effectiveEmail = payload?.email || null;
+                effectiveEmail = payload?.email || mockUserEmail;
               }
             } catch { }
           }
-
-          if (effectiveUserId && isValidUuid(effectiveUserId)) {
-            const hasGenuineSession = Boolean(synced && freshSession);
-            return this.updateState({
-              authState: 'AUTH_READY',
-              sessionState: hasGenuineSession ? 'SESSION_READY' : 'SESSION_ABSENT',
-              identitySource: hasGenuineSession ? 'SUPABASE' : 'EXTERNAL',
-              canonicalUserId: effectiveUserId,
-              userEmail: effectiveEmail || null,
-              supabaseSessionPresent: hasGenuineSession,
-              accessTokenPresent: true,
-              expiresAt: freshSession?.expires_at || null,
-              session: freshSession || null,
-              error: null,
-            });
-          }
         }
 
-        // No session found after initial restoration check
+        if (!effectiveUserId && mockUserId && isValidUuid(mockUserId)) {
+          effectiveUserId = mockUserId;
+        }
+
+        if (effectiveUserId && isValidUuid(effectiveUserId)) {
+          console.log('[AUTH_EXTERNAL_SESSION_FOUND]', { userId: effectiveUserId, userEmail: effectiveEmail });
+          console.log('[AUTH_CANONICAL_RESOLUTION]', { provider: 'external', userId: effectiveUserId });
+          return this.updateState({
+            authState: 'AUTH_READY',
+            sessionState: 'SESSION_ABSENT',
+            identitySource: 'EXTERNAL',
+            canonicalUserId: effectiveUserId,
+            userEmail: effectiveEmail || null,
+            supabaseSessionPresent: false,
+            accessTokenPresent: true,
+            expiresAt: null,
+            session: null,
+            initializationComplete: true,
+            error: null,
+          });
+        }
+
+        console.log('[AUTH_RESTORE_COMPLETE]', { status: 'NO_SESSION_FOUND' });
+        // No session found after checking all providers
         return this.updateState({
           authState: 'AUTH_REQUIRED',
           sessionState: 'SESSION_ABSENT',
@@ -384,6 +426,7 @@ class CanonicalAuthManager {
           accessTokenPresent: Boolean(localToken),
           expiresAt: null,
           session: null,
+          initializationComplete: true,
           error: null,
         });
       } catch (err: any) {
@@ -398,6 +441,7 @@ class CanonicalAuthManager {
           accessTokenPresent: false,
           expiresAt: null,
           session: null,
+          initializationComplete: true,
           error: err?.message || 'Auth initialization failed',
         });
       } finally {
@@ -533,6 +577,7 @@ class CanonicalAuthManager {
       supabaseSessionReady: current.supabaseSessionReady,
       externalSessionReady: current.externalSessionReady,
       sessionProvider: current.sessionProvider,
+      initializationComplete: current.initializationComplete,
     };
 
     console.log('[AUTH_CANONICAL_SNAPSHOT]', {
@@ -584,6 +629,7 @@ class CanonicalAuthManager {
       supabaseSessionReady: current.supabaseSessionReady,
       externalSessionReady: current.externalSessionReady,
       sessionProvider: current.sessionProvider,
+      initializationComplete: current.initializationComplete,
     };
 
     console.log('[AUTH_CANONICAL_SNAPSHOT]', {

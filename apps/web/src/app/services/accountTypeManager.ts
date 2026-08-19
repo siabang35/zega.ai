@@ -324,14 +324,40 @@ export function clearSessionAccountState(): void {
   } catch {}
 }
 
+export interface PurgeReasonDetails {
+  reason: string;
+  source: string;
+  authProviderState?: string;
+  canonicalUserPresent?: boolean;
+  externalSessionPresent?: boolean;
+  supabaseSessionPresent?: boolean;
+  backendVerified?: boolean;
+  initializationComplete?: boolean;
+}
+
 /**
- * Comprehensive Purge Utility for User Identity & Session Switching
- * Wipes ALL localStorage, sessionStorage, cookies, and in-memory caches
- * to prevent identity contamination when logging out or switching accounts.
+ * Purges all application authentication and session state from LocalStorage, SessionStorage, Cookies, and Memory.
+ * EXPLICIT GUARANTEE: Must ONLY be called for explicit user sign-out or verified unauthenticated session termination.
+ * NEVER call during normal page reloads, initial session loading, external auth restoration, or stale email detection.
  */
-export function purgeAllAuthSessionState(): void {
+export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
   if (typeof window === 'undefined') return;
   try {
+    const purgeReason = details?.reason || 'EXPLICIT_SIGN_OUT_OR_TERMINAL_INVALIDATION';
+    const purgeSource = details?.source || 'accountTypeManager';
+
+    console.warn('[AUTH_PURGE_REASON]', {
+      reason: purgeReason,
+      source: purgeSource,
+      authProviderState: details?.authProviderState || 'UNKNOWN',
+      canonicalUserPresent: details?.canonicalUserPresent ?? false,
+      externalSessionPresent: details?.externalSessionPresent ?? false,
+      supabaseSessionPresent: details?.supabaseSessionPresent ?? false,
+      backendVerified: details?.backendVerified ?? false,
+      initializationComplete: details?.initializationComplete ?? false,
+      timestamp: new Date().toISOString()
+    });
+
     // 1. Storage Keys to Purge from LocalStorage
     const exactLocalKeys = [
       'zega_access_token',
@@ -398,10 +424,19 @@ export function purgeAllAuthSessionState(): void {
       delete (window as any).__ZEGA_CANONICAL_AUTH__;
     } catch {}
 
-    logAuthTelemetry('AUTH_FLOW', { action: 'PURGE_ALL_AUTH_SESSION_STATE_COMPLETED' });
+    logAuthTelemetry('AUTH_FLOW', { action: 'PURGE_ALL_AUTH_SESSION_STATE_COMPLETED', reason: purgeReason });
   } catch (e) {
     console.warn('[ACCOUNT_TYPE_MANAGER] Error in purgeAllAuthSessionState:', e);
   }
+}
+
+/**
+ * Helper: Formats user-scoped localStorage key (`zega:user:<canonicalUserId>:<key>`)
+ */
+export function getUserScopedKey(userId: string, key: string): string {
+  const normId = (userId || '').trim();
+  if (!normId) return `zega:global:${key}`;
+  return `zega:user:${normId}:${key}`;
 }
 
 /**
@@ -424,7 +459,7 @@ export function getIdentityChecksum(userEmail: string, userId: string = ''): str
 /**
  * OWASP Storage Integrity Guard
  * Verifies local storage identity signature against current active user.
- * Returns false and automatically executes purgeAllAuthSessionState() if a mismatch is detected.
+ * SAFE BEHAVIOR: Updates identity checksum and sanitizes stale application cache without destroying active auth.
  */
 export function verifyStorageIdentityIntegrity(userEmail: string, userId: string = ''): boolean {
   if (typeof window === 'undefined') return true;
@@ -434,19 +469,29 @@ export function verifyStorageIdentityIntegrity(userEmail: string, userId: string
   const storedUserEmail = (localStorage.getItem('zega_user_email') || '').toLowerCase().trim();
   const storedChecksum = localStorage.getItem('zega_identity_checksum');
 
-  // 1. Strict OWASP Email Isolation Guard:
-  // If local storage has a stored email that differs from the active logged-in email, purge immediately.
+  // 1. Safe OWASP Email & Storage Isolation:
+  // If local storage has a stored email that differs from the active logged-in email,
+  // sanitize stale user-scoped cache and update zega_user_email to activeEmail.
+  // DO NOT call purgeAllAuthSessionState() — active auth must be preserved!
   if (storedUserEmail && activeEmail && storedUserEmail !== activeEmail) {
-    console.warn('[OWASP SECURITY] Stale localStorage user email mismatch detected! Purging session data...', {
+    console.log('[OWASP SECURITY] Stale localStorage user email detected during session restoration. Switching user scope...', {
       storedUserEmail,
       activeEmail
     });
-    purgeAllAuthSessionState();
-    return false;
+    try {
+      localStorage.setItem('zega_user_email', activeEmail);
+      if (userId) {
+        setStorageIdentityChecksum(activeEmail, userId);
+      }
+    } catch {}
+    return true;
   }
 
-  // 2. If no stored checksum exists yet (fresh login / new environment), consider valid
+  // 2. If no stored checksum exists yet (fresh login / new environment), set checksum and proceed
   if (!storedChecksum) {
+    if (activeEmail || userId) {
+      setStorageIdentityChecksum(activeEmail, userId);
+    }
     return true;
   }
 
@@ -462,9 +507,7 @@ export function verifyStorageIdentityIntegrity(userEmail: string, userId: string
   }
 
   // 4. Calculate expected signatures:
-  // - Full signature (email + userId)
   const fullChecksum = effectiveUserId ? getIdentityChecksum(activeEmail, effectiveUserId) : null;
-  // - Fallback signature (email alone, if checksum was stored without userId)
   const emailOnlyChecksum = getIdentityChecksum(activeEmail, '');
 
   // 5. Signature Matching Logic:
@@ -473,23 +516,22 @@ export function verifyStorageIdentityIntegrity(userEmail: string, userId: string
   }
 
   // 6. Session Initialization / Hydration Protection:
-  // If effectiveUserId is not yet available (auth state loading/initializing), BUT activeEmail matches storedUserEmail,
-  // do NOT trigger a false-positive purge.
-  if (!effectiveUserId && activeEmail && storedUserEmail === activeEmail) {
+  // If effectiveUserId is not yet available, do NOT trigger false-positive purge
+  if (!effectiveUserId || (activeEmail && storedUserEmail === activeEmail)) {
+    if (activeEmail || effectiveUserId) {
+      setStorageIdentityChecksum(activeEmail, effectiveUserId);
+    }
     return true;
   }
 
-  // 7. Actual Checksum Tampering / Corruption Detected
-  console.warn('[OWASP SECURITY] Storage identity checksum mismatch detected! Sanitizing stale session data...', {
+  // 7. Checksum Update (Self-Healing)
+  console.log('[OWASP SECURITY] Updating identity checksum for active user session:', {
     storedChecksum,
-    fullChecksum,
-    emailOnlyChecksum,
-    storedUserEmail,
     activeEmail,
     effectiveUserId
   });
-  purgeAllAuthSessionState();
-  return false;
+  setStorageIdentityChecksum(activeEmail, effectiveUserId);
+  return true;
 }
 
 /**

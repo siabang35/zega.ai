@@ -80,8 +80,8 @@ class DashboardBootstrapCoordinator {
           console.log('[DASHBOARD_BOOTSTRAP] Event-driven resume triggered for AUTH_READY');
           this.executeBootstrap(this.lastAssistantType, this.lastProvidedStoreId, true);
         }
-      } else if (authResult.status === 'AUTH_REQUIRED' || authResult.status === 'SESSION_INVALID') {
-        // Invalidate current bootstrap on sign-out or session loss
+      } else if (authResult.initializationComplete && (authResult.status === 'AUTH_REQUIRED' || authResult.status === 'SESSION_INVALID')) {
+        // Invalidate current bootstrap on explicit sign-out or terminal session loss
         this.bootstrapGeneration++;
         if (this.currentAbortController) {
           this.currentAbortController.abort();
@@ -101,12 +101,12 @@ class DashboardBootstrapCoordinator {
           activeChatId: null,
           error: 'Authentication required',
         });
-      } else if (authResult.status === 'WAITING') {
+      } else if (authResult.status === 'WAITING' || !authResult.initializationComplete) {
         if (this.state.step === 'IDLE' || !this.state.authReady) {
           this.updateState({
             step: 'WAITING_AUTH',
             authReady: false,
-            supabaseSessionPresent: false,
+            supabaseSessionPresent: Boolean(authResult.session),
             error: null,
           });
         }

@@ -354,7 +354,7 @@ export const SupabaseDashboardService = {
     try {
       await supabase.removeAllChannels().catch(() => { });
       await supabase.auth.signOut().catch(() => { });
-      purgeAllAuthSessionState();
+      purgeAllAuthSessionState({ reason: 'USER_EXPLICIT_SIGN_OUT', source: 'supabaseService.signOut' });
       this.clearAllChatStateAndCache();
 
       // Clear tenant resolution cache and active tenant state on sign-out (session isolation)

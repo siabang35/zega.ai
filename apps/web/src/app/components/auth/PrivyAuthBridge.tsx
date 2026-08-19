@@ -477,9 +477,8 @@ export function PrivyAuthBridge() {
               existingSessionEmail: existingSession.user.email,
               newPrivyEmail: cleanPrivyEmail,
               isTerminalBlocked
-            }, 'Purging stale session...');
+            }, 'Sanitizing local Supabase scope without wiping active session...');
             await supabase.auth.signOut({ scope: 'local' });
-            purgeAllAuthSessionState();
           }
         }
 

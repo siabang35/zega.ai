@@ -113,7 +113,7 @@ export class SocialAuthService {
 
   /** Initiate canonical Google OAuth2 Authorization redirect via ZEGA Backend */
   public static async initiateGoogleOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
-    purgeAllAuthSessionState();
+    purgeAllAuthSessionState({ reason: 'NEW_GOOGLE_OAUTH_INITIATED', source: 'socialAuthService.initiateGoogleOAuth' });
     savePendingAuthIntent({
       accountType,
       provider: 'google',
@@ -129,7 +129,7 @@ export class SocialAuthService {
 
   /** Initiate canonical GitHub OAuth2 Authorization redirect via Supabase */
   public static async initiateGitHubOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
-    purgeAllAuthSessionState();
+    purgeAllAuthSessionState({ reason: 'NEW_GITHUB_OAUTH_INITIATED', source: 'socialAuthService.initiateGitHubOAuth' });
     const redirectUri = this.getOAuthRedirectUri();
 
     savePendingAuthIntent({
