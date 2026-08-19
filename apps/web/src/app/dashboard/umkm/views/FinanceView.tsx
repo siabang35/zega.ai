@@ -734,6 +734,9 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
           body: JSON.stringify({
             chatId: activeSessionId,
             message: userText,
+            assistantType: 'finance',
+            userName: userName || userEmail?.split('@')[0] || 'Pemilik Toko',
+            userEmail: userEmail || undefined,
             language: prefLang,
             response_style: 'Profesional',
             response_length: 'Ringkas',
@@ -866,9 +869,19 @@ export function FinanceView({ triggerToast, isGuest, userEmail, userName }: Fina
     let isMounted = true;
     const fetchZeroClawRealtime = async () => {
       try {
+        const envApi = import.meta.env.VITE_API_URL;
+        const isProdDomain = typeof window !== 'undefined' && window.location.hostname.includes('zegaai.site');
+
+        let rawBase = (isProdDomain && (!envApi || envApi.includes('localhost')))
+          ? 'https://zega-ai.onrender.com'
+          : (envApi || (typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : '') || 'http://localhost:3001');
+
+        const cleanBaseUrl = rawBase.replace(/\/+$/, '').replace(/\/v1$/, '');
+        const headers = getCanonicalAuthHeaders();
+
         const [listRes, rpcRes] = await Promise.allSettled([
-          fetch('/v1/zeroclaw/settlement/list?isDemo=false').then(r => r.json()),
-          fetch('/v1/zeroclaw/solana-rpc').then(r => r.json())
+          fetch(`${cleanBaseUrl}/v1/zeroclaw/settlement/list?isDemo=false`, { headers, credentials: 'include' }).then(r => r.ok ? r.json() : null),
+          fetch(`${cleanBaseUrl}/v1/zeroclaw/solana-rpc`, { headers, credentials: 'include' }).then(r => r.ok ? r.json() : null)
         ]);
 
         let rawItems: any[] = [];

@@ -312,7 +312,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             </div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <span>🏆 {s.topSellingAndOrders || 'Top Selling Products & Performance Analytics'}</span>
-              <span className="px-3 py-0.5 rounded-full text-xs font-black bg-blue-600 text-white">9ROUTER AI</span>
+              <span className="px-3 py-0.5 rounded-full text-xs font-black bg-blue-600 text-white">ZEGA AI</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pt-1">
               {s.subtitle || 'Manage product catalog, stock inventory, and multi-channel store sync.'}
@@ -372,7 +372,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
             <div className="text-base font-black text-slate-900 dark:text-slate-100">
               ⚡ High Conversion
             </div>
-            <div className="text-[10px] text-amber-600 font-bold">9Router AI</div>
+            <div className="text-[10px] text-amber-600 font-bold">ZEGA AI</div>
           </div>
         </div>
 

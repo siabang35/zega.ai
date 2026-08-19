@@ -59,7 +59,9 @@ const envSchema = z.object({
 
   // Multi-LLM AI Providers
   OPENAI_API_KEY: z.string().default(''),
+  GPT_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
+  CLAUDE_API_KEY: z.string().default(''),
   GOOGLE_AI_API_KEY: z.string().default(''),
   GEMINI_API_KEY: z.string().default(''),
   GROQ_API_KEY: z.string().default(''),

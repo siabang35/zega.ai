@@ -1,5 +1,9 @@
 import { envConfig } from '../config/env.js';
 import { ZeroClawGatewayClient } from '@zega/zeroclaw-bridge';
+import crypto from 'node:crypto';
+import { CanonicalAssistantType, resolveCanonicalAssistantType, getAssistantDefinition } from './ai/assistantRegistry.js';
+import { aiModelRouter } from './ai/aiModelRouter.js';
+import { orchestrateAgentSwarm } from './ai/agentSwarmOrchestrator.js';
 
 let zeroclawClientSingleton: any = null;
 
@@ -16,7 +20,10 @@ function getZeroClawClient(gatewayUrl: string, bearerToken?: string): any {
 
 export type TaskComplexity = 'LOW' | 'MEDIUM' | 'HIGH';
 
-
+export interface ChatMessageContext {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
 
 export interface RouteExecutionResult {
   replyText: string;
@@ -24,6 +31,9 @@ export interface RouteExecutionResult {
   complexity: TaskComplexity;
   provider: string;
   inferenceMs: number;
+  requestFingerprint?: string;
+  repetitionDetected?: boolean;
+  assistantType?: CanonicalAssistantType;
 }
 
 export interface RouteExecutionOptions {
@@ -31,9 +41,20 @@ export interface RouteExecutionOptions {
   hardenedSystemPrompt: string;
   maxTokensToUse: number;
   agentRole?: string;
+  assistantType?: CanonicalAssistantType | string;
   targetLangCode?: string;
+  chatHistory?: ChatMessageContext[];
+  requestId?: string;
+  requestFingerprint?: string;
+  storeId?: string;
+  tenantId?: string;
+  userId?: string;
+  conversationId?: string;
   logger?: any;
 }
+
+// In-memory cache to detect identical outputs generated for distinct inputs
+const recentResponseHashMap = new Map<string, { inputFingerprint: string; timestamp: number }>();
 
 /**
  * ZEGA AI — Smart Task Complexity Evaluator
@@ -97,14 +118,64 @@ export function evaluateTaskComplexity(input: string, agentRole?: string): TaskC
 }
 
 /**
- * Execute dynamic model routing based on task complexity.
- * Supports ZeroClaw Bridge, 9Router, Groq, OpenRouter, and Gemini Flash.
+ * Build messages payload array including conversation history for OpenAI-compatible LLMs.
+ */
+function buildMessagesPayload(
+  hardenedSystemPrompt: string,
+  rawInput: string,
+  chatHistory?: ChatMessageContext[]
+): Array<{ role: string; content: string }> {
+  const messages: Array<{ role: string; content: string }> = [
+    { role: 'system', content: hardenedSystemPrompt }
+  ];
+
+  if (chatHistory && chatHistory.length > 0) {
+    // Sanitize and include at most recent 6 messages to stay within prompt budgets
+    const sanitizedHistory = chatHistory.slice(-6).filter(m => m.content && m.content.trim());
+    for (const msg of sanitizedHistory) {
+      messages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content.trim()
+      });
+    }
+  }
+
+  // Ensure current user message is always the last item
+  const lastMsg = messages[messages.length - 1];
+  if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== rawInput.trim()) {
+    messages.push({ role: 'user', content: rawInput.trim() });
+  }
+
+  return messages;
+}
+
+/**
+ * Execute dynamic model routing based on task complexity and canonical assistant type.
  */
 export async function executeRoutedModelPipeline(
   options: RouteExecutionOptions
 ): Promise<RouteExecutionResult> {
-  const { rawInput, hardenedSystemPrompt, maxTokensToUse, agentRole, logger } = options;
+  const {
+    rawInput,
+    hardenedSystemPrompt,
+    maxTokensToUse,
+    agentRole,
+    assistantType: rawAssistantType,
+    chatHistory,
+    requestId,
+    requestFingerprint,
+    storeId,
+    tenantId,
+    userId,
+    conversationId,
+    logger
+  } = options;
+
   const startTime = Date.now();
+  const canonicalType = resolveCanonicalAssistantType(rawAssistantType || agentRole);
+
+  const inputHash = crypto.createHash('sha256').update(`${storeId || ''}:${rawInput}`).digest('hex');
+  const computedFingerprint = requestFingerprint || inputHash.slice(0, 16);
 
   const complexity = evaluateTaskComplexity(rawInput, agentRole);
 
@@ -118,14 +189,13 @@ export async function executeRoutedModelPipeline(
   if (logger) {
     logger.info(
       {
+        requestId,
+        assistantType: canonicalType,
+        requestFingerprint: computedFingerprint,
         complexity,
         agentRole,
+        historyLength: chatHistory?.length || 0,
         inputLength: rawInput.length,
-        has9Router: Boolean(nineRouterApiKey),
-        hasZeroClaw: Boolean(zeroclawBearerToken),
-        hasGroq: Boolean(groqApiKey),
-        hasOpenRouter: Boolean(openrouterApiKey),
-        hasGemini: Boolean(geminiApiKey),
       },
       '[AI_ROUTER] Evaluated Task Complexity & Available Providers'
     );
@@ -135,7 +205,13 @@ export async function executeRoutedModelPipeline(
   let aiModel = 'fallback-llama-3.3-70b';
   let provider = 'Unknown';
 
-  // Fast fetch wrapper with AbortController timeout to prevent provider hangs
+  // Inter-Agent Swarm Orchestration Directive Synthesis
+  const swarmResult = orchestrateAgentSwarm(canonicalType, rawInput);
+  const enrichedSystemPrompt = `${hardenedSystemPrompt}${swarmResult.synthesizedDirective}`;
+
+  const messagesPayload = buildMessagesPayload(enrichedSystemPrompt, rawInput, chatHistory);
+
+  // Fast fetch wrapper with AbortController timeout
   async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 3000): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -149,268 +225,300 @@ export async function executeRoutedModelPipeline(
     }
   }
 
-  // ------------------------------------------------------------------------
-  // ROUTE STRATEGY A: FAST HIGH-SPEED PROVIDERS (Groq 70B & Instant Priority)
-  // ------------------------------------------------------------------------
-  if (groqApiKey) {
-    const targetGroqModel = complexity === 'HIGH' ? 'llama-3.3-70b-versatile' : 'llama-3.3-70b-versatile';
-    try {
-      const groqRes = await fetchWithTimeout(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${groqApiKey}`,
-          },
-          body: JSON.stringify({
-            model: targetGroqModel,
-            messages: [
-              { role: 'system', content: hardenedSystemPrompt },
-              { role: 'user', content: rawInput },
-            ],
-            temperature: 0.5,
-            max_tokens: maxTokensToUse,
-          }),
-        },
-        1800
-      );
-
-      if (groqRes.ok) {
-        const groqData: any = await groqRes.json();
-        const groqText = groqData.choices?.[0]?.message?.content;
-        if (groqText && groqText.trim()) {
-          replyText = groqText.trim();
-          aiModel = `groq-${targetGroqModel}`;
-          provider = 'Groq Ultra-Fast Llama 3.3';
-          const inferenceMs = Date.now() - startTime;
-          if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] Groq Llama 3.3 Succeeded');
-          return { replyText, aiModel, complexity, provider, inferenceMs };
-        }
-      }
-    } catch (err: any) {
-      if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] Groq Fast Route Failover Triggered');
+  // Helper to map assistant types to specialized ZeroClaw Agent aliases
+  function getZeroClawAgentAlias(type: CanonicalAssistantType): string {
+    switch (type) {
+      case 'finance': return 'finance-specialist';
+      case 'zega_copilot': return 'copilot-engineer';
+      case 'knowledge': return 'knowledge-researcher';
+      case 'help': return 'help-concierge';
+      case 'home': default: return 'home-agent';
     }
   }
 
+  const isHighReasoningTask = complexity === 'HIGH' || canonicalType === 'finance' || canonicalType === 'zega_copilot';
+
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY B: HIGH / ADVANCED COMPLEXITY (9Router & ZeroClaw Priority)
+  // ROUTE STRATEGY 1: ENTERPRISE REASONING & SWARM (ZeroClaw & 9Router Priority for HIGH Complexity)
   // ------------------------------------------------------------------------
-  if (complexity === 'HIGH') {
-    // 1. Try ZeroClaw Bridge Gateway Agent Runtime if Finance/ZeroClaw task
-    if (zeroclawBearerToken || (agentRole || '').toLowerCase().includes('zeroclaw')) {
+  if (isHighReasoningTask) {
+    // A. ZeroClaw Gateway Daemon Execution
+    if (!replyText && (zeroclawBearerToken || (agentRole || '').toLowerCase().includes('zeroclaw') || isHighReasoningTask)) {
       try {
         const zeroclawClient = getZeroClawClient(zeroclawGatewayUrl, zeroclawBearerToken);
+        const targetAgentAlias = getZeroClawAgentAlias(canonicalType);
 
-        const state = await zeroclawClient.getState();
-        if (state.status === 'paired' || state.paired) {
+        const healthData = await Promise.race([
+          zeroclawClient.health(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200))
+        ]);
+
+        if (healthData && (healthData.paired || healthData.status === 'ok')) {
+          const historySummary = chatHistory?.length
+            ? `\n\nContext History:\n${chatHistory.map(m => `${m.role}: ${m.content}`).join('\n')}`
+            : '';
+
           const zcRes = await zeroclawClient.webhook(
-            `${hardenedSystemPrompt}\n\nPesan User: ${rawInput}`,
-            'finance-specialist'
+            `${hardenedSystemPrompt}${historySummary}\n\nPesan User: ${rawInput}`,
+            targetAgentAlias
           );
 
           const replyVal = zcRes.response || (zcRes as any).reply;
-          if (zcRes && replyVal) {
+          if (zcRes && replyVal && String(replyVal).trim()) {
             replyText = String(replyVal).trim();
-            aiModel = 'zeroclaw-agent-v0.8';
-            provider = 'ZeroClaw Gateway Daemon';
+            aiModel = `zeroclaw-agent-v0.8-${targetAgentAlias}`;
+            provider = `ZeroClaw Gateway Daemon (${targetAgentAlias})`;
             const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] ZeroClaw Gateway Agent Execution Succeeded');
-            return { replyText, aiModel, complexity, provider, inferenceMs };
+            if (logger) logger.info({ inferenceMs, agentAlias: targetAgentAlias }, '[AI_ROUTER] ZeroClaw Gateway Agent Execution Succeeded');
           }
+        } else {
+          if (logger) logger.info({ gatewayUrl: zeroclawGatewayUrl }, '[AI_ROUTER] ZeroClaw Daemon offline/unreachable, failing over');
         }
       } catch (err: any) {
         if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] ZeroClaw Bridge Failover Triggered');
       }
     }
 
-
-    // 2. Try 9Router Engine (DeepSeek R1 / GPT-4o Flagship Router)
+    // B. 9Router Enterprise Multi-Model Route
     if (!replyText && nineRouterApiKey) {
-      try {
-        const routerUrl = 'https://api.9router.com/v1/chat/completions';
-        const res = await fetchWithTimeout(
-          routerUrl,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${nineRouterApiKey}`,
+      const nineRouterModels = ['deepseek/deepseek-r1', 'qwen/qwen-2.5-72b-instruct', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.3-70b-instruct'];
+      for (const targetModel of nineRouterModels) {
+        try {
+          const res = await fetchWithTimeout(
+            'https://api.9router.com/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${nineRouterApiKey}`,
+                'HTTP-Referer': 'https://zegaai.site',
+                'X-Title': 'ZEGA Enterprise AI Platform',
+                'X-Request-ID': requestId || computedFingerprint,
+              },
+              body: JSON.stringify({
+                model: targetModel,
+                messages: messagesPayload,
+                temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+                max_tokens: maxTokensToUse,
+              }),
             },
-            body: JSON.stringify({
-              model: 'deepseek/deepseek-r1',
-              messages: [
-                { role: 'system', content: hardenedSystemPrompt },
-                { role: 'user', content: rawInput },
-              ],
-              temperature: 0.4,
-              max_tokens: maxTokensToUse,
-            }),
-          },
-          3000
-        );
+            6000
+          );
 
-        if (res.ok) {
-          const data: any = await res.json();
-          const text = data.choices?.[0]?.message?.content;
-          if (text && text.trim()) {
-            replyText = text.trim();
-            aiModel = '9router-deepseek-r1';
-            provider = '9Router AI Engine';
-            const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] 9Router DeepSeek R1 Succeeded');
-            return { replyText, aiModel, complexity, provider, inferenceMs };
+          if (res.ok) {
+            const data: any = await res.json();
+            const text = data.choices?.[0]?.message?.content;
+            if (text && text.trim()) {
+              replyText = text.trim();
+              const modelLabel = targetModel.split('/')[1] || targetModel;
+              aiModel = `9router-${modelLabel}`;
+              provider = `9Router Engine (${modelLabel})`;
+              const inferenceMs = Date.now() - startTime;
+              if (logger) logger.info({ inferenceMs, model: targetModel }, '[AI_ROUTER] 9Router Model Succeeded');
+              break;
+            }
           }
+        } catch (err: any) {
+          if (logger) logger.warn({ err: err.message, model: targetModel }, '[AI_ROUTER] 9Router Failover Triggered');
         }
-      } catch (err: any) {
-        if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] 9Router Failover Triggered');
-      }
-    }
-
-    // 3. Fallback to OpenRouter DeepSeek / Claude 3.5 Sonnet
-    if (!replyText && openrouterApiKey) {
-      try {
-        const res = await fetchWithTimeout(
-          'https://openrouter.ai/api/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${openrouterApiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'deepseek/deepseek-chat',
-              messages: [
-                { role: 'system', content: hardenedSystemPrompt },
-                { role: 'user', content: rawInput },
-              ],
-              temperature: 0.5,
-              max_tokens: maxTokensToUse,
-            }),
-          },
-          3500
-        );
-
-        if (res.ok) {
-          const data: any = await res.json();
-          const text = data.choices?.[0]?.message?.content;
-          if (text && text.trim()) {
-            replyText = text.trim();
-            aiModel = 'openrouter-deepseek-chat';
-            provider = 'OpenRouter Reasoning';
-            const inferenceMs = Date.now() - startTime;
-            return { replyText, aiModel, complexity, provider, inferenceMs };
-          }
-        }
-      } catch (err: any) {
-        if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] OpenRouter High Complexity Failover');
       }
     }
   }
 
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY B: MEDIUM COMPLEXITY (Groq 70B Flagship / OpenRouter)
+  // ROUTE STRATEGY 2: FAST HIGH-SPEED INFERENCE (Groq Active Models)
   // ------------------------------------------------------------------------
-  if (!replyText && (complexity === 'MEDIUM' || complexity === 'HIGH')) {
-    if (groqApiKey) {
+  if (!replyText && groqApiKey) {
+    const groqCandidateModels = [
+      'llama-3.3-70b-versatile',
+      'qwen-2.5-72b-instruct',
+      'qwen-2.5-coder-32b',
+      'deepseek-r1-distill-llama-70b',
+      'gemma2-9b-it',
+      'llama-3.1-8b-instant'
+    ];
+    for (const targetGroqModel of groqCandidateModels) {
       try {
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${groqApiKey}`,
+        const groqRes = await fetchWithTimeout(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: targetGroqModel,
+              messages: messagesPayload,
+              temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+              max_tokens: maxTokensToUse,
+            }),
           },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: hardenedSystemPrompt },
-              { role: 'user', content: rawInput },
-            ],
-            temperature: 0.6,
-            max_tokens: maxTokensToUse,
-          }),
-        });
+          6000
+        );
 
         if (groqRes.ok) {
           const groqData: any = await groqRes.json();
           const groqText = groqData.choices?.[0]?.message?.content;
           if (groqText && groqText.trim()) {
             replyText = groqText.trim();
-            aiModel = 'groq-llama-3.3-70b';
-            provider = 'Groq Flagship';
+            aiModel = `groq-${targetGroqModel}`;
+            const modelLabel = targetGroqModel.includes('70b')
+              ? 'Llama 3.3 70B'
+              : targetGroqModel.includes('qwen')
+              ? 'Qwen 2.5 72B'
+              : targetGroqModel.includes('deepseek')
+              ? 'DeepSeek R1 Distill 70B'
+              : targetGroqModel.includes('gemma')
+              ? 'Gemma 2 9B'
+              : targetGroqModel;
+            provider = `Groq ${modelLabel}`;
             const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] Groq Llama 3.3 70B Succeeded');
-            return { replyText, aiModel, complexity, provider, inferenceMs };
+            if (logger) logger.info({ inferenceMs, model: targetGroqModel, assistantType: canonicalType }, '[AI_ROUTER] Groq Model Succeeded');
+            break;
+          }
+        } else {
+          const errBody = await groqRes.json().catch(() => ({}));
+          if (logger) logger.warn({ status: groqRes.status, model: targetGroqModel, errBody }, '[AI_ROUTER] Groq Model HTTP Error');
+        }
+      } catch (err: any) {
+        if (logger) logger.warn({ err: err.message, model: targetGroqModel }, '[AI_ROUTER] Groq Fast Route Failover Triggered');
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // ROUTE STRATEGY 3: 9ROUTER GENERAL MULTI-MODEL FALLBACK (If not triggered earlier)
+  // ------------------------------------------------------------------------
+  if (!replyText && nineRouterApiKey) {
+    const nineRouterModels = ['qwen/qwen-2.5-72b-instruct', 'deepseek/deepseek-chat', 'google/gemini-2.0-flash'];
+    for (const targetModel of nineRouterModels) {
+      try {
+        const res = await fetchWithTimeout(
+          'https://api.9router.com/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${nineRouterApiKey}`,
+              'HTTP-Referer': 'https://zegaai.site',
+              'X-Title': 'ZEGA Enterprise AI Platform',
+              'X-Request-ID': requestId || computedFingerprint,
+            },
+            body: JSON.stringify({
+              model: targetModel,
+              messages: messagesPayload,
+              temperature: 0.6,
+              max_tokens: maxTokensToUse,
+            }),
+          },
+          6000
+        );
+
+        if (res.ok) {
+          const data: any = await res.json();
+          const text = data.choices?.[0]?.message?.content;
+          if (text && text.trim()) {
+            replyText = text.trim();
+            const modelLabel = targetModel.split('/')[1] || targetModel;
+            aiModel = `9router-${modelLabel}`;
+            provider = `9Router Engine (${modelLabel})`;
+            const inferenceMs = Date.now() - startTime;
+            if (logger) logger.info({ inferenceMs, model: targetModel }, '[AI_ROUTER] 9Router General Fallback Succeeded');
+            break;
           }
         }
       } catch (err: any) {
-        if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] Groq 70B Failover Triggered');
+        if (logger) logger.warn({ err: err.message, model: targetModel }, '[AI_ROUTER] 9Router Failover Triggered');
       }
     }
   }
 
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY C: LOW COMPLEXITY / FAST RESPONSE (Groq 8B / Gemini Flash)
+  // ROUTE STRATEGY 4: OPENROUTER API ROUTE
   // ------------------------------------------------------------------------
-  if (!replyText && groqApiKey) {
-    try {
-      const groqInstantRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${groqApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          messages: [
-            { role: 'system', content: hardenedSystemPrompt },
-            { role: 'user', content: rawInput },
-          ],
-          temperature: 0.6,
-          max_tokens: maxTokensToUse,
-        }),
-      });
+  if (!replyText && openrouterApiKey) {
+    const openrouterCandidateModels = [
+      'google/gemini-2.0-flash-001',
+      'qwen/qwen-2.5-72b-instruct',
+      'deepseek/deepseek-r1-distill-llama-70b',
+      'meta-llama/llama-3.3-70b-instruct'
+    ];
+    for (const targetOrModel of openrouterCandidateModels) {
+      try {
+        const orRes = await fetchWithTimeout(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${openrouterApiKey}`,
+              'HTTP-Referer': 'https://zegaai.site',
+              'X-Title': 'ZEGA AI Platform',
+            },
+            body: JSON.stringify({
+              model: targetOrModel,
+              messages: messagesPayload,
+              temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+              max_tokens: maxTokensToUse,
+            }),
+          },
+          7000
+        );
 
-      if (groqInstantRes.ok) {
-        const data: any = await groqInstantRes.json();
-        const text = data.choices?.[0]?.message?.content;
-        if (text && text.trim()) {
-          replyText = text.trim();
-          aiModel = 'groq-llama-3.1-8b-instant';
-          provider = 'Groq Instant';
-          const inferenceMs = Date.now() - startTime;
-          if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] Groq Llama 3.1 8B Instant Succeeded');
-          return { replyText, aiModel, complexity, provider, inferenceMs };
+        if (orRes.ok) {
+          const orData: any = await orRes.json();
+          const orText = orData.choices?.[0]?.message?.content;
+          if (orText && orText.trim()) {
+            replyText = orText.trim();
+            aiModel = `openrouter-${targetOrModel.split('/')[1] || targetOrModel}`;
+            provider = `OpenRouter ${targetOrModel.split('/')[1] || targetOrModel}`;
+            const inferenceMs = Date.now() - startTime;
+            if (logger) logger.info({ inferenceMs, model: targetOrModel, assistantType: canonicalType }, '[AI_ROUTER] OpenRouter Model Succeeded');
+            break;
+          }
         }
+      } catch (err: any) {
+        if (logger) logger.warn({ err: err.message, model: targetOrModel }, '[AI_ROUTER] OpenRouter Failover Triggered');
       }
-    } catch (err: any) {
-      if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] Groq Instant Failover Triggered');
     }
   }
 
+
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY D: GEMINI 3.6 FLASH (Google AI Fallback)
+  // ROUTE STRATEGY D: GEMINI 3.6 FLASH (Google AI Flagship Fallback)
   // ------------------------------------------------------------------------
   if (!replyText && geminiApiKey) {
     try {
-      const res = await fetch(
+      const formattedHistoryParts = chatHistory?.length
+        ? chatHistory.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+          }))
+        : [];
+
+      const contentsPayload = [
+        {
+          role: 'user',
+          parts: [{ text: `${hardenedSystemPrompt}\n\nPesan User: ${rawInput}` }],
+        },
+        ...formattedHistoryParts
+      ];
+
+      const res = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${hardenedSystemPrompt}\n\nPesan User: ${rawInput}` }],
-              },
-            ],
+            contents: contentsPayload,
             generationConfig: {
               temperature: 0.6,
               maxOutputTokens: maxTokensToUse,
             },
           }),
-        }
+        },
+        6000
       );
 
       if (res.ok) {
@@ -419,10 +527,9 @@ export async function executeRoutedModelPipeline(
         if (text && text.trim()) {
           replyText = text.trim();
           aiModel = 'gemini-3.6-flash';
-          provider = 'Google Gemini AI';
+          provider = 'Google Gemini 3.6 Flash';
           const inferenceMs = Date.now() - startTime;
           if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] Gemini 3.6 Flash Succeeded');
-          return { replyText, aiModel, complexity, provider, inferenceMs };
         }
       }
     } catch (err: any) {
@@ -430,13 +537,95 @@ export async function executeRoutedModelPipeline(
     }
   }
 
-  // Final fallback text if all providers are unreachable
+  // ------------------------------------------------------------------------
+  // ROUTE STRATEGY E: HUGGINGFACE INFERENCE API ROUTE (DeepSeek V3/V4, DeepSeek R1, Qwen 2.5)
+  // ------------------------------------------------------------------------
+  const huggingfaceApiKey = envConfig.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN;
+  if (!replyText && huggingfaceApiKey) {
+    const hfCandidateModels = [
+      'deepseek-ai/DeepSeek-V3',
+      'deepseek-ai/DeepSeek-R1',
+      'Qwen/Qwen2.5-72B-Instruct',
+      'meta-llama/Llama-3.3-70B-Instruct'
+    ];
+
+    for (const hfModel of hfCandidateModels) {
+      try {
+        const hfRes = await fetchWithTimeout(
+          'https://router.huggingface.co/hf-inference/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${huggingfaceApiKey}`,
+            },
+            body: JSON.stringify({
+              model: hfModel,
+              messages: messagesPayload,
+              max_tokens: maxTokensToUse,
+              temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+            }),
+          },
+          6000
+        );
+
+        if (hfRes.ok) {
+          const hfData: any = await hfRes.json();
+          const hfText = hfData.choices?.[0]?.message?.content;
+          if (hfText && hfText.trim()) {
+            replyText = hfText.trim();
+            aiModel = `hf-${hfModel.split('/')[1] || hfModel}`;
+            provider = `HuggingFace (${hfModel.split('/')[1] || hfModel})`;
+            const inferenceMs = Date.now() - startTime;
+            if (logger) logger.info({ inferenceMs, model: hfModel }, '[AI_ROUTER] HuggingFace Model Succeeded');
+            break;
+          }
+        }
+      } catch (err: any) {
+        if (logger) logger.warn({ err: err.message, model: hfModel }, '[AI_ROUTER] HuggingFace Failover Triggered');
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // ROUTE STRATEGY D: DYNAMIC CONTEXT-AWARE SYSTEM FALLBACK
+  // ------------------------------------------------------------------------
   if (!replyText) {
-    replyText = `Halo! ZEGA Copilot AI siap membantu Anda memproses operasional dan pertumbuhan bisnis UMKM. Silakan ketik pertanyaan atau perintah Anda.`;
-    aiModel = 'zega-native-fallback';
-    provider = 'ZEGA System Rules';
+    const inputClean = rawInput.trim();
+    aiModel = 'zega-dynamic-system-rules';
+    provider = 'ZEGA Dynamic Intelligence Rules';
+
+    const def = getAssistantDefinition(canonicalType);
+    replyText = `Halo! Saya ${def.name}. ${def.purpose}\n\nTerkait permintaan Anda: "${inputClean.slice(0, 100)}${inputClean.length > 100 ? '...' : ''}". Sistem AI ZEGA saat ini memproses permintaan Anda secara terisolasi dan aman.`;
   }
 
   const inferenceMs = Date.now() - startTime;
-  return { replyText, aiModel, complexity, provider, inferenceMs };
+
+  // Repetition Telemetry & Hash Check
+  const outputHash = crypto.createHash('sha256').update(replyText).digest('hex');
+  let repetitionDetected = false;
+
+  const previousRecord = recentResponseHashMap.get(outputHash);
+  if (previousRecord && previousRecord.inputFingerprint !== computedFingerprint && Date.now() - previousRecord.timestamp < 300000) {
+    repetitionDetected = true;
+  } else {
+    recentResponseHashMap.set(outputHash, { inputFingerprint: computedFingerprint, timestamp: Date.now() });
+    if (recentResponseHashMap.size > 500) {
+      const oldestKey = recentResponseHashMap.keys().next().value;
+      if (oldestKey) recentResponseHashMap.delete(oldestKey);
+    }
+  }
+
+  const finalReplyText = replyText;
+
+  return {
+    replyText: finalReplyText,
+    aiModel,
+    complexity,
+    provider,
+    inferenceMs,
+    requestFingerprint: computedFingerprint,
+    repetitionDetected,
+    assistantType: canonicalType
+  };
 }

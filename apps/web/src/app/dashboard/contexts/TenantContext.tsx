@@ -293,6 +293,7 @@ interface TenantProviderProps {
 }
 
 import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 
 export function TenantProvider({ userEmail, tenantType = 'umkm', children }: TenantProviderProps) {
   // Version counter: incremented whenever _activeTenant is mutated by the async resolver.
@@ -327,13 +328,16 @@ export function TenantProvider({ userEmail, tenantType = 'umkm', children }: Ten
 
   useEffect(() => {
     const authBridge = getAuthBridgeState();
+    const canonicalAuth = canonicalAuthManager.getSnapshot();
     const isSettledReady = _activeTenant.storeStatus === 'ready' && isValidUuid(_activeTenant.storeId) && isValidUuid(_activeTenant.organizationId) && isValidUuid(_activeTenant.workspaceId);
 
-    if (authBridge.authState === 'AUTH_INITIALIZING' || !authBridge.supabaseSessionReady) {
-      console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_INITIALIZING.');
+    const isIdentityAvailable = canonicalAuth.identityReady || Boolean(authBridge.supabaseUserId) || Boolean(canonicalAuth.authUserId);
+
+    if (authBridge.authState === 'AUTH_INITIALIZING' || (authBridge.authState !== 'AUTH_READY' && !isIdentityAvailable)) {
+      console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_INITIALIZING or identity unavailable.');
       return;
     }
-    if (authBridge.authState === 'AUTH_REQUIRED' || !effectiveEmail) {
+    if (authBridge.authState === 'AUTH_REQUIRED' && !isIdentityAvailable) {
       console.log('[TenantProvider] Gating tenant resolution: auth state is AUTH_REQUIRED.');
       if (!isSettledReady) {
         updateActiveTenantStore(null, 'unavailable');

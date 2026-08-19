@@ -521,6 +521,13 @@ export function UmkmDashboardContainer({
     return 'id';
   });
 
+  // Sync AI language with header language selection
+  useEffect(() => {
+    if (language) {
+      setAiLang(language);
+    }
+  }, [language]);
+
   // Sync AI language from DB on mount
   useEffect(() => {
     const syncAiLang = async () => {
@@ -618,7 +625,7 @@ export function UmkmDashboardContainer({
           setCopilotMessages([{
             sender: 'copilot',
             message: getSeedMessage(aiLang),
-            ai_model: '9Router-Llama-3.3-70B',
+            ai_model: 'gemini-3.6-flash',
             inference_ms: 185,
             total_tokens: 94,
             created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -639,7 +646,7 @@ export function UmkmDashboardContainer({
           id: m.id,
           sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
           message: m.message,
-          ai_model: m.model_engine || '9Router-Llama-3.3-70B',
+          ai_model: m.model_engine || 'gemini-3.6-flash',
           inference_ms: m.latency_ms || 185,
           total_tokens: m.tokens_used || 94,
           created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -736,7 +743,7 @@ export function UmkmDashboardContainer({
                   id: m.id,
                   sender: m.sender === 'user' ? ('user' as const) : ('copilot' as const),
                   message: m.message || m.text || '',
-                  ai_model: m.model_engine || '9Router-Llama-3.3-70B',
+                  ai_model: m.model_engine || 'gemini-3.6-flash',
                   inference_ms: m.inference_ms || 185,
                   total_tokens: m.tokens_used || 94,
                   created_at: new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -941,6 +948,9 @@ export function UmkmDashboardContainer({
           body: JSON.stringify({
             chatId: chatIdToUse,
             message: textToSend.trim(),
+            assistantType: 'zega_copilot',
+            userName: userName || userProfile?.fullname || 'Pemilik Toko',
+            userEmail: userEmail || activeTenant.userEmail || undefined,
             language: currentAiLang,
             response_style: prefStyle,
             response_length: prefLen,

@@ -1046,7 +1046,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                 title="ZeroClaw & 9Router AI Reasoning Diagnostics"
               >
                 <Bot size={12} className="text-purple-500 animate-pulse flex-shrink-0" />
-                <span className="hidden sm:inline">9Router AI</span>
+                <span className="hidden sm:inline">ZEGA AI</span>
               </button>
 
               <button
@@ -1158,7 +1158,7 @@ export function InboxView({ triggerToast }: InboxViewProps) {
                     {msg.sender_type === 'ai_assistant' && (
                       <div className="flex items-center gap-1.5 text-[9.5px] font-extrabold text-blue-100 bg-blue-700/50 px-2 py-0.5 rounded-lg mb-1 border border-blue-400/30 truncate">
                         <Bot size={10} className="text-blue-300 animate-pulse flex-shrink-0" />
-                        <span className="truncate">{msg.model_used || 'ZeroClaw (9Router: Multi-LLM Model)'}</span>
+                        <span className="truncate">{msg.model_used || 'ZEGA Intelligence Engine'}</span>
                         {msg.latency_ms && <span className="opacity-80 flex-shrink-0">• {msg.latency_ms}ms</span>}
                         {msg.confidence_score && <span className="opacity-80 flex-shrink-0">• {msg.confidence_score}%</span>}
                       </div>

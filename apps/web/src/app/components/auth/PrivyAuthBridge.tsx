@@ -101,12 +101,14 @@ export function updateBridgeState(partial: Partial<AuthBridgeState>, isExplicitL
 
   // Sync to CanonicalAuthManager
   const mappedStatus = _authBridgeState.authState === 'AUTH_INITIALIZING' ? 'AUTH_LOADING' : _authBridgeState.authState;
+  const isBackendVerified = _authBridgeState.authState === 'AUTH_READY' && isValidUuid(_authBridgeState.supabaseUserId);
   canonicalAuthManager.updateState({
     authState: mappedStatus as any,
     canonicalUserId: _authBridgeState.supabaseUserId,
     userEmail: _authBridgeState.userEmail,
     supabaseSessionPresent: _authBridgeState.supabaseSessionReady,
     accessTokenPresent: Boolean(_authBridgeState.supabaseUserId),
+    backendVerified: isBackendVerified,
   });
 
   if (prevState !== _authBridgeState.authState || partial.supabaseUserId !== undefined) {
@@ -537,6 +539,7 @@ export function PrivyAuthBridge() {
             };
             localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
             localStorage.setItem('zega_access_token', supabaseToken);
+            localStorage.setItem('zega_supabase_access_token', supabaseToken);
             localStorage.setItem('zega_user_email', cleanPrivyEmail);
 
             // Inject Authorization header & sync session into canonical Supabase client instance

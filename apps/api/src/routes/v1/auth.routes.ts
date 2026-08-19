@@ -330,6 +330,9 @@ export async function authRoutes(app: FastifyInstance) {
       { expiresIn: '1h' }
     );
 
+    // Issue signed Supabase-compatible JWT token for PostgREST RLS
+    const supabaseAccessToken = generateSupabaseJwt(userId, normalizedEmail, role) || accessToken;
+
     const refreshToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(accessToken).digest('hex');
     const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
@@ -383,6 +386,7 @@ export async function authRoutes(app: FastifyInstance) {
       success: true,
       data: {
         accessToken,
+        supabaseAccessToken,
         refreshToken,
         expiresIn: 3600,
         refreshExpiresIn: 604800,

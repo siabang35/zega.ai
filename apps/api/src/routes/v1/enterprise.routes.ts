@@ -152,6 +152,45 @@ ATURAN UTAMA BAHASA & FORMAT:
 
     let replyText = '';
 
+    // Load recent chat history from database if a valid chatId is provided
+    let chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    if ((body as any).chatId) {
+      try {
+        const client = SupabaseService.getClient();
+        if (client) {
+          const { data: dbMsgs } = await client
+            .from('umkm_ai_assistant_messages')
+            .select('sender, text')
+            .eq('chat_id', (body as any).chatId)
+            .order('created_at', { ascending: true })
+            .limit(8);
+
+          if (dbMsgs && dbMsgs.length > 0) {
+            chatHistory = dbMsgs.map((m: any) => ({
+              role: m.sender === 'user' ? 'user' : 'assistant',
+              content: m.text || ''
+            }));
+          }
+        }
+      } catch (historyErr) {
+        fastify.log.warn({ chatId: (body as any).chatId, err: (historyErr as any)?.message }, '[Enterprise Copilot] Note: Failed to fetch prior chat history');
+      }
+    }
+
+    const messagesPayload: Array<{ role: string; content: string }> = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    for (const msg of chatHistory) {
+      if (msg.content && msg.content.trim()) {
+        messagesPayload.push({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content.trim()
+        });
+      }
+    }
+    messagesPayload.push({ role: 'user', content: rawInput });
+
     // Helper for fast fetch with timeout (2500ms max per provider)
     const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 2500) => {
       const controller = new AbortController();
@@ -166,35 +205,36 @@ ATURAN UTAMA BAHASA & FORMAT:
       }
     };
 
-    // Provider 1 (ULTRA-FAST ~250ms): Groq LPU Accelerated (Llama 3.3 70B / DeepSeek Distill 70B)
+    // Provider 1 (ULTRA-FAST ~250ms): Groq LPU Accelerated (Llama 3.3 70B / Llama 3.1 8B)
     if (groqApiKey) {
-      try {
-        const groqRes = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${groqApiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: rawInput },
-            ],
-            temperature: 0.5,
-            max_tokens: 1200,
-          }),
-        }, 2000);
+      const groqCandidateModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+      for (const targetGroqModel of groqCandidateModels) {
+        if (replyText) break;
+        try {
+          const groqRes = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: targetGroqModel,
+              messages: messagesPayload,
+              temperature: 0.5,
+              max_tokens: 1200,
+            }),
+          }, 2000);
 
-        if (groqRes.ok) {
-          const groqData: any = await groqRes.json();
-          const text = groqData.choices?.[0]?.message?.content;
-          if (text && text.trim()) {
-            replyText = text.trim();
+          if (groqRes.ok) {
+            const groqData: any = await groqRes.json();
+            const text = groqData.choices?.[0]?.message?.content;
+            if (text && text.trim()) {
+              replyText = text.trim();
+            }
           }
+        } catch (err) {
+          fastify.log.warn({ err, targetGroqModel }, '[Groq LPU Provider Failover]');
         }
-      } catch (err) {
-        fastify.log.warn({ err }, '[Groq LPU Provider Failover]');
       }
     }
 

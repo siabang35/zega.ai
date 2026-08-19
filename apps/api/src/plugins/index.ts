@@ -92,7 +92,9 @@ export async function registerPlugins(app: FastifyInstance) {
       'X-Store-Id',
       'x-store-id',
       'X-Workspace-Id',
-      'x-workspace-id'
+      'x-workspace-id',
+      'X-Request-Fingerprint',
+      'x-request-fingerprint'
     ],
     maxAge: 86400,
   });

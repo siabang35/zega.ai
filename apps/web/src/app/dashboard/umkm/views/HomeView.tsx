@@ -12,6 +12,7 @@ import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '
 import { umkmSupabaseService, isVerifiedTenantContext } from '../../services/umkmSupabaseService';
 import { getActiveTenantIds, subscribeTenantChanges } from '../../contexts/TenantContext';
 import { getAuthBridgeState } from '../../../components/auth/PrivyAuthBridge';
+import { canonicalAuthManager } from '../../../services/CanonicalAuthManager';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
 import { getR2CdnUrl } from '../../../utils/cdn';
@@ -99,7 +100,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearch }: HomeViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const u = t.umkmHome || {
     greeting: 'Good morning',
     greetingSub: 'AI is ready to help grow your business today.',
@@ -163,18 +164,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   const [activeHelpChatId, setActiveHelpChatId] = useState<string | null>(null);
   const [supportSearchQuery, setSupportSearchQuery] = useState('');
 
-  // UI Interface Language (for titles, placeholders, buttons)
+  // UI Interface Language (for titles, placeholders, buttons) - dynamically synced with header useLanguage()
   const getUiLang = () => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zega_language') || localStorage.getItem('zega_umkm_language');
-      if (saved) {
-        const lower = saved.toLowerCase();
-        if (lower === 'en' || lower.includes('english')) return 'en';
-        if (lower === 'zh' || lower.includes('mandarin') || lower.includes('chinese')) return 'zh';
-        if (lower === 'id' || lower.includes('indonesia')) return 'id';
-      }
-    }
-    return 'id';
+    return language || 'id';
   };
 
   // AI Output Result Language Preference (for backend AI response generation)
@@ -333,7 +325,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
           const usage = await SupabaseDashboardService.getUserChatTierUsage((getActiveTenantIds().userId || ''));
           if (usage) setTierUsage(usage);
 
-          const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession('home_assistant');
+          const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession('home');
           if (chatId) {
             setActiveHelpChatId(chatId);
             const msgs = await chatSessionManager.loadChatMessages('home_assistant', chatId);
@@ -367,18 +359,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     if (isCreatingHelpSession) return;
     setIsCreatingHelpSession(true);
     try {
-      const activeStoreId = await SupabaseDashboardService.getAuthenticatedStoreId();
-      if (!activeStoreId) {
-        triggerToast(getAiLang() === 'en' ? 'Store context unavailable.' : 'Konteks toko belum siap.');
-        return;
-      }
       const title = `Home Assistant ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      const newChat = await SupabaseDashboardService.createUmkmAiAssistantChat(
-        activeStoreId,
-        (getActiveTenantIds().userId || ''),
-        title,
-        'ZEGA Home Assistant'
-      );
+      const newChat = await chatSessionManager.createNewChatSession('home', title);
       if (newChat && newChat.id) {
         setActiveHelpChatId(newChat.id);
         const seedText = getSeedMessage();
@@ -572,6 +554,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             if (activeTenant.workspaceId && isValidUuid(activeTenant.workspaceId)) {
               headers['X-Workspace-Id'] = activeTenant.workspaceId;
             }
+            const reqFingerprint = `${activeTenant.userId || 'anon'}:${chatIdToUse}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+            headers['X-Request-Fingerprint'] = reqFingerprint;
           }
 
           const fetchStart = Date.now();
@@ -583,12 +567,16 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
               chatId: chatIdToUse,
               storeId: activeTenant.storeId || undefined,
               message: textToSend.trim(),
+              assistantType: 'home',
+              userName: displayName || 'Pemilik Toko',
+              userEmail: activeTenant.userEmail || undefined,
               language: currentAiLang,
               response_style: prefStyle,
               response_length: prefLen,
               response_format: prefFormat,
               default_model: prefModel,
-              agent_role: 'ZEGA Ops Specialist'
+              agent_role: 'ZEGA Ops Specialist',
+              requestFingerprint: headers['X-Request-Fingerprint']
             })
           });
 
@@ -880,7 +868,9 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
   useEffect(() => {
     const authBridge = getAuthBridgeState();
-    if (authBridge.authState !== 'AUTH_READY') return;
+    const canonicalAuth = canonicalAuthManager.getSnapshot();
+    const isAuthReady = authBridge.authState === 'AUTH_READY' || canonicalAuth.identityReady || canonicalAuth.status === 'READY';
+    if (!isAuthReady) return;
     // Gate: wait for tenant store to resolve before firing sales summary request
     const activeTenant = getActiveTenantIds();
     if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
@@ -907,8 +897,10 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
     const initDashboard = async () => {
       const authBridge = getAuthBridgeState();
-      if (authBridge.authState !== 'AUTH_READY') {
-        console.log('[HomeView] mount effect gated: authBridge not ready yet');
+      const canonicalAuth = canonicalAuthManager.getSnapshot();
+      const isAuthReady = authBridge.authState === 'AUTH_READY' || canonicalAuth.identityReady || canonicalAuth.status === 'READY';
+      if (!isAuthReady) {
+        console.log('[HomeView] mount effect gated: authBridge/canonicalAuth not ready yet');
         return;
       }
       const activeTenant = getActiveTenantIds();
@@ -2758,7 +2750,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                 </div>
                 <div>
                   <h4 className="font-black text-xs text-slate-900 dark:text-slate-100">Tambah Agen AI Baru ke Swarm Node</h4>
-                  <p className="text-[10px] text-slate-500">Pilih model engine (9Router, ZeroClaw, DeepSeek) & atur System Prompt</p>
+                  <p className="text-[10px] text-slate-500">Pilih ZEGA Intelligence Engine & atur System Prompt</p>
                 </div>
               </div>
               <button
@@ -2800,7 +2792,7 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
                         <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 truncate">{agent.name || agent.agent_name}</h4>
                         <span className="text-[10px] text-slate-400 block truncate">{agent.role || 'Support Specialist'}</span>
                         <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[8.5px] font-extrabold">
-                          {agent.model_engine || '9Router-Llama-3.3-70B'}
+                          ZEGA AI Engine
                         </span>
                       </div>
                     </div>

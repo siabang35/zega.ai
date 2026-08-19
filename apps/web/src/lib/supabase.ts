@@ -27,6 +27,97 @@ export const supabaseUrlHost = (() => {
 // destroys the refresh_token and causes session loss (leading to 401 / 42501 errors).
 
 
+/**
+ * Resolve the canonical active JWT access token for PostgREST authorization context.
+ * Checks localStorage token keys, CanonicalAuthManager, and Supabase auth session.
+ */
+/**
+ * Safely inspect whether a JWT string is compatible with Supabase PostgREST signature verification.
+ * Checks structure (3 parts), expiration, and issuer/audience/role.
+ * Explicitly rejects Fastify App JWTs signed with API JWT_SECRET to prevent PGRST301 errors.
+ */
+export function isSupabasePostgrestJwt(token: string): boolean {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const parts = token.trim().split('.');
+  if (parts.length !== 3) return false;
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload?.exp && payload.exp <= now) return false;
+
+    const iss = typeof payload?.iss === 'string' ? payload.iss.toLowerCase() : '';
+    const expectedHost = (supabaseUrlHost || 'ikxiclpvywxxnkcaldbx.supabase.co').toLowerCase();
+
+    const isSupabaseIss = (
+      iss === 'supabase' ||
+      iss.includes(expectedHost) ||
+      iss.includes('/auth/v1') ||
+      iss.includes('supabase')
+    ) && !iss.includes('privy');
+
+    const hasValidRoleOrAud = payload?.aud === 'authenticated' || payload?.role === 'authenticated';
+
+    return isSupabaseIss || hasValidRoleOrAud;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the canonical active JWT access token for PostgREST authorization context.
+ * Checks localStorage token keys, CanonicalAuthManager, and Supabase auth session.
+ * Filters out non-Supabase JWTs (e.g. Fastify App tokens) to prevent PGRST301 PostgREST errors.
+ */
+export function getCanonicalAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    // 0. Check explicit Supabase access token first
+    const explicitSupaToken = localStorage.getItem('zega_supabase_access_token');
+    if (explicitSupaToken && isSupabasePostgrestJwt(explicitSupaToken)) {
+      return explicitSupaToken.trim();
+    }
+
+    // 1. Check CanonicalAuthManager global window reference or imported state
+    const managerState = (window as any).__ZEGA_CANONICAL_AUTH__;
+    if (managerState?.session?.access_token && typeof managerState.session.access_token === 'string') {
+      const tok = managerState.session.access_token.trim();
+      if (isSupabasePostgrestJwt(tok)) return tok;
+    }
+
+    // 2. Check standard storage keys, filtering for valid PostgREST JWTs
+    const storageKeys = ['zega_supabase_access_token', 'zega_access_token', 'zega_jwt', 'token', 'sb-access-token', 'zega_auth_token'];
+    for (const key of storageKeys) {
+      const val = localStorage.getItem(key);
+      if (val && typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined') {
+        const trimmed = val.trim();
+        if (isSupabasePostgrestJwt(trimmed)) {
+          return trimmed;
+        }
+      }
+    }
+
+    // 3. Check Supabase JS client auth token in localStorage (sb-*-auth-token)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed?.access_token && typeof parsed.access_token === 'string') {
+              const tok = parsed.access_token.trim();
+              if (isSupabasePostgrestJwt(tok)) return tok;
+            }
+          } catch { }
+        }
+      }
+    }
+  } catch (e) { }
+
+  return null;
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -36,6 +127,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       'apikey': supabaseAnonKey,
+    },
+    fetch: async (url, options = {}) => {
+      const headers = new Headers(options?.headers || {});
+      if (!headers.has('apikey') && supabaseAnonKey) {
+        headers.set('apikey', supabaseAnonKey);
+      }
+      const token = getCanonicalAccessToken();
+      if (token && isSupabasePostgrestJwt(token)) {
+        headers.set('Authorization', `Bearer ${token.trim()}`);
+      } else if (!headers.has('Authorization') && supabaseAnonKey) {
+        headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+      }
+      return fetch(url, { ...options, headers });
     }
   }
 });
@@ -78,11 +182,6 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
   const cleanAccess = accessToken.trim();
   const cleanRefresh = (refreshToken && typeof refreshToken === 'string' && refreshToken.trim()) ? refreshToken.trim() : cleanAccess;
 
-  // Set default REST header authorization as fallback for PostgREST queries
-  try {
-    (supabase as any).rest.headers['Authorization'] = `Bearer ${cleanAccess}`;
-  } catch {}
-
   // 1. Inspect JWT payload for safe diagnostics and token issuer validation
   let tokenIssuer = 'unknown';
   let tokenAudience = 'unknown';
@@ -117,6 +216,13 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
       }
     }
   } catch (e) {}
+
+  // Set default REST header authorization ONLY if token is a valid Supabase JWT
+  if (isSupabaseIssuer && !isExpired) {
+    try {
+      (supabase as any).rest.headers['Authorization'] = `Bearer ${cleanAccess}`;
+    } catch {}
+  }
 
   // Diagnostic Forensic Logging (Safe metadata only, NEVER print token itself)
   console.log('[AUTH_TOKEN_FORENSIC]', {

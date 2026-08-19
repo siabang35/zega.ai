@@ -253,18 +253,9 @@ export const HelpView: React.FC = () => {
     );
   };
 
-  // UI Interface Language (for titles, buttons, placeholders)
+  // UI Interface Language (for titles, buttons, placeholders) - dynamically synced with header useLanguage()
   const getUiLang = () => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zega_language') || localStorage.getItem('zega_umkm_language');
-      if (saved) {
-        const lower = saved.toLowerCase();
-        if (lower === 'en' || lower.includes('english')) return 'en';
-        if (lower === 'zh' || lower.includes('mandarin') || lower.includes('chinese')) return 'zh';
-        if (lower === 'id' || lower.includes('indonesia')) return 'id';
-      }
-    }
-    return 'id';
+    return language || 'id';
   };
 
   // AI Output Result Language Preference (for backend AI response generation)
@@ -455,6 +446,9 @@ export const HelpView: React.FC = () => {
             body: JSON.stringify({
               chatId: activeHelpChatId,
               message: userMsg,
+              assistantType: 'help',
+              userName: getActiveTenantIds().userEmail?.split('@')[0] || 'Pemilik Toko',
+              userEmail: getActiveTenantIds().userEmail || undefined,
               language: currentAiLang,
               response_style: prefStyle,
               response_length: prefLen,
@@ -473,7 +467,9 @@ export const HelpView: React.FC = () => {
               headers,
               credentials: 'include',
               body: JSON.stringify({
+                chatId: activeHelpChatId,
                 message: userMsg,
+                assistantType: 'help',
                 language: currentAiLang,
                 response_style: prefStyle,
                 response_length: prefLen,
@@ -1437,7 +1433,7 @@ export const HelpView: React.FC = () => {
                   <span className="text-[9.5px] font-mono text-slate-400 mb-1">{t.helpView?.liveChatDrawer?.title || 'ZEGA AI Specialist Direct'}</span>
                   <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-bl-none border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
                     <Sparkles size={14} className="animate-spin text-orange-500" />
-                    <span className="text-xs font-medium animate-pulse">{t.helpView?.liveChatDrawer?.thinkingText || 'Sedang memproses jawaban dengan AI model...'}</span>
+                    <span className="text-xs font-medium animate-pulse">{t.helpView?.liveChatDrawer?.thinkingText || 'Sedang memproses jawaban dengan ZEGA AI...'}</span>
                   </div>
                 </div>
               )}

@@ -43,7 +43,7 @@ interface AutomationViewProps {
 const AI_MODEL_ENGINES = [
   {
     id: '9Router-Auto-Cost-Optimizer',
-    name: '9Router Layer 5 Engine',
+    name: 'ZEGA Intelligence Engine',
     badge: 'Auto-Cost Router',
     desc: 'Lowest Token Cost & Multi-Provider Failover',
     logo: 'https://cdn.zegaai.site/assets/logo/9router.png',

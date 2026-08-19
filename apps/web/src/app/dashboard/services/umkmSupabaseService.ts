@@ -649,6 +649,7 @@ export async function ensureStoreForCurrentUser(params?: {
   category?: string;
   phone?: string;
   location?: string;
+  forceFresh?: boolean;
 }): Promise<{
   ok: boolean;
   storeId?: string;
@@ -686,7 +687,7 @@ export async function ensureStoreForCurrentUser(params?: {
   } catch { }
 
   // Strictly enforce canonical application UUID identity - NEVER use email string as rawUserId!
-  const candidateIds = [bridgeUserId, sessionUserId, jwtIdentity.userId, active.userId];
+  const candidateIds = [canonicalAuth.authUserId, bridgeUserId, sessionUserId, jwtIdentity.userId, active.userId];
   const rawUserId = candidateIds.find(id => isValidUuid(id)) || null;
 
   const userEmail = active.userEmail || jwtIdentity.email || authBridge.userEmail;
@@ -701,8 +702,15 @@ export async function ensureStoreForCurrentUser(params?: {
     };
   }
 
+  if (params?.forceFresh) {
+    _resolvedStoresCache.delete(rawUserId);
+    _provisioningTerminal.delete(rawUserId);
+    _provisioningRetryAt.delete(rawUserId);
+    _terminalBlockedSessionKeys.delete(rawUserId);
+  }
+
   // Step 1.5: Check Resolved Stores Cache & Tenant Snapshot Cache (Singleflight Snapshot Guard)
-  const cachedStore = _resolvedStoresCache.get(rawUserId);
+  const cachedStore = !params?.forceFresh ? _resolvedStoresCache.get(rawUserId) : null;
   if (cachedStore && cachedStore.storeId && isValidUuid(cachedStore.storeId) && (Date.now() - cachedStore.timestamp < CACHE_TTL_MS)) {
     console.log('[PROVISIONING] Reusing valid cached tenant store snapshot for user:', rawUserId, cachedStore.storeId);
     return {
@@ -1665,6 +1673,7 @@ export async function ensureIndividualUmkmTenant(params?: {
   category?: string;
   phone?: string;
   location?: string;
+  forceFresh?: boolean;
 }): Promise<{
   ok: boolean;
   storeId?: string;
@@ -2425,6 +2434,60 @@ export const umkmSupabaseService = {
 
   async resolveCanonicalTenantContext(providedStoreId?: string | null) {
     return this.getCanonicalTenantContext(providedStoreId);
+  },
+
+  /**
+   * CANONICAL CHAT CONTEXT PRECHECK
+   * Validates full tenant identity readiness (organization, workspace, store, canonical user UUID)
+   * before any AI chat creation or restoration. Returns typed result with useRpcFallback flag.
+   */
+  async resolveCanonicalChatContext(providedStoreId?: string | null, options?: { forceFresh?: boolean }) {
+    const tenantCtx = await this.getCanonicalTenantContext(providedStoreId, options);
+    const authBridge = getAuthBridgeState();
+    const authSnapshot = canonicalAuthManager.getSnapshot();
+
+    const isTenantReady = tenantCtx.status === 'READY' && tenantCtx.verified === true && tenantCtx.storeReady === true;
+    const hasValidStoreId = isValidUuid(tenantCtx.storeId);
+    const hasValidOrgId = isValidUuid(tenantCtx.organizationId) && tenantCtx.organizationId !== tenantCtx.storeId;
+    const hasValidWsId = isValidUuid(tenantCtx.workspaceId) && tenantCtx.workspaceId !== tenantCtx.storeId && tenantCtx.workspaceId !== tenantCtx.organizationId;
+    const hasValidUserId = isValidUuid(tenantCtx.userId) || isValidUuid(tenantCtx.authUserId);
+
+    if (!isTenantReady || !hasValidStoreId || !hasValidOrgId || !hasValidUserId) {
+      console.warn('[CANONICAL_CHAT_PRECHECK_DEFERRED]', {
+        isTenantReady,
+        status: tenantCtx.status,
+        verified: tenantCtx.verified,
+        storeId: tenantCtx.storeId,
+        orgId: tenantCtx.organizationId,
+        wsId: tenantCtx.workspaceId,
+        userId: tenantCtx.userId || tenantCtx.authUserId
+      });
+      return {
+        ok: false,
+        status: 'DEFERRED' as const,
+        reason: !isTenantReady ? 'TENANT_NOT_READY' : 'INCOMPLETE_TENANT_UUIDS',
+        tenantContext: tenantCtx,
+        useRpcFallback: false,
+        userId: null,
+        storeId: null,
+        organizationId: null,
+        workspaceId: null
+      };
+    }
+
+    const supabaseSessionReady = Boolean(authSnapshot.supabaseSessionReady || authBridge.supabaseSessionReady);
+    const useRpcFallback = !supabaseSessionReady;
+
+    return {
+      ok: true,
+      status: 'READY' as const,
+      userId: tenantCtx.userId || tenantCtx.authUserId,
+      storeId: tenantCtx.storeId,
+      organizationId: tenantCtx.organizationId,
+      workspaceId: hasValidWsId ? tenantCtx.workspaceId : null,
+      tenantContext: tenantCtx,
+      useRpcFallback
+    };
   },
 
   async getAuthenticatedTenantContext(providedStoreId?: string | null) {

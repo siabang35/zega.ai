@@ -335,12 +335,14 @@ export function EnterpriseCopilot({
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         const headers = getCanonicalAuthHeaders();
+        const reqFingerprint = `ent:${chatSessionId || 'anon'}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+        headers['X-Request-Fingerprint'] = reqFingerprint;
 
         const fetchStart = Date.now();
         const response = await fetch(`${apiHost}/v1/enterprise/copilot/chat`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ chatId: chatSessionId, message: textToSend.trim(), language: currentAiLang }),
+          body: JSON.stringify({ chatId: chatSessionId, assistantType: 'zega_copilot', message: textToSend.trim(), language: currentAiLang, requestFingerprint: reqFingerprint }),
           signal: controller.signal,
         });
 

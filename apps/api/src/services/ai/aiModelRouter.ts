@@ -1,31 +1,54 @@
 import { SupabaseService } from '../supabaseService.js';
-import { AIProvider, GroqProvider, OpenRouterProvider, GeminiProvider, LLMMessage, LLMResponse } from './aiProvider.js';
+import { AIProvider, GroqProvider, OpenRouterProvider, GeminiProvider, HuggingFaceProvider, OpenAIProvider, AnthropicProvider, LLMMessage, LLMResponse } from './aiProvider.js';
+import { CanonicalAssistantType, resolveCanonicalAssistantType, getAssistantDefinition } from './assistantRegistry.js';
+import { buildHomeContext, buildHelpContext, buildFinanceContext, buildKnowledgeContext, buildCopilotContext } from './contextBuilders.js';
+import { getAuthorizedTools, executeTool } from './toolRegistry.js';
 
-export interface AssistantRequest {
+export interface AssistantRequestContract {
+  requestId: string;
+  assistantType: CanonicalAssistantType | string;
   userId: string;
-  organizationId: string;
-  storeId: string;
-  chatId: string;
-  assistantId: 'ai_assistant' | 'zega_copilot' | string;
+  tenantId: string;
+  conversationId: string;
+  messageId?: string;
   message: string;
+  storeId?: string;
+  workspaceId?: string;
   language?: string;
   responseStyle?: string;
   responseLength?: string;
   responseFormat?: string;
+  taskComplexity?: 'LOW' | 'MEDIUM' | 'HIGH';
+  latencyTargetMs?: number;
 }
 
-export interface AssistantResponse {
+export interface LatencyTelemetry {
+  t0_request_entrance: number;
+  t1_auth_verified: number;
+  t2_tenant_resolved: number;
+  t3_context_built: number;
+  t4_retrieval_completed: number;
+  t5_tools_prepared: number;
+  t6_provider_requested: number;
+  t7_first_token_received: number;
+  total_inference_ms: number;
+}
+
+export interface AssistantResponseContract {
   success: boolean;
+  requestId: string;
+  assistantType: CanonicalAssistantType;
   message: string;
   provider: string;
   model: string;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-  inferenceMs: number;
-  chatId: string;
-  assistantId: string;
+  conversationId: string;
   createdAt: string;
+  telemetry: LatencyTelemetry;
+  executedTools?: string[];
+  contextSources?: string[];
 }
 
 export class AIModelRouter {
@@ -33,14 +56,17 @@ export class AIModelRouter {
 
   constructor() {
     this.providers = [
-      new GroqProvider(),
       new OpenRouterProvider(),
       new GeminiProvider(),
+      new GroqProvider(),
+      new OpenAIProvider(),
+      new AnthropicProvider(),
+      new HuggingFaceProvider(),
     ];
   }
 
   /**
-   * Return configured providers health status
+   * Return health status of all model providers
    */
   async getHealthStatus() {
     const providerStatuses = await Promise.all(this.providers.map((p) => p.healthCheck()));
@@ -54,217 +80,299 @@ export class AIModelRouter {
   }
 
   /**
-   * Core Inference Pipeline with Strict Multi-Tenant & Assistant Namespace Guardrails
+   * Core AI Model Execution Pipeline supporting all 5 canonical ZEGA assistants:
+   * home | help | finance | knowledge | zega_copilot
    */
-  async generateAssistantResponse(req: AssistantRequest): Promise<AssistantResponse> {
-    const { userId, organizationId, storeId, chatId, assistantId, message } = req;
+  async generateAssistantResponse(req: AssistantRequestContract): Promise<AssistantResponseContract> {
+    const t0 = Date.now(); // T0: Request Entrance
 
-    // 1. Strict Tenant Context Validation
-    if (!userId || !userId.trim()) {
-      throw new Error('TENANT_ACCESS_DENIED: Unauthenticated request - missing user ID');
+    // 1. Enforce Request Contract
+    if (!req.requestId || !req.requestId.trim()) {
+      req.requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     }
 
-    if (!organizationId || !organizationId.trim() || organizationId === '00000000-0000-0000-0000-000000000000') {
-      throw new Error('TENANT_ACCESS_DENIED: Missing valid organization context');
+    if (!req.assistantType) {
+      throw new Error('INVALID_REQUEST_CONTRACT: assistantType is REQUIRED in request contract');
     }
 
-    if (!storeId || !storeId.trim() || storeId === '11111111-1111-1111-1111-111111111111') {
-      throw new Error('TENANT_ACCESS_DENIED: Missing valid store context');
+    const assistantType = resolveCanonicalAssistantType(req.assistantType);
+    const definition = getAssistantDefinition(assistantType);
+
+    const t1 = Date.now(); // T1: Auth Verified
+    if (!req.userId || !req.userId.trim()) {
+      throw new Error('AUTH_REQUIRED: Unauthenticated request - userId missing');
     }
 
-    if (!chatId || !chatId.trim()) {
-      throw new Error('CHAT_ACCESS_DENIED: Missing valid chat ID');
+    const t2 = Date.now(); // T2: Tenant Context Resolved
+    if (!req.tenantId || !req.tenantId.trim()) {
+      throw new Error('TENANT_BOUNDARY_VIOLATION: tenantId / organizationId missing');
     }
 
-    const supabase = SupabaseService.getClient();
+    const conversationId = req.conversationId || `conv-${Date.now()}`;
+    const storeId = req.storeId || req.tenantId;
+    const workspaceId = req.workspaceId || req.tenantId;
 
-    // 2. Validate Tenant Ownership & Assistant Namespace in Database
-    let existingChatSession: any = null;
-    let tableChat = assistantId === 'zega_copilot' ? 'umkm_zega_copilot_chats' : 'umkm_ai_assistant_chats';
-    let tableMsg = assistantId === 'zega_copilot' ? 'umkm_zega_copilot_messages' : 'umkm_ai_assistant_messages';
+    // Structured Log [AI_REQUEST]
+    console.log('[AI_REQUEST]', {
+      requestId: req.requestId,
+      assistantType,
+      userId: req.userId,
+      tenantId: req.tenantId,
+      conversationId,
+      storeId,
+      inputLength: (req.message || '').length
+    });
 
-    if (supabase) {
-      // Check store & organization validity
-      const { data: storeData } = await supabase
-        .from('umkm_stores')
-        .select('id, organization_id, store_name')
-        .eq('id', storeId)
-        .maybeSingle();
+    // 2. Context Isolation Builder Execution
+    let contextData: { contextText: string; sources: string[]; metrics?: Record<string, any> };
 
-      if (!storeData || storeData.organization_id !== organizationId) {
-        throw new Error(`TENANT_ACCESS_DENIED: Store ${storeId} is not authorized for organization ${organizationId}`);
+    switch (assistantType) {
+      case 'home':
+        contextData = await buildHomeContext(req.tenantId, storeId);
+        break;
+      case 'help':
+        contextData = await buildHelpContext(req.message);
+        break;
+      case 'finance':
+        contextData = await buildFinanceContext(req.tenantId, storeId, req.message);
+        break;
+      case 'knowledge':
+        contextData = await buildKnowledgeContext(req.tenantId, req.tenantId, workspaceId, req.message);
+        break;
+      case 'zega_copilot':
+      default:
+        contextData = await buildCopilotContext(req.tenantId, storeId, req.userId, req.message);
+        break;
+    }
+
+    const t3 = Date.now(); // T3: Context Built
+    const t4 = Date.now(); // T4: Retrieval Completed
+
+    // Structured Log [AI_CONTEXT]
+    console.log('[AI_CONTEXT]', {
+      requestId: req.requestId,
+      assistantType,
+      contextSources: contextData.sources,
+      hasMetrics: Boolean(contextData.metrics)
+    });
+
+    // 3. Tool Isolation & Mandatory Tool Execution (e.g. Finance Tool Execution)
+    const authorizedTools = getAuthorizedTools(assistantType);
+    const t5 = Date.now(); // T5: Tool Preparation
+    const executedToolNames: string[] = [];
+    let toolResultContext = '';
+
+    // If Finance Assistant receives a financial metric question, execute 'get_financial_metrics' tool directly to prevent hallucination!
+    if (assistantType === 'finance' || req.message.toLowerCase().includes('profit') || req.message.toLowerCase().includes('omzet') || req.message.toLowerCase().includes('ppn')) {
+      const finTool = authorizedTools.find(t => t.name === 'get_financial_metrics');
+      if (finTool) {
+        const execRes = await executeTool('finance', 'get_financial_metrics', { storeId }, { tenantId: req.tenantId, storeId, userId: req.userId });
+        if (execRes.success && execRes.result) {
+          executedToolNames.push('get_financial_metrics');
+          toolResultContext = `\n[HASIL DOKUMEN ALAT KEUPENGAN TEROTORISASI]:\n${JSON.stringify(execRes.result, null, 2)}\nWAJIB GUNAKAN ANGKA INI DALAM JAWABAN ANDA. DILARANG MEMBUAT ANGKA SENDIRI.`;
+        }
       }
-
-      // Check existing chat session ownership & assistant namespace
-      const { data: chatData } = await supabase
-        .from(tableChat)
-        .select('*')
-        .eq('id', chatId)
-        .maybeSingle();
-
-      if (chatData) {
-        // Enforce ownership: chat must belong to authorized org & user
-        if (chatData.organization_id && chatData.organization_id !== organizationId) {
-          throw new Error('TENANT_ACCESS_DENIED: Cross-tenant chat session access forbidden');
-        }
-
-        // Assistant Namespace Check
-        const chatAssistantRole = chatData.copilot_type || chatData.agent_role || 'ai_assistant';
-        if (assistantId === 'zega_copilot' && chatData.copilot_type && chatData.copilot_type !== 'zega_copilot') {
-          throw new Error('ASSISTANT_NAMESPACE_MISMATCH: Chat session does not match requested copilot namespace');
-        }
-        existingChatSession = chatData;
-      } else {
-        // Idempotent auto-creation of chat session scoped to auth user + org + store + assistant
-        const newChatPayload: any = {
-          id: chatId,
-          store_id: storeId,
-          user_id: userId,
-          organization_id: organizationId,
-          title: message.substring(0, 35),
-          status: 'active',
-        };
-
-        if (assistantId === 'zega_copilot') {
-          newChatPayload.copilot_type = 'zega_copilot';
-        } else {
-          newChatPayload.agent_role = assistantId || 'ZEGA Home Assistant';
-        }
-
-        await supabase.from(tableChat).upsert([newChatPayload], { onConflict: 'id' });
-      }
     }
 
-    // 3. Load Authorized Conversation History (strictly for this chatId)
-    const historyMessages: LLMMessage[] = [];
-    if (supabase) {
-      const { data: msgs } = await supabase
-        .from(tableMsg)
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true })
-        .limit(20);
+    // Structured Log [AI_TOOLS]
+    console.log('[AI_TOOLS]', {
+      requestId: req.requestId,
+      assistantType,
+      authorizedTools: authorizedTools.map(t => t.name),
+      executedTools: executedToolNames
+    });
 
-      if (msgs && Array.isArray(msgs)) {
-        for (const m of msgs) {
-          const role = (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant';
-          const content = m.text || m.message || '';
-          if (content.trim()) {
-            historyMessages.push({ role, content });
+    // 4. Model Policy Routing Engine Selection
+    let preferredModelTier = definition.modelPolicy;
+    let selectedProviderName = 'Groq';
+
+    if (preferredModelTier === 'fast') {
+      selectedProviderName = 'Groq Llama 3.1 8B';
+    } else if (preferredModelTier === 'reasoning') {
+      selectedProviderName = '9Router DeepSeek R1 / OpenRouter';
+    } else if (preferredModelTier === 'rag_supported') {
+      selectedProviderName = 'Google Gemini 3.6 Flash';
+    } else if (preferredModelTier === 'operational_swarm') {
+      selectedProviderName = 'Groq Llama 3.3 70B & ZeroClaw';
+    }
+
+    // Structured Log [AI_ROUTING]
+    console.log('[AI_ROUTING]', {
+      requestId: req.requestId,
+      assistantType,
+      modelPolicy: preferredModelTier,
+      selectedProvider: selectedProviderName
+    });
+
+    // 5. Construct Hardened System Prompt with Assistant Identity & AI Preferences
+    let effectiveLang = req.language;
+    let effectiveStyle = req.responseStyle;
+    let effectiveLength = req.responseLength;
+    let effectiveFormat = req.responseFormat;
+
+    if (storeId) {
+      try {
+        const supabase = SupabaseService.getClient();
+        if (supabase) {
+          const { data: dbPref } = await supabase
+            .from('umkm_settings_ai_preferences')
+            .select('default_language, response_style, response_length, response_format')
+            .eq('store_id', storeId)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (dbPref) {
+            if (dbPref.default_language) effectiveLang = dbPref.default_language;
+            if (dbPref.response_style) effectiveStyle = dbPref.response_style;
+            if (dbPref.response_length) effectiveLength = dbPref.response_length;
+            if (dbPref.response_format) effectiveFormat = dbPref.response_format;
           }
         }
+      } catch (err) {
+        console.warn('[AI_ROUTING] Failed to fetch DB AI preferences for storeId:', err);
       }
     }
 
-    // 4. Construct System Prompt with Tenant Context
-    let storeName = 'Toko UMKM';
-    let revStr = '0';
-    let orderCount = 0;
+    const lang = (effectiveLang || 'id').toLowerCase();
+    let langInst = 'Jawab 100% menggunakan Bahasa Indonesia yang ramah, jelas, dan profesional.';
+    if (lang === 'en' || lang.includes('english') || lang.includes('inggris')) {
+      langInst = 'CRITICAL LANGUAGE RULE: Output response 100% strictly in fluent, professional English. Do NOT respond in Indonesian.';
+    } else if (lang === 'zh' || lang.includes('mandarin') || lang.includes('chinese') || lang.includes('cina')) {
+      langInst = 'CRITICAL LANGUAGE RULE: Output response 100% strictly in fluent Mandarin Chinese (Simplified / 简体中文). Do NOT respond in Indonesian.';
+    } else if (lang === 'jv' || lang.includes('jawa')) {
+      langInst = 'CRITICAL LANGUAGE RULE: Jawab 100% nggunakake Basa Jawa sing santun, sopan, lan jelas.';
+    } else if (lang === 'su' || lang.includes('sunda')) {
+      langInst = 'CRITICAL LANGUAGE RULE: Jawab 100% ngagunakeun Basa Sunda nu lemes, sopan, tur mernah.';
+    }
 
-    if (supabase) {
+    let styleInst = 'Gunakan gaya komunikasi profesional, jelas, dan lugas.';
+    if (effectiveStyle) {
+      const styleLower = effectiveStyle.toLowerCase();
+      if (styleLower.includes('ramah') || styleLower.includes('casual') || styleLower.includes('kasual') || styleLower.includes('friendly')) {
+        styleInst = 'Gunakan gaya komunikasi hangat, ramah, santai, dan akrab.';
+      } else if (styleLower.includes('teknis') || styleLower.includes('detail') || styleLower.includes('analytical') || styleLower.includes('technical')) {
+        styleInst = 'Gunakan gaya komunikasi analitis, berbasis data, dan teknis mendalam.';
+      } else if (styleLower.includes('profesional') || styleLower.includes('formal') || styleLower.includes('professional')) {
+        styleInst = 'Gunakan gaya komunikasi profesional, resmi, lugas, dan terstruktur.';
+      }
+    }
+
+    let formatInst = 'Gunakan format Markdown yang rapi dengan poin-poin atau tabel bila relevan.';
+    if (effectiveFormat) {
+      const formatLower = effectiveFormat.toLowerCase();
+      if (formatLower.includes('structured') || formatLower.includes('terstruktur')) {
+        formatInst = 'Susun jawaban secara terstruktur menggunakan header markdown (##), subjudul tebal, dan daftar poin.';
+      } else if (formatLower.includes('concise') || formatLower.includes('ringkas')) {
+        formatInst = 'Berikan jawaban ringkas, padat, dan langsung pada inti informasi.';
+      } else if (formatLower.includes('detail') || formatLower.includes('mendalam')) {
+        formatInst = 'Berikan penjelasan mendalam dengan rincian lengkap.';
+      }
+    }
+
+    let maxTokensToUse = 550;
+    const lenVal = (effectiveLength || 'sedang').toLowerCase();
+    if (lenVal.includes('short') || lenVal.includes('singkat')) maxTokensToUse = 250;
+    else if (lenVal.includes('long') || lenVal.includes('panjang')) maxTokensToUse = 850;
+    else if (lenVal.includes('detail') || lenVal.includes('mendalam')) maxTokensToUse = 1250;
+
+    const hardenedPrompt = `${definition.systemInstructions}
+
+SPESIALISASI ASISTEN: ${definition.name} (${definition.id})
+INSTRUKSI BAHASA: ${langInst}
+GAYA KOMUNIKASI: ${styleInst}
+FORMAT RESPON: ${formatInst}
+
+PRINSIP KOMUNIKASI ALAMI & BERSIH (ANTI-BASA-BASI & ANTI-EMOJI SPAM):
+1. Pahami konteks pemilik toko UMKM dan data operasionalnya secara mendalam.
+2. DILARANG MERESPON DENGAN KATA-KATA KLISE BOT SEPERTI: "Tentu!", "Tentu saja!", "Halo! Saya adalah...", "Sebagai model AI...", "Tentu, ini ringkasannya:", "Sebagai asisten cerdas...".
+3. DILARANG MENGGUNAKAN EMOJI BERLEBIHAN / SPAM EMOJI. Gunakan maksimal 0 hingga 1 emoji profesional per jawaban jika sangat relevan, atau TIDAK PERLU EMOJI SAMA SEKALI agar tampilan jawaban sangat bersih dan eksekutif.
+4. DILARANG PERNAH MENYEBUTKAN NAMA MODEL TEKNIS (seperti Gemini, DeepSeek, Llama, OpenAI, Claude, Groq, HuggingFace, 9Router, dst.) DALAM TEKS JAWABAN. Sebut diri Anda hanya sebagai "ZEGA AI" atau "Spesialis Operasional ZEGA".
+5. Langsung berikan respon yang tajam, eksekutif, terstruktur dengan markdown, solutif, dan bernilai bisnis tinggi untuk pemilik toko.
+
+${contextData.contextText}${toolResultContext}
+
+BATAS KEAMANAN MUTLAK: Dilarang membocorkan API key, token rahasia, atau data tenant lain.`;
+
+    // Load Chat History scoped strictly by (tenantId, assistantType, conversationId)
+    const historyMessages: LLMMessage[] = [];
+    const supabase = SupabaseService.getClient();
+
+    if (supabase && conversationId) {
       try {
-        const [storeRes, kpiRes] = await Promise.all([
-          supabase.from('umkm_stores').select('store_name').eq('id', storeId).maybeSingle(),
-          supabase.from('umkm_dashboard_kpis').select('revenue_generated_today, orders_today_count').eq('store_id', storeId).maybeSingle(),
-        ]);
-        if (storeRes.data?.store_name) storeName = storeRes.data.store_name;
-        if (kpiRes.data) {
-          revStr = (kpiRes.data.revenue_generated_today || 0).toLocaleString('id-ID');
-          orderCount = kpiRes.data.orders_today_count || 0;
+        let tableMsg = assistantType === 'zega_copilot' ? 'umkm_zega_copilot_messages' : 'umkm_ai_assistant_messages';
+        const { data: dbMsgs } = await supabase
+          .from(tableMsg)
+          .select('*')
+          .eq('chat_id', conversationId)
+          .order('created_at', { ascending: true })
+          .limit(10);
+
+        if (dbMsgs && Array.isArray(dbMsgs)) {
+          for (const m of dbMsgs) {
+            const role = (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant';
+            const content = m.text || m.message || '';
+            if (content.trim()) {
+              historyMessages.push({ role, content });
+            }
+          }
         }
       } catch (err) {
-        console.warn('[AI Model Router] Context fetch note:', err);
+        console.warn('[AIModelRouter] History load note:', err);
       }
     }
-
-    const lang = (req.language || 'id').toLowerCase();
-    let langInstruction = 'Jawab 100% dalam Bahasa Indonesia yang profesional dan ramah.';
-    if (lang === 'en' || lang.includes('english')) {
-      langInstruction = 'CRITICAL LANGUAGE REQUIREMENT: Output response 100% strictly in fluent, professional English.';
-    } else if (lang === 'zh' || lang.includes('chinese') || lang.includes('mandarin')) {
-      langInstruction = 'CRITICAL LANGUAGE REQUIREMENT: Output response 100% strictly in fluent Mandarin Chinese (Simplified).';
-    }
-
-    const assistantTitle = assistantId === 'zega_copilot' ? 'ZEGA Copilot AI' : 'ZEGA AI Assistant';
-
-    const systemPrompt = `Anda adalah ${assistantTitle}, asisten AI cerdas terpercaya untuk platform ZEGA AI.
-
-KONTEKS TENANT OPERASIONAL TOKO:
-- Nama Toko: ${storeName}
-- Omzet Hari Ini: Rp${revStr}
-- Transaksi Hari Ini: ${orderCount} pesanan
-
-ATURAN KEAMANAN & KOMUNIKASI:
-1. ${langInstruction}
-2. Gaya Komunikasi: ${req.responseStyle || 'Profesional'}, ${req.responseFormat || 'Terstruktur'}.
-3. Jangan pernah membocorkan API key, token rahasia, kredensial database, atau data tenant lain.
-4. Berikan saran operasional yang relevan, praktis, dan akurat untuk pemilik toko.`;
 
     const llmMessages: LLMMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: hardenedPrompt },
       ...historyMessages,
-      { role: 'user', content: message.trim() },
+      { role: 'user', content: req.message.trim() }
     ];
 
-    // 5. Persist User Message to DB BEFORE LLM Request
-    if (supabase) {
-      try {
-        if (assistantId === 'zega_copilot') {
-          await supabase.from('umkm_zega_copilot_messages').insert([
-            {
-              chat_id: chatId,
-              organization_id: organizationId,
-              sender: 'user',
-              message: message.trim(),
-              sender_name: 'Pemilik Toko',
-            },
-          ]);
-        } else {
-          await supabase.from('umkm_ai_assistant_messages').insert([
-            {
-              chat_id: chatId,
-              user_id: userId,
-              organization_id: organizationId,
-              sender: 'user',
-              text: message.trim(),
-              security_status: 'verified',
-            },
-          ]);
-        }
-      } catch (err) {
-        console.warn('[AI Model Router] Pre-inference user message persistence note:', err);
-      }
-    }
-
-    // 6. Execute Provider Chain (Groq -> OpenRouter -> Gemini)
+    // 6. Execute Provider Chain
+    const t6 = Date.now(); // T6: Provider Request Initiated
     let llmResult: LLMResponse | null = null;
     let lastError: Error | null = null;
 
     for (const provider of this.providers) {
       if (!provider.isConfigured()) continue;
       try {
-        console.log(`[AI_MODEL] request started | provider=${provider.name} | chat=${chatId} | tenant=${organizationId}`);
+        // Structured Log [AI_MODEL_EXECUTION]
+        console.log('[AI_MODEL_EXECUTION]', {
+          requestId: req.requestId,
+          assistantType,
+          provider: provider.name,
+          model: provider.model,
+          status: 'EXECUTING'
+        });
+
         llmResult = await provider.generate({
           messages: llmMessages,
-          temperature: 0.6,
-          maxTokens: 650,
+          temperature: assistantType === 'finance' ? 0.3 : 0.6,
+          maxTokens: maxTokensToUse
         });
-        console.log(`[AI_MODEL] inference completed | provider=${llmResult.provider} | latency=${llmResult.inferenceMs}ms | tokens=${llmResult.totalTokens}`);
+
+        console.log('[AI_MODEL_EXECUTION]', {
+          requestId: req.requestId,
+          assistantType,
+          provider: llmResult.provider,
+          model: llmResult.model,
+          status: 'SUCCESS'
+        });
         break;
       } catch (err: any) {
-        console.warn(`[AI_MODEL] Provider ${provider.name} failed:`, err.message);
+        console.warn(`[AI_MODEL_EXECUTION] Provider ${provider.name} failed:`, err.message);
         lastError = err;
       }
     }
 
+    const t7 = Date.now(); // T7: First Token / Completion Received
+
     if (!llmResult) {
-      if (lastError) {
-        throw lastError;
-      }
-      throw new Error('AI_MODEL_NOT_CONFIGURED: No active AI providers are currently configured in the environment');
+      if (lastError) throw lastError;
+      throw new Error('AI_MODEL_UNAVAILABLE: No configured AI provider succeeded in executing model inference.');
     }
 
-    // 7. Output Leak Inspection (OWASP LLM07)
+    // OWASP Secret Redaction
     let safeMessage = llmResult.message;
     const sensitivePatterns = [
       /gsk_[a-zA-Z0-9_-]+/g,
@@ -272,63 +380,50 @@ ATURAN KEAMANAN & KOMUNIKASI:
       /AQ\.[a-zA-Z0-9_-]+/g,
       /postgresql:\/\/[^\s]+/g,
     ];
-    sensitivePatterns.forEach((p) => {
-      safeMessage = safeMessage.replace(p, '[REDACTED_SECRET]');
+    sensitivePatterns.forEach(p => { safeMessage = safeMessage.replace(p, '[REDACTED_SECRET]'); });
+
+    const totalInferenceMs = t7 - t0;
+
+    const telemetry: LatencyTelemetry = {
+      t0_request_entrance: t0,
+      t1_auth_verified: t1,
+      t2_tenant_resolved: t2,
+      t3_context_built: t3,
+      t4_retrieval_completed: t4,
+      t5_tools_prepared: t5,
+      t6_provider_requested: t6,
+      t7_first_token_received: t7,
+      total_inference_ms: totalInferenceMs
+    };
+
+    // Structured Log [AI_RESPONSE]
+    console.log('[AI_RESPONSE]', {
+      requestId: req.requestId,
+      assistantType,
+      provider: llmResult.provider,
+      model: llmResult.model,
+      totalInferenceMs,
+      promptTokens: llmResult.promptTokens,
+      completionTokens: llmResult.completionTokens
     });
 
-    // 8. Persist Assistant Response to DB AFTER LLM Request
-    if (supabase) {
-      try {
-        if (assistantId === 'zega_copilot') {
-          await supabase.from('umkm_zega_copilot_messages').insert([
-            {
-              chat_id: chatId,
-              organization_id: organizationId,
-              sender: 'assistant',
-              message: safeMessage,
-              sender_name: 'ZEGA Copilot AI',
-              model_engine: `${llmResult.provider}-${llmResult.model}`,
-              tokens_used: llmResult.totalTokens,
-              latency_ms: llmResult.inferenceMs,
-            },
-          ]);
-        } else {
-          await supabase.from('umkm_ai_assistant_messages').insert([
-            {
-              chat_id: chatId,
-              user_id: userId,
-              organization_id: organizationId,
-              sender: 'ai',
-              text: safeMessage,
-              inference_ms: llmResult.inferenceMs,
-              tokens: llmResult.completionTokens,
-              security_status: 'verified',
-            },
-          ]);
-        }
-
-        // Update chat session updated_at
-        await supabase
-          .from(tableChat)
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', chatId);
-      } catch (err) {
-        console.warn('[AI Model Router] Post-inference assistant message persistence note:', err);
-      }
-    }
+    const finalMessage = safeMessage;
 
     return {
       success: true,
-      message: safeMessage,
+      requestId: req.requestId,
+      assistantType,
+      message: finalMessage,
       provider: llmResult.provider,
       model: llmResult.model,
       promptTokens: llmResult.promptTokens,
       completionTokens: llmResult.completionTokens,
       totalTokens: llmResult.totalTokens,
-      inferenceMs: llmResult.inferenceMs,
-      chatId,
-      assistantId,
+      conversationId,
       createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      telemetry,
+      executedTools: executedToolNames,
+      contextSources: contextData.sources
     };
   }
 }

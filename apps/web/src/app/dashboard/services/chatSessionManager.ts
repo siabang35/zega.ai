@@ -2,11 +2,25 @@ import { supabase } from '../../../lib/supabase';
 import { isValidUuid, umkmSupabaseService, getActiveTenantIds } from './umkmSupabaseService';
 import { SupabaseDashboardService } from './supabaseService';
 import { waitForAuthReady } from '../../components/auth/PrivyAuthBridge';
-
-
 import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 
-export type AssistantType = 'home_assistant' | 'zega_copilot' | 'finance_ai' | 'live_help';
+export type CanonicalAssistantType = 'home' | 'help' | 'finance' | 'knowledge' | 'zega_copilot';
+export type LegacyAssistantType = 'home_assistant' | 'finance_ai' | 'live_help';
+export type AssistantType = CanonicalAssistantType | LegacyAssistantType;
+
+/**
+ * Normalizes legacy or shorthand assistant type strings into canonical assistant types.
+ */
+export function normalizeAssistantType(rawType?: string): CanonicalAssistantType {
+  if (!rawType) return 'home';
+  const clean = rawType.trim().toLowerCase();
+  if (clean === 'home' || clean === 'home_assistant') return 'home';
+  if (clean === 'help' || clean === 'live_help' || clean === 'support') return 'help';
+  if (clean === 'finance' || clean === 'finance_ai') return 'finance';
+  if (clean === 'knowledge' || clean === 'knowledge_base') return 'knowledge';
+  if (clean === 'zega_copilot' || clean === 'copilot') return 'zega_copilot';
+  return 'home';
+}
 
 export interface ChatMessage {
   id: string;
@@ -38,23 +52,24 @@ export interface AssistantState {
   error: string | null;
 }
 
-export type ChatManagerState = Record<AssistantType, AssistantState>;
+export type ChatManagerState = Record<CanonicalAssistantType, AssistantState>;
 
 class ChatSessionManager {
   private state: ChatManagerState = {
-    home_assistant: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
-    zega_copilot: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
-    finance_ai: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
-    live_help: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null }
+    home: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
+    help: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
+    finance: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
+    knowledge: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null },
+    zega_copilot: { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null }
   };
 
-  private listeners: Set<(state: ChatManagerState) => void> = new Set();
+  private listeners: Set<(state: any) => void> = new Set();
   private inFlightRestoration: Map<string, Promise<string | null>> = new Map();
   private inFlightCreation: Map<string, Promise<ChatSession | null>> = new Map();
   private inFlightMessages: Map<string, Promise<ChatMessage[]>> = new Map();
   private inFlightPersist: Map<string, Promise<ChatMessage | null>> = new Map();
 
-  public subscribe(listener: (state: ChatManagerState) => void): () => void {
+  public subscribe(listener: (state: any) => void): () => void {
     this.listeners.add(listener);
     listener(this.getState());
     return () => {
@@ -62,23 +77,34 @@ class ChatSessionManager {
     };
   }
 
-  public getState(): ChatManagerState {
+  public getState(): any {
+    const canonicalState = {
+      home: { ...this.state.home, loadedMessages: { ...this.state.home.loadedMessages } },
+      help: { ...this.state.help, loadedMessages: { ...this.state.help.loadedMessages } },
+      finance: { ...this.state.finance, loadedMessages: { ...this.state.finance.loadedMessages } },
+      knowledge: { ...this.state.knowledge, loadedMessages: { ...this.state.knowledge.loadedMessages } },
+      zega_copilot: { ...this.state.zega_copilot, loadedMessages: { ...this.state.zega_copilot.loadedMessages } }
+    };
+
+    // Alias mapping for legacy components
     return {
-      home_assistant: { ...this.state.home_assistant, loadedMessages: { ...this.state.home_assistant.loadedMessages } },
-      zega_copilot: { ...this.state.zega_copilot, loadedMessages: { ...this.state.zega_copilot.loadedMessages } },
-      finance_ai: { ...this.state.finance_ai, loadedMessages: { ...this.state.finance_ai.loadedMessages } },
-      live_help: { ...this.state.live_help, loadedMessages: { ...this.state.live_help.loadedMessages } }
+      ...canonicalState,
+      home_assistant: canonicalState.home,
+      finance_ai: canonicalState.finance,
+      live_help: canonicalState.help
     };
   }
 
-  public getAssistantState(assistantType: AssistantType): AssistantState {
-    return this.state[assistantType] || { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null };
+  public getAssistantState(typeInput: AssistantType): AssistantState {
+    const canonical = normalizeAssistantType(typeInput);
+    return this.state[canonical] || { activeChatId: null, chats: [], loadedMessages: {}, loading: false, error: null };
   }
 
-  public setActiveChatId(assistantType: AssistantType, chatId: string | null): void {
-    if (this.state[assistantType].activeChatId !== chatId) {
-      this.state[assistantType] = {
-        ...this.state[assistantType],
+  public setActiveChatId(typeInput: AssistantType, chatId: string | null): void {
+    const canonical = normalizeAssistantType(typeInput);
+    if (this.state[canonical].activeChatId !== chatId) {
+      this.state[canonical] = {
+        ...this.state[canonical],
         activeChatId: chatId
       };
       if (chatId && typeof sessionStorage !== 'undefined') {
@@ -86,7 +112,7 @@ class ChatSessionManager {
           const authUser = canonicalAuthManager.getSnapshot().authUserId;
           const tenant = getActiveTenantIds();
           if (authUser && tenant.storeId) {
-            sessionStorage.setItem(`zega_active_chat:${assistantType}:${authUser}:${tenant.storeId}`, chatId);
+            sessionStorage.setItem(`zega_active_chat:${canonical}:${authUser}:${tenant.storeId}`, chatId);
           }
         } catch { }
       }
@@ -102,108 +128,76 @@ class ChatSessionManager {
    * 4. If zero chats exist, provisions ONE new chat session row in DB.
    */
   public async restoreOrBootstrapAssistantSession(
-    assistantType: AssistantType,
+    typeInput: AssistantType,
     providedStoreId?: string | null
   ): Promise<string | null> {
-    const currentState = this.getAssistantState(assistantType);
+    const canonical = normalizeAssistantType(typeInput);
+    const currentState = this.getAssistantState(canonical);
     if (currentState.activeChatId && isValidUuid(currentState.activeChatId)) {
       return currentState.activeChatId;
     }
 
-    const authReadyState = await canonicalAuthManager.waitUntilReady();
-    const identityValid = Boolean(authReadyState.identityReady && authReadyState.authUserId && isValidUuid(authReadyState.authUserId));
-    const isAuthReady = authReadyState.status === 'READY' || identityValid;
-
-    console.log('[CHAT_AUTH_DECISION]', {
-      canonicalAuthState: authReadyState.authState,
-      identityReady: authReadyState.identityReady,
-      sessionProvider: authReadyState.sessionProvider,
-      sessionPresent: Boolean(authReadyState.session),
-      action: isAuthReady ? 'RESTORE_OR_REUSE' : 'DEFER_AUTH'
-    });
-
-    if (!isAuthReady || !authReadyState.authUserId) {
+    const chatContext = await umkmSupabaseService.resolveCanonicalChatContext(providedStoreId);
+    if (!chatContext.ok || chatContext.status === 'DEFERRED' || !chatContext.storeId) {
       console.warn('[CHAT_CONTEXT_DEFERRED]', {
-        assistantType,
+        assistantType: canonical,
         action: 'restore',
-        reason: 'CHAT_WAITING_FOR_AUTH_CONTEXT',
-        authState: authReadyState.authState,
-        sessionPresent: Boolean(authReadyState.session),
+        reason: chatContext.reason || 'CHAT_WAITING_FOR_CANONICAL_TENANT_CONTEXT',
+        status: chatContext.status
       });
       return null;
     }
 
-    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
-    const isResolving = tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.storeStatus === 'loading';
-
-    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
-      if (isResolving) {
-        console.log('[CHAT_CONTEXT_DEFERRED]', {
-          assistantType,
-          action: 'restore',
-          reason: 'TENANT_RESOLVING',
-          storeStatus: tenantCtx.storeStatus
-        });
-      } else {
-        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
-          assistantType,
-          action: 'restore',
-          verified: tenantCtx.verified,
-          storeId: tenantCtx.storeId,
-          organizationId: tenantCtx.organizationId,
-          workspaceId: tenantCtx.workspaceId
-        });
-      }
-      return null;
-    }
+    const authUserId = chatContext.userId;
+    const storeId = chatContext.storeId;
+    const workspaceId = chatContext.workspaceId;
 
     // Check SessionStorage Cache (Tier 2 Lookup)
-    const sessionCacheKey = `zega_active_chat:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}`;
+    const sessionCacheKey = `zega_active_chat:${canonical}:${authUserId}:${storeId}`;
     if (typeof sessionStorage !== 'undefined') {
       try {
         const cachedChatId = sessionStorage.getItem(sessionCacheKey);
         if (cachedChatId && isValidUuid(cachedChatId)) {
-          this.setActiveChatId(assistantType, cachedChatId);
-          this.loadChatMessages(assistantType, cachedChatId);
+          this.setActiveChatId(canonical, cachedChatId);
+          this.loadChatMessages(canonical, cachedChatId);
           return cachedChatId;
         }
       } catch { }
     }
 
-    const flightKey = `restore:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}:${authReadyState.generation}`;
+    const flightKey = `restore:${canonical}:${authUserId}:${storeId}:${workspaceId}`;
     if (this.inFlightRestoration.has(flightKey)) {
       return await this.inFlightRestoration.get(flightKey)!;
     }
 
     const promise = (async () => {
       try {
-        this.updateAssistant(assistantType, { loading: true });
+        this.updateAssistant(canonical, { loading: true });
 
         // Fetch recent chats from DB
-        const dbChats = await this.fetchChatListFromDb(assistantType, providedStoreId);
+        const dbChats = await this.fetchChatListFromDb(canonical, providedStoreId);
 
         if (dbChats && dbChats.length > 0) {
           const selectedChatId = dbChats[0].id;
-          this.updateAssistant(assistantType, {
+          this.updateAssistant(canonical, {
             chats: dbChats,
             activeChatId: selectedChatId,
             loading: false
           });
-          console.log('[CHAT_RESTORE]', { assistantType, activeChatId: selectedChatId, count: dbChats.length });
-          // Lazily load messages for the selected chat
-          this.loadChatMessages(assistantType, selectedChatId);
+          console.log('[CHAT_RESTORE]', { assistantType: canonical, activeChatId: selectedChatId, count: dbChats.length });
+          this.loadChatMessages(canonical, selectedChatId);
           return selectedChatId;
         }
 
         // If zero chats exist in DB, create ONE new chat row
-        const newChat = await this.createNewChatSession(assistantType, undefined, providedStoreId);
+        const newChat = await this.createNewChatSession(canonical, undefined, providedStoreId);
         if (newChat?.id) {
-          console.log('[CHAT_RESTORE]', { assistantType, activeChatId: newChat.id, status: 'BOOTSTRAPPED_NEW' });
+          console.log('[CHAT_RESTORE]', { assistantType: canonical, activeChatId: newChat.id, status: 'BOOTSTRAPPED_NEW' });
         }
         return newChat ? newChat.id : null;
       } catch (err: any) {
-        console.warn(`[ChatSessionManager] Restore exception for ${assistantType}:`, err);
-        this.updateAssistant(assistantType, { loading: false, error: err?.message || 'Restore error' });
+        console.warn(`[ChatSessionManager] Restore exception for ${canonical}:`, err);
+        this.updateAssistant(canonical, { loading: false, error: err?.message || 'Restore error' });
         return null;
       } finally {
         this.inFlightRestoration.delete(flightKey);
@@ -218,60 +212,26 @@ class ChatSessionManager {
    * Single-flight creation of a new chat session in the assistant's dedicated database table.
    */
   public async createNewChatSession(
-    assistantType: AssistantType,
+    typeInput: AssistantType,
     title?: string,
     providedStoreId?: string | null
   ): Promise<ChatSession | null> {
-    const authReadyState = await canonicalAuthManager.waitUntilReady();
-    const identityValid = Boolean(authReadyState.identityReady && authReadyState.authUserId && isValidUuid(authReadyState.authUserId));
-    const isAuthReady = authReadyState.status === 'READY' || identityValid;
-
-    console.log('[CHAT_AUTH_DECISION]', {
-      canonicalAuthState: authReadyState.authState,
-      identityReady: authReadyState.identityReady,
-      sessionProvider: authReadyState.sessionProvider,
-      sessionPresent: Boolean(authReadyState.session),
-      action: isAuthReady ? 'CREATE_SESSION' : 'DEFER_AUTH'
-    });
-
-    if (!isAuthReady || !authReadyState.authUserId) {
+    const canonical = normalizeAssistantType(typeInput);
+    const chatContext = await umkmSupabaseService.resolveCanonicalChatContext(providedStoreId);
+    if (!chatContext.ok || chatContext.status === 'DEFERRED' || !chatContext.storeId) {
       console.warn('[CHAT_CONTEXT_DEFERRED]', {
-        assistantType,
+        assistantType: canonical,
         action: 'create',
-        reason: 'CHAT_WAITING_FOR_AUTH_CONTEXT',
-        authState: authReadyState.authState,
-        sessionPresent: Boolean(authReadyState.session),
+        reason: chatContext.reason || 'CHAT_WAITING_FOR_CANONICAL_TENANT_CONTEXT'
       });
       return null;
     }
 
-    const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
+    const authUserId = chatContext.userId;
+    const storeId = chatContext.storeId;
+    const workspaceId = chatContext.workspaceId;
 
-
-    const isResolving = tenantCtx.status === 'BOOTING' || tenantCtx.overallStatus === 'BOOTING' || tenantCtx.resolutionState === 'TENANT_RESOLVING' || tenantCtx.storeStatus === 'loading';
-
-    if (!tenantCtx.verified || !isValidUuid(tenantCtx.storeId) || !isValidUuid(tenantCtx.organizationId) || !isValidUuid(tenantCtx.workspaceId)) {
-      if (isResolving) {
-        console.log('[CHAT_CONTEXT_DEFERRED]', {
-          assistantType,
-          action: 'create',
-          reason: 'TENANT_RESOLVING',
-          storeStatus: tenantCtx.storeStatus
-        });
-      } else {
-        console.warn('[CHAT_CONTEXT_INCOMPLETE]', {
-          assistantType,
-          action: 'create',
-          verified: tenantCtx.verified,
-          storeId: tenantCtx.storeId,
-          organizationId: tenantCtx.organizationId,
-          workspaceId: tenantCtx.workspaceId
-        });
-      }
-      return null;
-    }
-
-    const flightKey = `create:${assistantType}:${authReadyState.authUserId}:${tenantCtx.storeId}:${tenantCtx.workspaceId}`;
+    const flightKey = `create:${canonical}:${authUserId}:${storeId}:${workspaceId}`;
 
     if (this.inFlightCreation.has(flightKey)) {
       return await this.inFlightCreation.get(flightKey)!;
@@ -280,53 +240,45 @@ class ChatSessionManager {
     const promise = (async () => {
       try {
         let createdSession: ChatSession | null = null;
-        if (assistantType === 'zega_copilot') {
+        if (canonical === 'zega_copilot') {
           createdSession = await SupabaseDashboardService.createUmkmZegaCopilotChat(
-            tenantCtx.storeId,
+            storeId,
             undefined,
             title || 'Diskusi ZEGA Copilot Utama'
           );
-        } else if (assistantType === 'home_assistant') {
+        } else {
+          let roleTitle = 'ZEGA Assistant';
+          if (canonical === 'home') roleTitle = 'ZEGA Home Assistant';
+          if (canonical === 'help') roleTitle = 'ZEGA Help Assistant';
+          if (canonical === 'finance') roleTitle = 'ZEGA Finance Assistant';
+          if (canonical === 'knowledge') roleTitle = 'ZEGA Knowledge Assistant';
+
           createdSession = await SupabaseDashboardService.createUmkmAiAssistantChat(
-            tenantCtx.storeId,
+            storeId,
             undefined,
-            title || 'Diskusi AI Assistant',
-            'ZEGA Home Assistant'
-          );
-        } else if (assistantType === 'finance_ai') {
-          createdSession = await SupabaseDashboardService.createUmkmAiAssistantChat(
-            tenantCtx.storeId,
-            undefined,
-            title || 'Diskusi Keuangan AI',
-            'ZEGA Finance AI'
-          );
-        } else if (assistantType === 'live_help') {
-          createdSession = await SupabaseDashboardService.createUmkmAiAssistantChat(
-            tenantCtx.storeId,
-            undefined,
-            title || 'Diskusi Bantuan Langsung',
-            'ZEGA Live Help'
+            title || `Diskusi ${roleTitle}`,
+            roleTitle
           );
         }
 
         if (createdSession && createdSession.id) {
-          const currentChats = this.getAssistantState(assistantType).chats;
+          const currentChats = this.getAssistantState(canonical).chats;
           const updatedChats = [createdSession, ...currentChats.filter(c => c.id !== createdSession!.id)];
 
-          this.updateAssistant(assistantType, {
+          this.updateAssistant(canonical, {
             chats: updatedChats,
             activeChatId: createdSession.id,
             loadedMessages: {
-              ...this.getAssistantState(assistantType).loadedMessages,
+              ...this.getAssistantState(canonical).loadedMessages,
               [createdSession.id]: []
             },
             loading: false
           });
-          console.log('[CHAT_CREATE]', { assistantType, chatId: createdSession.id, title: createdSession.title });
+          console.log('[CHAT_CREATE]', { assistantType: canonical, chatId: createdSession.id, title: createdSession.title });
         }
         return createdSession;
       } catch (err: any) {
-        console.warn(`[ChatSessionManager] createNewChatSession error for ${assistantType}:`, err);
+        console.warn(`[ChatSessionManager] createNewChatSession error for ${canonical}:`, err);
         return null;
       } finally {
         this.inFlightCreation.delete(flightKey);
@@ -340,13 +292,14 @@ class ChatSessionManager {
   /**
    * Lazily loads messages for a specific chatId from DB and caches under loadedMessages[chatId].
    */
-  public async loadChatMessages(assistantType: AssistantType, chatId: string): Promise<ChatMessage[]> {
+  public async loadChatMessages(typeInput: AssistantType, chatId: string): Promise<ChatMessage[]> {
+    const canonical = normalizeAssistantType(typeInput);
     if (!chatId || !isValidUuid(chatId)) return [];
 
-    const existing = this.getAssistantState(assistantType).loadedMessages[chatId];
+    const existing = this.getAssistantState(canonical).loadedMessages[chatId];
     if (existing) return existing;
 
-    const flightKey = `messages:${assistantType}:${chatId}`;
+    const flightKey = `messages:${canonical}:${chatId}`;
     if (this.inFlightMessages.has(flightKey)) {
       return await this.inFlightMessages.get(flightKey)!;
     }
@@ -354,15 +307,15 @@ class ChatSessionManager {
     const promise = (async () => {
       try {
         let msgs: ChatMessage[] = [];
-        if (assistantType === 'zega_copilot') {
+        if (canonical === 'zega_copilot') {
           msgs = await SupabaseDashboardService.getUmkmZegaCopilotMessages(chatId);
         } else {
           msgs = await SupabaseDashboardService.getUmkmAiAssistantMessages(chatId);
         }
 
-        this.updateAssistant(assistantType, {
+        this.updateAssistant(canonical, {
           loadedMessages: {
-            ...this.getAssistantState(assistantType).loadedMessages,
+            ...this.getAssistantState(canonical).loadedMessages,
             [chatId]: msgs
           }
         });
@@ -383,11 +336,12 @@ class ChatSessionManager {
    * Persists message to DB and updates local memory state.
    */
   public async appendAndPersistMessage(
-    assistantType: AssistantType,
+    typeInput: AssistantType,
     chatId: string,
     sender: 'user' | 'assistant' | 'system' | 'copilot' | 'ai',
     message: string
   ): Promise<ChatMessage | null> {
+    const canonical = normalizeAssistantType(typeInput);
     if (!chatId || !isValidUuid(chatId)) return null;
 
     const flightKey = `persist:${chatId}:${sender}:${message.slice(0, 50)}`;
@@ -396,7 +350,7 @@ class ChatSessionManager {
     }
 
     const promise = (async (): Promise<ChatMessage | null> => {
-      const currentMsgs = this.getAssistantState(assistantType).loadedMessages[chatId] || [];
+      const currentMsgs = this.getAssistantState(canonical).loadedMessages[chatId] || [];
       const tempMsg: ChatMessage = {
         id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         chat_id: chatId,
@@ -408,18 +362,18 @@ class ChatSessionManager {
 
       // Optimistically update memory state
       const optimisticMsgs = [...currentMsgs, tempMsg];
-      this.updateAssistant(assistantType, {
+      this.updateAssistant(canonical, {
         loadedMessages: {
-          ...this.getAssistantState(assistantType).loadedMessages,
+          ...this.getAssistantState(canonical).loadedMessages,
           [chatId]: optimisticMsgs
         }
       });
 
-      console.log('[CHAT_MESSAGE_PERSIST]', { assistantType, chatId, sender, length: message.length });
+      console.log('[CHAT_MESSAGE_PERSIST]', { assistantType: canonical, chatId, sender, length: message.length });
 
       try {
         let persisted: ChatMessage | null = null;
-        if (assistantType === 'zega_copilot') {
+        if (canonical === 'zega_copilot') {
           const copilotSender = (sender === 'copilot' || sender === 'ai') ? 'assistant' : (sender === 'user' ? 'user' : 'system');
           persisted = await SupabaseDashboardService.saveUmkmZegaCopilotMessage({
             chat_id: chatId,
@@ -437,9 +391,9 @@ class ChatSessionManager {
 
         if (persisted && persisted.id) {
           const finalMsgs = optimisticMsgs.map(m => (m.id === tempMsg.id ? persisted! : m));
-          this.updateAssistant(assistantType, {
+          this.updateAssistant(canonical, {
             loadedMessages: {
-              ...this.getAssistantState(assistantType).loadedMessages,
+              ...this.getAssistantState(canonical).loadedMessages,
               [chatId]: finalMsgs
             }
           });
@@ -457,29 +411,32 @@ class ChatSessionManager {
     return await promise;
   }
 
-  public async fetchChatList(assistantType: AssistantType, providedStoreId?: string | null): Promise<ChatSession[]> {
-    const list = await this.fetchChatListFromDb(assistantType, providedStoreId);
-    this.updateAssistant(assistantType, { chats: list });
-    console.log('[CHAT_HISTORY]', { assistantType, count: list.length });
+  public async fetchChatList(typeInput: AssistantType, providedStoreId?: string | null): Promise<ChatSession[]> {
+    const canonical = normalizeAssistantType(typeInput);
+    const list = await this.fetchChatListFromDb(canonical, providedStoreId);
+    this.updateAssistant(canonical, { chats: list });
+    console.log('[CHAT_HISTORY]', { assistantType: canonical, count: list.length });
     return list;
   }
 
   private async fetchChatListFromDb(
-    assistantType: AssistantType,
+    typeInput: AssistantType,
     providedStoreId?: string | null
   ): Promise<ChatSession[]> {
+    const canonical = normalizeAssistantType(typeInput);
     const cleanUserId = (getActiveTenantIds().userId || '');
     let chatType: 'zega_copilot' | 'ai_assistant' | 'finance_ai' | 'live_help' = 'ai_assistant';
-    if (assistantType === 'zega_copilot') chatType = 'zega_copilot';
-    else if (assistantType === 'finance_ai') chatType = 'finance_ai';
-    else if (assistantType === 'live_help') chatType = 'live_help';
+
+    if (canonical === 'zega_copilot') chatType = 'zega_copilot';
+    else if (canonical === 'finance') chatType = 'finance_ai';
+    else if (canonical === 'help') chatType = 'live_help';
 
     return await SupabaseDashboardService.getUmkmRecentChatHistory(cleanUserId, chatType);
   }
 
-  private updateAssistant(assistantType: AssistantType, partial: Partial<AssistantState>): void {
-    this.state[assistantType] = {
-      ...this.state[assistantType],
+  private updateAssistant(canonical: CanonicalAssistantType, partial: Partial<AssistantState>): void {
+    this.state[canonical] = {
+      ...this.state[canonical],
       ...partial
     };
     this.notify();

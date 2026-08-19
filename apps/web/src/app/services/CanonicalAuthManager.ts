@@ -29,6 +29,7 @@ export interface CanonicalAuthState {
   session: Session | null;
   error?: string | null;
   identityReady: boolean;
+  backendVerified: boolean;
   supabaseSessionReady: boolean;
   externalSessionReady: boolean;
   sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
@@ -45,6 +46,7 @@ export interface CanonicalAuthResult {
   userEmail: string | null;
   generation: number;
   identityReady: boolean;
+  backendVerified: boolean;
   supabaseSessionReady: boolean;
   externalSessionReady: boolean;
   sessionProvider: 'supabase' | 'privy' | 'external' | 'none';
@@ -70,6 +72,7 @@ class CanonicalAuthManager {
     session: null,
     error: null,
     identityReady: false,
+    backendVerified: false,
     supabaseSessionReady: false,
     externalSessionReady: false,
     sessionProvider: 'none',
@@ -155,6 +158,9 @@ class CanonicalAuthManager {
     }
 
     const identityReady = (nextAuthState === 'AUTH_READY' || nextAuthState === 'AUTH_LOADING') && hasValidIdentity;
+    const backendVerified = partial.backendVerified !== undefined
+      ? partial.backendVerified
+      : (this.state.backendVerified || (nextAuthState === 'AUTH_READY' && hasValidIdentity));
     const supabaseSessionReady = Boolean(nextSupabasePresent && nextSession);
     const externalSessionReady = Boolean(hasValidIdentity && !nextSupabasePresent);
     let sessionProvider: 'supabase' | 'privy' | 'external' | 'none' = 'none';
@@ -176,6 +182,7 @@ class CanonicalAuthManager {
       supabaseSessionPresent: nextSupabasePresent,
       session: nextSession,
       identityReady,
+      backendVerified,
       supabaseSessionReady,
       externalSessionReady,
       sessionProvider,
@@ -468,17 +475,18 @@ class CanonicalAuthManager {
 
       await new Promise<CanonicalAuthState>((resolve) => {
         let timer: any = null;
+        let unsubscribe: (() => void) | null = null;
 
-        const unsubscribe = this.subscribe((state) => {
+        unsubscribe = this.subscribe((state) => {
           if (state.authState !== 'AUTH_LOADING' && state.sessionState !== 'SESSION_LOADING') {
             if (timer) clearTimeout(timer);
-            unsubscribe();
+            if (unsubscribe) unsubscribe();
             resolve(state);
           }
         });
 
         timer = setTimeout(() => {
-          unsubscribe();
+          if (unsubscribe) unsubscribe();
           resolve(this.getState());
         }, timeoutMs);
       });
@@ -512,6 +520,7 @@ class CanonicalAuthManager {
       userEmail: current.userEmail,
       generation: this.authGeneration,
       identityReady: current.identityReady,
+      backendVerified: current.backendVerified,
       supabaseSessionReady: current.supabaseSessionReady,
       externalSessionReady: current.externalSessionReady,
       sessionProvider: current.sessionProvider,
@@ -520,6 +529,7 @@ class CanonicalAuthManager {
     console.log('[AUTH_CANONICAL_SNAPSHOT]', {
       authState: result.authState,
       identityReady: result.identityReady,
+      backendVerified: result.backendVerified,
       sessionProvider: result.sessionProvider,
       supabaseSessionReady: result.supabaseSessionReady,
       userId: result.authUserId,
@@ -561,6 +571,7 @@ class CanonicalAuthManager {
       userEmail: current.userEmail,
       generation: this.authGeneration,
       identityReady: current.identityReady,
+      backendVerified: current.backendVerified,
       supabaseSessionReady: current.supabaseSessionReady,
       externalSessionReady: current.externalSessionReady,
       sessionProvider: current.sessionProvider,
@@ -569,6 +580,7 @@ class CanonicalAuthManager {
     console.log('[AUTH_CANONICAL_SNAPSHOT]', {
       authState: result.authState,
       identityReady: result.identityReady,
+      backendVerified: result.backendVerified,
       sessionProvider: result.sessionProvider,
       supabaseSessionReady: result.supabaseSessionReady,
       userId: result.authUserId,

@@ -6,17 +6,20 @@ const { Client } = pg;
 
 console.log('[MIGRATION] Deploying 20260818000000_trusted_user_bootstrap_and_provisioning_fix.sql via IPv4 pooler IP with SNI...');
 
-const client = new Client({
-  host: '52.74.252.201',
-  port: 6543,
-  user: 'postgres',
-  password: 'K27f3786147#3786',
-  database: 'postgres',
+const dbUrl = process.env.DATABASE_URL;
+const connectionConfig = dbUrl ? { connectionString: dbUrl } : {
+  host: process.env.DB_HOST || 'db.ikxiclpvywxxnkcaldbx.supabase.co',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'postgres',
   ssl: {
     rejectUnauthorized: false,
     servername: 'db.ikxiclpvywxxnkcaldbx.supabase.co'
   }
-});
+};
+
+const client = new Client(connectionConfig);
 
 async function run() {
   try {

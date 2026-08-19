@@ -2,7 +2,7 @@ import { envConfig } from '../../config/env.js';
 
 export type ModelTier = 'TIER_0_ULTRA_FAST' | 'TIER_1_FAST_GENERAL' | 'TIER_2_ADVANCED' | 'TIER_3_DEEP_REASONING';
 
-export type ProviderType = 'groq' | 'google' | 'openai' | 'anthropic' | '9router' | 'openrouter' | 'zeroclaw_local';
+export type ProviderType = 'groq' | 'google' | 'openai' | 'anthropic' | '9router' | 'openrouter' | 'huggingface' | 'zeroclaw_local';
 
 export interface ModelCapabilities {
   streaming: boolean;
@@ -42,9 +42,9 @@ export const MODEL_TIER_REGISTRY: Record<string, ModelSpec> = {
     costPer1kOutputUsd: 0.00008,
     capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: false, coding: true, multilingual: true }
   },
-  'gemini-2.5-flash': {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash (Google AI)',
+  'gemini-3.6-flash': {
+    id: 'gemini-3.6-flash',
+    name: 'Google Gemini 3.6 Flash',
     provider: 'google',
     tier: 'TIER_0_ULTRA_FAST',
     maxContext: 1048576,
@@ -156,6 +156,7 @@ export function inspectProviderInventory(): ProviderInventory[] {
 
   const groqKey = envConfig.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
   const openrouterKey = envConfig.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '';
+  const hfKey = envConfig.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || '';
   const geminiKey = envConfig.GEMINI_API_KEY || envConfig.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
   const openaiKey = envConfig.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '';
   const anthropicKey = envConfig.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '';
@@ -171,6 +172,7 @@ export function inspectProviderInventory(): ProviderInventory[] {
     { provider: 'anthropic', apiKey: anthropicKey, isConfigured: checkKey(anthropicKey) },
     { provider: '9router', apiKey: nineRouterKey, isConfigured: checkKey(nineRouterKey) },
     { provider: 'openrouter', apiKey: openrouterKey, isConfigured: checkKey(openrouterKey) },
+    { provider: 'huggingface', apiKey: hfKey, isConfigured: checkKey(hfKey) },
     { provider: 'zeroclaw_local', apiKey: zeroclawToken, isConfigured: checkKey(zeroclawToken) },
   ];
 
