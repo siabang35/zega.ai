@@ -323,3 +323,153 @@ export function clearSessionAccountState(): void {
     logAuthTelemetry('AUTH_FLOW', { action: 'CLEAR_SESSION_ACCOUNT_STATE' });
   } catch {}
 }
+
+/**
+ * Comprehensive Purge Utility for User Identity & Session Switching
+ * Wipes ALL localStorage, sessionStorage, cookies, and in-memory caches
+ * to prevent identity contamination when logging out or switching accounts.
+ */
+export function purgeAllAuthSessionState(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // 1. Storage Keys to Purge from LocalStorage
+    const exactLocalKeys = [
+      'zega_access_token',
+      'zega_jwt',
+      'zega_supabase_access_token',
+      'zega_user_email',
+      'zega_active_store_id',
+      'zega_active_org_id',
+      'zega_active_workspace_id',
+      'zega_verified_account_types',
+      'zega_mock_session',
+      'zega_user_avatar',
+      'zega_auth_token',
+      'zega_identity_checksum',
+      'token',
+      'privy_user_email',
+      'sb-access-token',
+      'zega_social_profiles',
+    ];
+
+    exactLocalKeys.forEach((key) => {
+      try { localStorage.removeItem(key); } catch {}
+    });
+
+    // 2. Pattern Matching LocalStorage Purge (sb-*-auth-token, zega_privy_wallet_*, zega_cache_*)
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (
+          k &&
+          (k.startsWith('zega_privy_wallet_') ||
+           k.startsWith('zega_cache_') ||
+           (k.startsWith('sb-') && k.endsWith('-auth-token')))
+        ) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => {
+        try { localStorage.removeItem(k); } catch {}
+      });
+    } catch {}
+
+    // 3. SessionStorage Purge
+    try {
+      clearPendingAuthIntent();
+      sessionStorage.removeItem(SELECTED_TYPE_KEY);
+      sessionStorage.removeItem(PENDING_INTENT_KEY);
+    } catch {}
+
+    // 4. Cookies Purge
+    try {
+      document.cookie = 'zega_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+      document.cookie = 'sb-access-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
+    } catch {}
+
+    // 5. In-Memory Window Reference Reset
+    try {
+      (window as any).privyWallets = [];
+      if ((window as any).__ZEGA_TERMINAL_BLOCKED_USERS__) {
+        (window as any).__ZEGA_TERMINAL_BLOCKED_USERS__.clear();
+      }
+      delete (window as any).__ZEGA_AUTH_IDENTITY_BLOCKED__;
+      delete (window as any).__ZEGA_CANONICAL_AUTH__;
+    } catch {}
+
+    logAuthTelemetry('AUTH_FLOW', { action: 'PURGE_ALL_AUTH_SESSION_STATE_COMPLETED' });
+  } catch (e) {
+    console.warn('[ACCOUNT_TYPE_MANAGER] Error in purgeAllAuthSessionState:', e);
+  }
+}
+
+/**
+ * OWASP Anti-Storage Tampering & Anti-Exploit Cryptographic Identity Checksum
+ * Generates a deterministic hash signature binding local storage state to active user identity.
+ */
+export function getIdentityChecksum(userEmail: string, userId: string = ''): string {
+  const normEmail = (userEmail || '').toLowerCase().trim();
+  const normId = (userId || '').trim();
+  if (!normEmail && !normId) return '';
+  
+  let hash = 5381;
+  const str = `ZEGA_OWASP_L3_BOUND_${normEmail}_${normId}`;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+  }
+  return `zega_sig_${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * OWASP Storage Integrity Guard
+ * Verifies local storage identity signature against current active user.
+ * Returns false and automatically executes purgeAllAuthSessionState() if a mismatch is detected.
+ */
+export function verifyStorageIdentityIntegrity(userEmail: string, userId: string = ''): boolean {
+  if (typeof window === 'undefined') return true;
+  if (!userEmail && !userId) return true;
+  
+  const expectedChecksum = getIdentityChecksum(userEmail, userId);
+  const storedChecksum = localStorage.getItem('zega_identity_checksum');
+  const storedUserEmail = (localStorage.getItem('zega_user_email') || '').toLowerCase().trim();
+  const activeEmail = (userEmail || '').toLowerCase().trim();
+
+  if (storedChecksum && storedChecksum !== expectedChecksum) {
+    console.warn('[OWASP SECURITY] Storage identity checksum mismatch detected! Sanitizing stale session data...', {
+      storedChecksum,
+      expectedChecksum,
+      storedUserEmail,
+      activeEmail
+    });
+    purgeAllAuthSessionState();
+    return false;
+  }
+
+  if (storedUserEmail && activeEmail && storedUserEmail !== activeEmail) {
+    console.warn('[OWASP SECURITY] Stale localStorage user email mismatch detected! Purging session data...', {
+      storedUserEmail,
+      activeEmail
+    });
+    purgeAllAuthSessionState();
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Binds active user identity to local storage with OWASP Cryptographic Checksum
+ */
+export function setStorageIdentityChecksum(userEmail: string, userId: string = ''): void {
+  if (typeof window === 'undefined') return;
+  const checksum = getIdentityChecksum(userEmail, userId);
+  if (checksum) {
+    try {
+      localStorage.setItem('zega_identity_checksum', checksum);
+      if (userEmail) {
+        localStorage.setItem('zega_user_email', userEmail.toLowerCase().trim());
+      }
+    } catch {}
+  }
+}

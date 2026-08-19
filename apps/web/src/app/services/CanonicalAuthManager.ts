@@ -1,5 +1,10 @@
 import { supabase, syncSupabaseAuthSession } from '../../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import {
+  setStorageIdentityChecksum,
+  verifyStorageIdentityIntegrity,
+  purgeAllAuthSessionState,
+} from './accountTypeManager';
 
 export type CanonicalAuthStateStatus =
   | 'AUTH_LOADING'
@@ -215,6 +220,10 @@ class CanonicalAuthManager {
     }
 
     this.state = candidateState;
+
+    if (this.state.authState === 'AUTH_READY' && this.state.canonicalUserId) {
+      setStorageIdentityChecksum(this.state.userEmail || '', this.state.canonicalUserId);
+    }
 
     if (typeof window !== 'undefined') {
       (window as any).__ZEGA_CANONICAL_AUTH__ = this.state;

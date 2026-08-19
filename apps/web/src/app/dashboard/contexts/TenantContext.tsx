@@ -12,7 +12,7 @@
 import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
 import { supabase, setSupabaseTenantHeader } from '../../../lib/supabase';
 import { isValidUuid } from '../services/umkmSupabaseService';
-import { getVerifiedAccountType } from '../../services/accountTypeManager';
+import { getVerifiedAccountType, verifyStorageIdentityIntegrity } from '../../services/accountTypeManager';
 
 export type TenantType = 'umkm' | 'enterprise' | 'superadmin';
 
@@ -132,18 +132,26 @@ export function resolveTenantFromUser(
     };
   }
   const email = userEmail.toLowerCase().trim();
+  const currentActiveEmail = (_activeTenant.userEmail || '').toLowerCase().trim();
+  const isUserMismatch = Boolean(currentActiveEmail && currentActiveEmail !== email);
+
+  // OWASP Storage Integrity Guard — verify storage checksum match for active identity
+  if (email) {
+    verifyStorageIdentityIntegrity(email, _activeTenant.userId || '');
+  }
 
   // Resolve canonical account type from verified persistence / session if tenantType not explicitly provided
   const resolvedAccType = getVerifiedAccountType(email);
   const effectiveTenantType: TenantType = tenantType || (resolvedAccType === 'ENTERPRISE' ? 'enterprise' : 'umkm');
 
-  const storedStoreId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_store_id') : null;
-  const storedOrgId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_org_id') : null;
-  const storedWsId = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_active_workspace_id') : null;
+  // If user changed, do not inherit old local storage or in-memory tenant IDs
+  const storedStoreId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_store_id') : null;
+  const storedOrgId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_org_id') : null;
+  const storedWsId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_workspace_id') : null;
 
-  const effectiveStoreId = isValidUuid(_activeTenant.storeId) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
-  let effectiveOrgId = (isValidUuid(_activeTenant.organizationId) && _activeTenant.organizationId !== UNRESOLVED_ORG) ? _activeTenant.organizationId : (isValidUuid(storedOrgId) ? storedOrgId! : '');
-  let effectiveWsId = (isValidUuid(_activeTenant.workspaceId) && _activeTenant.workspaceId !== UNRESOLVED_WS) ? _activeTenant.workspaceId : (isValidUuid(storedWsId) ? storedWsId! : '');
+  const effectiveStoreId = (!isUserMismatch && isValidUuid(_activeTenant.storeId)) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
+  let effectiveOrgId = (!isUserMismatch && isValidUuid(_activeTenant.organizationId) && _activeTenant.organizationId !== UNRESOLVED_ORG) ? _activeTenant.organizationId : (isValidUuid(storedOrgId) ? storedOrgId! : '');
+  let effectiveWsId = (!isUserMismatch && isValidUuid(_activeTenant.workspaceId) && _activeTenant.workspaceId !== UNRESOLVED_WS) ? _activeTenant.workspaceId : (isValidUuid(storedWsId) ? storedWsId! : '');
 
   if (!effectiveOrgId || !isValidUuid(effectiveOrgId) || effectiveOrgId === effectiveStoreId) {
     effectiveOrgId = UNRESOLVED_ORG;
@@ -152,7 +160,7 @@ export function resolveTenantFromUser(
     effectiveWsId = UNRESOLVED_WS;
   }
 
-  const effectiveStoreStatus: StoreReadinessStatus = (effectiveStoreId && isValidUuid(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS) ? 'ready' : (_activeTenant.storeStatus || 'loading');
+  const effectiveStoreStatus: StoreReadinessStatus = (effectiveStoreId && isValidUuid(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS) ? 'ready' : (isUserMismatch ? 'loading' : (_activeTenant.storeStatus || 'loading'));
 
   const isStoreReady = effectiveStoreStatus === 'ready' && Boolean(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS;
 

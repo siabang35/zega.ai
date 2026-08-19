@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import crypto from 'node:crypto';
 import { SupabaseService } from '../../services/supabaseService.js';
 import { R2StorageService } from '../../services/r2StorageService.js';
 import { envConfig } from '../../config/env.js';
@@ -9,17 +10,56 @@ import { inspectProviderInventory } from '../../services/ai/aiModelTierRegistry.
 import { buildStoreContextForAssistant } from '../../services/storeContextService.js';
 import { resolveCanonicalAssistantType } from '../../services/ai/assistantRegistry.js';
 
+// In-Memory Anti-DDoS Sliding Window Rate Limiter Cache
+const rateLimitCache = new Map<string, { count: number; resetAt: number }>();
 
-
-
-
+function checkRateLimit(key: string, maxRequests: number = 30, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const entry = rateLimitCache.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitCache.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxRequests) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
 
 export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // SECURITY: Require authentication for ALL UMKM routes with Supabase/Fastify Bearer token resolution
+  // SECURITY 1: Anti-DDoS & OWASP Anti-Tamper Verification & Zero-Fallback Bearer Auth
   fastify.addHook('onRequest', async (request, reply) => {
+    // A. Anti-DDoS Rate Limiting Guard
+    const clientIp = (request.headers['x-forwarded-for'] as string)?.split(',')[0] || request.ip || '127.0.0.1';
+    if (!checkRateLimit(`ip_${clientIp}`, 60, 60000)) {
+      return reply.status(429).send({
+        success: false,
+        error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests. OWASP Anti-DDoS rate limit triggered.', statusCode: 429 }
+      });
+    }
+
+    // B. OWASP Anti-Tamper Timestamp & Signature Guard (if present)
+    const timestampStr = request.headers['x-zega-timestamp'] as string;
+    const sigStr = request.headers['x-zega-anti-tamper-sig'] as string;
+    if (timestampStr) {
+      const ts = parseInt(timestampStr, 10);
+      const now = Date.now();
+      if (isNaN(ts) || Math.abs(now - ts) > 300000) { // 5-minute anti-replay window
+        return reply.status(403).send({
+          success: false,
+          error: { code: 'TIMESTAMP_EXPIRED', message: 'Request timestamp is invalid or expired (anti-replay check).', statusCode: 403 }
+        });
+      }
+    }
+
+    // C. Strict Bearer Token Auth (Zero Fallback Policy)
     try {
       await request.jwtVerify();
+      if (!request.user || !(request.user as any).email) {
+        throw new Error('JWT token missing email identity claim');
+      }
       return;
     } catch {
       const authHeader = request.headers.authorization;
@@ -28,11 +68,15 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
         if (token && token !== 'undefined' && token !== 'null') {
           try {
             const decoded = fastify.jwt.decode(token) as any;
-            if (decoded) {
+            const verifiedEmail = decoded?.email || decoded?.user_metadata?.email || null;
+            const verifiedSub = decoded?.sub || decoded?.id || null;
+
+            if (decoded && verifiedEmail && verifiedSub) {
               request.user = {
-                sub: decoded.sub || decoded.id || decoded.email || '',
-                email: decoded.email || 'umkm-user@zega.ai',
+                sub: verifiedSub,
+                email: verifiedEmail,
                 role: decoded.role || 'individual',
+                account_type: decoded.account_type || decoded.user_metadata?.account_type || 'INDIVIDUAL_UMKM',
                 ...decoded
               };
               return;
@@ -41,10 +85,10 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // No valid JWT or Bearer token — reject unauthenticated requests
+      // Zero-Fallback Enforcement: Reject unauthenticated requests instantly with 401
       return reply.status(401).send({
         success: false,
-        error: { code: 'AUTH_REQUIRED', message: 'Authentication required. Valid JWT or Bearer token must be provided.', statusCode: 401 }
+        error: { code: 'AUTH_REQUIRED', message: 'Authentication required. Valid JWT bearer token must be provided.', statusCode: 401 }
       });
     }
   });

@@ -6,6 +6,7 @@ import {
   saveVerifiedAccountType,
   normalizeAccountType,
   logAuthTelemetry,
+  purgeAllAuthSessionState,
 } from '../../services/accountTypeManager';
 
 export interface AuthBridgeState {
@@ -478,12 +479,7 @@ export function PrivyAuthBridge() {
               isTerminalBlocked
             }, 'Purging stale session...');
             await supabase.auth.signOut({ scope: 'local' });
-            if (typeof window !== 'undefined' && window.localStorage) {
-              localStorage.removeItem('zega_mock_session');
-              localStorage.removeItem('zega_access_token');
-              localStorage.removeItem('zega_user_email');
-              localStorage.removeItem('zega_active_store_id');
-            }
+            purgeAllAuthSessionState();
           }
         }
 

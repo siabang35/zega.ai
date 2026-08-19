@@ -19,6 +19,8 @@ import {
   resolveCanonicalAccountType,
   saveVerifiedAccountType,
   getVerifiedAccountType,
+  purgeAllAuthSessionState,
+  setStorageIdentityChecksum,
 } from './accountTypeManager';
 
 export interface SocialAuthProfile {
@@ -111,20 +113,11 @@ export class SocialAuthService {
 
   /** Initiate canonical Google OAuth2 Authorization redirect via ZEGA Backend */
   public static async initiateGoogleOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
+    purgeAllAuthSessionState();
     savePendingAuthIntent({
       accountType,
       provider: 'google',
     });
-
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        localStorage.removeItem('zega_mock_session');
-        localStorage.removeItem('zega_access_token');
-        localStorage.removeItem('zega_user_email');
-        localStorage.removeItem('zega_active_store_id');
-        localStorage.removeItem('sb-ikxiclpvywxxnkcaldbx-auth-token');
-      } catch {}
-    }
 
     const apiBase = this.getApiBaseUrl();
     const targetUrl = `${apiBase}/v1/auth/google`;
@@ -136,6 +129,7 @@ export class SocialAuthService {
 
   /** Initiate canonical GitHub OAuth2 Authorization redirect via Supabase */
   public static async initiateGitHubOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
+    purgeAllAuthSessionState();
     const redirectUri = this.getOAuthRedirectUri();
 
     savePendingAuthIntent({
@@ -225,9 +219,10 @@ export class SocialAuthService {
       consumeIntent: true,
     });
 
-    // Save as verified account type
+    // Save as verified account type and stamp OWASP storage identity signature checksum
     if (email) {
       saveVerifiedAccountType(email, accountType);
+      setStorageIdentityChecksum(email, realUserId);
     }
 
     const profile: SocialAuthProfile = {

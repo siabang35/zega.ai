@@ -35,8 +35,8 @@ export function UmkmDashboardContainer({
   onClose,
   dark,
   setDark,
-  userEmail = 'cikberiuk@gmail.com',
-  userName = 'Cik Beriuk',
+  userEmail = '',
+  userName = 'User',
   userAvatar = '',
   isGuest = false,
 }: UmkmDashboardContainerProps) {

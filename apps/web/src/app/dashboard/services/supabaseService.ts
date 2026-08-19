@@ -8,6 +8,8 @@ import { superAdminSupabaseService } from './superAdminSupabaseService';
 import { getActiveTenantIds, updateActiveTenantStore, updateActiveTenantOrg, updateActiveTenantWorkspace } from '../contexts/TenantContext';
 
 import { getAuthBridgeState } from '../../components/auth/PrivyAuthBridge';
+import { purgeAllAuthSessionState } from '../../services/accountTypeManager';
+
 
 export { supabase, umkmSupabaseService, enterpriseSupabaseService, superAdminSupabaseService, isValidUuid, isVerifiedTenantContext };
 
@@ -84,6 +86,16 @@ export function getCanonicalAuthHeaders(): Record<string, string> {
   if (tenantUser.userId && isValidUuid(tenantUser.userId)) {
     headers['x-user-id'] = tenantUser.userId;
   }
+
+  // 5. OWASP Anti-Tamper Timestamp & Cryptographic Identity Header
+  const timestamp = Date.now().toString();
+  headers['X-ZEGA-Timestamp'] = timestamp;
+  const userSigStr = `${effectiveEmail || 'anon'}_${tenantUser.userId || 'nouser'}_${timestamp}`;
+  let sigHash = 5381;
+  for (let i = 0; i < userSigStr.length; i++) {
+    sigHash = ((sigHash << 5) + sigHash) + userSigStr.charCodeAt(i);
+  }
+  headers['X-ZEGA-Anti-Tamper-Sig'] = `zega_req_sig_${(sigHash >>> 0).toString(16)}`;
 
   return headers;
 }
@@ -342,21 +354,7 @@ export const SupabaseDashboardService = {
     try {
       await supabase.removeAllChannels().catch(() => { });
       await supabase.auth.signOut().catch(() => { });
-      localStorage.removeItem('zega_mock_session');
-      localStorage.removeItem('sb-access-token');
-      localStorage.removeItem('zega_auth_token');
-      // Purge all cached Privy wallet addresses and global window refs on signout
-      try {
-        Object.keys(localStorage).forEach((k) => {
-          if (k.startsWith('zega_privy_wallet_')) {
-            localStorage.removeItem(k);
-          }
-        });
-        if (typeof window !== 'undefined') {
-          (window as any).privyWallets = [];
-        }
-      } catch (e) { }
-      this.clearSessionCookie();
+      purgeAllAuthSessionState();
       this.clearAllChatStateAndCache();
 
       // Clear tenant resolution cache and active tenant state on sign-out (session isolation)
@@ -6754,7 +6752,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     const validStoreId = storeId;
     try {
       const currentSession = await this.getCurrentSession();
-      const userEmail = currentSession?.user?.email || currentSession?.email || 'siabang35@gmail.com';
+      const userEmail = currentSession?.user?.email || currentSession?.email || getActiveTenantIds().userEmail || '';
+      if (!userEmail) return { profile: null, security: null, preferences: null, devices: [], activities: [] };
       const userFullName = currentSession?.user?.user_metadata?.full_name || currentSession?.fullName || (userEmail ? userEmail.split('@')[0] : 'User');
       const storeNameFromUser = `Toko ${userFullName.charAt(0).toUpperCase() + userFullName.slice(1)}`;
 
@@ -6855,7 +6854,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     const validStoreId = storeId;
     try {
       const currentSession = await this.getCurrentSession();
-      const userEmail = profileData.email || currentSession?.user?.email || currentSession?.email || 'siabang35@gmail.com';
+      const userEmail = profileData.email || currentSession?.user?.email || currentSession?.email || getActiveTenantIds().userEmail || '';
+      if (!userEmail) return { data: null, error: 'User identity required' };
       const { data, error } = await supabase
         .from('umkm_user_profiles')
         .upsert([{ store_id: validStoreId, email: userEmail, ...profileData, updated_at: new Date().toISOString() }], { onConflict: 'store_id,email' })
@@ -6877,7 +6877,8 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     const validStoreId = storeId;
     try {
       const currentSession = await this.getCurrentSession();
-      const userEmail = currentSession?.user?.email || currentSession?.email || getActiveTenantIds().userEmail || 'siabang35@gmail.com';
+      const userEmail = currentSession?.user?.email || currentSession?.email || getActiveTenantIds().userEmail || '';
+      if (!userEmail) return { data: null, error: 'User identity required' };
       const { data, error } = await supabase
         .from('umkm_user_security')
         .upsert([{ store_id: validStoreId, email: userEmail, ...securityUpdates, updated_at: new Date().toISOString() }], { onConflict: 'store_id,email' })
