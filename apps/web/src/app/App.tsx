@@ -1556,8 +1556,11 @@ function AppContent() {
             isNewUser = callbackRes.isNewUser;
           }
 
-          // Clean URL parameters only after exchange completes successfully
-          window.history.replaceState({}, '', '/');
+          // Clean sensitive URL authentication parameters immediately after exchange completes
+          if (typeof window !== 'undefined') {
+            const cleanTarget = window.location.pathname === '/auth/callback' ? '/' : window.location.pathname;
+            window.history.replaceState({}, document.title, cleanTarget);
+          }
 
           if (!profile || !profile.email) {
             throw new Error('NO_VALID_SESSION_RETURNED');
@@ -1598,15 +1601,12 @@ function AppContent() {
               isGuest: false,
               privyWalletAddress: walletInfo.address,
               privyVerified: true,
-              providerLabel: `OAuth ${(profile.provider || 'google').toUpperCase()}`,
-              accessToken: `token-oauth-${profile.provider || 'google'}-${Date.now()}`,
             };
-            localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
-            SupabaseDashboardService.setSessionCookie(realSession);
-            window.dispatchEvent(new Event('zega_auth_updated'));
-
             try {
-              const cachedPrivyUserId = (window as any)?.__ZEGA_AUTH_BRIDGE__?.privyUserId || undefined;
+              localStorage.setItem('zega_mock_session', JSON.stringify(realSession));
+              localStorage.setItem('zega_user_email', profile.email);
+              saveVerifiedAccountType(profile.email, role === 'enterprise' ? 'ENTERPRISE' : 'INDIVIDUAL_UMKM');
+              const cachedPrivyUserId = localStorage.getItem(`zega_privy_user_id_${profile.email}`);
               const resolvedOAuthWallet = walletInfo?.address ? walletInfo : undefined;
               if (cachedPrivyUserId && resolvedOAuthWallet?.address) {
                 PrivyWalletService.syncUserToPrivyBackend(profile.email, role as any, profile.provider || 'google', profile.fullName, cachedPrivyUserId, resolvedOAuthWallet as any).catch(() => { });
@@ -1618,7 +1618,10 @@ function AppContent() {
             setOauthCallbackState({ processing: false, showProfileForm: false, profile: null, provider: null, error: null });
           }
         } catch (err: any) {
-          window.history.replaceState({}, '', '/');
+          if (typeof window !== 'undefined') {
+            const cleanTarget = window.location.pathname === '/auth/callback' ? '/' : window.location.pathname;
+            window.history.replaceState({}, document.title, cleanTarget);
+          }
           setOauthCallbackState({
             processing: false,
             showProfileForm: false,

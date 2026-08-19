@@ -133,12 +133,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       if (!headers.has('apikey') && supabaseAnonKey) {
         headers.set('apikey', supabaseAnonKey);
       }
+
+      const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
+      const isAuthV1 = urlStr.includes('/auth/v1');
+
       const token = getCanonicalAccessToken();
-      if (token && isSupabasePostgrestJwt(token)) {
+      const isValidSupaJwt = token ? isSupabasePostgrestJwt(token) : false;
+
+      if (isValidSupaJwt && token) {
         headers.set('Authorization', `Bearer ${token.trim()}`);
-      } else if (!headers.has('Authorization') && supabaseAnonKey) {
-        headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+      } else {
+        // If request is to /auth/v1 and we don't have a genuine Supabase Auth JWT,
+        // force Authorization to Bearer <anon_key> to prevent non-Supabase external JWTs
+        // from triggering 500 Internal Server Errors on /auth/v1/user
+        if (isAuthV1 || !headers.has('Authorization')) {
+          if (supabaseAnonKey) {
+            headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+          }
+        }
       }
+
       return fetch(url, { ...options, headers });
     }
   }

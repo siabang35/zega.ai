@@ -60,13 +60,28 @@ export async function registerPlugins(app: FastifyInstance) {
   await app.register(fastifyCors, () => {
     return (req: any, callback: any) => {
       const requestedHeaders = req.headers['access-control-request-headers'];
+      const origin = req.headers.origin;
+
+      if (origin) {
+        app.log.info({
+          diagnostic: 'PROD_NETWORK_DIAGNOSTIC',
+          environment: envConfig.NODE_ENV,
+          origin,
+          method: req.method,
+          url: req.url,
+          hasAuthorization: Boolean(req.headers.authorization),
+          hasCredentials: Boolean(req.headers.cookie),
+          isPreflight: req.method === 'OPTIONS',
+        }, '[PROD_NETWORK_DIAGNOSTIC] Incoming request network transport inspection');
+      }
+
       const corsOptions = {
-        origin: (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
-          if (!origin || isAllowedOrigin(origin)) {
+        origin: (requestOrigin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+          if (!requestOrigin || isAllowedOrigin(requestOrigin)) {
             cb(null, true);
           } else {
-            app.log.warn({ origin }, 'CORS request blocked from origin');
-            cb(new Error(`CORS policy: Origin ${origin} is not allowed by Access-Control-Allow-Origin`), false);
+            app.log.warn({ origin: requestOrigin }, 'CORS request blocked from origin');
+            cb(new Error(`CORS policy: Origin ${requestOrigin} is not allowed by Access-Control-Allow-Origin`), false);
           }
         },
         credentials: true,
@@ -74,6 +89,8 @@ export async function registerPlugins(app: FastifyInstance) {
         allowedHeaders: requestedHeaders || [
           'Content-Type',
           'Authorization',
+          'apikey',
+          'x-client-info',
           'X-Request-ID',
           'X-CSRF-Token',
           'x-user-email',
