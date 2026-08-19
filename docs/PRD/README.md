@@ -56,6 +56,7 @@
 | 43 | [ZEGA Privy Wallet Custody Security Audit Spec](./43-ZEGA-PRIVY-WALLET-CUSTODY-SECURITY-AUDIT-SPEC.md) | `43-ZEGA-PRIVY-WALLET-CUSTODY-SECURITY-AUDIT-SPEC.md` | Forensic audit of wallet custody, key management, non-custodial Privy SDK integration, 0% key leakage in database, 7-layer security standard |
 | 44 | [Zero-Trust Withdrawal Security & Idempotency Spec](./44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md) | `44-ZERO-TRUST-WITHDRAWAL-SECURITY-AND-IDEMPOTENCY-SPEC.md` | Zero-Trust 10-layer backend validation pipeline, string-based OTP handling with leading zeros, active operation idempotency locks, ref guard double execution protection |
 | 45 | [UMKM AI Chat Persistence & Multi-Intent Spec](./45-UMKM-AI-CHAT-PERSISTENCE-AND-MULTI-INTENT-LOCALIZATION-SPEC.md) | `45-UMKM-AI-CHAT-PERSISTENCE-AND-MULTI-INTENT-LOCALIZATION-SPEC.md` | 100% Supabase DB chat persistence (zero localStorage), decoupled UI vs AI language getters (`getUiLang` / `getAiLang`), multi-intent natural language specialist engine (Fashion, Profit, Advice, POS, WA API), and history drawer UI scoping |
+| 46 | [UMKM AI Assistant & Copilot Architecture Spec](./46-UMKM-AI-ASSISTANT-AND-COPILOT-ARCHITECTURE-SPEC.md) | `46-UMKM-AI-ASSISTANT-AND-COPILOT-ARCHITECTURE-SPEC.md` | Comprehensive 5-assistant canonical architecture (`home`, `help`, `finance`, `knowledge`, `zega_copilot`), real-time DB context ingestion engine, zero-trust tenant isolation, zero-hallucination tool guards, and high-performance timeout protection |
 
 ---
 

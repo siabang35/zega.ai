@@ -39,6 +39,17 @@ The platform separates agent proposal generation from system state commits. Fina
 
 ---
 
+## Core Principles for UMKM Merchants
+
+ZEGA AI empowers retail merchants and UMKM businesses with autonomous operational intelligence built on four non-negotiable principles:
+
+1. **Real-Time Business Telemetry**: AI assistants ingest live daily sales, transaction counts, and inventory metrics directly from database tables—eliminating static models and assumptions.
+2. **Agentic Invoice & POS Execution**: Enables natural-language agentic workflows for instant invoice creation, Solana Pay QR generation, and automated customer checkout receipts.
+3. **Zero-Trust Tenant Boundaries**: Enforces strict database-level isolation (`store_id`, `organization_id`, `user_id`), guaranteeing zero cross-merchant data leakage.
+4. **Zero-Hallucination Numeric Guards**: Financial and inventory metrics are locked to database truth via automated tool execution guards, ensuring 100% mathematical precision.
+
+---
+
 ## Product Lifecycle
 
 ZEGA's execution lifecycle spans five stages:
