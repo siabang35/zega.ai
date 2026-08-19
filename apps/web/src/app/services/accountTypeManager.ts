@@ -430,22 +430,12 @@ export function verifyStorageIdentityIntegrity(userEmail: string, userId: string
   if (typeof window === 'undefined') return true;
   if (!userEmail && !userId) return true;
   
-  const expectedChecksum = getIdentityChecksum(userEmail, userId);
-  const storedChecksum = localStorage.getItem('zega_identity_checksum');
-  const storedUserEmail = (localStorage.getItem('zega_user_email') || '').toLowerCase().trim();
   const activeEmail = (userEmail || '').toLowerCase().trim();
+  const storedUserEmail = (localStorage.getItem('zega_user_email') || '').toLowerCase().trim();
+  const storedChecksum = localStorage.getItem('zega_identity_checksum');
 
-  if (storedChecksum && storedChecksum !== expectedChecksum) {
-    console.warn('[OWASP SECURITY] Storage identity checksum mismatch detected! Sanitizing stale session data...', {
-      storedChecksum,
-      expectedChecksum,
-      storedUserEmail,
-      activeEmail
-    });
-    purgeAllAuthSessionState();
-    return false;
-  }
-
+  // 1. Strict OWASP Email Isolation Guard:
+  // If local storage has a stored email that differs from the active logged-in email, purge immediately.
   if (storedUserEmail && activeEmail && storedUserEmail !== activeEmail) {
     console.warn('[OWASP SECURITY] Stale localStorage user email mismatch detected! Purging session data...', {
       storedUserEmail,
@@ -455,7 +445,51 @@ export function verifyStorageIdentityIntegrity(userEmail: string, userId: string
     return false;
   }
 
-  return true;
+  // 2. If no stored checksum exists yet (fresh login / new environment), consider valid
+  if (!storedChecksum) {
+    return true;
+  }
+
+  // 3. Dynamically resolve effective userId if omitted (e.g. during initial page load/render)
+  let effectiveUserId = (userId || '').trim();
+  if (!effectiveUserId && typeof window !== 'undefined') {
+    try {
+      const canonicalAuth = (window as any).__ZEGA_CANONICAL_AUTH__;
+      if (canonicalAuth?.canonicalUserId) {
+        effectiveUserId = canonicalAuth.canonicalUserId;
+      }
+    } catch {}
+  }
+
+  // 4. Calculate expected signatures:
+  // - Full signature (email + userId)
+  const fullChecksum = effectiveUserId ? getIdentityChecksum(activeEmail, effectiveUserId) : null;
+  // - Fallback signature (email alone, if checksum was stored without userId)
+  const emailOnlyChecksum = getIdentityChecksum(activeEmail, '');
+
+  // 5. Signature Matching Logic:
+  if ((fullChecksum && storedChecksum === fullChecksum) || storedChecksum === emailOnlyChecksum) {
+    return true;
+  }
+
+  // 6. Session Initialization / Hydration Protection:
+  // If effectiveUserId is not yet available (auth state loading/initializing), BUT activeEmail matches storedUserEmail,
+  // do NOT trigger a false-positive purge.
+  if (!effectiveUserId && activeEmail && storedUserEmail === activeEmail) {
+    return true;
+  }
+
+  // 7. Actual Checksum Tampering / Corruption Detected
+  console.warn('[OWASP SECURITY] Storage identity checksum mismatch detected! Sanitizing stale session data...', {
+    storedChecksum,
+    fullChecksum,
+    emailOnlyChecksum,
+    storedUserEmail,
+    activeEmail,
+    effectiveUserId
+  });
+  purgeAllAuthSessionState();
+  return false;
 }
 
 /**

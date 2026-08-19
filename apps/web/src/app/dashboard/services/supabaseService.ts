@@ -6967,28 +6967,21 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
    */
   async getUmkmAiPreferences(storeId: string = (getActiveTenantIds().storeId || '')) {
     try {
+      const targetStoreId = isValidUuid(storeId) ? storeId : (getActiveTenantIds().storeId || '');
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        return null;
+      }
+
       // 1. Try to fetch settings specifically for the requested storeId
       const { data: storeData, error: storeErr } = await supabase
         .from('umkm_settings_ai_preferences')
         .select('*')
-        .eq('store_id', storeId)
+        .eq('store_id', targetStoreId)
         .order('updated_at', { ascending: false })
         .limit(1);
 
       if (!storeErr && storeData && storeData.length > 0) {
         return storeData[0];
-      }
-
-      // 2. Fallback to demo store settings if primary storeId yields no records
-      const { data: demoData, error: demoErr } = await supabase
-        .from('umkm_settings_ai_preferences')
-        .select('*')
-        .eq('store_id', getActiveTenantIds().storeId || '')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      if (!demoErr && demoData && demoData.length > 0) {
-        return demoData[0];
       }
 
       return null;
@@ -7001,9 +6994,9 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   async updateUmkmAiPreferences(prefData: any, storeId: string = (getActiveTenantIds().storeId || '')) {
     try {
       const activeTenant = getActiveTenantIds();
-      const targetStoreId = storeId || activeTenant.storeId;
-      if (!targetStoreId) {
-        throw new Error('store_id is required to update AI preferences');
+      const targetStoreId = (storeId && isValidUuid(storeId)) ? storeId : (activeTenant.storeId || '');
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        throw new Error('Valid UUID store_id is required to update AI preferences');
       }
 
       const nowIso = new Date().toISOString();
@@ -7013,10 +7006,10 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         updated_at: nowIso
       };
 
-      if (activeTenant.organizationId) {
+      if (activeTenant.organizationId && isValidUuid(activeTenant.organizationId)) {
         payload.organization_id = activeTenant.organizationId;
       }
-      if (activeTenant.workspaceId) {
+      if (activeTenant.workspaceId && isValidUuid(activeTenant.workspaceId)) {
         payload.workspace_id = activeTenant.workspaceId;
       }
 
@@ -9516,11 +9509,30 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
 
       const { data, error } = await query;
-      if (error) {
-        console.warn('[AI Assistant] getUmkmAiAssistantChats query error:', error.message);
-        return [];
+      if (!error && data) {
+        return data;
       }
-      return data || [];
+
+      if (error) {
+        console.warn('[AI Assistant] getUmkmAiAssistantChats direct table query error (attempting SECURITY DEFINER RPC fallback):', error.message);
+      }
+
+      // RPC Fallback for external / Privy / Brevo OTP auth sessions (anon role PostgREST calls)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('fn_get_ai_assistant_chats', {
+        p_store_id: storeId,
+        p_user_id: effectiveUserId,
+        p_agent_role: agentRole || null
+      });
+
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+
+      if (rpcError) {
+        console.warn('[AI Assistant] fn_get_ai_assistant_chats RPC fallback error:', rpcError.message);
+      }
+
+      return [];
     } catch (e) {
       console.warn('[AI Assistant] getUmkmAiAssistantChats exception:', e);
       return [];
@@ -10338,11 +10350,29 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('[ZEGA Copilot] getUmkmZegaCopilotChats error:', error.message);
-        return [];
+      if (!error && data) {
+        return data;
       }
-      return data || [];
+
+      if (error) {
+        console.warn('[ZEGA Copilot] getUmkmZegaCopilotChats direct table query error (attempting SECURITY DEFINER RPC fallback):', error.message);
+      }
+
+      // RPC Fallback for authenticated sessions
+      const { data: rpcData, error: rpcError } = await supabase.rpc('fn_get_zega_copilot_chats', {
+        p_store_id: storeId,
+        p_user_id: effectiveUserId
+      });
+
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+
+      if (rpcError) {
+        console.warn('[ZEGA Copilot] fn_get_zega_copilot_chats RPC fallback error:', rpcError.message);
+      }
+
+      return [];
     } catch (e) {
       console.warn('[ZEGA Copilot] getUmkmZegaCopilotChats exception:', e);
       return [];

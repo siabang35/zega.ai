@@ -137,7 +137,8 @@ export function resolveTenantFromUser(
 
   // OWASP Storage Integrity Guard — verify storage checksum match for active identity
   if (email) {
-    verifyStorageIdentityIntegrity(email, _activeTenant.userId || '');
+    const activeUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || canonicalAuthManager.getSnapshot().authUserId || '';
+    verifyStorageIdentityIntegrity(email, activeUserId);
   }
 
   // Resolve canonical account type from verified persistence / session if tenantType not explicitly provided

@@ -2,9 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
-const dbUrl = 'postgresql://postgres:K27f3786147%233786@db.ikxiclpvywxxnkcaldbx.supabase.co:5432/postgres';
+const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || process.env.DIRECT_URL;
 
-console.log('[MIGRATION] Connecting to remote Supabase DB to fix table permissions...');
+if (!dbUrl) {
+  console.error('[MIGRATION] Error: DATABASE_URL environment variable is required.');
+  process.exit(1);
+}
+
+console.log('[MIGRATION] Connecting to remote Supabase DB to apply migration...');
 
 const client = new Client({
   connectionString: dbUrl,
@@ -16,15 +21,21 @@ const client = new Client({
 async function run() {
   try {
     await client.connect();
-    console.log('[MIGRATION] Connected successfully to remote Supabase database!');
+    console.log('[MIGRATION] Connected successfully to remote database!');
 
-    const sqlPath = path.resolve(__dirname, '../../../supabase/migrations/20260820080000_fix_umkm_ai_assistant_chats_permission_denied.sql');
+    const targetMigration = process.argv[2] || '20260820090000_fix_anon_permissions_and_rpc_chats.sql';
+    const sqlPath = path.resolve(__dirname, '../../../supabase/migrations', targetMigration);
+
+    if (!fs.existsSync(sqlPath)) {
+      throw new Error(`Migration file not found: ${sqlPath}`);
+    }
+
     const sql = fs.readFileSync(sqlPath, 'utf8');
 
     await client.query(sql);
-    console.log('[MIGRATION] SUCCESS! Applied 20260820080000_fix_umkm_ai_assistant_chats_permission_denied.sql to remote database!');
+    console.log(`[MIGRATION] SUCCESS! Applied ${targetMigration} to database!`);
   } catch (err) {
-    console.error('[MIGRATION] Error executing migration on remote database:', err.message || err);
+    console.error('[MIGRATION] Error executing migration on database:', err.message || err);
     process.exit(1);
   } finally {
     await client.end();

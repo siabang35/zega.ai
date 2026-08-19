@@ -35,68 +35,73 @@ export async function registerPlugins(app: FastifyInstance) {
   // ── 2. Dynamic Enterprise CORS ──
   const configuredOrigins = envConfig.CORS_ORIGIN.split(',').map((o) => o.trim());
 
-  await app.register(fastifyCors, {
-    origin: (origin, cb) => {
-      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
-      if (!origin) {
-        return cb(null, true);
+  const isAllowedOrigin = (origin: string) => {
+    const isConfigured = configuredOrigins.some((allowed) => {
+      if (allowed === origin) return true;
+      if (allowed.includes('*')) {
+        const pattern = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+        return pattern.test(origin);
       }
+      return false;
+    });
 
-      // Check if origin matches configured origins, zegaai.site subdomains, or localhost
-      const isConfigured = configuredOrigins.some((allowed) => {
-        if (allowed === origin) return true;
-        if (allowed.includes('*')) {
-          const pattern = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
-          return pattern.test(origin);
-        }
-        return false;
-      });
+    const isAllowedDomain =
+      /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
+      origin.endsWith('.zegaai.site') ||
+      origin.endsWith('.zega.ai');
 
-      const isAllowedDomain =
-        /^https:\/\/(www\.)?zega(ai)?\.(site|ai)$/i.test(origin) ||
-        origin.endsWith('.zegaai.site') ||
-        origin.endsWith('.zega.ai');
-        // SECURITY (F-07 FIX): Removed wildcard hosting-provider subdomains
-        // (*.vercel.app, *.onrender.com, *.netlify.app, *.pages.dev)
-        // These allowed any attacker-deployed site to make authenticated requests.
+    const isLocalhost =
+      envConfig.NODE_ENV !== 'production' &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
-      // SECURITY (F-003 FIX): Localhost origins are ONLY allowed in development mode.
-      // In production, any local process could otherwise make authenticated cross-origin requests.
-      const isLocalhost =
-        envConfig.NODE_ENV !== 'production' &&
-        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+    return isConfigured || isAllowedDomain || isLocalhost;
+  };
 
-      if (isConfigured || isAllowedDomain || isLocalhost) {
-        return cb(null, true);
-      }
-
-      app.log.warn({ origin }, 'CORS request blocked from origin');
-      return cb(new Error('CORS Not Allowed'), false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Request-ID',
-      'X-CSRF-Token',
-      'x-user-email',
-      'x-user-id',
-      'x-merchant-pubkey',
-      'x-correlation-id',
-      'x-privy-authorization',
-      'x-authorization-attempt-id',
-      'x-withdrawal-id',
-      'X-Organization-Id',
-      'x-organization-id',
-      'X-Store-Id',
-      'x-store-id',
-      'X-Workspace-Id',
-      'x-workspace-id',
-      'X-Request-Fingerprint',
-      'x-request-fingerprint'
-    ],
-    maxAge: 86400,
+  await app.register(fastifyCors, () => {
+    return (req: any, callback: any) => {
+      const requestedHeaders = req.headers['access-control-request-headers'];
+      const corsOptions = {
+        origin: (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+          if (!origin || isAllowedOrigin(origin)) {
+            cb(null, true);
+          } else {
+            app.log.warn({ origin }, 'CORS request blocked from origin');
+            cb(new Error(`CORS policy: Origin ${origin} is not allowed by Access-Control-Allow-Origin`), false);
+          }
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: requestedHeaders || [
+          'Content-Type',
+          'Authorization',
+          'X-Request-ID',
+          'X-CSRF-Token',
+          'x-user-email',
+          'X-User-Email',
+          'x-user-id',
+          'X-User-Id',
+          'x-merchant-pubkey',
+          'x-correlation-id',
+          'x-privy-authorization',
+          'x-authorization-attempt-id',
+          'x-withdrawal-id',
+          'X-Organization-Id',
+          'x-organization-id',
+          'X-Store-Id',
+          'x-store-id',
+          'X-Workspace-Id',
+          'x-workspace-id',
+          'X-Request-Fingerprint',
+          'x-request-fingerprint',
+          'X-ZEGA-Timestamp',
+          'x-zega-timestamp',
+          'X-ZEGA-Anti-Tamper-Sig',
+          'x-zega-anti-tamper-sig'
+        ],
+        maxAge: 86400,
+      };
+      callback(null, corsOptions);
+    };
   });
 
   // ── 3. Cookies ──
