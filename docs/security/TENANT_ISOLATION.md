@@ -1,5 +1,8 @@
 # Multi-Layer Tenant Isolation Security Architecture
 
+> **Empirical Status**: ✅ **20/20 Tests Passed** (2026-08-20) — Zero isolation breaches.
+> See: [Full Audit Report](../audit/MULTI_TENANT_ISOLATION_AUDIT_2026_08_20.md) | Test Suite: [`empirical-multitenant-isolation-test.ts`](../../apps/api/src/__tests__/empirical-multitenant-isolation-test.ts)
+
 ## 1. Defense-in-Depth Principle
 
 Multi-tenancy security in ZEGA.AI is never entrusted to a single defense mechanism (such as application-layer `WHERE` clauses). It is enforced across 14 independent infrastructural layers:

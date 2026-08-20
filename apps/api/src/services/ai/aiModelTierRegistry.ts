@@ -31,13 +31,23 @@ export interface ModelSpec {
  * Dynamic inventory maps configured provider models to capability tiers.
  */
 export const MODEL_TIER_REGISTRY: Record<string, ModelSpec> = {
-  // ── TIER 0: ULTRA FAST ──
-  'llama-3.1-8b-instant': {
-    id: 'llama-3.1-8b-instant',
-    name: 'Llama 3.1 8B Instant (Groq LPU)',
+  // ── TIER 0: ULTRA FAST (Groq LPU Acceleration) ──
+  'qwen/qwen3.6-27b': {
+    id: 'qwen/qwen3.6-27b',
+    name: 'Qwen 3.6 27B Instant (Groq LPU)',
     provider: 'groq',
     tier: 'TIER_0_ULTRA_FAST',
     maxContext: 131072,
+    costPer1kInputUsd: 0.00005,
+    costPer1kOutputUsd: 0.00008,
+    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
+  },
+  'openai/gpt-oss-20b': {
+    id: 'openai/gpt-oss-20b',
+    name: 'OpenAI GPT-OSS 20B (Groq Fast LPU)',
+    provider: 'groq',
+    tier: 'TIER_0_ULTRA_FAST',
+    maxContext: 128000,
     costPer1kInputUsd: 0.00005,
     costPer1kOutputUsd: 0.00008,
     capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: false, coding: true, multilingual: true }
@@ -50,42 +60,42 @@ export const MODEL_TIER_REGISTRY: Record<string, ModelSpec> = {
     maxContext: 1048576,
     costPer1kInputUsd: 0.000075,
     costPer1kOutputUsd: 0.0003,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: false, coding: true, multilingual: true }
-  },
-  'gemini-1.5-flash': {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash (Google AI)',
-    provider: 'google',
-    tier: 'TIER_0_ULTRA_FAST',
-    maxContext: 1048576,
-    costPer1kInputUsd: 0.000075,
-    costPer1kOutputUsd: 0.0003,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: false, coding: true, multilingual: true }
+    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: true, coding: true, multilingual: true }
   },
 
   // ── TIER 1: FAST GENERAL ──
-  'llama-3.3-70b-versatile': {
-    id: 'llama-3.3-70b-versatile',
-    name: 'Llama 3.3 70B Versatile (Groq LPU)',
+  'openai/gpt-oss-120b': {
+    id: 'openai/gpt-oss-120b',
+    name: 'OpenAI GPT-OSS 120B (Groq LPU)',
     provider: 'groq',
-    tier: 'TIER_1_FAST_GENERAL',
-    maxContext: 131072,
-    costPer1kInputUsd: 0.00059,
-    costPer1kOutputUsd: 0.00079,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
-  },
-  'gpt-4o-mini': {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini (OpenAI)',
-    provider: 'openai',
     tier: 'TIER_1_FAST_GENERAL',
     maxContext: 128000,
     costPer1kInputUsd: 0.00015,
     costPer1kOutputUsd: 0.0006,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: false, coding: true, multilingual: true }
+    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
+  },
+  'groq/compound-mini': {
+    id: 'groq/compound-mini',
+    name: 'Groq Compound Mini',
+    provider: 'groq',
+    tier: 'TIER_1_FAST_GENERAL',
+    maxContext: 128000,
+    costPer1kInputUsd: 0.0001,
+    costPer1kOutputUsd: 0.0004,
+    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
   },
 
   // ── TIER 2: ADVANCED ──
+  'groq/compound': {
+    id: 'groq/compound',
+    name: 'Groq Compound Engine',
+    provider: 'groq',
+    tier: 'TIER_2_ADVANCED',
+    maxContext: 128000,
+    costPer1kInputUsd: 0.0005,
+    costPer1kOutputUsd: 0.0015,
+    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
+  },
   'claude-3.5-sonnet': {
     id: 'claude-3.5-sonnet',
     name: 'Claude 3.5 Sonnet (Anthropic)',
@@ -96,20 +106,10 @@ export const MODEL_TIER_REGISTRY: Record<string, ModelSpec> = {
     costPer1kOutputUsd: 0.015,
     capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: true, coding: true, multilingual: true }
   },
-  'qwen-2.5-coder-32b': {
-    id: 'qwen-2.5-coder-32b',
-    name: 'Qwen 2.5 Coder 32B (9Router)',
-    provider: '9router',
-    tier: 'TIER_2_ADVANCED',
-    maxContext: 65536,
-    costPer1kInputUsd: 0.0008,
-    costPer1kOutputUsd: 0.002,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
-  },
 
   // ── TIER 3: DEEP REASONING ──
-  'deepseek-r1': {
-    id: 'deepseek-r1',
+  'deepseek/deepseek-r1': {
+    id: 'deepseek/deepseek-r1',
     name: 'DeepSeek R1 (9Router Reasoner)',
     provider: '9router',
     tier: 'TIER_3_DEEP_REASONING',
@@ -117,26 +117,6 @@ export const MODEL_TIER_REGISTRY: Record<string, ModelSpec> = {
     costPer1kInputUsd: 0.00055,
     costPer1kOutputUsd: 0.00219,
     capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
-  },
-  'deepseek-chat': {
-    id: 'deepseek-chat',
-    name: 'DeepSeek Chat (OpenRouter)',
-    provider: 'openrouter',
-    tier: 'TIER_3_DEEP_REASONING',
-    maxContext: 64000,
-    costPer1kInputUsd: 0.00014,
-    costPer1kOutputUsd: 0.00028,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: false, longContext: true, reasoning: true, coding: true, multilingual: true }
-  },
-  'claude-sonnet-4-20250514': {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Claude Sonnet 4 (Anthropic)',
-    provider: 'anthropic',
-    tier: 'TIER_3_DEEP_REASONING',
-    maxContext: 200000,
-    costPer1kInputUsd: 0.003,
-    costPer1kOutputUsd: 0.015,
-    capabilities: { streaming: true, toolCalling: true, structuredOutput: true, vision: true, longContext: true, reasoning: true, coding: true, multilingual: true }
   }
 };
 

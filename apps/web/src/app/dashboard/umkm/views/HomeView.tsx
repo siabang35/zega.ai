@@ -405,14 +405,42 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   const renderFormattedSupportMessage = (rawText: string) => {
     if (!rawText) return null;
 
-    // Clean raw debug artifacts, JSON brackets, model headers, emojis, or prompt leaks
-    let text = rawText
+    let text = rawText;
+
+    // Smart Draft/Mental Draft/Greeting extraction if model output contains unclosed <think> or thinking process scratchpad
+    if (text.includes('<think>') || /^Here's a thinking process:/i.test(text) || /^Thinking Process:/i.test(text)) {
+      if (/<\/think>/i.test(text)) {
+        text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      }
+      const draftMatch = text.match(/(?:Draft|Mental Draft|Formulate Response[\s\S]*?:|Final Response|Response|Output):\s*\n*([\s\S]+?)(?=\n\s*(?:4\.|5\.|Check|Constraint|\*|#)|$)/i);
+      if (draftMatch && draftMatch[1] && draftMatch[1].trim().length > 10) {
+        text = draftMatch[1]
+          .replace(/^(?:Draft|Mental Draft|Formulate Response[\s\S]*?:|Final Response|Response|Output):\s*/i, '')
+          .trim();
+      } else {
+        const greetingMatch = text.match(/\n\s*((?:Hello|Halo|Hi|Welcome|Greetings)\b[\s\S]+?)(?=\n\s*(?:4\.|5\.|Check|Constraint|\*|#)|$)/i);
+        if (greetingMatch && greetingMatch[1] && greetingMatch[1].trim().length > 10) {
+          text = greetingMatch[1].trim();
+        } else {
+          text = text
+            .replace(/<think>[\s\S]*?<\/think>/gi, '')
+            .replace(/<think>[\s\S]*$/gi, '')
+            .replace(/^(?:Here's a thinking process:|Thinking Process:)[\s\S]*?\n\n/gi, '')
+            .replace(/^(?:Here's a thinking process:|Thinking Process:)/gi, '')
+            .trim();
+        }
+      }
+    }
+
+    text = text
       .replace(/^[\{\[\"]+|[\}\]\"]+$/g, '')
       .replace(/\\n/g, '\n')
       .replace(/\s*(?:9Router Engine|9Router Direct|LLM terintegrasi)\s*/gi, ' ')
-      // Strip emojis for a clean enterprise output
-      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
       .trim();
+
+    if (!text && rawText) {
+      text = rawText.replace(/<\/?think>/gi, '').trim();
+    }
 
     const lines = text.split('\n');
 
@@ -499,28 +527,23 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
       let chatIdToUse = activeHelpChatId;
       if (!chatIdToUse) {
-        const chatStart = Date.now();
-        try {
-          const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
-            undefined,
-            (getActiveTenantIds().userId || ''),
-            `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
-            'ZEGA Home Assistant'
-          );
+        chatIdToUse = crypto.randomUUID();
+        setActiveHelpChatId(chatIdToUse);
+        // Non-blocking background session creation
+        SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+          undefined,
+          (getActiveTenantIds().userId || ''),
+          `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
+          'ZEGA Home Assistant'
+        ).then(resolved => {
           if (resolved.ok && resolved.chatId) {
-            chatIdToUse = resolved.chatId;
             setActiveHelpChatId(resolved.chatId);
-            console.log('[CHAT_LATENCY]', { chatId: resolved.chatId, durationMs: Date.now() - chatStart });
             fetchHelpHistoryList();
-          } else {
-            console.warn('[HomeView] Canonical session resolution notice:', resolved.reason, resolved.error);
           }
-        } catch (sessionErr) {
-          console.warn('[HomeView] Session resolution exception:', sessionErr);
-        }
+        }).catch(sessionErr => console.warn('[HomeView] Non-blocking session resolution note:', sessionErr));
       }
 
-      // Save User Message to DB ONLY IF valid persistent chatId exists
+      // Save User Message to DB asynchronously ONLY IF valid persistent chatId exists
       if (chatIdToUse && isValidUuid(chatIdToUse)) {
         SupabaseDashboardService.saveUmkmAiAssistantMessage({
           chat_id: chatIdToUse,

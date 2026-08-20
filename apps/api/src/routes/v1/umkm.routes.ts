@@ -107,12 +107,20 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
   }
 
+  const tenantStoreResolutionCache = new Map<string, { storeId: string; expiresAt: number }>();
+
   /**
    * RESOLVE STORE FOR TENANT
    * Maps organizationId / userId / requestedStoreId to a valid umkm_stores record ID.
    * Strict Read-Only Resolution: Requires verified organization membership. No un-scoped service_role fallbacks.
    */
   async function resolveStoreForTenant(organizationId: string, userId?: string, email?: string, requestedStoreId?: string): Promise<string> {
+    const cacheKey = `${organizationId || ''}:${userId || ''}:${email || ''}:${requestedStoreId || ''}`;
+    const cached = tenantStoreResolutionCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.storeId;
+    }
+
     const supabase = SupabaseService.getClient();
     if (!supabase) {
       if (requestedStoreId && isValidUuid(requestedStoreId)) return requestedStoreId;
@@ -120,151 +128,157 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       return '';
     }
 
-    try {
-      let candidateUserIds = [userId].filter(Boolean) as string[];
-      if (userId || email) {
-        try {
-          const { data: dbUserRows } = await supabase
-            .from('users')
-            .select('id, auth_user_id, email')
-            .or(`auth_user_id.eq.${userId},id.eq.${userId}${email ? `,email.eq.${email}` : ''}`)
-            .limit(1);
-          if (dbUserRows && dbUserRows.length > 0 && dbUserRows[0]?.id) {
-            candidateUserIds.push(dbUserRows[0].id);
-            if (dbUserRows[0].auth_user_id) candidateUserIds.push(dbUserRows[0].auth_user_id);
-          }
-        } catch {}
-      }
-      candidateUserIds = Array.from(new Set(candidateUserIds.filter(id => id && isValidUuid(id))));
-
-      // 1. If client provided a requestedStoreId (X-Store-Id header or body), verify server-side!
-      if (requestedStoreId && isValidUuid(requestedStoreId)) {
-        const { data: verifiedStores } = await supabase
-          .from('umkm_stores')
-          .select('id, organization_id, user_id')
-          .or(`id.eq.${requestedStoreId},organization_id.eq.${requestedStoreId}`)
-          .limit(1);
-
-        const verifiedStore = verifiedStores && verifiedStores.length > 0 ? verifiedStores[0] : null;
-        if (verifiedStore) {
-          const matchesOrg = organizationId && (verifiedStore.organization_id === organizationId || verifiedStore.id === organizationId);
-          const matchesUser = candidateUserIds.length > 0 && candidateUserIds.includes(verifiedStore.user_id);
-          if (matchesOrg || matchesUser || (!verifiedStore.organization_id && !verifiedStore.user_id) || requestedStoreId === verifiedStore.id) {
-            console.log('[TENANT_RESOLVER] Verified requested store:', verifiedStore.id);
-            return verifiedStore.id;
-          }
-        }
-      }
-
-      // 2. Dynamic Store Lookup by organization_id or user_id (checking id, organization_id, user_id, owner_id, created_by)
-      if (organizationId || candidateUserIds.length > 0) {
-        let query = supabase
-          .from('umkm_stores')
-          .select('id, user_id, organization_id')
-          .order('created_at', { ascending: false });
-
-        const conditions: string[] = [];
-        if (organizationId && isValidUuid(organizationId)) {
-          conditions.push(`organization_id.eq.${organizationId}`);
-          conditions.push(`id.eq.${organizationId}`);
-        }
-        candidateUserIds.forEach(uid => {
-          conditions.push(`user_id.eq.${uid}`);
-        });
-
-        if (conditions.length > 0) {
-          query = query.or(conditions.join(','));
-          const { data: stores } = await query.limit(1);
-          const store = stores && stores.length > 0 ? stores[0] : null;
-          if (store?.id && isValidUuid(store.id)) {
-            console.log('[TENANT_RESOLVER] DB Store resolved:', store.id);
-            return store.id;
-          }
-        }
-      }
-
-      // 3. Organization Members Lookup Fallback
-      if (userId && isValidUuid(userId)) {
-        const { data: memberships } = await supabase
-          .from('organization_members')
-          .select('organization_id')
-          .eq('user_id', userId)
-          .limit(5);
-
-        if (memberships && memberships.length > 0) {
-          const orgIds = memberships.map(m => m.organization_id).filter(isValidUuid);
-          if (orgIds.length > 0) {
-            const { data: memberStores } = await supabase
-              .from('umkm_stores')
-              .select('id, organization_id')
-              .in('organization_id', orgIds)
+    const storeId = await (async () => {
+      try {
+        let candidateUserIds = [userId].filter(Boolean) as string[];
+        if (userId || email) {
+          try {
+            const { data: dbUserRows } = await supabase
+              .from('users')
+              .select('id, auth_user_id, email')
+              .or(`auth_user_id.eq.${userId},id.eq.${userId}${email ? `,email.eq.${email}` : ''}`)
               .limit(1);
+            if (dbUserRows && dbUserRows.length > 0 && dbUserRows[0]?.id) {
+              candidateUserIds.push(dbUserRows[0].id);
+              if (dbUserRows[0].auth_user_id) candidateUserIds.push(dbUserRows[0].auth_user_id);
+            }
+          } catch {}
+        }
+        candidateUserIds = Array.from(new Set(candidateUserIds.filter(id => id && isValidUuid(id))));
 
-            if (memberStores && memberStores.length > 0 && isValidUuid(memberStores[0].id)) {
-              console.log('[TENANT_RESOLVER] Store resolved via org membership:', memberStores[0].id);
-              return memberStores[0].id;
+        // 1. If client provided a requestedStoreId (X-Store-Id header or body), verify server-side!
+        if (requestedStoreId && isValidUuid(requestedStoreId)) {
+          const { data: verifiedStores } = await supabase
+            .from('umkm_stores')
+            .select('id, organization_id, user_id')
+            .or(`id.eq.${requestedStoreId},organization_id.eq.${requestedStoreId}`)
+            .limit(1);
+
+          const verifiedStore = verifiedStores && verifiedStores.length > 0 ? verifiedStores[0] : null;
+          if (verifiedStore) {
+            const matchesOrg = organizationId && (verifiedStore.organization_id === organizationId || verifiedStore.id === organizationId);
+            const matchesUser = candidateUserIds.length > 0 && candidateUserIds.includes(verifiedStore.user_id);
+            if (matchesOrg || matchesUser || (!verifiedStore.organization_id && !verifiedStore.user_id) || requestedStoreId === verifiedStore.id) {
+              console.log('[TENANT_RESOLVER] Verified requested store:', verifiedStore.id);
+              return verifiedStore.id;
             }
           }
         }
-      }
 
-      // 4. Auto-Provision / Fallback: If user/org is authenticated but has no umkm_stores record yet
-      if (organizationId && isValidUuid(organizationId)) {
-        try {
-          // Resolve or create workspace under organization first
-          let wsId: string | null = null;
-          const { data: existingWs } = await supabase
-            .from('workspaces')
-            .select('id')
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: true })
-            .limit(1);
-
-          if (existingWs && existingWs.length > 0 && existingWs[0]?.id) {
-            wsId = existingWs[0].id;
-          } else {
-            wsId = crypto.randomUUID();
-            await supabase.from('workspaces').insert({
-              id: wsId,
-              organization_id: organizationId,
-              name: 'Main Workspace',
-              slug: `ws-${organizationId.substring(0, 8)}-${Date.now().toString(36)}`,
-              status: 'active'
-            });
-          }
-
-          const newStoreId = crypto.randomUUID();
-          const { data: insertedStore } = await supabase
+        // 2. Dynamic Store Lookup by organization_id or user_id
+        if (organizationId || candidateUserIds.length > 0) {
+          let query = supabase
             .from('umkm_stores')
-            .insert({
-              id: newStoreId,
-              organization_id: organizationId,
-              workspace_id: wsId,
-              user_id: userId || null,
-              owner_id: userId || null,
-              created_by: userId || null,
-              store_name: 'Toko UMKM Starter',
-              category: 'General',
-              is_active: true
-            })
-            .select('id')
-            .maybeSingle();
+            .select('id, user_id, organization_id')
+            .order('created_at', { ascending: false });
 
-          if (insertedStore?.id) {
-            console.log('[TENANT_RESOLVER] Auto-provisioned missing store for org:', insertedStore.id);
-            return insertedStore.id;
+          const conditions: string[] = [];
+          if (organizationId && isValidUuid(organizationId)) {
+            conditions.push(`organization_id.eq.${organizationId}`);
+            conditions.push(`id.eq.${organizationId}`);
           }
-        } catch (err) {
-          console.warn('[TENANT_RESOLVER] Auto-provision insert notice:', err);
+          candidateUserIds.forEach(uid => {
+            conditions.push(`user_id.eq.${uid}`);
+          });
+
+          if (conditions.length > 0) {
+            query = query.or(conditions.join(','));
+            const { data: stores } = await query.limit(1);
+            const store = stores && stores.length > 0 ? stores[0] : null;
+            if (store?.id && isValidUuid(store.id)) {
+              console.log('[TENANT_RESOLVER] DB Store resolved:', store.id);
+              return store.id;
+            }
+          }
         }
+
+        // 3. Organization Members Lookup Fallback
+        if (userId && isValidUuid(userId)) {
+          const { data: memberships } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', userId)
+            .limit(5);
+
+          if (memberships && memberships.length > 0) {
+            const orgIds = memberships.map(m => m.organization_id).filter(isValidUuid);
+            if (orgIds.length > 0) {
+              const { data: memberStores } = await supabase
+                .from('umkm_stores')
+                .select('id, organization_id')
+                .in('organization_id', orgIds)
+                .limit(1);
+
+              if (memberStores && memberStores.length > 0 && isValidUuid(memberStores[0].id)) {
+                console.log('[TENANT_RESOLVER] Store resolved via org membership:', memberStores[0].id);
+                return memberStores[0].id;
+              }
+            }
+          }
+        }
+
+        // 4. Auto-Provision / Fallback
+        if (organizationId && isValidUuid(organizationId)) {
+          try {
+            let wsId: string | null = null;
+            const { data: existingWs } = await supabase
+              .from('workspaces')
+              .select('id')
+              .eq('organization_id', organizationId)
+              .order('created_at', { ascending: true })
+              .limit(1);
+
+            if (existingWs && existingWs.length > 0 && existingWs[0]?.id) {
+              wsId = existingWs[0].id;
+            } else {
+              wsId = crypto.randomUUID();
+              await supabase.from('workspaces').insert({
+                id: wsId,
+                organization_id: organizationId,
+                name: 'Main Workspace',
+                slug: `ws-${organizationId.substring(0, 8)}-${Date.now().toString(36)}`,
+                status: 'active'
+              });
+            }
+
+            const newStoreId = crypto.randomUUID();
+            const { data: insertedStore } = await supabase
+              .from('umkm_stores')
+              .insert({
+                id: newStoreId,
+                organization_id: organizationId,
+                workspace_id: wsId,
+                user_id: userId || null,
+                owner_id: userId || null,
+                created_by: userId || null,
+                store_name: 'Toko UMKM Starter',
+                category: 'General',
+                is_active: true
+              })
+              .select('id')
+              .maybeSingle();
+
+            if (insertedStore?.id) {
+              console.log('[TENANT_RESOLVER] Auto-provisioned missing store for org:', insertedStore.id);
+              return insertedStore.id;
+            }
+          } catch (err) {
+            console.warn('[TENANT_RESOLVER] Auto-provision insert notice:', err);
+          }
+        }
+      } catch (err) {
+        console.warn('[TENANT_RESOLVER] Exception during store resolution:', err);
       }
-    } catch (err) {
-      console.warn('[TENANT_RESOLVER] Exception during store resolution:', err);
+
+      if (requestedStoreId && isValidUuid(requestedStoreId) && requestedStoreId !== organizationId) return requestedStoreId;
+      return '';
+    })();
+
+    if (storeId) {
+      tenantStoreResolutionCache.set(cacheKey, { storeId, expiresAt: Date.now() + 60000 });
     }
 
-    if (requestedStoreId && isValidUuid(requestedStoreId) && requestedStoreId !== organizationId) return requestedStoreId;
-
-    return '';
+    return storeId;
   }
 
   /**

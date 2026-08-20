@@ -238,19 +238,27 @@ export async function executeRoutedModelPipeline(
 
   const isHighReasoningTask = complexity === 'HIGH' || canonicalType === 'finance' || canonicalType === 'zega_copilot';
 
+  // ========================================================================
+  // 🎯 ASSISTANT-SPECIALIZED MULTI-MODEL ROUTING PIPELINE
+  // - home: Ultra-fast LPU (qwen3.6-27b / gpt-oss-20b) -> gpt-4o-mini
+  // - help: Friendly fast support (qwen3.6-27b / claude-3-haiku) -> gemini-3.6-flash
+  // - knowledge: Deep RAG & High-Context (deepseek-chat / kimi-k2.5) -> groq-compound
+  // - finance: ZeroClaw Finance Daemon -> gpt-4o -> claude-sonnet-5 -> groq-compound
+  // - zega_copilot: ZeroClaw Copilot Daemon -> claude-sonnet-5 -> kimi-k2.5 -> gpt-4o
+  // ========================================================================
+
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY 1: ENTERPRISE REASONING & SWARM (ZeroClaw & 9Router Priority for HIGH Complexity)
+  // 1. ZEROCLAW GATEWAY DAEMON (Primary for Finance, Copilot & Knowledge Agents)
   // ------------------------------------------------------------------------
-  if (isHighReasoningTask) {
-    // A. ZeroClaw Gateway Daemon Execution
-    if (!replyText && (zeroclawBearerToken || (agentRole || '').toLowerCase().includes('zeroclaw') || isHighReasoningTask)) {
+  if (!replyText && (canonicalType === 'finance' || canonicalType === 'zega_copilot' || canonicalType === 'knowledge')) {
+    if (zeroclawBearerToken || (agentRole || '').toLowerCase().includes('zeroclaw')) {
       try {
         const zeroclawClient = getZeroClawClient(zeroclawGatewayUrl, zeroclawBearerToken);
         const targetAgentAlias = getZeroClawAgentAlias(canonicalType);
 
         const healthData = await Promise.race([
           zeroclawClient.health(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200))
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 800))
         ]);
 
         if (healthData && (healthData.paired || healthData.status === 'ok')) {
@@ -269,75 +277,26 @@ export async function executeRoutedModelPipeline(
             aiModel = `zeroclaw-agent-v0.8-${targetAgentAlias}`;
             provider = `ZeroClaw Gateway Daemon (${targetAgentAlias})`;
             const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs, agentAlias: targetAgentAlias }, '[AI_ROUTER] ZeroClaw Gateway Agent Execution Succeeded');
+            if (logger) logger.info({ inferenceMs, agentAlias: targetAgentAlias, assistantType: canonicalType }, '[AI_ROUTER] ZeroClaw Agent Succeeded');
           }
-        } else {
-          if (logger) logger.info({ gatewayUrl: zeroclawGatewayUrl }, '[AI_ROUTER] ZeroClaw Daemon offline/unreachable, failing over');
         }
       } catch (err: any) {
-        if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] ZeroClaw Bridge Failover Triggered');
-      }
-    }
-
-    // B. 9Router Enterprise Multi-Model Route
-    if (!replyText && nineRouterApiKey) {
-      const nineRouterModels = ['deepseek/deepseek-r1', 'qwen/qwen-2.5-72b-instruct', 'anthropic/claude-3.5-sonnet', 'meta-llama/llama-3.3-70b-instruct'];
-      for (const targetModel of nineRouterModels) {
-        try {
-          const res = await fetchWithTimeout(
-            'https://api.9router.com/v1/chat/completions',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${nineRouterApiKey}`,
-                'HTTP-Referer': 'https://zegaai.site',
-                'X-Title': 'ZEGA Enterprise AI Platform',
-                'X-Request-ID': requestId || computedFingerprint,
-              },
-              body: JSON.stringify({
-                model: targetModel,
-                messages: messagesPayload,
-                temperature: canonicalType === 'finance' ? 0.3 : 0.6,
-                max_tokens: maxTokensToUse,
-              }),
-            },
-            6000
-          );
-
-          if (res.ok) {
-            const data: any = await res.json();
-            const text = data.choices?.[0]?.message?.content;
-            if (text && text.trim()) {
-              replyText = text.trim();
-              const modelLabel = targetModel.split('/')[1] || targetModel;
-              aiModel = `9router-${modelLabel}`;
-              provider = `9Router Engine (${modelLabel})`;
-              const inferenceMs = Date.now() - startTime;
-              if (logger) logger.info({ inferenceMs, model: targetModel }, '[AI_ROUTER] 9Router Model Succeeded');
-              break;
-            }
-          }
-        } catch (err: any) {
-          if (logger) logger.warn({ err: err.message, model: targetModel }, '[AI_ROUTER] 9Router Failover Triggered');
-        }
+        if (logger) logger.warn({ err: err.message, assistantType: canonicalType }, '[AI_ROUTER] ZeroClaw Bridge Failover');
       }
     }
   }
 
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY 2: FAST HIGH-SPEED INFERENCE (Groq Active Models)
+  // 2. GROQ LPU HARDWARE ACCELERATION (Sub-800ms Fast Inference Pool)
   // ------------------------------------------------------------------------
   if (!replyText && groqApiKey) {
-    const groqCandidateModels = [
-      'llama-3.3-70b-versatile',
-      'qwen-2.5-72b-instruct',
-      'qwen-2.5-coder-32b',
-      'deepseek-r1-distill-llama-70b',
-      'gemma2-9b-it',
-      'llama-3.1-8b-instant'
-    ];
-    for (const targetGroqModel of groqCandidateModels) {
+    const groqCandidatePool = canonicalType === 'finance' || canonicalType === 'zega_copilot'
+      ? ['groq/compound', 'openai/gpt-oss-120b', 'qwen/qwen3.6-27b']
+      : canonicalType === 'knowledge'
+      ? ['groq/compound', 'qwen/qwen3.6-27b', 'groq/compound-mini']
+      : ['qwen/qwen3.6-27b', 'openai/gpt-oss-20b', 'groq/compound-mini'];
+
+    for (const targetGroqModel of groqCandidatePool) {
       try {
         const groqRes = await fetchWithTimeout(
           'https://api.groq.com/openai/v1/chat/completions',
@@ -350,101 +309,47 @@ export async function executeRoutedModelPipeline(
             body: JSON.stringify({
               model: targetGroqModel,
               messages: messagesPayload,
-              temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+              temperature: canonicalType === 'finance' ? 0.2 : 0.6,
               max_tokens: maxTokensToUse,
             }),
           },
-          6000
+          2500
         );
 
         if (groqRes.ok) {
           const groqData: any = await groqRes.json();
-          const groqText = groqData.choices?.[0]?.message?.content;
+          let groqText = groqData.choices?.[0]?.message?.content;
           if (groqText && groqText.trim()) {
-            replyText = groqText.trim();
-            aiModel = `groq-${targetGroqModel}`;
-            const modelLabel = targetGroqModel.includes('70b')
-              ? 'Llama 3.3 70B'
-              : targetGroqModel.includes('qwen')
-              ? 'Qwen 2.5 72B'
-              : targetGroqModel.includes('deepseek')
-              ? 'DeepSeek R1 Distill 70B'
-              : targetGroqModel.includes('gemma')
-              ? 'Gemma 2 9B'
-              : targetGroqModel;
-            provider = `Groq ${modelLabel}`;
+            groqText = groqText.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*/gi, '').trim() || groqText.trim();
+            replyText = groqText;
+            aiModel = `groq-${targetGroqModel.split('/')[1] || targetGroqModel}`;
+            provider = `Groq LPU (${targetGroqModel.split('/')[1] || targetGroqModel})`;
             const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs, model: targetGroqModel, assistantType: canonicalType }, '[AI_ROUTER] Groq Model Succeeded');
+            if (logger) logger.info({ inferenceMs, model: targetGroqModel, assistantType: canonicalType }, '[AI_ROUTER] Groq LPU Route Succeeded');
             break;
           }
-        } else {
-          const errBody = await groqRes.json().catch(() => ({}));
-          if (logger) logger.warn({ status: groqRes.status, model: targetGroqModel, errBody }, '[AI_ROUTER] Groq Model HTTP Error');
         }
       } catch (err: any) {
-        if (logger) logger.warn({ err: err.message, model: targetGroqModel }, '[AI_ROUTER] Groq Fast Route Failover Triggered');
+        if (logger) logger.warn({ err: err.message, model: targetGroqModel }, '[AI_ROUTER] Groq Failover Triggered');
       }
     }
   }
 
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY 3: 9ROUTER GENERAL MULTI-MODEL FALLBACK (If not triggered earlier)
-  // ------------------------------------------------------------------------
-  if (!replyText && nineRouterApiKey) {
-    const nineRouterModels = ['qwen/qwen-2.5-72b-instruct', 'deepseek/deepseek-chat', 'google/gemini-2.0-flash'];
-    for (const targetModel of nineRouterModels) {
-      try {
-        const res = await fetchWithTimeout(
-          'https://api.9router.com/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${nineRouterApiKey}`,
-              'HTTP-Referer': 'https://zegaai.site',
-              'X-Title': 'ZEGA Enterprise AI Platform',
-              'X-Request-ID': requestId || computedFingerprint,
-            },
-            body: JSON.stringify({
-              model: targetModel,
-              messages: messagesPayload,
-              temperature: 0.6,
-              max_tokens: maxTokensToUse,
-            }),
-          },
-          6000
-        );
-
-        if (res.ok) {
-          const data: any = await res.json();
-          const text = data.choices?.[0]?.message?.content;
-          if (text && text.trim()) {
-            replyText = text.trim();
-            const modelLabel = targetModel.split('/')[1] || targetModel;
-            aiModel = `9router-${modelLabel}`;
-            provider = `9Router Engine (${modelLabel})`;
-            const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs, model: targetModel }, '[AI_ROUTER] 9Router General Fallback Succeeded');
-            break;
-          }
-        }
-      } catch (err: any) {
-        if (logger) logger.warn({ err: err.message, model: targetModel }, '[AI_ROUTER] 9Router Failover Triggered');
-      }
-    }
-  }
-
-  // ------------------------------------------------------------------------
-  // ROUTE STRATEGY 4: OPENROUTER API ROUTE
+  // 3. OPENROUTER ASSISTANT-SPECIALIZED MULTI-MODEL GATEWAY
   // ------------------------------------------------------------------------
   if (!replyText && openrouterApiKey) {
-    const openrouterCandidateModels = [
-      'google/gemini-2.0-flash-001',
-      'qwen/qwen-2.5-72b-instruct',
-      'deepseek/deepseek-r1-distill-llama-70b',
-      'meta-llama/llama-3.3-70b-instruct'
-    ];
-    for (const targetOrModel of openrouterCandidateModels) {
+    const openrouterCandidatePool = canonicalType === 'finance'
+      ? ['openai/gpt-4o', 'anthropic/claude-sonnet-5', 'deepseek/deepseek-chat']
+      : canonicalType === 'zega_copilot'
+      ? ['anthropic/claude-sonnet-5', 'moonshotai/kimi-k2.5', 'openai/gpt-4o']
+      : canonicalType === 'knowledge'
+      ? ['deepseek/deepseek-chat', 'moonshotai/kimi-k2.5', 'qwen/qwen-2.5-72b-instruct']
+      : canonicalType === 'help'
+      ? ['anthropic/claude-3-haiku', 'openai/gpt-4o-mini', 'qwen/qwen-2.5-72b-instruct']
+      : ['qwen/qwen-2.5-72b-instruct', 'openai/gpt-4o-mini', 'deepseek/deepseek-chat'];
+
+    for (const targetOrModel of openrouterCandidatePool) {
       try {
         const orRes = await fetchWithTimeout(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -454,27 +359,28 @@ export async function executeRoutedModelPipeline(
               'Content-Type': 'application/json',
               Authorization: `Bearer ${openrouterApiKey}`,
               'HTTP-Referer': 'https://zegaai.site',
-              'X-Title': 'ZEGA AI Platform',
+              'X-Title': 'ZEGA Enterprise AI Platform',
             },
             body: JSON.stringify({
               model: targetOrModel,
               messages: messagesPayload,
-              temperature: canonicalType === 'finance' ? 0.3 : 0.6,
+              temperature: canonicalType === 'finance' ? 0.2 : 0.6,
               max_tokens: maxTokensToUse,
             }),
           },
-          7000
+          3000
         );
 
         if (orRes.ok) {
           const orData: any = await orRes.json();
-          const orText = orData.choices?.[0]?.message?.content;
+          let orText = orData.choices?.[0]?.message?.content;
           if (orText && orText.trim()) {
-            replyText = orText.trim();
+            orText = orText.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*/gi, '').trim() || orText.trim();
+            replyText = orText;
             aiModel = `openrouter-${targetOrModel.split('/')[1] || targetOrModel}`;
-            provider = `OpenRouter ${targetOrModel.split('/')[1] || targetOrModel}`;
+            provider = `OpenRouter (${targetOrModel.split('/')[1] || targetOrModel})`;
             const inferenceMs = Date.now() - startTime;
-            if (logger) logger.info({ inferenceMs, model: targetOrModel, assistantType: canonicalType }, '[AI_ROUTER] OpenRouter Model Succeeded');
+            if (logger) logger.info({ inferenceMs, model: targetOrModel, assistantType: canonicalType }, '[AI_ROUTER] OpenRouter Route Succeeded');
             break;
           }
         }

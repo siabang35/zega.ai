@@ -137,19 +137,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
       const isAuthV1 = urlStr.includes('/auth/v1');
 
+      const existingAuth = headers.get('Authorization') || headers.get('authorization');
       const token = getCanonicalAccessToken();
       const isValidSupaJwt = token ? isSupabasePostgrestJwt(token) : false;
 
-      if (isValidSupaJwt && token) {
+      // If caller (e.g. supabase.auth.setSession) explicitly provided a 3-part Bearer token in options.headers, respect it!
+      if (existingAuth && existingAuth.startsWith('Bearer ')) {
+        const rawToken = existingAuth.slice(7).trim();
+        if (rawToken && rawToken.includes('.') && rawToken.split('.').length === 3 && rawToken !== supabaseAnonKey) {
+          headers.set('Authorization', existingAuth);
+        } else if (isValidSupaJwt && token) {
+          headers.set('Authorization', `Bearer ${token.trim()}`);
+        }
+      } else if (isValidSupaJwt && token) {
         headers.set('Authorization', `Bearer ${token.trim()}`);
       } else {
-        // If request is to /auth/v1 and we don't have a genuine Supabase Auth JWT,
-        // force Authorization to Bearer <anon_key> to prevent non-Supabase external JWTs
-        // from triggering 500 Internal Server Errors on /auth/v1/user
-        if (isAuthV1 || !headers.has('Authorization')) {
-          if (supabaseAnonKey) {
-            headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
-          }
+        if (!isAuthV1 && supabaseAnonKey) {
+          headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+        } else if (isAuthV1 && supabaseAnonKey && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
         }
       }
 
@@ -282,6 +288,10 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
     }
 
     // 4. Pass genuine Supabase JWT into Supabase Auth Client
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('zega_supabase_access_token', cleanAccess); } catch {}
+    }
+
     const { data, error } = await supabase.auth.setSession({
       access_token: cleanAccess,
       refresh_token: cleanRefresh,

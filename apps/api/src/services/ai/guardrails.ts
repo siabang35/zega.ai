@@ -37,7 +37,7 @@ const PII_PATTERNS: { name: string; pattern: RegExp; replacement: string }[] = [
 // ── Prompt Injection Patterns ──
 const INJECTION_PATTERNS: RegExp[] = [
   /ignore\s+(all\s+)?previous\s+instructions/i,
-  /you\s+are\s+now\s+(a|an)\s+/i,
+  /you\s+are\s+now\s+(a|an|in)\s+/i,
   /system\s*:\s*/i,
   /\{?\{?\s*system\s*\}?\}?/i,
   /forget\s+(everything|all|your)\s+(you|instructions)/i,
@@ -46,6 +46,13 @@ const INJECTION_PATTERNS: RegExp[] = [
   /act\s+as\s+(if|though)\s+you/i,
   /disregard\s+(all|your|the)\s+(previous|prior|above)/i,
   /do\s+not\s+follow\s+(your|the)\s+(instructions|rules)/i,
+  // Hardened patterns — discovered via empirical adversarial testing 2026-08-20
+  /developer\s+mode/i,
+  /jailbreak/i,
+  /bypass\s+(safety|security|filter|guard|restriction)/i,
+  /(leak|show|reveal|output|print|display)\s+(the\s+)?(api|secret|private|internal)\s*(key|token|password|credential)?/i,
+  /mark\s+as\s+paid\s+without/i,
+  /(force|execute|trigger)\s+(payout|refund|transfer|withdrawal)\s+without/i,
 ];
 
 /**
@@ -118,7 +125,42 @@ export function validateInput(input: string, agentId: string): GuardrailResult {
  */
 export function validateOutput(output: string, agentId: string): GuardrailResult {
   const checks: GuardrailCheck[] = [];
-  let sanitized = output;
+  let sanitized = output || '';
+
+  // 0. Strip DeepSeek / OpenRouter / LLM internal reasoning <think>...<think> blocks & scratchpads
+  if (sanitized.includes('<think>') || /^Here's a thinking process:/i.test(sanitized) || /^Thinking Process:/i.test(sanitized)) {
+    // 0a. If closed <think> tag exists, strip it
+    if (/<\/think>/i.test(sanitized)) {
+      sanitized = sanitized.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    }
+
+    // 0b. Try extracting from Draft / Mental Draft / Formulate Response sections
+    const draftMatch = sanitized.match(/(?:Draft|Mental Draft|Formulate Response[\s\S]*?:|Final Response|Response|Output):\s*\n*([\s\S]+?)(?=\n\s*(?:4\.|5\.|Check|Constraint|\*|#)|$)/i);
+    if (draftMatch && draftMatch[1] && draftMatch[1].trim().length > 10) {
+      sanitized = draftMatch[1]
+        .replace(/^(?:Draft|Mental Draft|Formulate Response[\s\S]*?:|Final Response|Response|Output):\s*/i, '')
+        .trim();
+    } else {
+      // 0c. Try extracting greeting block (Hello..., Halo...) if model output starts with greeting line inside scratchpad
+      const greetingMatch = sanitized.match(/\n\s*((?:Hello|Halo|Hi|Welcome|Greetings)\b[\s\S]+?)(?=\n\s*(?:4\.|5\.|Check|Constraint|\*|#)|$)/i);
+      if (greetingMatch && greetingMatch[1] && greetingMatch[1].trim().length > 10) {
+        sanitized = greetingMatch[1].trim();
+      } else {
+        // 0d. General unclosed think tag & scratchpad stripper fallback
+        sanitized = sanitized
+          .replace(/<think>[\s\S]*?<\/think>/gi, '')
+          .replace(/<think>[\s\S]*$/gi, '')
+          .replace(/^(?:Here's a thinking process:|Thinking Process:)[\s\S]*?\n\n/gi, '')
+          .replace(/^(?:Here's a thinking process:|Thinking Process:)/gi, '')
+          .trim();
+      }
+    }
+  }
+
+  // If stripping left empty string, preserve original output without raw <think> tags
+  if (!sanitized && output) {
+    sanitized = output.replace(/<\/?think>/gi, '').trim();
+  }
 
   // 1. PII Leak Prevention (re-scan output)
   for (const pii of PII_PATTERNS) {

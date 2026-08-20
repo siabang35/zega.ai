@@ -177,7 +177,7 @@ ${domainSpecificBlock}`;
 
     storeContextCache.set(cacheKey, {
       data: result,
-      expiresAt: Date.now() + 3000 // 3s short TTL for real-time profile setting updates
+      expiresAt: Date.now() + 60000 // 60s TTL for real-time context caching
     });
 
     return result;

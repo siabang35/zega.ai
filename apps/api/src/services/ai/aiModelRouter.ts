@@ -3,6 +3,7 @@ import { AIProvider, GroqProvider, OpenRouterProvider, GeminiProvider, HuggingFa
 import { CanonicalAssistantType, resolveCanonicalAssistantType, getAssistantDefinition } from './assistantRegistry.js';
 import { buildHomeContext, buildHelpContext, buildFinanceContext, buildKnowledgeContext, buildCopilotContext } from './contextBuilders.js';
 import { getAuthorizedTools, executeTool } from './toolRegistry.js';
+import { validateOutput } from './guardrails.js';
 
 export interface AssistantRequestContract {
   requestId: string;
@@ -372,8 +373,8 @@ BATAS KEAMANAN MUTLAK: Dilarang membocorkan API key, token rahasia, atau data te
       throw new Error('AI_MODEL_UNAVAILABLE: No configured AI provider succeeded in executing model inference.');
     }
 
-    // OWASP Secret Redaction
-    let safeMessage = llmResult.message;
+    // Apply OWASP Secret Redaction & Thinking Block Stripping via Output Guardrail
+    let safeMessage = llmResult.message || '';
     const sensitivePatterns = [
       /gsk_[a-zA-Z0-9_-]+/g,
       /sk-or-v1-[a-zA-Z0-9_-]+/g,
@@ -407,7 +408,8 @@ BATAS KEAMANAN MUTLAK: Dilarang membocorkan API key, token rahasia, atau data te
       completionTokens: llmResult.completionTokens
     });
 
-    const finalMessage = safeMessage;
+    const guardrailResult = validateOutput(safeMessage, assistantType);
+    const finalMessage = guardrailResult.sanitizedOutput || safeMessage;
 
     return {
       success: true,

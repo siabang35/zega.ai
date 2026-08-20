@@ -71,7 +71,13 @@ export const HelpView: React.FC<HelpViewProps> = ({ onTriggerToast, onNavigateTa
   // Clean Markdown Text Formatter for Live Chat Messages
   const renderFormattedChatMessage = (text: string) => {
     if (!text) return null;
-    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    let cleanText = text
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<think>[\s\S]*$/gi, '')
+      .replace(/^(?:Here's a thinking process:|Thinking Process:)[\s\S]*?\n\n/gi, '')
+      .replace(/^(?:Here's a thinking process:|Thinking Process:)/gi, '')
+      .trim();
+    if (!cleanText && text) cleanText = text.replace(/<\/?think>/gi, '').trim();
     if (!cleanText) return null;
     const lines = cleanText.split('\n');
 
