@@ -11675,13 +11675,20 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     try {
       const startSession = await supabase.auth.getSession();
       const startUserId = startSession?.data?.session?.user?.id;
-      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
+      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
+      const activeTenants = getActiveTenantIds();
+      const organizationId = (tenantCtx.organizationId && isValidUuid(tenantCtx.organizationId))
+        ? tenantCtx.organizationId
+        : ((activeTenants.organizationId && isValidUuid(activeTenants.organizationId)) ? activeTenants.organizationId : (activeTenants.storeId || ''));
+
+      const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (activeTenants.userId || ''));
       const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
 
       const { data, error } = await supabase
         .from('umkm_finance_ai_messages')
         .insert([{
           chat_id: payload.chat_id,
+          organization_id: organizationId,
           user_id: effectiveUserId,
           sender: payload.sender,
           sender_name: payload.sender_name || (payload.sender === 'user' ? 'Pemilik Toko' : 'ZeroClaw Finance AI'),
