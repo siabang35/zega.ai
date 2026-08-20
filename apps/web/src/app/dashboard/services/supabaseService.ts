@@ -2185,6 +2185,31 @@ export const SupabaseDashboardService = {
   // 29. Finance & Solana Pay Terminal Real-time Methods
   async getUmkmFinanceOverview(storeId: string = (getActiveTenantIds().storeId || '')) {
     try {
+      if (!storeId || !isValidUuid(storeId)) {
+        return {
+          metrics: {
+            total_revenue: 0,
+            total_expense: 0,
+            net_profit: 0,
+            profit_margin: 0,
+            cash_balance_usdc: 0,
+            cash_balance_idr: 0,
+            revenue_growth: 0,
+            expense_growth: 0,
+            profit_growth: 0,
+            margin_growth: 0,
+            period_label: 'Periode Berjalan'
+          },
+          cashflow: [],
+          expenses: [],
+          solanaTx: [],
+          invoices: [],
+          insights: [],
+          swarms: [],
+          error: null
+        };
+      }
+
       const [metricsRes, cashflowRes, expensesRes, txRes, invoicesRes, insightsRes, swarmsRes] = await Promise.all([
         safeQuery<any>(supabase.from('umkm_finance_metrics').select('*').eq('store_id', storeId).maybeSingle(), null),
         safeQuery<any[]>(supabase.from('umkm_finance_cashflow').select('*').eq('store_id', storeId).order('created_at', { ascending: true }), []),
@@ -2354,6 +2379,7 @@ export const SupabaseDashboardService = {
   },
 
   subscribeToFinanceRealtime(storeId: string, callback: () => void) {
+    if (!storeId || !isValidUuid(storeId)) return () => { };
     const channel = supabase
       .channel(`finance_realtime_${storeId}_${Date.now()}`)
       .on(

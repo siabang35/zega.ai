@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.zeroclaw_withdrawals (
     qr_payload_hash TEXT,
     security_flags JSONB DEFAULT '{"anti_tamper_passed": true, "anti_mitm_verified": true, "rpc_tls_verified": true}'::jsonb,
     anti_replay_hash TEXT UNIQUE,
+    reference_key TEXT,
     audit_signature TEXT,
     r2_cdn_proof_url TEXT,
     failure_reason TEXT,
@@ -51,6 +52,7 @@ ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS qr_device_id TE
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS qr_payload_hash TEXT;
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS security_flags JSONB DEFAULT '{"anti_tamper_passed": true, "anti_mitm_verified": true, "rpc_tls_verified": true}'::jsonb;
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS anti_replay_hash TEXT;
+ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS reference_key TEXT;
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS audit_signature TEXT;
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS r2_cdn_proof_url TEXT;
 ALTER TABLE public.zeroclaw_withdrawals ADD COLUMN IF NOT EXISTS failure_reason TEXT;

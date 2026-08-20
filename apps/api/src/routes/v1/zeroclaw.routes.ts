@@ -45,6 +45,7 @@ import {
 
 const DEFAULT_SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const DEFAULT_SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const SOLANA_USDC_MINT = envConfig.SOLANA_USDC_MINT || process.env.SOLANA_USDC_MINT || '';
 
 const INVOICES_FILE_PATH = path.resolve(process.cwd(), 'zeroclaw_invoices_store.json');
 
@@ -315,9 +316,20 @@ export function derivePrivyEmbeddedSolanaKeypair(_emailOrPubkey?: string, _speci
 /**
  * Derives default test wallet address if no registered Privy wallet address is found.
  */
-export function derivePrivyEmbeddedSolanaWallet(_email?: string): string {
+export function derivePrivyEmbeddedSolanaWallet(email?: string): string {
   assertDevnetOnly('derivePrivyEmbeddedSolanaWallet');
-  return '5627mXbzFUu2d4K1m1YKFPAYTQRKcXwnYz3SsjfG8ca9';
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return '5627mXbzFUu2d4K1m1YKFPAYTQRKcXwnYz3SsjfG8ca9';
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  try {
+    const seed = createHash('sha256').update(`zeroclaw-solana-wallet-seed-v1:${cleanEmail}`).digest();
+    const keypair = Keypair.fromSeed(seed);
+    return keypair.publicKey.toBase58();
+  } catch {
+    return '5627mXbzFUu2d4K1m1YKFPAYTQRKcXwnYz3SsjfG8ca9';
+  }
 }
 
 /**
@@ -404,7 +416,7 @@ export function deriveUsdcAta(ownerAddress: string): string | null {
   if (!ownerAddress || ownerAddress.length < 32 || ownerAddress.length > 44) return null;
   try {
     const owner = new PublicKey(ownerAddress);
-    const mint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+    const mint = new PublicKey(SOLANA_USDC_MINT);
     const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const associatedTokenProgramId = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
@@ -552,7 +564,7 @@ async function executeOnChainSolanaWithdrawal(params: {
   // ══════════════════════════════════════════════════════════════
   //  CASE 2: USDC Withdrawal (SPL Token or Live Signed SOL On-Chain Execution)
   // ══════════════════════════════════════════════════════════════
-  const usdcMint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+  const usdcMint = new PublicKey(SOLANA_USDC_MINT);
   const rawAmount = BigInt(Math.floor(amount * 1_000_000));
   const sourceAta = getAssociatedTokenAddressSync(usdcMint, merchantKeypair.publicKey);
   const destinationAta = getAssociatedTokenAddressSync(usdcMint, destPubkey);
@@ -707,9 +719,10 @@ async function upsertVerifiedInvoice(params: {
 
   try {
     // 1. Upload Cryptographic Settlement Audit Certificate to Cloudflare R2 CDN
-    let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
+    const emailVal = userEmail || 'user@zegaai.site';
+    const cleanUserDir = emailVal.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    let r2CdnUrl = `https://cdn.zegaai.site/privy-audits/${cleanUserDir}/audit_${referenceKey}.json`;
     try {
-      const emailVal = userEmail || 'user@zegaai.site';
       const merchantVal = merchantPubkey || derivePrivyEmbeddedSolanaWallet(emailVal);
       if (resolvedOrgId) {
         const r2Res = await R2StorageService.uploadPrivyAuditCertificate(emailVal, merchantVal, {
@@ -1534,11 +1547,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
+  // ── Helper: Validate UUID String ──
+  const isValidUuid = (str?: string | null): boolean => {
+    if (!str || typeof str !== 'string') return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+  };
+
   // ── Helper: Resolve User UUID from Email or UUID string ──
   const resolveUserUuid = async (userIdOrEmail?: string): Promise<string | null> => {
     if (!userIdOrEmail) return null;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userIdOrEmail);
-    if (isUuid) return userIdOrEmail;
+    if (isValidUuid(userIdOrEmail)) return userIdOrEmail;
 
     try {
       const profilePromise = SupabaseService.upsertProfile({ email: userIdOrEmail });
@@ -2042,9 +2060,10 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Upload Cryptographic Audit Certificate to Cloudflare R2 CDN & Supabase Realtime
-    let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
+    const userEmail = userId || 'user@zegaai.site';
+    const cleanUserDir = userEmail.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    let r2CdnUrl = `https://cdn.zegaai.site/privy-audits/${cleanUserDir}/audit_${referenceKey}.json`;
     try {
-      const userEmail = userId || 'user@zegaai.site';
       const walletAddr = privyWalletAddress || merchantPubkey || derivePrivyEmbeddedSolanaWallet(userEmail);
       const reqOrgId = getTenantOrg(request) || '';
       const r2Res = await R2StorageService.uploadPrivyAuditCertificate(userEmail, walletAddr, {
@@ -2218,17 +2237,16 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         if (isDemoBool) {
           queryParam = `is_demo=eq.true&${queryParam}`;
         } else {
-          const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey) : '';
+          const merchantEnc = merchantPubkey ? encodeURIComponent(merchantPubkey.trim()) : '';
           const userUuid = await resolveUserUuid(userId);
-          const userEmailEnc = encodeURIComponent(userId || 'user@zegaai.site');
+          const validUserUuid = userUuid && isValidUuid(userUuid) ? encodeURIComponent(userUuid) : '';
 
-          if (merchantEnc) {
-            queryParam = `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userUuid || ''},is_demo.eq.false)&${queryParam}`;
-          } else if (userUuid) {
-            queryParam = `or=(user_id.eq.${userUuid},buyer_email.eq.${userEmailEnc},is_demo.eq.false)&${queryParam}`;
-          } else {
-            queryParam = `order=created_at.desc&limit=100`;
-          }
+          const clauses: string[] = [];
+          if (merchantEnc) clauses.push(`merchant_pubkey.eq.${merchantEnc}`);
+          if (validUserUuid) clauses.push(`user_id.eq.${validUserUuid}`);
+          clauses.push('is_demo.eq.false');
+
+          queryParam = `or=(${clauses.join(',')})&order=created_at.desc&limit=100`;
         }
 
         let dbRes: any = null;
@@ -2244,10 +2262,13 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           });
         } catch (dbErr) { }
 
-        // Union Fetch: Also query invoices from zeroclaw_invoices to ensure all items appear in Vault Payment stream
+        // Union Fetch: Also query invoices from zeroclaw_invoices for this merchant / user
         let invoiceRows: any[] = [];
         try {
-          const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?select=*&order=created_at.desc&limit=100`, {
+          const invQuery = isDemoBool
+            ? 'is_demo=eq.true&order=created_at.desc&limit=100'
+            : `${queryParam}`;
+          const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?select=*&${invQuery}`, {
             method: 'GET',
             headers: {
               'apikey': supabaseKey,
@@ -2265,20 +2286,6 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         if (dbRes && dbRes.ok) {
           try {
             rows = (await dbRes.json()) as any[];
-            if ((!rows || rows.length === 0) && !isDemoBool) {
-              const fallbackRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_solana_settlements?order=created_at.desc&limit=100`, {
-                method: 'GET',
-                headers: {
-                  'apikey': supabaseKey,
-                  'Authorization': `Bearer ${supabaseKey}`,
-                  'Content-Type': 'application/json'
-                },
-                signal: AbortSignal.timeout(2000)
-              });
-              if (fallbackRes.ok) {
-                rows = (await fallbackRes.json()) as any[];
-              }
-            }
           } catch (rowsErr) { }
         }
 
@@ -2849,16 +2856,12 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     // ── STAGE 3: FALLBACK MERCHANT WALLET & USDC ATA PARALLEL SCAN ──
     if (!matchedEvent) {
-      const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+      const USDC_MINT = SOLANA_USDC_MINT;
       const rawWallets = Array.from(new Set([
         merchantPubkey,
         dbMerchantPubkey,
         userEmail ? derivePrivyEmbeddedSolanaWallet(userEmail) : null,
         dbUserId ? derivePrivyEmbeddedSolanaWallet(dbUserId) : null,
-        'EAJiHTbx5P2qdaCv31DJePF1kB3YZzk2fhs2yXfkEuxr',
-        '5mrbuyr6n4QBVq2HfBDwinbMuybgm4yrbpW3bpCf6y71',
-        'J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9',
-        'HW5ehmVyB31eXoEHiyuJGV6EWucisNmfzC111pZ8dpMn',
       ].filter(Boolean) as string[]));
 
       // Derive deterministic USDC Associated Token Accounts (ATAs) for all merchant wallets in pool
@@ -3154,7 +3157,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       zeroClawSignatureMonitor.registerMonitoredAddress(effectiveMerchantWallet, 'merchant', userEmail, amountUsdc, customerTarget || telegramChannel, 'telegram');
     }
 
-    let r2CdnUrl = 'https://cdn.zegaai.site/privy-audits/demo/audit.json';
+    const cleanUserDir = (userEmail || 'user@zegaai.site').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    let r2CdnUrl = `https://cdn.zegaai.site/privy-audits/${cleanUserDir}/audit_${referenceKey}.json`;
     try {
       const userUuid = await resolveUserUuid(userEmail);
 
@@ -3415,7 +3419,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         created_at: invoiceMatch.created_at || new Date().toISOString(),
         expires_at: invoiceMatch.created_at ? new Date(new Date(invoiceMatch.created_at).getTime() + 5 * 60 * 1000).toISOString() : null,
         solana_pay_url: solanaPayUrl,
-        r2_cdn_url: invoiceMatch.r2_cdn_url || 'https://cdn.zegaai.site/privy-audits/demo/audit.json'
+        r2_cdn_url: invoiceMatch.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${(invoiceMatch.user_id || 'user@zegaai.site').toLowerCase().trim().replace(/[^a-z0-9]/g, '_')}/audit_${invoiceMatch.reference_key || targetRef}.json`
       }
     });
   });
@@ -3674,7 +3678,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const { merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC' } = request.body || {};
     const userEmail = authenticatedUser;
     const amountVal = Number(amount) || 0;
-    const USDC_MINT_STR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+    const USDC_MINT_STR = SOLANA_USDC_MINT;
 
     // 1. Amount Validation
     if (amountVal <= 0) {
@@ -4070,7 +4074,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const { merchantPubkey, destinationAddress, amount, tokenSymbol = 'USDC', otp, qrScanned = false, qrDeviceId = 'cam_device_default', qrPayloadHash, txSignature: clientTxSignature, signedTxBase64, withdrawalId: reqWithdrawalId, authorizationAttemptId: reqAuthAttemptId } = request.body || {};
     const userEmail = authenticatedUser;
     const amountVal = Number(amount) || 0;
-    const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
+    const USDC_MINT = SOLANA_USDC_MINT;
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -4694,44 +4698,54 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           'Prefer': 'return=representation'
         };
 
-        await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals`, {
+        const basePayload: any = {
+          user_id: userEmail,
+          merchant_pubkey: effectiveMerchant,
+          destination_address: cleanDest,
+          amount_sol: tokenSymbol === 'SOL' ? amountVal : 0,
+          amount_usdc: tokenSymbol === 'USDC' ? amountVal : 0,
+          token_symbol: tokenSymbol,
+          tx_signature: realTxSig,
+          status: 'completed',
+          security_check_passed: true,
+          otp_verified: true,
+          otp_verified_at: new Date().toISOString(),
+          ip_address: request.ip || '127.0.0.1',
+          user_agent: request.headers['user-agent'] || 'ZeroClawTerminal/2.0',
+          risk_score: 0.00,
+          qr_scanned: Boolean(qrScanned),
+          qr_device_id: qrDeviceId,
+          qr_payload_hash: qrPayloadHash || createHash('sha256').update(cleanDest).digest('hex'),
+          security_flags: {
+            layer1_otp_verified: true,
+            layer2_ownership_verified: true,
+            layer3_address_validated: true,
+            layer4_balance_sufficient: true,
+            layer5_anti_replay_passed: true,
+            layer6_rate_limit_passed: true,
+            layer7_audit_signed: true,
+            on_chain_balance_at_time: { sol: onChainSol, usdc: onChainUsdc }
+          },
+          anti_replay_hash: antiReplayHash,
+          audit_signature: auditSignature,
+          r2_cdn_proof_url: r2CdnProofUrl,
+          created_at: new Date().toISOString()
+        };
+
+        let insertRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            user_id: userEmail,
-            merchant_pubkey: effectiveMerchant,
-            destination_address: cleanDest,
-            amount_sol: tokenSymbol === 'SOL' ? amountVal : 0,
-            amount_usdc: tokenSymbol === 'USDC' ? amountVal : 0,
-            token_symbol: tokenSymbol,
-            tx_signature: realTxSig,
-            reference_key: referenceKey,
-            status: 'completed',
-            security_check_passed: true,
-            otp_verified: true,
-            otp_verified_at: new Date().toISOString(),
-            ip_address: request.ip || '127.0.0.1',
-            user_agent: request.headers['user-agent'] || 'ZeroClawTerminal/2.0',
-            risk_score: 0.00,
-            qr_scanned: Boolean(qrScanned),
-            qr_device_id: qrDeviceId,
-            qr_payload_hash: qrPayloadHash || createHash('sha256').update(cleanDest).digest('hex'),
-            security_flags: {
-              layer1_otp_verified: true,
-              layer2_ownership_verified: true,
-              layer3_address_validated: true,
-              layer4_balance_sufficient: true,
-              layer5_anti_replay_passed: true,
-              layer6_rate_limit_passed: true,
-              layer7_audit_signed: true,
-              on_chain_balance_at_time: { sol: onChainSol, usdc: onChainUsdc }
-            },
-            anti_replay_hash: antiReplayHash,
-            audit_signature: auditSignature,
-            r2_cdn_proof_url: r2CdnProofUrl,
-            created_at: new Date().toISOString(),
-          })
+          body: JSON.stringify({ ...basePayload, reference_key: referenceKey })
         });
+
+        if (!insertRes.ok) {
+          logger.warn({ status: insertRes.status }, '⚠️ Direct PostgREST withdrawal insert failed with reference_key, retrying with base payload...');
+          insertRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(basePayload)
+          });
+        }
 
         await SupabaseService.logAuditEvent({
           userId: userEmail,
@@ -4797,8 +4811,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // ── GET /v1/zeroclaw/withdraw/list ── Fetch Withdrawal Records for Merchant Wallet
-  fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string } }>('/withdraw/list', async (request, reply) => {
-    const { userId, merchantPubkey } = request.query || {};
+  fastify.get<{ Querystring: { userId?: string; merchantPubkey?: string; organizationId?: string } }>('/withdraw/list', async (request, reply) => {
+    const { userId, merchantPubkey, organizationId } = request.query || {};
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -4807,14 +4821,20 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         const orderParam = 'order=created_at.desc&limit=50';
         let queryParam = orderParam;
 
-        if (merchantPubkey && userId) {
-          const encM = encodeURIComponent(merchantPubkey.trim());
-          const encU = encodeURIComponent(userId.trim());
-          queryParam = `or=(merchant_pubkey.eq.${encM},user_id.eq.${encU})&${orderParam}`;
-        } else if (merchantPubkey) {
-          queryParam = `merchant_pubkey=eq.${encodeURIComponent(merchantPubkey.trim())}&${orderParam}`;
-        } else if (userId) {
-          queryParam = `user_id=eq.${encodeURIComponent(userId.trim())}&${orderParam}`;
+        const cleanM = merchantPubkey ? merchantPubkey.trim() : '';
+        const cleanU = userId ? userId.trim() : '';
+        const cleanOrg = organizationId ? organizationId.trim() : '';
+        const userUuid = await resolveUserUuid(cleanU);
+        const isUserUuid = userUuid && isValidUuid(userUuid);
+
+        const conditions: string[] = [];
+        if (cleanM) conditions.push(`merchant_pubkey.eq.${encodeURIComponent(cleanM)}`);
+        if (cleanU) conditions.push(`user_id.eq.${encodeURIComponent(cleanU)}`);
+        if (isUserUuid) conditions.push(`user_id.eq.${encodeURIComponent(userUuid!)}`);
+        if (cleanOrg) conditions.push(`organization_id.eq.${encodeURIComponent(cleanOrg)}`);
+
+        if (conditions.length > 0) {
+          queryParam = `or=(${conditions.join(',')})&${orderParam}`;
         }
 
         const headers = {
@@ -4830,9 +4850,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
         let rows: any[] = dbRes.ok ? ((await dbRes.json()) as any[]) : [];
 
-        // Fallback: If filtered query yields no results, fetch recent withdrawals
-        if (rows.length === 0 && (merchantPubkey || userId)) {
-          const fallbackRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals?${orderParam}`, {
+        // Fallback: If filtered query yielded 0 rows, attempt fetching recent rows
+        if ((!rows || rows.length === 0) && conditions.length > 0) {
+          let fallbackRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals?${orderParam}`, {
             method: 'GET',
             headers
           });
@@ -4862,6 +4882,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
             security_flags: r.security_flags,
             r2_cdn_proof_url: r.r2_cdn_proof_url,
             created_at: r.created_at,
+            organization_id: r.organization_id,
           }));
 
           return reply.send({
@@ -4995,161 +5016,187 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/balance ── 100% Real On-Chain Solana Devnet SOL & SPL USDC Balance
   fastify.get<{ Querystring: { address?: string; merchantPubkey?: string; userId?: string } }>('/balance', async (request, reply) => {
-    const { address, merchantPubkey, userId } = request.query || {};
-    const registeredWallet = userId ? await getRegisteredPrivyWalletAddress(userId) : null;
-    const targetWallet = (address || merchantPubkey || registeredWallet || derivePrivyEmbeddedSolanaWallet(userId)).trim();
-    const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-
-    let solBalanceNum = 0;
-    let onChainUsdcNum = 0;
-
-    // ── Step 1: Fetch REAL SOL Balance via raw JSON-RPC getBalance ──
     try {
-      if (targetWallet && targetWallet.length >= 32 && targetWallet.length <= 44) {
-        const balResult = await solanaRpcManager.callRpc<any>('getBalance', [targetWallet]).catch(() => null);
-        const rawLamports = typeof balResult === 'number'
-          ? balResult
-          : (typeof balResult?.value === 'number' ? balResult.value : null);
-
-        if (typeof rawLamports === 'number') {
-          solBalanceNum = rawLamports / 1e9;
-        }
-      }
-    } catch (e) {
-      logger.warn({ e, wallet: targetWallet }, 'SOL getBalance RPC failed');
-    }
-
-    // Direct RPC Fallback for SOL getBalance
-    if (solBalanceNum === 0 && targetWallet && targetWallet.length >= 32) {
-      for (const rpcUrl of ['https://api.devnet.solana.com', 'https://rpc.ankr.com/solana_devnet']) {
-        try {
-          const res = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: '2.0', id: 'bal', method: 'getBalance', params: [targetWallet] })
-          });
-          if (res.ok) {
-            const json = (await res.json()) as any;
-            const lamports = json?.result?.value ?? json?.result;
-            if (typeof lamports === 'number') {
-              solBalanceNum = lamports / 1e9;
-              break;
-            }
-          }
-        } catch { }
-      }
-    }
-
-    // ── Step 2: Fetch REAL SPL USDC Token Balance via raw JSON-RPC getTokenAccountsByOwner ──
-    try {
-      if (targetWallet && targetWallet.length >= 32 && targetWallet.length <= 44) {
-        const tokenResult = await solanaRpcManager.callRpc<{ value: any[] }>(
-          'getTokenAccountsByOwner',
-          [targetWallet, { mint: USDC_MINT }, { encoding: 'jsonParsed' }]
-        ).catch(() => null);
-
-        if (tokenResult && tokenResult.value && Array.isArray(tokenResult.value)) {
-          for (const acct of tokenResult.value) {
-            const info = acct?.account?.data?.parsed?.info;
-            if (info && info.tokenAmount) {
-              const uiAmt = parseFloat(info.tokenAmount.uiAmountString || '0');
-              onChainUsdcNum += uiAmt;
-            }
-          }
-        }
-
-        logger.info({ wallet: targetWallet, onChainUsdcNum, tokenAccounts: tokenResult?.value?.length || 0 },
-          '💰 Real On-Chain SPL USDC Token Balance Fetched');
-      }
-    } catch (e) {
-      logger.warn({ e, wallet: targetWallet }, 'SPL USDC getTokenAccountsByOwner RPC failed');
-    }
-
-    // Direct RPC Fallback for SPL USDC getTokenAccountsByOwner
-    if (onChainUsdcNum === 0 && targetWallet && targetWallet.length >= 32) {
-      for (const rpcUrl of ['https://api.devnet.solana.com', 'https://rpc.ankr.com/solana_devnet']) {
-        try {
-          const res = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0', id: 'tok',
-              method: 'getTokenAccountsByOwner',
-              params: [targetWallet, { mint: USDC_MINT }, { encoding: 'jsonParsed' }]
-            })
-          });
-          if (res.ok) {
-            const json = (await res.json()) as any;
-            const accounts = json?.result?.value || json?.result;
-            if (Array.isArray(accounts)) {
-              for (const acct of accounts) {
-                const uiAmt = parseFloat(acct?.account?.data?.parsed?.info?.tokenAmount?.uiAmountString || '0');
-                onChainUsdcNum += uiAmt;
-              }
-              if (onChainUsdcNum > 0) break;
-            }
-          }
-        } catch { }
-      }
-    }
-
-    // ── Step 3: Fetch DB Net Balance Accounting (Total Invoices Paid - Total Completed Withdrawals) ──
-    let dbTotalPaidUsdc = 0;
-    let dbTotalWithdrawnUsdc = 0;
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey && targetWallet) {
+      const { address, merchantPubkey, userId } = request.query || {};
+      let registeredWallet: string | null = null;
       try {
-        const merchantEnc = encodeURIComponent(targetWallet);
-        const userEmailEnc = userId ? encodeURIComponent(userId) : '';
+        registeredWallet = userId ? await getRegisteredPrivyWalletAddress(userId) : null;
+      } catch { }
 
-        // Fetch Total Invoices Paid
-        const invQuery = userEmailEnc
-          ? `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userEmailEnc})&status=eq.paid`
-          : `merchant_pubkey=eq.${merchantEnc}&status=eq.paid`;
-        const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?${invQuery}`, {
-          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-        });
-        if (invRes.ok) {
-          const invRows = (await invRes.json()) as any[];
-          dbTotalPaidUsdc = invRows.reduce((sum, r) => sum + (parseFloat(r.paid_amount_usdc || r.amount_usdc) || 0), 0);
-        }
+      let targetWallet = (address || merchantPubkey || registeredWallet || '').trim();
+      if (!targetWallet && userId) {
+        try {
+          targetWallet = derivePrivyEmbeddedSolanaWallet(userId);
+        } catch { }
+      }
+      const USDC_MINT = SOLANA_USDC_MINT;
 
-        // Fetch Total Completed Withdrawals
-        const wdQuery = userEmailEnc
-          ? `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userEmailEnc})&status=eq.completed`
-          : `merchant_pubkey=eq.${merchantEnc}&status=eq.completed`;
-        const wdRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals?${wdQuery}`, {
-          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
-        });
-        if (wdRes.ok) {
-          const wdRows = (await wdRes.json()) as any[];
-          dbTotalWithdrawnUsdc = wdRows.reduce((sum, r) => sum + (parseFloat(r.amount_usdc) || 0), 0);
+      let solBalanceNum = 0;
+      let onChainUsdcNum = 0;
+
+      // ── Step 1: Fetch REAL SOL Balance via raw JSON-RPC getBalance ──
+      try {
+        if (targetWallet && targetWallet.length >= 32 && targetWallet.length <= 44) {
+          const balResult = await solanaRpcManager.callRpc<any>('getBalance', [targetWallet]).catch(() => null);
+          const rawLamports = typeof balResult === 'number'
+            ? balResult
+            : (typeof balResult?.value === 'number' ? balResult.value : null);
+
+          if (typeof rawLamports === 'number') {
+            solBalanceNum = rawLamports / 1e9;
+          }
         }
       } catch (e) {
-        logger.warn({ e }, 'GET /balance: DB balance query exception');
+        logger.warn({ e, wallet: targetWallet }, 'SOL getBalance RPC failed');
       }
+
+      // Direct RPC Fallback for SOL getBalance
+      if (solBalanceNum === 0 && targetWallet && targetWallet.length >= 32) {
+        for (const rpcUrl of ['https://api.devnet.solana.com', 'https://rpc.ankr.com/solana_devnet']) {
+          try {
+            const res = await fetch(rpcUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', id: 'bal', method: 'getBalance', params: [targetWallet] })
+            });
+            if (res.ok) {
+              const json = (await res.json()) as any;
+              const lamports = json?.result?.value ?? json?.result;
+              if (typeof lamports === 'number') {
+                solBalanceNum = lamports / 1e9;
+                break;
+              }
+            }
+          } catch { }
+        }
+      }
+
+      // ── Step 2: Fetch REAL SPL USDC Token Balance via raw JSON-RPC getTokenAccountsByOwner ──
+      try {
+        if (targetWallet && targetWallet.length >= 32 && targetWallet.length <= 44) {
+          const tokenResult = await solanaRpcManager.callRpc<{ value: any[] }>(
+            'getTokenAccountsByOwner',
+            [targetWallet, { mint: USDC_MINT }, { encoding: 'jsonParsed' }]
+          ).catch(() => null);
+
+          if (tokenResult && tokenResult.value && Array.isArray(tokenResult.value)) {
+            for (const acct of tokenResult.value) {
+              const info = acct?.account?.data?.parsed?.info;
+              if (info && info.tokenAmount) {
+                const uiAmt = parseFloat(info.tokenAmount.uiAmountString || '0');
+                onChainUsdcNum += uiAmt;
+              }
+            }
+          }
+
+          logger.info({ wallet: targetWallet, onChainUsdcNum, tokenAccounts: tokenResult?.value?.length || 0 },
+            '💰 Real On-Chain SPL USDC Token Balance Fetched');
+        }
+      } catch (e) {
+        logger.warn({ e, wallet: targetWallet }, 'SPL USDC getTokenAccountsByOwner RPC failed');
+      }
+
+      // Direct RPC Fallback for SPL USDC getTokenAccountsByOwner
+      if (onChainUsdcNum === 0 && targetWallet && targetWallet.length >= 32) {
+        for (const rpcUrl of ['https://api.devnet.solana.com', 'https://rpc.ankr.com/solana_devnet']) {
+          try {
+            const res = await fetch(rpcUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0', id: 'tok',
+                method: 'getTokenAccountsByOwner',
+                params: [targetWallet, { mint: USDC_MINT }, { encoding: 'jsonParsed' }]
+              })
+            });
+            if (res.ok) {
+              const json = (await res.json()) as any;
+              const accounts = json?.result?.value || json?.result;
+              if (Array.isArray(accounts)) {
+                for (const acct of accounts) {
+                  const uiAmt = parseFloat(acct?.account?.data?.parsed?.info?.tokenAmount?.uiAmountString || '0');
+                  onChainUsdcNum += uiAmt;
+                }
+                if (onChainUsdcNum > 0) break;
+              }
+            }
+          } catch { }
+        }
+      }
+
+      // ── Step 3: Fetch DB Net Balance Accounting (Total Invoices Paid - Total Completed Withdrawals) ──
+      let dbTotalPaidUsdc = 0;
+      let dbTotalWithdrawnUsdc = 0;
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+      if (supabaseUrl && supabaseKey && targetWallet) {
+        try {
+          const merchantEnc = encodeURIComponent(targetWallet);
+          const userEmailEnc = userId ? encodeURIComponent(userId) : '';
+
+          // Fetch Total Invoices Paid
+          const invQuery = userEmailEnc
+            ? `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userEmailEnc})&status=eq.paid`
+            : `merchant_pubkey=eq.${merchantEnc}&status=eq.paid`;
+          const invRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_invoices?${invQuery}`, {
+            headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+          });
+          if (invRes.ok) {
+            const invRows = (await invRes.json()) as any[];
+            dbTotalPaidUsdc = invRows.reduce((sum, r) => sum + (parseFloat(r.paid_amount_usdc || r.amount_usdc) || 0), 0);
+          }
+
+          // Fetch Total Completed Withdrawals
+          const wdQuery = userEmailEnc
+            ? `or=(merchant_pubkey.eq.${merchantEnc},user_id.eq.${userEmailEnc})&status=eq.completed`
+            : `merchant_pubkey=eq.${merchantEnc}&status=eq.completed`;
+          const wdRes = await fetch(`${supabaseUrl}/rest/v1/zeroclaw_withdrawals?${wdQuery}`, {
+            headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+          });
+          if (wdRes.ok) {
+            const wdRows = (await wdRes.json()) as any[];
+            dbTotalWithdrawnUsdc = wdRows.reduce((sum, r) => sum + (parseFloat(r.amount_usdc) || 0), 0);
+          }
+        } catch (e) {
+          logger.warn({ e }, 'GET /balance: DB balance query exception');
+        }
+      }
+
+      const dbNetAvailableUsdc = Math.max(0, dbTotalPaidUsdc - dbTotalWithdrawnUsdc);
+      // 100% Pure Real On-Chain SPL USDC Token Balance (0% DB storage fallback calculation)
+      const effectiveUsdcNum = onChainUsdcNum;
+
+      // ── Step 4: Return 100% real on-chain and DB net balances ──
+      return reply.send({
+        success: true,
+        merchantWallet: targetWallet,
+        solBalance: solBalanceNum.toFixed(4),
+        usdcBalance: effectiveUsdcNum.toFixed(2),
+        solBalanceNum,
+        usdcBalanceNum: effectiveUsdcNum,
+        onChainSol: solBalanceNum,
+        onChainUsdc: onChainUsdcNum,
+        dbNetAvailableUsdc,
+        dbTotalPaidUsdc,
+        dbTotalWithdrawnUsdc
+      });
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, 'GET /balance exception guard');
+      return reply.send({
+        success: true,
+        merchantWallet: '',
+        solBalance: '0.0000',
+        usdcBalance: '0.00',
+        solBalanceNum: 0,
+        usdcBalanceNum: 0,
+        onChainSol: 0,
+        onChainUsdc: 0,
+        dbNetAvailableUsdc: 0,
+        dbTotalPaidUsdc: 0,
+        dbTotalWithdrawnUsdc: 0
+      });
     }
-
-    const dbNetAvailableUsdc = Math.max(0, dbTotalPaidUsdc - dbTotalWithdrawnUsdc);
-    // 100% Pure Real On-Chain SPL USDC Token Balance (0% DB storage fallback calculation)
-    const effectiveUsdcNum = onChainUsdcNum;
-
-    // ── Step 4: Return 100% real on-chain and DB net balances ──
-    return reply.send({
-      success: true,
-      merchantWallet: targetWallet,
-      solBalance: solBalanceNum.toFixed(4),
-      usdcBalance: effectiveUsdcNum.toFixed(2),
-      solBalanceNum,
-      usdcBalanceNum: effectiveUsdcNum,
-      onChainSol: solBalanceNum,
-      onChainUsdc: onChainUsdcNum,
-      dbNetAvailableUsdc,
-      dbTotalPaidUsdc,
-      dbTotalWithdrawnUsdc
-    });
   });
 
   // ── DELETE /v1/zeroclaw/settlement/:id ── Delete a specific settled payment record from Supabase DB & Vault
@@ -5281,133 +5328,146 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /v1/zeroclaw/solana-rpc ── Query REAL Solana Devnet RPC Live via ZeroClaw Monitor!
   fastify.get<{ Querystring: { address?: string } }>('/solana-rpc', async (request, reply) => {
-    const userEmail = (request as any).user?.email ||
-      (request.headers['x-user-email'] as string) ||
-      (request.headers['x-user-id'] as string) ||
-      (request.query?.address as string);
-
-    const registeredWallet = userEmail ? await getRegisteredPrivyWalletAddress(userEmail) : null;
-    const address = request.query.address || registeredWallet || derivePrivyEmbeddedSolanaWallet();
-    const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
-
+    let address = (request.query?.address || '').trim();
     try {
+      const userEmail = (request as any).user?.email ||
+        (request.headers['x-user-email'] as string) ||
+        (request.headers['x-user-id'] as string) ||
+        (request.query?.address as string);
+
+      let registeredWallet: string | null = null;
+      try {
+        registeredWallet = userEmail ? await getRegisteredPrivyWalletAddress(userEmail) : null;
+      } catch { }
+
+      if (!address && registeredWallet) {
+        address = registeredWallet;
+      }
+      if (!address && userEmail) {
+        try {
+          address = derivePrivyEmbeddedSolanaWallet(userEmail);
+        } catch { }
+      }
+      const USDC_MINT = SOLANA_USDC_MINT;
+
       // Direct Transaction Signature Check (Length > 60 chars) — Use ZeroClaw On-Chain Parser
-      if (address.length > 60) {
-        const parsedTx = await zeroClawSignatureMonitor.parseOnChainTxSignature(address);
-        if (parsedTx && parsedTx.isVerified) {
-          return reply.send({
-            success: true,
-            network: 'solana-devnet',
-            rpcUrl: DEVNET_RPC_URL,
-            address,
-            signatures: [{
-              signature: parsedTx.signature,
-              slot: parsedTx.slot,
-              confirmationStatus: parsedTx.confirmationStatus,
-              err: parsedTx.err,
-              blockTime: parsedTx.blockTime || Math.floor(Date.now() / 1000),
-              amountUsdc: parsedTx.amountUsdc,
-              amountSol: parsedTx.amountSol,
-              sender: parsedTx.sender,
-              recipient: parsedTx.recipient,
-              memo: parsedTx.memo,
-            }],
-          });
+        if (address.length > 60) {
+          const parsedTx = await zeroClawSignatureMonitor.parseOnChainTxSignature(address);
+          if (parsedTx && parsedTx.isVerified) {
+            return reply.send({
+              success: true,
+              network: 'solana-devnet',
+              rpcUrl: DEVNET_RPC_URL,
+              address,
+              signatures: [{
+                signature: parsedTx.signature,
+                slot: parsedTx.slot,
+                confirmationStatus: parsedTx.confirmationStatus,
+                err: parsedTx.err,
+                blockTime: parsedTx.blockTime || Math.floor(Date.now() / 1000),
+                amountUsdc: parsedTx.amountUsdc,
+                amountSol: parsedTx.amountSol,
+                sender: parsedTx.sender,
+                recipient: parsedTx.recipient,
+                memo: parsedTx.memo,
+              }],
+            });
+          }
         }
-      }
 
-      const allSigs: any[] = [];
+        const allSigs: any[] = [];
 
-      // 1. Query signatures directly for main SOL address / Reference Key via Parallel RPC Racing
-      const mainSigs = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
-        address,
-        { limit: 10, commitment: 'confirmed' }
-      ]).catch(() => null);
-      if (Array.isArray(mainSigs)) {
-        allSigs.push(...mainSigs);
-      }
-
-      // 2. Query USDC Associated Token Accounts (ATA) for address if valid pubkey
-      if (address.length <= 44) {
-        const ataRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
+        // 1. Query signatures directly for main SOL address / Reference Key via Parallel RPC Racing
+        const mainSigs = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
           address,
-          { mint: USDC_MINT },
-          { encoding: 'jsonParsed' }
+          { limit: 10, commitment: 'confirmed' }
         ]).catch(() => null);
-        const tokenAccounts = ataRes?.value || [];
+        if (Array.isArray(mainSigs)) {
+          allSigs.push(...mainSigs);
+        }
 
-        // 3. Query signatures for each USDC ATA found
-        for (const ta of tokenAccounts) {
-          if (ta.pubkey) {
-            const ataSigs = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
-              ta.pubkey,
-              { limit: 10, commitment: 'confirmed' }
-            ]).catch(() => null);
-            if (Array.isArray(ataSigs)) {
-              allSigs.push(...ataSigs);
+        // 2. Query USDC Associated Token Accounts (ATA) for address if valid pubkey
+        if (address.length <= 44) {
+          const ataRes = await zeroClawSignatureMonitor.callFastRpcParallel('getTokenAccountsByOwner', [
+            address,
+            { mint: USDC_MINT },
+            { encoding: 'jsonParsed' }
+          ]).catch(() => null);
+          const tokenAccounts = ataRes?.value || [];
+
+          // 3. Query signatures for each USDC ATA found
+          for (const ta of tokenAccounts) {
+            if (ta.pubkey) {
+              const ataSigs = await zeroClawSignatureMonitor.callFastRpcParallel('getSignaturesForAddress', [
+                ta.pubkey,
+                { limit: 10, commitment: 'confirmed' }
+              ]).catch(() => null);
+              if (Array.isArray(ataSigs)) {
+                allSigs.push(...ataSigs);
+              }
             }
           }
         }
-      }
 
-      // 4. Enrich signatures with real parsed on-chain transfer details & filter out unparsed non-payments
-      const sigMap = new Map<string, any>();
-      for (const item of allSigs) {
-        if (item.signature && !sigMap.has(item.signature)) {
-          sigMap.set(item.signature, item);
+        // 4. Enrich signatures with real parsed on-chain transfer details & filter out unparsed non-payments
+        const sigMap = new Map<string, any>();
+        for (const item of allSigs) {
+          if (item.signature && !sigMap.has(item.signature)) {
+            sigMap.set(item.signature, item);
+          }
         }
+        const sortedSignatures = Array.from(sigMap.values())
+          .sort((a, b) => (b.slot || 0) - (a.slot || 0))
+          .slice(0, 15);
+
+        const enrichedSignatures = await Promise.all(
+          sortedSignatures.map(async (item) => {
+            try {
+              const parsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(item.signature);
+              if (parsed && parsed.isVerified && (parsed.amountUsdc > 0 || parsed.amountSol > 0)) {
+                const displayAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : parsed.amountSol;
+                const symbol = parsed.amountUsdc > 0 ? 'USDC' : 'SOL';
+                return {
+                  ...item,
+                  amountUsdc: parsed.amountUsdc,
+                  amountSol: parsed.amountSol,
+                  amount: displayAmt,
+                  tokenSymbol: symbol,
+                  sender: parsed.sender,
+                  recipient: parsed.recipient,
+                  memo: parsed.memo || `On-Chain Real Devnet Settlement (${displayAmt.toFixed(4)} ${symbol})`,
+                  isVerifiedPayment: true,
+                };
+              }
+            } catch { }
+            return {
+              ...item,
+              amountUsdc: null,
+              isVerifiedPayment: false,
+            };
+          })
+        );
+
+        const validVerifiedSignatures = enrichedSignatures.filter(s => s.isVerifiedPayment && ((typeof s.amountUsdc === 'number' && s.amountUsdc > 0) || (typeof s.amountSol === 'number' && s.amountSol > 0)));
+
+        return reply.send({
+          success: true,
+          network: 'solana-devnet',
+          rpcUrl: DEVNET_RPC_URL,
+          address,
+          signatures: validVerifiedSignatures,
+        });
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, 'GET /solana-rpc outer exception guard');
+        return reply.send({
+          success: true,
+          network: 'solana-devnet',
+          rpcUrl: DEVNET_RPC_URL,
+          address: address || '',
+          signatures: [],
+        });
       }
-      const sortedSignatures = Array.from(sigMap.values())
-        .sort((a, b) => (b.slot || 0) - (a.slot || 0))
-        .slice(0, 15);
-
-      const enrichedSignatures = await Promise.all(
-        sortedSignatures.map(async (item) => {
-          try {
-            const parsed = await zeroClawSignatureMonitor.parseOnChainTxSignature(item.signature);
-            if (parsed && parsed.isVerified && (parsed.amountUsdc > 0 || parsed.amountSol > 0)) {
-              const displayAmt = parsed.amountUsdc > 0 ? parsed.amountUsdc : parsed.amountSol;
-              const symbol = parsed.amountUsdc > 0 ? 'USDC' : 'SOL';
-              return {
-                ...item,
-                amountUsdc: parsed.amountUsdc,
-                amountSol: parsed.amountSol,
-                amount: displayAmt,
-                tokenSymbol: symbol,
-                sender: parsed.sender,
-                recipient: parsed.recipient,
-                memo: parsed.memo || `On-Chain Real Devnet Settlement (${displayAmt.toFixed(4)} ${symbol})`,
-                isVerifiedPayment: true,
-              };
-            }
-          } catch { }
-          return {
-            ...item,
-            amountUsdc: null,
-            isVerifiedPayment: false,
-          };
-        })
-      );
-
-      const validVerifiedSignatures = enrichedSignatures.filter(s => s.isVerifiedPayment && ((typeof s.amountUsdc === 'number' && s.amountUsdc > 0) || (typeof s.amountSol === 'number' && s.amountSol > 0)));
-
-      return reply.send({
-        success: true,
-        network: 'solana-devnet',
-        rpcUrl: DEVNET_RPC_URL,
-        address,
-        signatures: validVerifiedSignatures,
-      });
-    } catch (err: any) {
-      return reply.send({
-        success: true,
-        network: 'solana-devnet',
-        rpcUrl: DEVNET_RPC_URL,
-        address,
-        signatures: [],
-      });
-    }
-  });
+    });
 
 
 
@@ -6233,9 +6293,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const memo = action?.memo || 'ZEGA AI Merchant Payment';
 
     // T1 Keyless: We construct the Solana Pay URL and return it
-    // In a full implementation, this would build an unsigned SPL transfer transaction
-    // and return its base64 encoding for the wallet to sign
-    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${action?.referenceKey || actionId}`;
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=${SOLANA_USDC_MINT}&reference=${action?.referenceKey || actionId}`;
 
     reply.header('Access-Control-Allow-Origin', '*');
     return reply.send({
@@ -6246,7 +6304,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         from: account,
         to: recipient,
         amount: amount,
-        mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+        mint: SOLANA_USDC_MINT,
         reference: action?.referenceKey || actionId,
         memo,
       })).toString('base64'),
@@ -6357,7 +6415,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0', id: 'usdc', method: 'getTokenAccountsByOwner',
-          params: [wallet, { mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' }, { encoding: 'jsonParsed' }],
+          params: [wallet, { mint: SOLANA_USDC_MINT }, { encoding: 'jsonParsed' }],
         }),
       });
       const usdcJson = (await usdcRes.json()) as any;
@@ -6576,7 +6634,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     activeActions.set(actionId, { amount, recipient, memo: `Telegram Order (${userText})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
 
-    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}&label=ZEGA%20Merchant&message=Telegram%20Invoice%20Order`;
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=${SOLANA_USDC_MINT}&reference=${referenceKey}&label=ZEGA%20Merchant&message=Telegram%20Invoice%20Order`;
     const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
 
     const formattedTelegramResponse = {
@@ -6650,7 +6708,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
 
     activeActions.set(actionId, { amount, recipient, memo: `WhatsApp Order (${text || 'Direct Order'})`, label: `Pay ${amount.toFixed(2)} USDC`, referenceKey });
 
-    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU&reference=${referenceKey}&label=ZEGA%20WhatsApp%20Merchant`;
+    const solanaPayUrl = `solana:${recipient}?amount=${amount.toFixed(2)}&spl-token=${SOLANA_USDC_MINT}&reference=${referenceKey}&label=ZEGA%20WhatsApp%20Merchant`;
     const blinkUrl = `https://dial.to/?action=solana-action:${encodeURIComponent(`https://zega-ai.onrender.com/v1/zeroclaw/actions/${actionId}`)}`;
 
     const whatsAppMessage = `🧾 *ZEGA MERCHANT INVOICE (WhatsApp)*\n\n` +
@@ -6915,7 +6973,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       // Use HTML parse_mode to avoid underscore issues in usernames like @Soft_yee
       const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checksumBadge = `${recipient.slice(0, 4)}...${recipient.slice(-4)}`;
-      const cdnAuditProofUrl = `https://cdn.zegaai.site/privy-audits/${cleanTarget.toLowerCase().replace(/[^a-z0-9]/g, '_')}/audit_${referenceKey}.json`;
+      const senderEmailVal = (request.body as any)?.userEmail || (request.body as any)?.userId || request.principal?.email || request.principal?.userId || 'user@zegaai.site';
+      const cleanUserDir = senderEmailVal.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+      const cdnAuditProofUrl = (request.body as any)?.r2CdnUrl || (request.body as any)?.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${cleanUserDir}/audit_${referenceKey}.json`;
 
       const formattedCaption =
         `${t.invoiceCaption.headerTitle}\n` +

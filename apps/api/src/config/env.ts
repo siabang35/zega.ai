@@ -82,6 +82,7 @@ const envSchema = z.object({
   SOLANA_RPC_3: z.string().default(''),
   SOLANA_RPC_4: z.string().default(''),
   SOLANA_NETWORK: z.enum(['devnet', 'testnet', 'mainnet-beta']).default('devnet'),
+  SOLANA_USDC_MINT: z.string().default('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
   MAX_WITHDRAWAL_SOL: z.coerce.number().default(10),
   MAX_WITHDRAWAL_USDC: z.coerce.number().default(10000),
 

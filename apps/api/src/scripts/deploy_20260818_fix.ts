@@ -8,15 +8,15 @@ console.log('[MIGRATION] Deploying 20260818000000_trusted_user_bootstrap_and_pro
 
 const dbUrl = process.env.DATABASE_URL;
 const connectionConfig = dbUrl ? { connectionString: dbUrl } : {
-  host: process.env.DB_HOST || 'db.ikxiclpvywxxnkcaldbx.supabase.co',
+  host: process.env.DB_HOST || '',
   port: parseInt(process.env.DB_PORT || '5432', 10),
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'postgres',
-  ssl: {
+  ssl: process.env.DB_HOST ? {
     rejectUnauthorized: false,
-    servername: 'db.ikxiclpvywxxnkcaldbx.supabase.co'
-  }
+    servername: process.env.DB_HOST,
+  } : false
 };
 
 const client = new Client(connectionConfig);
