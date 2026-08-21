@@ -1,4 +1,4 @@
-import { supabase, syncSupabaseAuthSession } from '../../lib/supabase';
+import { supabase, syncSupabaseAuthSession, decodeJwtPayload } from '../../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import {
   setStorageIdentityChecksum,
@@ -410,9 +410,9 @@ class CanonicalAuthManager {
             effectiveEmail = freshSession.user.email || mockUserEmail;
           }
 
-          if (!effectiveUserId && localToken.includes('.')) {
+          if (!effectiveUserId && localToken) {
             try {
-              const payload = JSON.parse(atob(localToken.split('.')[1]));
+              const payload = decodeJwtPayload(localToken);
               const sub = payload?.sub || payload?.id;
               if (isValidUuid(sub)) {
                 effectiveUserId = sub;
@@ -558,18 +558,25 @@ class CanonicalAuthManager {
 
       await new Promise<CanonicalAuthState>((resolve) => {
         let timer: any = null;
-        let unsubscribe: (() => void) | null = null;
+        let cleanup: (() => void) | null = null;
+        let isDone = false;
 
-        unsubscribe = this.subscribe((state) => {
+        const handler = (state: CanonicalAuthState) => {
+          if (isDone) return;
           if (state.authState !== 'AUTH_LOADING' && state.sessionState !== 'SESSION_LOADING') {
+            isDone = true;
             if (timer) clearTimeout(timer);
-            if (unsubscribe) unsubscribe();
+            if (cleanup) cleanup();
             resolve(state);
           }
-        });
+        };
+
+        cleanup = this.subscribe(handler);
 
         timer = setTimeout(() => {
-          if (unsubscribe) unsubscribe();
+          if (isDone) return;
+          isDone = true;
+          if (cleanup) cleanup();
           resolve(this.getState());
         }, timeoutMs);
       });

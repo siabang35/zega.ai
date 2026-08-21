@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Clock, DollarSign, Rocket, CheckCircle, TrendingUp, ShoppingBag,
   UserPlus, MessageSquare, Bot, Megaphone, FileText, Store,
-  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle,
+  Users, ArrowRight, Plus, BarChart2, ShieldCheck, Cpu, Workflow, Play, SlidersHorizontal, Instagram, X, Activity, Wifi, ChevronRight, RefreshCw, Send, Save, Sparkles, AlertCircle, Loader2,
   Maximize2, Minimize2, History, ArrowLeft, Search, Trash2, Copy, Check
 } from 'lucide-react';
 import {
@@ -11,7 +11,7 @@ import {
 import { SupabaseDashboardService, getCanonicalAuthHeaders, isValidUuid } from '../../services/supabaseService';
 import { umkmSupabaseService, isVerifiedTenantContext } from '../../services/umkmSupabaseService';
 import { getActiveTenantIds, subscribeTenantChanges } from '../../contexts/TenantContext';
-import { getAuthBridgeState } from '../../../components/auth/PrivyAuthBridge';
+import { getAuthBridgeState, subscribeAuthBridgeState } from '../../../components/auth/PrivyAuthBridge';
 import { canonicalAuthManager } from '../../../services/CanonicalAuthManager';
 import { supabase } from '../../../../lib/supabase';
 import { useLanguage } from '../../../../i18n/translations';
@@ -722,16 +722,14 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
   });
 
   // Real-time Database State
-  const [kpiData, setKpiData] = useState<any>({
-    tasks_completed_today: 0,
-    hours_saved_weekly: 0,
-    revenue_generated_today: 0,
-    today_revenue_trend: 0,
-    orders_today_count: 0,
-    new_customers_today_count: 0,
-    whatsapp_response_rate: 0,
-    estimated_ai_salary_saved: 0,
-    usage_percentage: 0
+  const [kpiData, setKpiData] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('zega_umkm_kpi_cache');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
   });
 
   const [aiEmployees, setAiEmployees] = useState<any[]>([]);
@@ -747,41 +745,51 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       setLoading(false);
       return;
     }
+
     try {
-      setLoading(true);
+      if (!kpiData) {
+        setLoading(true);
+      }
       setErrorState(null);
-      const tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
-      const hasValidUser = Boolean(tenantCtx.authUserId || tenantCtx.userId || authBridge.supabaseUserId);
-      const hasValidStore = Boolean(tenantCtx.storeId && isValidUuid(tenantCtx.storeId));
 
-      if (!hasValidUser && !hasValidStore) {
-        setErrorState('Tenant authorization could not be verified.');
-        setLoading(false);
-        return;
-      }
-      const activeStoreId = tenantCtx.storeId || undefined;
-      const res = await SupabaseDashboardService.getUmkmRealtimeData(activeStoreId);
+      const activeTenant = getActiveTenantIds();
+      let activeStoreId = activeTenant.storeId && isValidUuid(activeTenant.storeId) ? activeTenant.storeId : undefined;
+      let tenantCtx: any = activeTenant;
 
-      if (res.error) {
-        setErrorState(res.error);
+      if (!activeStoreId) {
+        tenantCtx = await umkmSupabaseService.getAuthenticatedTenantContext();
+        activeStoreId = tenantCtx.storeId || undefined;
       }
 
-      // Gate: Only fetch sales summary if tenant store is resolved
-      if (activeStoreId && isValidUuid(activeStoreId)) {
-        const salesSummary = await SupabaseDashboardService.getUmkmSalesSummary(
-          activeStoreId,
-          salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
-        );
-        if (salesSummary && salesSummary.length > 0) {
-          setDynamicSalesData(salesSummary);
-        } else {
-          setDynamicSalesData([]);
-        }
+      const [res, salesSummary] = await Promise.all([
+        SupabaseDashboardService.getUmkmRealtimeData(activeStoreId),
+        (activeStoreId && isValidUuid(activeStoreId))
+          ? SupabaseDashboardService.getUmkmSalesSummary(
+              activeStoreId,
+              salesTimeframe === '7d' ? 7 : salesTimeframe === '30d' ? 30 : 90
+            ).catch(e => {
+              console.warn('[HomeView] Non-blocking sales summary load note:', e);
+              return [];
+            })
+          : Promise.resolve([])
+      ]);
+
+      if (salesSummary && salesSummary.length > 0) {
+        setDynamicSalesData(salesSummary);
+      } else if (res?.salesSummary && res.salesSummary.length > 0) {
+        setDynamicSalesData(res.salesSummary);
       } else {
-        console.log('[HomeView] Sales summary gated: store not resolved yet');
+        setDynamicSalesData([]);
       }
 
-      if (res.kpis) setKpiData(res.kpis);
+      if (res?.kpis) {
+        setKpiData(res.kpis);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('zega_umkm_kpi_cache', JSON.stringify(res.kpis));
+          } catch {}
+        }
+      }
       if (res.aiEmployees) setAiEmployees(res.aiEmployees);
 
       if (res.automations && res.automations.length > 0) {
@@ -904,7 +912,6 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       }
     } catch (err: any) {
       console.error('Failed to load real-time dashboard data', err);
-      setErrorState(err?.message || 'Gagal memuat data dari database. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -945,11 +952,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       const isAuthReady = authBridge.authState === 'AUTH_READY' || canonicalAuth.identityReady || canonicalAuth.status === 'READY';
       if (!isAuthReady) {
         console.log('[HomeView] mount effect gated: authBridge/canonicalAuth not ready yet');
+        setLoading(true);
         return;
       }
       const activeTenant = getActiveTenantIds();
       if (!activeTenant.storeId || !isValidUuid(activeTenant.storeId)) {
         console.log('[HomeView] mount effect gated: store not resolved, deferring dashboard load');
+        setLoading(true);
       }
       if (isMounted) {
         await loadDashboardData();
@@ -967,12 +976,26 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
 
     initDashboard();
 
+    const unsubscribeAuth = subscribeAuthBridgeState((state) => {
+      if (state.authState === 'AUTH_READY' && isMounted) {
+        initDashboard();
+      }
+    });
+
+    const unsubscribeCanonicalAuth = canonicalAuthManager.subscribe((snap) => {
+      if ((snap.identityReady || snap.authState === 'AUTH_READY') && isMounted) {
+        initDashboard();
+      }
+    });
+
     const unsubscribeTenant = subscribeTenantChanges(() => {
       if (isMounted) initDashboard();
     });
 
     return () => {
       isMounted = false;
+      if (unsubscribeAuth) try { unsubscribeAuth(); } catch { }
+      if (unsubscribeCanonicalAuth) try { unsubscribeCanonicalAuth(); } catch { }
       if (unsubscribeTenant) try { unsubscribeTenant(); } catch { }
       if (unsubscribe && typeof unsubscribe === 'function') {
         try { unsubscribe(); } catch { }
@@ -1152,27 +1175,12 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
       )}
 
       {/* ========================================================================= */}
-      {/* INITIAL SKELETON LOADING STATE */}
+      {/* MAIN DASHBOARD CONTENT (OPTIMISTIC INSTANT ASYNC RENDERING) */}
       {/* ========================================================================= */}
-      {loading && !errorState && (
-        <div className="space-y-4 animate-pulse">
+      {!errorState && (
+        <>
+          {/* ROW 1: 5 METRIC KPI CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-24 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-6 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
-            <div className="lg:col-span-3 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
-            <div className="lg:col-span-3 h-64 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl"></div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* ROW 1: 5 METRIC KPI CARDS */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* PENDAPATAN HARI INI */}
         <div
           onClick={() => onNavigateTab('sales')}
@@ -1185,9 +1193,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-              Rp{Number(kpiData?.revenue_generated_today || 0).toLocaleString('id-ID')}
-            </div>
+            {loading && !kpiData ? (
+              <div className="h-6 w-28 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg mt-1" />
+            ) : (
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+                Rp{Number(kpiData?.revenue_generated_today || 0).toLocaleString('id-ID')}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
               <TrendingUp size={12} />
               <span>{kpiData?.today_revenue_trend !== undefined && kpiData?.today_revenue_trend !== null ? `${kpiData.today_revenue_trend > 0 ? '+' : ''}${kpiData.today_revenue_trend}%` : '0%'} {u.vsYesterday || 'vs kemarin'}</span>
@@ -1207,9 +1219,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-              {Number(kpiData?.orders_today_count || 0).toLocaleString('id-ID')}
-            </div>
+            {loading && !kpiData ? (
+              <div className="h-6 w-16 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg mt-1" />
+            ) : (
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+                {Number(kpiData?.orders_today_count || 0).toLocaleString('id-ID')}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
               <span>{u.today || 'Hari ini'}</span>
@@ -1229,9 +1245,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-              {Number(kpiData?.new_customers_today_count || 0).toLocaleString('id-ID')}
-            </div>
+            {loading && !kpiData ? (
+              <div className="h-6 w-16 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg mt-1" />
+            ) : (
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+                {Number(kpiData?.new_customers_today_count || 0).toLocaleString('id-ID')}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
               <span>{u.today || 'Hari ini'}</span>
@@ -1251,9 +1271,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-              {kpiData?.conversion_rate !== undefined && kpiData?.conversion_rate !== null ? `${kpiData.conversion_rate}%` : (kpiData?.orders_today_count > 0 ? `${((kpiData.orders_today_count / Math.max(kpiData.new_customers_today_count || 1, 1)) * 100).toFixed(1)}%` : '0.0%')}
-            </div>
+            {loading && !kpiData ? (
+              <div className="h-6 w-20 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg mt-1" />
+            ) : (
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+                {kpiData?.conversion_rate !== undefined && kpiData?.conversion_rate !== null ? `${kpiData.conversion_rate}%` : (kpiData?.orders_today_count > 0 ? `${((kpiData.orders_today_count / Math.max(kpiData.new_customers_today_count || 1, 1)) * 100).toFixed(1)}%` : '0.0%')}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
               <span>{u.realtimeDb || 'Database real-time'}</span>
@@ -1273,9 +1297,13 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-              Rp{kpiData?.average_order_value ? Number(kpiData.average_order_value).toLocaleString('id-ID') : (kpiData?.orders_today_count > 0 ? Math.round((kpiData.revenue_generated_today || 0) / kpiData.orders_today_count).toLocaleString('id-ID') : '0')}
-            </div>
+            {loading && !kpiData ? (
+              <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg mt-1" />
+            ) : (
+              <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+                Rp{kpiData?.average_order_value ? Number(kpiData.average_order_value).toLocaleString('id-ID') : (kpiData?.orders_today_count > 0 ? Math.round((kpiData.revenue_generated_today || 0) / kpiData.orders_today_count).toLocaleString('id-ID') : '0')}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
               <Activity size={12} />
               <span>{u.aovToday || 'AOV Hari Ini'}</span>
@@ -1708,8 +1736,8 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
         </div>
 
       </div>
-
-
+      </>
+      )}
 
       {/* ========================================================================= */}
       {/* QUICK ACTION MODALS */}

@@ -293,10 +293,15 @@ export function UmkmDashboardContainer({
     const active = getActiveTenantIds();
     const effectiveEmail = resolvedUserEmail || userEmail;
     const isSettledReady = active.storeStatus === 'ready' && isValidUuid(active.storeId) && isValidUuid(active.organizationId) && isValidUuid(active.workspaceId);
-    if (!isSettledReady || (effectiveEmail && active.userEmail && active.userEmail.toLowerCase() !== effectiveEmail.toLowerCase())) {
-      const tenant = resolveTenantFromUser(effectiveEmail, 'umkm');
-      setActiveTenant(tenant);
+    if (isSettledReady) {
+      // Preserving settled ready tenant snapshot on mount
+      return;
     }
+    if (effectiveEmail && active.userEmail && active.userEmail.toLowerCase() === effectiveEmail.toLowerCase()) {
+      return;
+    }
+    const tenant = resolveTenantFromUser(effectiveEmail, 'umkm');
+    setActiveTenant(tenant);
   }, [userEmail, resolvedUserEmail]);
 
   const [notifications, setNotifications] = useState<any[]>([]);

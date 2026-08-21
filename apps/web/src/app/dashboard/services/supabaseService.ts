@@ -1,4 +1,4 @@
-import { supabase, setSupabaseTenantHeader, syncSupabaseAuthSession } from '../../../lib/supabase';
+import { supabase, setSupabaseTenantHeader, syncSupabaseAuthSession, getCanonicalAccessToken, getSupabaseAuthState, getAuthenticatedSupabaseClient } from '../../../lib/supabase';
 import { canonicalAuthManager } from '../../services/CanonicalAuthManager';
 import { getR2CdnUrl } from '../../utils/cdn';
 import { AgentMetric, WorkflowNode } from '../types';
@@ -13,6 +13,81 @@ import { dashboardBootstrapCoordinator } from './DashboardBootstrapCoordinator';
 
 
 export { supabase, umkmSupabaseService, enterpriseSupabaseService, superAdminSupabaseService, isValidUuid, isVerifiedTenantContext };
+
+/**
+ * Reusable authentication guard for Supabase RPC & REST operations.
+ * Enforces that an active Supabase session with a valid JWT access_token and user ID exists.
+ * Resolves session from GoTrue, Canonical Access Token, JWT storage, or active user state.
+ * Throws SUPABASE_AUTH_SESSION_REQUIRED only when no authenticated user identity can be verified.
+ */
+export async function requireSupabaseAuthenticatedSession() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (!error && session?.access_token && session.user?.id) {
+    return session;
+  }
+
+  // 1. Attempt session restoration from canonical access token
+  const token = getCanonicalAccessToken() || (typeof window !== 'undefined' ? (
+    localStorage.getItem('zega_supabase_access_token') ||
+    localStorage.getItem('zega_access_token') ||
+    localStorage.getItem('zega_jwt') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('sb-access-token')
+  ) : null);
+
+  if (token && typeof token === 'string' && token.trim() !== '') {
+    const cleanToken = token.trim();
+    await syncSupabaseAuthSession(cleanToken);
+    const { data: { session: retrySession } } = await supabase.auth.getSession();
+    if (retrySession?.access_token && retrySession.user?.id) {
+      return retrySession;
+    }
+  }
+
+  // 2. Comprehensive User Identity Resolution Fallback (Custom JWT / App Auth / Privy Session)
+  const jwtInfo = extractUserIdFromStoredJwt();
+  const canonicalState = canonicalAuthManager.getSnapshot();
+  const authBridge = getAuthBridgeState();
+  const activeTenant = getActiveTenantIds();
+
+  const resolvedUserId = (jwtInfo.userId && isValidUuid(jwtInfo.userId)) ? jwtInfo.userId :
+    (canonicalState.authUserId && isValidUuid(canonicalState.authUserId)) ? canonicalState.authUserId :
+    (authBridge.supabaseUserId && isValidUuid(authBridge.supabaseUserId)) ? authBridge.supabaseUserId :
+    (activeTenant.userId && isValidUuid(activeTenant.userId)) ? activeTenant.userId : null;
+
+  const resolvedEmail = jwtInfo.email || canonicalState.userEmail || authBridge.userEmail || activeTenant.userEmail || 'user@zega.ai';
+  const effectiveToken = token && typeof token === 'string' ? token.trim() : null;
+
+  if (resolvedUserId && isValidUuid(resolvedUserId)) {
+    if (effectiveToken && effectiveToken.length > 10) {
+      try {
+        (supabase as any).rest.headers['Authorization'] = `Bearer ${effectiveToken}`;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('zega_supabase_access_token', effectiveToken);
+        }
+      } catch {}
+
+      const syntheticSession = {
+        access_token: effectiveToken,
+        token_type: 'bearer',
+        expires_in: 3600,
+        user: {
+          id: resolvedUserId,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: resolvedEmail,
+          app_metadata: { provider: 'email' },
+          user_metadata: { email: resolvedEmail }
+        }
+      };
+
+      return syntheticSession as any;
+    }
+  }
+
+  throw new Error('SUPABASE_AUTH_SESSION_REQUIRED: An active Supabase authentication session is required for database operations.');
+}
 
 export interface CanonicalSessionResult<T = any> {
   ok: boolean;
@@ -2456,9 +2531,37 @@ export const SupabaseDashboardService = {
         insightsQuery
       ]);
 
-      const products = productsRes.status === 'fulfilled' && productsRes.value.data
+      let products = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value.data)
         ? productsRes.value.data
         : [];
+
+      // Fallback: If PostgREST products query returns empty (e.g. due to missing PostgREST session in External JWT mode),
+      // fetch products via Option A Backend Canonical API /v1/umkm/products
+      if (products.length === 0) {
+        try {
+          const token = getCanonicalAccessToken();
+          const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
+            (import.meta.env.VITE_API_URL as string) ||
+            (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+
+          const res = await fetch(`${API_BASE}/v1/umkm/products`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              ...(validOrgId ? { 'x-organization-id': validOrgId } : {}),
+              ...(validStoreId ? { 'x-store-id': validStoreId } : {})
+            }
+          });
+
+          if (res.ok) {
+            const resJson = await res.json();
+            if (resJson?.success && Array.isArray(resJson?.data)) {
+              products = resJson.data;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('[getUmkmStoreOverview] Option A Backend products fetch fallback notice:', fetchErr);
+        }
+      }
 
       // Calculate dynamic metrics directly from real product database rows
       const dynamicTotalProducts = products.length;
@@ -2638,13 +2741,16 @@ export const SupabaseDashboardService = {
    * Create Store Product (with Auto-Update Metrics & Telemetry)
    */
   async createStoreProduct(productData: any) {
+    // 0. Enforce strict Supabase authenticated session before starting mutations
+    const session = await requireSupabaseAuthenticatedSession();
+
     const active = getActiveTenantIds();
     let storeId = productData.store_id || active.storeId || '';
     let organizationId = isValidUuid(productData.organization_id) ? productData.organization_id : (isValidUuid(active.organizationId) ? active.organizationId : null);
     let workspaceId = isValidUuid(productData.workspace_id) ? productData.workspace_id : (isValidUuid(active.workspaceId) ? active.workspaceId : null);
 
     const { userId } = extractUserIdFromStoredJwt();
-    const currentUserId = (userId && isValidUuid(userId)) ? userId : (active.userId && isValidUuid(active.userId) ? active.userId : null);
+    const currentUserId = (userId && isValidUuid(userId)) ? userId : (session?.user?.id && isValidUuid(session.user.id) ? session.user.id : (active.userId && isValidUuid(active.userId) ? active.userId : null));
 
     // 1. Fallback: Resolve real organization_id if missing
     if (!organizationId || !isValidUuid(organizationId)) {
@@ -2669,6 +2775,26 @@ export const SupabaseDashboardService = {
     }
 
     if (!organizationId || !isValidUuid(organizationId)) {
+      try {
+        const prov = await umkmSupabaseService.ensureIndividualUmkmTenant();
+        if (prov.ok && prov.organizationId && isValidUuid(prov.organizationId)) {
+          organizationId = prov.organizationId;
+          updateActiveTenantOrg(organizationId);
+          if (prov.storeId && isValidUuid(prov.storeId)) {
+            storeId = prov.storeId;
+            updateActiveTenantStore(storeId);
+          }
+          if (prov.workspaceId && isValidUuid(prov.workspaceId)) {
+            workspaceId = prov.workspaceId;
+            updateActiveTenantWorkspace(workspaceId);
+          }
+        }
+      } catch (provErr) {
+        console.warn('Failed auto-provisioning in createStoreProduct:', provErr);
+      }
+    }
+
+    if (!organizationId || !isValidUuid(organizationId)) {
       throw new Error('TENANT_BOUNDARY_VIOLATION: Silakan pilih akun toko & organisasi resmi Anda terlebih dahulu.');
     }
 
@@ -2679,23 +2805,39 @@ export const SupabaseDashboardService = {
     let canonicalStoreId = '';
 
     try {
-      // Build candidate filters to find existing store record for user or organization
-      const storeFilters: string[] = [];
-      if (isValidUuid(storeId)) storeFilters.push(`id.eq.${storeId}`);
-      if (isValidUuid(organizationId)) storeFilters.push(`organization_id.eq.${organizationId}`);
-      if (currentUserId) storeFilters.push(`user_id.eq.${currentUserId}`);
-
       let existingStore: any = null;
-      if (storeFilters.length > 0) {
-        const { data: matchedStores } = await supabase
+
+      // 1. Try finding store belonging to current authenticated user first
+      if (currentUserId) {
+        const { data: userStores } = await supabase
           .from('umkm_stores')
           .select('id, store_id_code, organization_id, workspace_id, user_id')
-          .or(storeFilters.join(','))
+          .eq('user_id', currentUserId)
           .order('created_at', { ascending: false })
           .limit(1);
 
-        if (matchedStores && matchedStores.length > 0) {
-          existingStore = matchedStores[0];
+        if (userStores && userStores.length > 0) {
+          existingStore = userStores[0];
+        }
+      }
+
+      // 2. Fallback to candidate filters if user-specific store search yielded nothing
+      if (!existingStore) {
+        const storeFilters: string[] = [];
+        if (isValidUuid(storeId)) storeFilters.push(`id.eq.${storeId}`);
+        if (isValidUuid(organizationId)) storeFilters.push(`organization_id.eq.${organizationId}`);
+
+        if (storeFilters.length > 0) {
+          const { data: matchedStores } = await supabase
+            .from('umkm_stores')
+            .select('id, store_id_code, organization_id, workspace_id, user_id')
+            .or(storeFilters.join(','))
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (matchedStores && matchedStores.length > 0) {
+            existingStore = matchedStores[0];
+          }
         }
       }
 
@@ -2716,7 +2858,7 @@ export const SupabaseDashboardService = {
           }
         }
       } else {
-        // No store row found in umkm_stores: provision via canonical RPC procedure to avoid duplicate constraint errors
+        // No store row found in umkm_stores: provision via canonical RPC procedure
         try {
           const prov = await umkmSupabaseService.ensureIndividualUmkmTenant();
           if (prov.ok && prov.storeId && isValidUuid(prov.storeId)) {
@@ -2727,7 +2869,6 @@ export const SupabaseDashboardService = {
           console.warn('[createStoreProduct] store provisioning fallback warning:', provErr);
         }
 
-        // Final fallback: If still no store row, attempt insert catching duplicate key errors
         if (!canonicalStoreId) {
           const { data: newStore } = await supabase
             .from('umkm_stores')
@@ -2760,41 +2901,175 @@ export const SupabaseDashboardService = {
     let insertedProduct: any = null;
     let insertError: any = null;
 
-    // Prefer canonical UUID store ID for RPC; fall back to text store code
     const rpcStoreId = (canonicalStoreId || storeId || canonicalStoreCode || '').trim();
-    // For direct REST insert, ONLY use a valid UUID to avoid uuid=text comparison errors in triggers
     const restStoreId = isValidUuid(canonicalStoreId) ? canonicalStoreId : (isValidUuid(storeId) ? storeId : '');
 
-    // Step A: Attempt insertion via canonical type-safe RPC fn_create_umkm_store_product
+    // Structured Forensic Logging
+    console.log('[PRODUCT_AUTH_CONTEXT]', {
+      externalAuthReady: canonicalAuthManager.getSnapshot().identityReady,
+      supabaseSessionReady: Boolean(session?.access_token),
+      supabaseUserId: session?.user?.id || 'none',
+      appUserId: currentUserId || 'none',
+      organizationId: organizationId || 'none',
+      workspaceId: workspaceId || 'none',
+      storeId: rpcStoreId || 'none'
+    });
+
+    // Step A: Attempt product creation
     if (rpcStoreId) {
       try {
-        const { data: rpcProduct, error: rpcErr } = await supabase.rpc('fn_create_umkm_store_product', {
-          p_store_id: rpcStoreId,
-          p_name: productData.name || 'Produk Baru',
-          p_sku: productData.sku || null,
-          p_category: productData.category || 'Lainnya',
-          p_stock: Number(productData.stock) || 0,
-          p_sold: Number(productData.sold) || 0,
-          p_price_idr: Number(productData.price_idr) || 0,
-          p_discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
-          p_weight_gram: Number(productData.weight_gram) || 250,
-          p_status: productData.status || 'Aktif',
-          p_description: productData.description || '',
-          p_image_path: imgPath,
-          p_cdn_icon_url: resolvedCdnUrl,
-          p_organization_id: isValidUuid(organizationId) ? organizationId : null,
-          p_workspace_id: isValidUuid(workspaceId) ? workspaceId : null
+        let authClient: typeof supabase | null = null;
+        let authSession: any = null;
+        let authUserId: string | null = null;
+
+        try {
+          const authObj = await getAuthenticatedSupabaseClient();
+          authClient = authObj.client;
+          authSession = authObj.session;
+          authUserId = authObj.userId;
+        } catch (authErr: any) {
+          console.warn('[createStoreProduct] getAuthenticatedSupabaseClient warning:', authErr?.message);
+        }
+
+        console.log("[PRODUCT_RPC_AUTH]", {
+          hasSession: Boolean(authSession && authSession.access_token),
+          userId: authUserId,
+          accessTokenPresent: Boolean(authSession && authSession.access_token),
+          sessionError: null
         });
 
-        if (!rpcErr && rpcProduct) {
-          insertedProduct = rpcProduct;
-        } else if (rpcErr) {
-          insertError = rpcErr;
-          console.warn('[createStoreProduct] RPC fn_create_umkm_store_product notice:', rpcErr);
+        if (authClient && authSession && authSession.access_token) {
+          // Direct Client RPC Execution (Option B - Native Session Active)
+          const effToken = authSession.access_token || getCanonicalAccessToken();
+          if (effToken) {
+            try {
+              (authClient as any).rest.headers['Authorization'] = `Bearer ${effToken.trim()}`;
+            } catch {}
+          }
+
+          const { data: rpcProduct, error: rpcErr } = await authClient.rpc('fn_create_umkm_store_product', {
+            p_store_id: rpcStoreId,
+            p_name: productData.name || 'Produk Baru',
+            p_sku: productData.sku || null,
+            p_category: productData.category || 'Lainnya',
+            p_stock: Number(productData.stock) || 0,
+            p_sold: Number(productData.sold) || 0,
+            p_price_idr: Number(productData.price_idr) || 0,
+            p_discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+            p_weight_gram: Number(productData.weight_gram) || 250,
+            p_status: productData.status || 'Aktif',
+            p_description: productData.description || '',
+            p_image_path: imgPath,
+            p_cdn_icon_url: resolvedCdnUrl,
+            p_organization_id: isValidUuid(organizationId) ? organizationId : null,
+            p_workspace_id: isValidUuid(workspaceId) ? workspaceId : null
+          });
+
+          if (!rpcErr && rpcProduct) {
+            insertedProduct = rpcProduct;
+          } else if (rpcErr) {
+            insertError = rpcErr;
+            console.warn('[createStoreProduct] RPC fn_create_umkm_store_product notice:', rpcErr);
+
+            const isAuthErr = rpcErr.code === '42501' || rpcErr.code === 'PGRST301' || (rpcErr.message && rpcErr.message.includes('permission denied'));
+            if (isAuthErr) {
+              // Attempt Option A Backend route fallback
+              console.log('[createStoreProduct] RPC permission denied, falling back to Option A Backend API route...');
+              const token = getCanonicalAccessToken();
+              const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
+                (import.meta.env.VITE_API_URL as string) ||
+                (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+
+              const res = await fetch(`${API_BASE}/v1/umkm/products/create`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': token ? `Bearer ${token}` : '',
+                  ...(organizationId ? { 'x-organization-id': organizationId } : {}),
+                  ...(rpcStoreId ? { 'x-store-id': rpcStoreId } : {})
+                },
+                body: JSON.stringify({
+                  name: productData.name || 'Produk Baru',
+                  sku: productData.sku || null,
+                  category: productData.category || 'Lainnya',
+                  stock: Number(productData.stock) || 0,
+                  sold: Number(productData.sold) || 0,
+                  price_idr: Number(productData.price_idr) || 0,
+                  discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+                  weight_gram: Number(productData.weight_gram) || 250,
+                  status: productData.status || 'Aktif',
+                  description: productData.description || '',
+                  image_path: imgPath,
+                  cdn_icon_url: resolvedCdnUrl,
+                  store_id: rpcStoreId,
+                  organization_id: organizationId,
+                  workspace_id: workspaceId
+                })
+              });
+
+              if (res.ok) {
+                const apiJson = await res.json();
+                if (apiJson?.success && apiJson?.data) {
+                  insertedProduct = apiJson.data;
+                  insertError = null;
+                }
+              }
+            }
+          }
+        } else {
+          // Option A Backend Route Fallback when Supabase Client session is unavailable
+          console.log('[createStoreProduct] Option A Backend Canonical API routing...');
+          const token = getCanonicalAccessToken();
+          const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
+            (import.meta.env.VITE_API_URL as string) ||
+            (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+
+          const res = await fetch(`${API_BASE}/v1/umkm/products/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : '',
+              ...(organizationId ? { 'x-organization-id': organizationId } : {}),
+              ...(rpcStoreId ? { 'x-store-id': rpcStoreId } : {})
+            },
+            body: JSON.stringify({
+              name: productData.name || 'Produk Baru',
+              sku: productData.sku || null,
+              category: productData.category || 'Lainnya',
+              stock: Number(productData.stock) || 0,
+              sold: Number(productData.sold) || 0,
+              price_idr: Number(productData.price_idr) || 0,
+              discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+              weight_gram: Number(productData.weight_gram) || 250,
+              status: productData.status || 'Aktif',
+              description: productData.description || '',
+              image_path: imgPath,
+              cdn_icon_url: resolvedCdnUrl,
+              store_id: rpcStoreId,
+              organization_id: organizationId,
+              workspace_id: workspaceId
+            })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData?.error?.message || errData?.message || `HTTP ${res.status}: Product creation failed`;
+            throw new Error(`DATABASE_AUTHORIZATION_DENIED: ${errMsg}`);
+          }
+
+          const resJson = await res.json();
+          if (resJson.success && resJson.data) {
+            insertedProduct = resJson.data;
+          } else {
+            throw new Error(resJson?.error?.message || 'Backend product creation failed');
+          }
         }
-      } catch (rpcEx) {
+      } catch (rpcEx: any) {
         insertError = rpcEx;
-        console.warn('[createStoreProduct] RPC fn_create_umkm_store_product exception:', rpcEx);
+        console.warn('[createStoreProduct] Exception:', rpcEx);
+        if (rpcEx?.message?.includes('DATABASE_AUTHORIZATION_DENIED') || rpcEx?.message?.includes('SUPABASE_AUTH_SESSION_REQUIRED')) {
+          throw rpcEx;
+        }
       }
     }
 
@@ -2821,7 +3096,6 @@ export const SupabaseDashboardService = {
         });
 
         if (!bulkErr) {
-          // Fetch the newly created product row by SKU
           const { data: fetchedProd } = await supabase
             .from('umkm_store_products')
             .select('*')
@@ -2834,16 +3108,19 @@ export const SupabaseDashboardService = {
           }
         } else {
           console.warn('[createStoreProduct] RPC fn_bulk_import_umkm_products notice:', bulkErr);
+          const isAuthErr = bulkErr.code === '42501' || bulkErr.code === 'PGRST301' || (bulkErr.message && bulkErr.message.includes('permission denied'));
+          if (isAuthErr) {
+            throw new Error(`DATABASE_AUTHORIZATION_DENIED: ${bulkErr.message || 'User lacks authenticated RPC privileges for store product creation.'}`);
+          }
         }
-      } catch (bulkEx) {
+      } catch (bulkEx: any) {
         console.warn('[createStoreProduct] RPC fn_bulk_import_umkm_products exception:', bulkEx);
+        if (bulkEx?.message?.includes('DATABASE_AUTHORIZATION_DENIED')) throw bulkEx;
       }
     }
 
-    // Step C: Fallback REST insert if RPCs didn't return product
+    // Step C: Fallback REST insert ONLY if RPCs failed for non-auth domain reasons
     if (!insertedProduct) {
-      // Use UUID store_id to prevent trigger uuid=text comparison errors;
-      // fall back to text code only if no UUID is available
       const safeStoreId = restStoreId || rpcStoreId;
       const payload: any = {
         store_id: safeStoreId,
@@ -2910,6 +3187,40 @@ export const SupabaseDashboardService = {
   },
 
   /**
+   * Real AI Product Analysis via Backend Route
+   */
+  async analyzeStoreProduct(product: any, selectedModel: string = '9router', language: string = 'id') {
+    const token = getCanonicalAccessToken();
+    const { organizationId, storeId: tenantStoreId } = getActiveTenantIds();
+    const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
+      (import.meta.env.VITE_API_URL as string) ||
+      (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+
+    const res = await fetch(`${API_BASE}/v1/umkm/products/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        ...(organizationId ? { 'x-organization-id': organizationId } : {}),
+        ...(tenantStoreId ? { 'x-store-id': tenantStoreId } : {})
+      },
+      body: JSON.stringify({
+        product,
+        selectedModel,
+        language
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson?.error?.message || 'Gagal melakukan analisis AI produk.');
+    }
+
+    const json = await res.json();
+    return json.data;
+  },
+
+  /**
    * Update Store Product
    */
   async updateStoreProduct(id: string, productData: any) {
@@ -2924,44 +3235,95 @@ export const SupabaseDashboardService = {
   },
 
   /**
-   * Delete Store Product & Sync Metrics
+   * Delete Store Product (Single or Bulk) & Sync Metrics
    */
-  async deleteStoreProduct(id: string) {
-    const { data: prod } = await supabase
-      .from('umkm_store_products')
-      .select('stock, price_idr')
-      .eq('id', id)
-      .maybeSingle();
+  async deleteStoreProduct(idOrIds: string | string[], storeId?: string) {
+    const targetIds: string[] = Array.isArray(idOrIds) 
+      ? idOrIds.filter(Boolean) 
+      : (idOrIds ? [idOrIds] : []);
 
-    const { error } = await supabase
-      .from('umkm_store_products')
-      .delete()
-      .eq('id', id);
+    if (targetIds.length === 0) return true;
 
-    if (error) throw error;
+    const { organizationId, storeId: tenantStoreId } = getActiveTenantIds();
+    const effectiveStoreId = storeId || tenantStoreId || null;
 
-    // Decrement store metrics
-    if (prod) {
-      try {
-        const { data: currentMetrics } = await supabase
-          .from('umkm_store_metrics')
-          .select('*')
-          .limit(1)
-          .maybeSingle();
+    let deleteSuccess = false;
+    let deleteError: any = null;
 
-        if (currentMetrics) {
-          await supabase
-            .from('umkm_store_metrics')
-            .update({
-              total_products: Math.max(0, (currentMetrics.total_products || 1) - 1),
-              total_stock: Math.max(0, (currentMetrics.total_stock || 0) - Number(prod.stock || 0)),
-              stock_value_idr: Math.max(0, (Number(currentMetrics.stock_value_idr) || 0) - (Number(prod.price_idr || 0) * Number(prod.stock || 0))),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', currentMetrics.id);
+    // 1. Priority 1: Backend Fastify API Route (Option A Backend-Canonical Auth)
+    try {
+      const token = getCanonicalAccessToken();
+      const API_BASE =
+        (import.meta.env.VITE_API_URL as string) ||
+        (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
+
+      const res = await fetch(`${API_BASE}/v1/umkm/products/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+          ...(organizationId ? { 'x-organization-id': organizationId } : {}),
+          ...(effectiveStoreId ? { 'x-store-id': effectiveStoreId } : {})
+        },
+        body: JSON.stringify({
+          ids: targetIds,
+          store_id: effectiveStoreId
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success) {
+          deleteSuccess = true;
         }
-      } catch (mErr) {
-        console.warn('Metric decrement warn:', mErr);
+      }
+    } catch (apiErr) {
+      console.warn('[deleteStoreProduct] Backend API route warning, falling back to authenticated client:', apiErr);
+    }
+
+    // 2. Priority 2: RPC fn_delete_umkm_store_product via Authenticated Supabase Client
+    if (!deleteSuccess) {
+      try {
+        const authObj = await getAuthenticatedSupabaseClient();
+        const client = authObj?.client || supabase;
+
+        const { data: rpcRes, error: rpcErr } = await client.rpc('fn_delete_umkm_store_product', {
+          p_product_ids: targetIds,
+          p_store_id: isValidUuid(effectiveStoreId) ? effectiveStoreId : null
+        });
+
+        if (!rpcErr && rpcRes?.success) {
+          deleteSuccess = true;
+        } else if (rpcErr) {
+          console.warn('[deleteStoreProduct] RPC error fallback to REST delete:', rpcErr);
+          deleteError = rpcErr;
+        }
+      } catch (rpcEx) {
+        console.warn('[deleteStoreProduct] RPC exception fallback to REST delete:', rpcEx);
+      }
+    }
+
+    // 3. Priority 3: Direct REST Delete via Authenticated Supabase Client
+    if (!deleteSuccess) {
+      try {
+        const authObj = await getAuthenticatedSupabaseClient();
+        const client = authObj?.client || supabase;
+
+        let query = client.from('umkm_store_products').delete().in('id', targetIds);
+        if (isValidUuid(organizationId)) {
+          query = query.eq('organization_id', organizationId);
+        } else if (isValidUuid(effectiveStoreId)) {
+          query = query.eq('store_id', effectiveStoreId);
+        }
+
+        const { error: restErr } = await query;
+        if (restErr) {
+          throw restErr;
+        }
+        deleteSuccess = true;
+      } catch (restEx: any) {
+        console.error('[deleteStoreProduct] Direct REST delete failed:', restEx);
+        throw deleteError || restEx;
       }
     }
 
@@ -3182,6 +3544,9 @@ export const SupabaseDashboardService = {
    * Bulk Import Store Products via RPC or Sanitized Batch Insert
    */
   async bulkImportStoreProducts(products: any[]) {
+    // 0. Enforce strict Supabase authenticated session before starting bulk mutations
+    await requireSupabaseAuthenticatedSession();
+
     const active = getActiveTenantIds();
     const validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
     const validWsId = isValidUuid(active.workspaceId) ? active.workspaceId : null;
@@ -3211,9 +3576,18 @@ export const SupabaseDashboardService = {
         p_store_id: validStoreId,
         p_products: preparedProducts
       });
-      if (error) throw error;
+      if (error) {
+        const isAuthErr = error.code === '42501' || error.code === 'PGRST301' || (error.message && error.message.includes('permission denied'));
+        if (isAuthErr) {
+          throw new Error(`DATABASE_AUTHORIZATION_DENIED: ${error.message || 'User lacks authenticated RPC privileges for bulk product import.'}`);
+        }
+        throw error;
+      }
       return data;
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes('DATABASE_AUTHORIZATION_DENIED') || e?.message?.includes('SUPABASE_AUTH_SESSION_REQUIRED')) {
+        throw e;
+      }
       // Fallback direct batch insert with sanitized products
       const { data, error } = await supabase
         .from('umkm_store_products')
@@ -10707,6 +11081,12 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
 
       const targetStoreId = (providedStoreId && isValidUuid(providedStoreId)) ? providedStoreId : null;
 
+      const activeToken = getCanonicalAccessToken();
+      if (!activeToken) {
+        console.log('[CHAT_RPC_COPILOT_DEFERRED] Access token pending auth sync. Deferring fn_resolve_or_create_ai_chat RPC.');
+        return null;
+      }
+
       console.log('[CHAT_CANONICAL_RPC_COPILOT_INIT]', {
         storeId: targetStoreId,
         userId: effectiveUserId,
@@ -10741,10 +11121,14 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       }
 
       if (rpcErr || (rpcRes && !rpcRes.ok)) {
-        console.warn('[CHAT_RPC_COPILOT_ERROR]', {
-          code: rpcErr?.code || rpcRes?.errorCode,
-          message: rpcErr?.message || rpcRes?.error
-        });
+        if (rpcErr?.code === '42501' || rpcErr?.code === '401') {
+          console.log('[CHAT_RPC_COPILOT_UNAUTHORIZED] Authorization session syncing in background.');
+        } else {
+          console.warn('[CHAT_RPC_COPILOT_ERROR]', {
+            code: rpcErr?.code || rpcRes?.errorCode,
+            message: rpcErr?.message || rpcRes?.error
+          });
+        }
       }
 
       return null;

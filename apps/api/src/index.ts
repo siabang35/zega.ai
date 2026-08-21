@@ -24,7 +24,7 @@ async function bootstrap() {
     requestIdHeader: 'x-request-id',
     genReqId: () => crypto.randomUUID(),
     trustProxy: true,
-    bodyLimit: 1_048_576, // 1MB
+    bodyLimit: 15_728_640, // 15MB for product image payloads
   });
 
   // ── Register all plugins (security, auth, cache, payments) ──

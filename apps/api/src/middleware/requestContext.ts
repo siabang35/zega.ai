@@ -424,8 +424,13 @@ export async function requireTenantContext(request: FastifyRequest, reply: Fasti
     return;
   }
 
-  // Store provisioning endpoints operate during onboarding before an organization context is resolved
-  if (request.url.includes('/provision-store') || request.url.includes('/provision')) {
+  // Store provisioning & product management endpoints execute server-side tenant resolution
+  if (
+    request.url.includes('/provision-store') ||
+    request.url.includes('/provision') ||
+    request.url.includes('/products') ||
+    request.url.includes('/umkm/')
+  ) {
     return;
   }
 

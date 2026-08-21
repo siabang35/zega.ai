@@ -2,6 +2,7 @@ import { canonicalAuthManager, CanonicalAuthState, CanonicalAuthResult } from '.
 import { umkmSupabaseService, isValidUuid } from './umkmSupabaseService';
 import { chatSessionManager, AssistantType } from './chatSessionManager';
 import { setActiveTenant, getActiveTenantIds } from '../contexts/TenantContext';
+import { getCanonicalAccessToken, getSupabaseAuthState } from '../../../lib/supabase';
 
 export type BootstrapStep =
   | 'IDLE'
@@ -26,6 +27,50 @@ export interface BootstrapState {
   activeChatId: string | null;
   error?: string | null;
   generation: number;
+}
+
+export function assertTenantReadyInvariant(
+  tenant: any,
+  currentSessionKey?: string,
+  currentGeneration?: number
+): boolean {
+  if (!tenant) return false;
+
+  const rawStatus = (tenant.status || tenant.tenantState || tenant.overallStatus || tenant.storeStatus || '').toUpperCase();
+  const forbiddenStates = [
+    'BOOTING',
+    'IN_FLIGHT',
+    'PROVISIONING',
+    'STALE',
+    'FRESH',
+    'PARTIAL',
+    'ABORTED',
+    'WAITING_AUTH',
+    'TENANT_RESOLVING',
+    'AUTHENTICATING',
+    'IDLE',
+    'STORE_RESOLVING',
+    'UNAVAILABLE',
+    'LOADING'
+  ];
+  if (forbiddenStates.includes(rawStatus)) return false;
+
+  const isStatusReady = rawStatus === 'READY' || rawStatus === 'TENANT_READY';
+  const isVerified = tenant.verified === true || tenant.tenantVerified === true;
+  const hasOrgId = Boolean(tenant.organizationId && isValidUuid(tenant.organizationId) && tenant.organizationId !== '00000000-0000-0000-0000-000000000000');
+  const hasWsId = Boolean(tenant.workspaceId && isValidUuid(tenant.workspaceId) && tenant.workspaceId !== '00000000-0000-0000-0000-000000000000');
+  const hasStoreId = Boolean(tenant.storeId && isValidUuid(tenant.storeId));
+  const hasUserId = Boolean((tenant.userId && isValidUuid(tenant.userId)) || (tenant.authUserId && isValidUuid(tenant.authUserId)));
+
+  if (currentSessionKey && tenant.sessionKey && tenant.sessionKey !== currentSessionKey) return false;
+  if (currentGeneration !== undefined && tenant.generation !== undefined && tenant.generation !== currentGeneration) return false;
+
+  return Boolean(isStatusReady && isVerified && hasOrgId && hasWsId && hasStoreId && hasUserId);
+}
+
+function logBootTrace(step: string, meta?: any) {
+  const t = Date.now();
+  console.log(`[ZEGA_BOOT_TRACE] step: ${step} t=${t}`, meta || '');
 }
 
 class DashboardBootstrapCoordinator {
@@ -77,8 +122,8 @@ class DashboardBootstrapCoordinator {
           this.state.step === 'IDLE' ||
           (this.state.step === 'BOOTSTRAP_FAILED' && this.state.error?.includes('Auth required'))
         ) {
-          console.log('[DASHBOARD_BOOTSTRAP] Event-driven resume triggered for AUTH_READY');
-          this.executeBootstrap(this.lastAssistantType, this.lastProvidedStoreId, true);
+          console.log('[DASHBOARD_BOOTSTRAP] Event-driven resume triggered for AUTH_READY (non-forcing)');
+          this.executeBootstrap(this.lastAssistantType, this.lastProvidedStoreId, false);
         }
       } else if (authResult.initializationComplete && (authResult.status === 'AUTH_REQUIRED' || authResult.status === 'SESSION_INVALID')) {
         // Invalidate current bootstrap on explicit sign-out or terminal session loss
@@ -154,6 +199,13 @@ class DashboardBootstrapCoordinator {
 
     this.state = candidate;
 
+    logBootTrace(this.state.step, {
+      authReady: this.state.authReady,
+      tenantReady: this.state.tenantReady,
+      storeId: this.state.storeId,
+      generation: this.bootstrapGeneration
+    });
+
     console.log('[DASHBOARD_BOOTSTRAP]', {
       step: this.state.step,
       authState: this.state.authReady ? 'READY' : 'WAITING',
@@ -172,7 +224,7 @@ class DashboardBootstrapCoordinator {
 
   /**
    * Singleflight event-driven dashboard bootstrap execution pipeline.
-   * Pipeline: AUTH_WAITING → AUTH_READY → TENANT_RESOLVING → TENANT_READY (BOOTSTRAP_READY Shell) → Non-blocking CHAT_RESOLVING
+   * Order: WAITING_AUTH → AUTH_READY → TENANT_RESOLVING → TENANT_READY → BOOTSTRAP_READY
    */
   public async executeBootstrap(
     assistantType: AssistantType = 'zega_copilot',
@@ -190,18 +242,46 @@ class DashboardBootstrapCoordinator {
       return this.bootstrapPromise;
     }
 
-    // Increment generation & abort previous running execution controller
-    this.bootstrapGeneration++;
-    const currentGen = this.bootstrapGeneration;
+    const authSnapshot = canonicalAuthManager.getSnapshot();
+    const activeUserId = authSnapshot.authUserId;
+    const currentSessionKey = activeUserId ? `${activeUserId}:INDIVIDUAL_UMKM` : null;
 
-    if (this.currentAbortController) {
-      this.currentAbortController.abort();
+    // Fast-path: Only if tenant ready invariant is FULLY satisfied & verified by canonical auth/tenant context
+    const activeTenant = getActiveTenantIds();
+    if (!forceRefresh && assertTenantReadyInvariant(activeTenant, currentSessionKey || undefined, this.bootstrapGeneration)) {
+      this.updateState({
+        step: 'BOOTSTRAP_READY',
+        authReady: true,
+        supabaseSessionPresent: true,
+        canonicalUserId: activeTenant.userId || null,
+        tenantReady: true,
+        storeId: activeTenant.storeId,
+        organizationId: activeTenant.organizationId,
+        workspaceId: activeTenant.workspaceId,
+        error: null,
+      });
+      const currentGen = this.bootstrapGeneration;
+      const ac = new AbortController();
+      this.currentAbortController = ac;
+      this.resolveBackgroundChat(assistantType, activeTenant.storeId!, currentGen, ac.signal);
+      return this.getState();
     }
+
+    // Only increment generation if forceRefresh is true OR session identity changed
+    if (forceRefresh) {
+      this.bootstrapGeneration++;
+      if (this.currentAbortController) {
+        this.currentAbortController.abort();
+      }
+    }
+    const currentGen = this.bootstrapGeneration;
     const abortController = new AbortController();
     this.currentAbortController = abortController;
 
     this.bootstrapPromise = (async (): Promise<BootstrapState> => {
       try {
+        logBootTrace('BOOTSTRAP_INITIATED', { assistantType, forceRefresh, generation: currentGen });
+
         // STEP 1: AUTH WAITING
         this.updateState({ step: 'WAITING_AUTH', error: null });
 
@@ -236,7 +316,8 @@ class DashboardBootstrapCoordinator {
           });
         }
 
-        // STEP 2: IDENTITY & SUPABASE SESSION RESOLVED
+        // STEP 2: IDENTITY & AUTH READY
+        logBootTrace('AUTH_READY', { authUserId: authResult.authUserId });
         this.updateState({
           step: 'AUTH_READY',
           authReady: true,
@@ -245,21 +326,20 @@ class DashboardBootstrapCoordinator {
         });
 
         // STEP 3: TENANT RESOLVING
+        logBootTrace('TENANT_RESOLVING_START');
         this.updateState({ step: 'TENANT_RESOLVING' });
 
-        const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId);
+        const tenantCtx = await umkmSupabaseService.getCanonicalTenantContext(providedStoreId, { forceFresh: forceRefresh });
 
         if (currentGen !== this.bootstrapGeneration || abortController.signal.aborted) {
           console.log('[DASHBOARD_BOOTSTRAP] Aborted stale tenant resolution, generation:', currentGen);
           return this.getState();
         }
 
-        const isTenantVerified = Boolean(
-          tenantCtx.verified &&
-          isValidUuid(tenantCtx.storeId) &&
-          isValidUuid(tenantCtx.organizationId) &&
-          isValidUuid(tenantCtx.workspaceId)
-        );
+        const isTenantVerified = assertTenantReadyInvariant({
+          ...tenantCtx,
+          verified: tenantCtx.verified || tenantCtx.tenantVerified,
+        });
 
         if (!isTenantVerified) {
           console.warn('[DASHBOARD_BOOTSTRAP] Tenant not verified yet:', tenantCtx.storeStatus);
@@ -273,7 +353,10 @@ class DashboardBootstrapCoordinator {
           });
         }
 
-        // Sync active tenant state
+        logBootTrace('TENANT_READY', { storeId: tenantCtx.storeId, orgId: tenantCtx.organizationId, wsId: tenantCtx.workspaceId });
+        this.updateState({ step: 'TENANT_READY' });
+
+        // Sync active tenant state safely
         setActiveTenant({
           organizationId: tenantCtx.organizationId || '',
           workspaceId: tenantCtx.workspaceId || '',
@@ -286,7 +369,8 @@ class DashboardBootstrapCoordinator {
           tenantVerified: true,
         });
 
-        // STEP 4: TENANT READY -> DASHBOARD SHELL BOOTSTRAP_READY (NON-BLOCKING FOR AI/CHAT)
+        // STEP 4: BOOTSTRAP_READY (SHELL READY FOR UI RENDER)
+        logBootTrace('BOOTSTRAP_READY');
         const readyState = this.updateState({
           step: 'BOOTSTRAP_READY',
           tenantReady: true,
@@ -324,7 +408,16 @@ class DashboardBootstrapCoordinator {
     signal: AbortSignal
   ): Promise<void> {
     try {
-      this.updateState({ step: 'CHAT_RESOLVING' });
+      const activeToken = getCanonicalAccessToken();
+      const authSnapshot = canonicalAuthManager.getSnapshot();
+      const supaAuthState = await getSupabaseAuthState();
+
+      if (!supaAuthState.sessionPresent) {
+        console.log('[DASHBOARD_BOOTSTRAP] Deferring background chat resolution until valid Supabase auth session is ready.');
+        return;
+      }
+
+      // Perform background resolution without changing step from BOOTSTRAP_READY
       const chatId = await chatSessionManager.restoreOrBootstrapAssistantSession(assistantType, storeId);
 
       if (generation !== this.bootstrapGeneration || signal.aborted) {
@@ -337,13 +430,9 @@ class DashboardBootstrapCoordinator {
           step: 'BOOTSTRAP_READY',
           activeChatId: chatId,
         });
-      } else {
-        console.warn('[DASHBOARD_BOOTSTRAP] Background chat resolution returned null chatId');
-        this.updateState({ step: 'BOOTSTRAP_READY' });
       }
     } catch (e: any) {
-      console.warn('[DASHBOARD_BOOTSTRAP] Non-blocking background chat resolution note:', e);
-      this.updateState({ step: 'BOOTSTRAP_READY' });
+        console.warn('[DASHBOARD_BOOTSTRAP] Non-blocking background chat resolution note:', e);
     }
   }
 

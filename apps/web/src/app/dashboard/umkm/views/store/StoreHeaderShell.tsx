@@ -103,8 +103,8 @@ export function StoreHeaderShell({
           </p>
         </div>
 
-        {/* Primary Header Action Buttons — only on Katalog Utama & Kelola Produk */}
-        {(activeTab === 'store' || activeTab === 'manage_product') && (
+        {/* Primary Header Action Buttons — only on Kelola Produk tab */}
+        {activeTab === 'manage_product' && (
         <div className="flex flex-row items-center gap-2 w-full md:w-auto shrink-0">
           <button 
             onClick={onOpenDeployModal} 

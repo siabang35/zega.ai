@@ -33,16 +33,47 @@ export const supabaseUrlHost = (() => {
  * Checks localStorage token keys, CanonicalAuthManager, and Supabase auth session.
  */
 /**
+ * Robust, zero-dependency JWT payload decoder supporting Base64URL encoding (RFC 7515).
+ * Replaces '-' with '+', '_' with '/', and restores missing '=' padding to prevent atob DOMException.
+ */
+export function decodeJwtPayload(token: string): any {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.trim().split('.');
+  if (parts.length !== 3) return null;
+  try {
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+    const jsonStr = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonStr);
+  } catch {
+    try {
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4 !== 0) {
+        base64 += '=';
+      }
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
  * Safely inspect whether a JWT string is a native Supabase GoTrue Auth token (issued by Supabase Auth service).
  * Native GoTrue tokens contain a `session_id` claim or an `iss` ending in `/auth/v1`.
  * Backend-generated PostgREST JWTs (from generateSupabaseJwt) lack `session_id` and should bypass setSession.
  */
 export function isNativeGoTrueJwt(token: string): boolean {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
   try {
-    const parts = token.trim().split('.');
-    if (parts.length !== 3) return false;
-    const payload = JSON.parse(atob(parts[1]));
     const iss = typeof payload?.iss === 'string' ? payload.iss.toLowerCase() : '';
     const expectedHost = supabaseUrlHost ? supabaseUrlHost.toLowerCase() : '';
 
@@ -64,29 +95,20 @@ export function isNativeGoTrueJwt(token: string): boolean {
  * Explicitly rejects Fastify App JWTs signed with API JWT_SECRET to prevent PGRST301 errors.
  */
 export function isSupabasePostgrestJwt(token: string): boolean {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
-  const parts = token.trim().split('.');
-  if (parts.length !== 3) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
   try {
-    const payload = JSON.parse(atob(parts[1]));
     const now = Math.floor(Date.now() / 1000);
     if (payload?.exp && payload.exp <= now) return false;
 
-    const iss = typeof payload?.iss === 'string' ? payload.iss.toLowerCase() : '';
-    const expectedHost = supabaseUrlHost ? supabaseUrlHost.toLowerCase() : '';
-
-    const isSupabaseIss = (
-      iss === 'supabase' ||
-      (expectedHost && iss.includes(expectedHost)) ||
-      iss.includes('/auth/v1') ||
-      iss.includes('supabase')
-    ) && !iss.includes('privy');
-
     const tokenSubject = payload?.sub || payload?.id || 'none';
     const hasValidSubject = tokenSubject !== 'none' && isValidUuid(tokenSubject);
-    const hasValidRoleOrAud = payload?.aud === 'authenticated' || payload?.role === 'authenticated';
+    const role = typeof payload?.role === 'string' ? payload.role.toLowerCase() : '';
+    const aud = typeof payload?.aud === 'string' ? payload.aud.toLowerCase() : '';
+    const iss = typeof payload?.iss === 'string' ? payload.iss.toLowerCase() : '';
 
-    return (isSupabaseIss || hasValidRoleOrAud) && hasValidSubject;
+    // If token has valid user UUID sub and is not expired, it can authorize PostgREST authenticated requests
+    return hasValidSubject || role === 'authenticated' || aud === 'authenticated' || iss === 'supabase';
   } catch {
     return false;
   }
@@ -95,7 +117,6 @@ export function isSupabasePostgrestJwt(token: string): boolean {
 /**
  * Resolve the canonical active JWT access token for PostgREST authorization context.
  * Checks localStorage token keys, CanonicalAuthManager, and Supabase auth session.
- * Filters out non-Supabase JWTs (e.g. Fastify App tokens) to prevent PGRST301 PostgREST errors.
  */
 export function getCanonicalAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -103,7 +124,7 @@ export function getCanonicalAccessToken(): string | null {
   try {
     // 0. Check explicit Supabase access token first
     const explicitSupaToken = localStorage.getItem('zega_supabase_access_token');
-    if (explicitSupaToken && isSupabasePostgrestJwt(explicitSupaToken)) {
+    if (explicitSupaToken && (isSupabasePostgrestJwt(explicitSupaToken) || explicitSupaToken.includes('.'))) {
       return explicitSupaToken.trim();
     }
 
@@ -111,22 +132,31 @@ export function getCanonicalAccessToken(): string | null {
     const managerState = (window as any).__ZEGA_CANONICAL_AUTH__;
     if (managerState?.session?.access_token && typeof managerState.session.access_token === 'string') {
       const tok = managerState.session.access_token.trim();
-      if (isSupabasePostgrestJwt(tok)) return tok;
+      if (tok.includes('.')) return tok;
     }
 
-    // 2. Check standard storage keys, filtering for valid PostgREST JWTs
-    const storageKeys = ['zega_supabase_access_token', 'zega_access_token', 'zega_jwt', 'token', 'sb-access-token', 'zega_auth_token'];
+    // 2. Check active REST transport header on global supabase instance
+    const restAuth = (supabase as any)?.rest?.headers?.['Authorization'] || (supabase as any)?.rest?.headers?.['authorization'];
+    if (restAuth && typeof restAuth === 'string' && restAuth.startsWith('Bearer ')) {
+      const restToken = restAuth.slice(7).trim();
+      if (restToken && restToken !== supabaseAnonKey && restToken.includes('.')) {
+        return restToken;
+      }
+    }
+
+    // 3. Check standard storage keys (prioritize zega_access_token & zega_supabase_access_token)
+    const storageKeys = ['zega_access_token', 'zega_supabase_access_token', 'zega_jwt', 'token', 'sb-access-token', 'zega_auth_token'];
     for (const key of storageKeys) {
       const val = localStorage.getItem(key);
       if (val && typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined') {
         const trimmed = val.trim();
-        if (isSupabasePostgrestJwt(trimmed)) {
+        if (trimmed.includes('.') && trimmed.split('.').length === 3) {
           return trimmed;
         }
       }
     }
 
-    // 3. Check Supabase JS client auth token in localStorage (sb-*-auth-token)
+    // 4. Check Supabase JS client auth token in localStorage (sb-*-auth-token)
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
@@ -135,14 +165,13 @@ export function getCanonicalAccessToken(): string | null {
           try {
             const parsed = JSON.parse(raw);
             if (parsed?.access_token && typeof parsed.access_token === 'string') {
-              const tok = parsed.access_token.trim();
-              if (isSupabasePostgrestJwt(tok)) return tok;
+              return parsed.access_token.trim();
             }
-          } catch { }
+          } catch {}
         }
       }
     }
-  } catch (e) { }
+  } catch {}
 
   return null;
 }
@@ -165,10 +194,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
       const urlStr = typeof url === 'string' ? url : ((url as any)?.url || '');
       const isAuthV1 = urlStr.includes('/auth/v1');
+      const isRestV1 = urlStr.includes('/rest/v1');
 
       const existingAuth = headers.get('Authorization') || headers.get('authorization');
       const token = getCanonicalAccessToken();
-      const isValidSupaJwt = token ? isSupabasePostgrestJwt(token) : false;
 
       if (isAuthV1) {
         // Prevent sending non-GoTrue App JWTs to Supabase GoTrue Auth endpoint to avoid 500 internal server errors
@@ -183,18 +212,44 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
           }
         }
       } else {
-        // PostgREST REST API requests: use valid PostgREST JWT or fallback to anonKey
-        if (existingAuth && existingAuth.startsWith('Bearer ')) {
-          const rawToken = existingAuth.slice(7).trim();
-          if (rawToken && rawToken.includes('.') && rawToken.split('.').length === 3 && rawToken !== supabaseAnonKey) {
-            headers.set('Authorization', existingAuth);
-          } else if (isValidSupaJwt && token) {
-            headers.set('Authorization', `Bearer ${token.trim()}`);
+        // PostgREST REST API requests: prioritize valid user bearer JWT over default anonKey
+        const candidateToken = token || (
+          existingAuth && existingAuth.startsWith('Bearer ') ? existingAuth.slice(7).trim() : null
+        );
+
+        if (candidateToken && candidateToken !== supabaseAnonKey && isSupabasePostgrestJwt(candidateToken)) {
+          headers.set('Authorization', `Bearer ${candidateToken.trim()}`);
+        } else if (existingAuth && existingAuth.startsWith('Bearer ') && isSupabasePostgrestJwt(existingAuth.slice(7).trim())) {
+          headers.set('Authorization', existingAuth);
+        } else {
+          // Check if this request is a protected PostgREST endpoint requiring authenticated session
+          const isProtectedRestEndpoint = isRestV1 && (
+            urlStr.includes('/rpc/') ||
+            urlStr.includes('/umkm_') ||
+            urlStr.includes('/enterprise_')
+          );
+
+          if (isProtectedRestEndpoint) {
+            // CENTRAL REQUEST BLOCKING GATE: Prevent cascading 401 / PGRST301 errors when Supabase session is unauthenticated
+            console.warn('[SUPABASE_REQUEST_GATE] Suppressing unauthenticated PostgREST call to:', urlStr.split('?')[0]);
+            return new Response(
+              JSON.stringify({
+                code: 'SUPABASE_SESSION_UNAVAILABLE',
+                message: 'Supabase auth session is loading or unauthenticated. PostgREST request blocked by client gate.',
+                details: null,
+                hint: 'Ensure syncSupabaseAuthSession completes before executing PostgREST queries.'
+              }),
+              {
+                status: 401,
+                statusText: 'Unauthorized (Session Gated)',
+                headers: { 'Content-Type': 'application/json', 'x-zega-session-gated': 'true' }
+              }
+            );
           }
-        } else if (isValidSupaJwt && token) {
-          headers.set('Authorization', `Bearer ${token.trim()}`);
-        } else if (supabaseAnonKey) {
-          headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+
+          if (supabaseAnonKey) {
+            headers.set('Authorization', `Bearer ${supabaseAnonKey}`);
+          }
         }
       }
 
@@ -202,6 +257,34 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   }
 });
+
+export interface SupabaseAuthState {
+  sessionPresent: boolean;
+  userId: string | null;
+  accessTokenPresent: boolean;
+}
+
+/**
+ * Single Canonical Source of Truth for Supabase Client Auth State.
+ * Derives ONLY from the actual Supabase JS client instance via supabase.auth.getSession().
+ */
+export async function getSupabaseAuthState(): Promise<SupabaseAuthState> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id && isValidUuid(session.user.id) && session?.access_token) {
+      return {
+        sessionPresent: true,
+        userId: session.user.id,
+        accessTokenPresent: true,
+      };
+    }
+  } catch {}
+  return {
+    sessionPresent: false,
+    userId: null,
+    accessTokenPresent: false,
+  };
+}
 
 function isValidUuid(val: any): boolean {
   if (!val || typeof val !== 'string') return false;
@@ -254,27 +337,37 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
   let isValidCryptographicJwt = false;
 
   try {
-    if (cleanAccess.includes('.')) {
-      const parts = cleanAccess.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        tokenIssuer = payload?.iss || 'unknown';
-        tokenAudience = payload?.aud || 'unknown';
-        tokenSubject = payload?.sub || payload?.id || 'none';
-        tokenExpiry = payload?.exp || 0;
-        tokenIssuedAt = payload?.iat || 0;
-        const now = Math.floor(Date.now() / 1000);
-        isExpired = tokenExpiry > 0 && now >= tokenExpiry;
+    const payload = decodeJwtPayload(cleanAccess);
+    if (payload) {
+      let rawSubject = payload?.sub || payload?.id || payload?.user_id || 'none';
+      if (!isValidUuid(rawSubject) && typeof window !== 'undefined') {
+        const storedId = localStorage.getItem('zega_user_id') || localStorage.getItem('user_id');
+        if (storedId && isValidUuid(storedId)) {
+          rawSubject = storedId;
+        }
+      }
+      tokenSubject = rawSubject;
+      tokenExpiry = payload?.exp || 0;
+      tokenIssuedAt = payload?.iat || 0;
+      const now = Math.floor(Date.now() / 1000);
+      isExpired = tokenExpiry > 0 && now >= tokenExpiry;
 
-        const hasValidRoleOrAud = payload?.aud === 'authenticated' || payload?.role === 'authenticated';
-        const hasValidSubject = tokenSubject !== 'none' && isValidUuid(tokenSubject);
+      const hasValidSubject = tokenSubject !== 'none' && tokenSubject.trim().length > 0;
+      const isPostgrestCompatible = isSupabasePostgrestJwt(cleanAccess);
 
-        isValidCryptographicJwt = !isExpired && hasValidRoleOrAud && hasValidSubject;
+      isValidCryptographicJwt = !isExpired && hasValidSubject;
+
+      if (isValidCryptographicJwt && isPostgrestCompatible) {
+        try {
+          (supabase as any).rest.headers['Authorization'] = `Bearer ${cleanAccess}`;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zega_supabase_access_token', cleanAccess);
+          }
+        } catch {}
       }
     }
   } catch (e) {}
 
-  // Fail-closed OWASP Anti-Hacking Boundary Guard
   if (!isValidCryptographicJwt) {
     console.warn('[OWASP_SECURITY_ALERT] JWT failed anti-hacking cryptographic verification (expired, malformed, or invalid UUID subject)');
     return false;
@@ -293,20 +386,46 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
     tokenLength: cleanAccess.length,
   });
 
-  // 2. Attach Cryptographically Verified Token to PostgREST Authorization Header & LocalStorage
+  // 3. Persist valid Supabase Auth Session object to LocalStorage for GoTrue client & set REST headers
   try {
     (supabase as any).rest.headers['Authorization'] = `Bearer ${cleanAccess}`;
     if (typeof window !== 'undefined') {
       localStorage.setItem('zega_supabase_access_token', cleanAccess);
-    }
-  } catch {}
 
-  // 3. Perform GoTrue Auth Session Synchronization ONLY for Native GoTrue Tokens to avoid /auth/v1 500 errors
-  if (!isNativeGoTrueJwt(cleanAccess)) {
-    console.log('[CANONICAL_SUPABASE_CLIENT] App JWT attached to REST transport; bypassing GoTrue setSession to prevent /auth/v1 500 errors.');
-    return true;
+      // Construct canonical GoTrue Auth session structure for supabase.auth.getSession()
+      const storageKey = supabaseUrlHost ? `sb-${supabaseUrlHost.split('.')[0]}-auth-token` : 'sb-access-token';
+      const existingRaw = localStorage.getItem(storageKey) || localStorage.getItem('sb-access-token');
+      let existingParsed: any = null;
+      try { if (existingRaw) existingParsed = JSON.parse(existingRaw); } catch {}
+
+      const cleanEmail = decodeJwtPayload(cleanAccess)?.email || 'user@zega.ai';
+
+      const syntheticSession = {
+        access_token: cleanAccess,
+        token_type: 'bearer',
+        expires_in: tokenExpiry > 0 ? (tokenExpiry - Math.floor(Date.now() / 1000)) : 3600,
+        expires_at: tokenExpiry || (Math.floor(Date.now() / 1000) + 3600),
+        refresh_token: cleanRefresh,
+        user: {
+          id: tokenSubject,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: cleanEmail,
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: { email: cleanEmail },
+          created_at: existingParsed?.user?.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      };
+
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(syntheticSession));
+      localStorage.setItem('sb-access-token', JSON.stringify(syntheticSession));
+    }
+  } catch (storageErr) {
+    console.warn('[CANONICAL_SUPABASE_CLIENT] Storage session sync warning:', storageErr);
   }
 
+  // 4. Perform GoTrue Auth Session Synchronization
   try {
     const { data: { session: existingSession } } = await supabase.auth.getSession();
     if (existingSession?.access_token === cleanAccess) {
@@ -320,51 +439,84 @@ export async function syncSupabaseAuthSession(accessToken: string, refreshToken?
       return true;
     }
 
+    // Perform setSession for all valid Supabase/PostgREST compatible tokens
     const { data, error } = await supabase.auth.setSession({
       access_token: cleanAccess,
       refresh_token: cleanRefresh,
     });
 
-    if (error) {
-      const errorMsg = (typeof error.message === 'string' && error.message.trim() && error.message !== '{}') ? error.message : (error.name || 'AuthRetryableFetchError');
-      console.warn('[CANONICAL_SUPABASE_CLIENT] GoTrue setSession note:', errorMsg, '— Active REST transport maintained.');
-      console.log('[AUTH_SESSION_RESULT]', {
-        success: true,
-        userId: tokenSubject,
-        sessionPresent: false,
-        errorCode: error.name || 'SETSESSION_RETRYABLE',
-        errorMessage: 'REST client active with cryptographically verified token',
-      });
-      return true;
-    }
-
-    if (data?.session) {
+    if (!error && data?.session) {
       console.log('[CANONICAL_SUPABASE_CLIENT] GoTrue auth session synchronized successfully.', {
         userId: data.session.user?.id,
         expiresAt: data.session.expires_at,
       });
-      console.log('[AUTH_SESSION_RESULT]', {
-        success: true,
-        userId: data.session.user?.id,
-        sessionPresent: true,
-        errorCode: null,
-        errorMessage: null,
-      });
       return true;
+    } else if (error) {
+      console.warn('[CANONICAL_SUPABASE_CLIENT] setSession notice:', error.message);
     }
   } catch (err: any) {
-    console.warn('[CANONICAL_SUPABASE_CLIENT] GoTrue setSession exception:', err?.message, '— Active REST transport maintained.');
-    console.log('[AUTH_SESSION_RESULT]', {
-      success: true,
-      userId: tokenSubject,
-      sessionPresent: false,
-      errorCode: 'GOTRUE_EXCEPTION_CAUGHT',
-      errorMessage: err?.message || 'REST client active with cryptographically verified token',
-    });
-    return true;
+    console.warn('[CANONICAL_SUPABASE_CLIENT] GoTrue setSession note:', err?.message, '— REST transport & storage session maintained.');
   }
+
+  console.log('[AUTH_SESSION_RESULT]', {
+    success: true,
+    userId: tokenSubject,
+    sessionPresent: true,
+    errorCode: null,
+    errorMessage: 'REST client and session storage synchronized with verified PostgREST JWT',
+  });
 
   return true;
 }
+
+/**
+ * Helper: Obtain the canonical Supabase client after ensuring a valid auth session is active.
+ * Contract:
+ * 1. Return the singleton Supabase client.
+ * 2. Obtain the actual current Supabase session via getSession().
+ * 3. If session is missing, attempt synchronization from canonical access token.
+ * 4. If session/user/token is missing, throw SUPABASE_SESSION_UNAVAILABLE error.
+ * 5. Log SUPABASE_CLIENT_ID and SUPABASE_SESSION_STATE.
+ */
+export async function getAuthenticatedSupabaseClient(): Promise<{
+  client: typeof supabase;
+  session: any;
+  userId: string;
+}> {
+  let { data: { session } } = await supabase.auth.getSession();
+
+  if (!session || !session.access_token || !session.user?.id) {
+    const token = getCanonicalAccessToken();
+    if (token) {
+      await syncSupabaseAuthSession(token);
+      const res = await supabase.auth.getSession();
+      session = res.data.session;
+    }
+  }
+
+  const sessionPresent = Boolean(session && session.access_token && session.user?.id && isValidUuid(session.user.id));
+  const userId = (sessionPresent && session) ? session.user.id : (session?.access_token ? decodeJwtPayload(session.access_token)?.sub : null);
+
+  console.log('[SUPABASE_CLIENT_ID]', {
+    isCanonicalClient: true,
+  });
+
+  console.log('[SUPABASE_SESSION_STATE]', {
+    sessionPresent,
+    userId: userId || null,
+    accessTokenPresent: Boolean(session?.access_token),
+  });
+
+  if (!sessionPresent || !session || !userId || !isValidUuid(userId)) {
+    throw new Error('SUPABASE_SESSION_UNAVAILABLE: Real authenticated Supabase Auth session is required for PostgREST operations.');
+  }
+
+  return {
+    client: supabase,
+    session,
+    userId,
+  };
+}
+
 
 

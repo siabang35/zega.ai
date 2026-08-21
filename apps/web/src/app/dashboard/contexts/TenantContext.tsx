@@ -145,10 +145,11 @@ export function resolveTenantFromUser(
   const resolvedAccType = getVerifiedAccountType(email);
   const effectiveTenantType: TenantType = tenantType || (resolvedAccType === 'ENTERPRISE' ? 'enterprise' : 'umkm');
 
-  // If user changed, do not inherit old local storage or in-memory tenant IDs
+  // 0. Identity snapshot restoration from localStorage
   const storedStoreId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_store_id') : null;
   const storedOrgId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_org_id') : null;
   const storedWsId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_workspace_id') : null;
+  const storedUserId = (!isUserMismatch && typeof localStorage !== 'undefined') ? localStorage.getItem('zega_active_user_id') : null;
 
   const effectiveStoreId = (!isUserMismatch && isValidUuid(_activeTenant.storeId)) ? _activeTenant.storeId : (isValidUuid(storedStoreId) ? storedStoreId : null);
   let effectiveOrgId = (!isUserMismatch && isValidUuid(_activeTenant.organizationId) && _activeTenant.organizationId !== UNRESOLVED_ORG) ? _activeTenant.organizationId : (isValidUuid(storedOrgId) ? storedOrgId! : '');
@@ -161,9 +162,17 @@ export function resolveTenantFromUser(
     effectiveWsId = UNRESOLVED_WS;
   }
 
-  const effectiveStoreStatus: StoreReadinessStatus = (effectiveStoreId && isValidUuid(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS) ? 'ready' : (isUserMismatch ? 'loading' : (_activeTenant.storeStatus || 'loading'));
+  const isCompleteSnapshot = Boolean(
+    effectiveStoreId && isValidUuid(effectiveStoreId) &&
+    effectiveOrgId && isValidUuid(effectiveOrgId) && effectiveOrgId !== UNRESOLVED_ORG &&
+    effectiveWsId && isValidUuid(effectiveWsId) && effectiveWsId !== UNRESOLVED_WS
+  );
 
-  const isStoreReady = effectiveStoreStatus === 'ready' && Boolean(effectiveStoreId) && effectiveOrgId !== UNRESOLVED_ORG && effectiveWsId !== UNRESOLVED_WS;
+  const effectiveStoreStatus: StoreReadinessStatus = isCompleteSnapshot ? 'ready' : (isUserMismatch ? 'loading' : (_activeTenant.storeStatus || 'loading'));
+
+  const isStoreReady = effectiveStoreStatus === 'ready' && isCompleteSnapshot;
+
+  const activeUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || (isValidUuid(storedUserId) ? storedUserId! : '');
 
   // SuperAdmin detection (platform control plane)
   if (email.endsWith('@zegaai.site') || email.endsWith('@zeroclaw.ai')) {
@@ -173,7 +182,7 @@ export function resolveTenantFromUser(
       storeId: effectiveStoreId,
       tenantType: 'superadmin',
       userEmail: email,
-      userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+      userId: activeUserId,
       storeStatus: effectiveStoreStatus,
       verified: isStoreReady,
       tenantVerified: isStoreReady
@@ -188,21 +197,21 @@ export function resolveTenantFromUser(
       storeId: effectiveStoreId,
       tenantType: 'enterprise',
       userEmail: email,
-      userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+      userId: activeUserId,
       storeStatus: effectiveStoreStatus,
       verified: isStoreReady,
       tenantVerified: isStoreReady
     };
   }
 
-  // UMKM tenant — starts unresolved until verified from database catalog
+  // UMKM tenant — ready instantly if complete snapshot restored from localStorage or _activeTenant
   return {
     organizationId: effectiveOrgId,
     workspaceId: effectiveWsId,
     storeId: effectiveStoreId,
     tenantType: 'umkm',
     userEmail: email,
-    userId: _activeTenant.userId || getAuthBridgeState().supabaseUserId || '',
+    userId: activeUserId,
     storeStatus: effectiveStoreStatus,
     verified: isStoreReady,
     tenantVerified: isStoreReady
@@ -452,28 +461,68 @@ export function getTenantGeneration(): number {
   return _tenantGeneration;
 }
 
+function getInitialActiveTenant(): TenantIds {
+  if (typeof localStorage === 'undefined') {
+    return {
+      organizationId: UNRESOLVED_ORG,
+      workspaceId: UNRESOLVED_WS,
+      storeId: null,
+      tenantType: 'umkm',
+      userEmail: '',
+      userId: '',
+      storeStatus: 'unavailable',
+      version: 1
+    };
+  }
+  try {
+    const storedStoreId = localStorage.getItem('zega_active_store_id');
+    const storedOrgId = localStorage.getItem('zega_active_org_id');
+    const storedWsId = localStorage.getItem('zega_active_workspace_id');
+    const storedUserId = localStorage.getItem('zega_active_user_id');
+
+    if (storedStoreId && isValidUuid(storedStoreId) && storedOrgId && isValidUuid(storedOrgId) && storedWsId && isValidUuid(storedWsId)) {
+      return {
+        organizationId: storedOrgId,
+        workspaceId: storedWsId,
+        storeId: storedStoreId,
+        tenantType: 'umkm',
+        userEmail: '',
+        userId: storedUserId || '',
+        storeStatus: 'ready',
+        verified: true,
+        tenantVerified: true,
+        version: 1
+      };
+    }
+  } catch { }
+  return {
+    organizationId: UNRESOLVED_ORG,
+    workspaceId: UNRESOLVED_WS,
+    storeId: null,
+    tenantType: 'umkm',
+    userEmail: '',
+    userId: '',
+    storeStatus: 'unavailable',
+    version: 1
+  };
+}
+
 /** 
  * Singleton tenant state for service layer (set by TenantProvider on mount).
  * This avoids requiring React hooks inside service functions.
  */
-let _activeTenant: TenantIds = {
-  organizationId: UNRESOLVED_ORG,
-  workspaceId: UNRESOLVED_WS,
-  storeId: null,
-  tenantType: 'umkm',
-  userEmail: '',
-  userId: '',
-  storeStatus: 'unavailable',
-  version: 1
-};
+let _activeTenant: TenantIds = getInitialActiveTenant();
 
 /** Called by TenantProvider to sync active tenant to service layer & Supabase REST headers */
 export function setActiveTenant(tenant: TenantIds): void {
   // Check if this is a true user switch:
   // ONLY reset if BOTH current and incoming user IDs/emails are valid and do NOT represent the same user.
-  const isSameUser = _activeTenant.userId === tenant.userId ||
-    (_activeTenant.userEmail && tenant.userEmail && _activeTenant.userEmail.toLowerCase() === tenant.userEmail.toLowerCase()) ||
-    (!_activeTenant.userId || !tenant.userId);
+  const hasActiveIdentity = Boolean(_activeTenant.userId || _activeTenant.userEmail);
+  const hasIncomingIdentity = Boolean(tenant.userId || tenant.userEmail);
+  
+  const isSameUser = !hasActiveIdentity || !hasIncomingIdentity ||
+    (_activeTenant.userId && tenant.userId && _activeTenant.userId === tenant.userId) ||
+    (_activeTenant.userEmail && tenant.userEmail && _activeTenant.userEmail.toLowerCase().trim() === tenant.userEmail.toLowerCase().trim());
 
   if (!isSameUser) {
     _tenantGeneration++;
@@ -491,6 +540,15 @@ export function setActiveTenant(tenant: TenantIds): void {
       storeStatus: 'loading',
       version: _tenantGeneration
     };
+    // Clear localStorage on explicit user switch
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('zega_active_store_id');
+        localStorage.removeItem('zega_active_org_id');
+        localStorage.removeItem('zega_active_workspace_id');
+        localStorage.removeItem('zega_active_user_id');
+      }
+    } catch {}
     // Invalidate resolver cache on user switch (dynamic import to avoid circular dependency)
     import('../services/umkmSupabaseService').then(({ invalidateTenantResolutionCache }) => {
       invalidateTenantResolutionCache();
@@ -524,6 +582,17 @@ export function setActiveTenant(tenant: TenantIds): void {
     };
   }
 
+  // Atomic snapshot persistence to localStorage when ready
+  const isFinalReady = _activeTenant.storeStatus === 'ready' && isValidUuid(_activeTenant.storeId) && isValidUuid(_activeTenant.organizationId) && isValidUuid(_activeTenant.workspaceId);
+  if (isFinalReady && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('zega_active_store_id', _activeTenant.storeId!);
+      localStorage.setItem('zega_active_org_id', _activeTenant.organizationId);
+      localStorage.setItem('zega_active_workspace_id', _activeTenant.workspaceId);
+      if (_activeTenant.userId) localStorage.setItem('zega_active_user_id', _activeTenant.userId);
+    } catch {}
+  }
+
   if (_activeTenant.organizationId && _activeTenant.organizationId !== UNRESOLVED_ORG) {
     setSupabaseTenantHeader(_activeTenant.organizationId);
   }
@@ -544,13 +613,13 @@ export function updateActiveTenantStore(storeId: string | null, storeStatus: Sto
     return;
   }
 
-  if (isTargetValid && typeof localStorage !== 'undefined') {
+  const effectiveUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || '';
+  if (typeof localStorage !== 'undefined') {
     try {
-      localStorage.setItem('zega_active_store_id', targetStoreId!);
+      if (effectiveUserId) localStorage.setItem('zega_active_user_id', effectiveUserId);
+      if (targetStoreId && isTargetValid) localStorage.setItem('zega_active_store_id', targetStoreId);
     } catch { }
   }
-
-  const effectiveUserId = _activeTenant.userId || getAuthBridgeState().supabaseUserId || '';
   _activeTenant = {
     ..._activeTenant,
     userId: effectiveUserId,

@@ -16,7 +16,7 @@ interface ModalBaseProps {
  * 1. Add Product Modal (Professional E-Commerce Edition with Device Upload, Dropzone, CDN & Multi-Attribute Telemetry)
  */
 export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const s = (t.storeView || {}) as any;
 
   const [name, setName] = useState('');
@@ -105,16 +105,35 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Package size={20} className="text-orange-500" />
-              <span>{s.addSingleProduct || 'Tambah Produk Baru (Konfigurasi Lengkap)'}</span>
+          <div className="min-w-0 pr-2">
+            <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 truncate">
+              <Package size={20} className="text-orange-500 shrink-0" />
+              <span className="truncate">{s.addSingleProduct || 'Tambah Produk Baru (Konfigurasi Lengkap)'}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">{s.addSingleProductDesc || 'Lengkapi spesifikasi produk, foto real dari HP/Laptop, & channel penjualan.'}</p>
+            <p className="text-xs text-slate-400 font-medium truncate">{s.addSingleProductDesc || 'Lengkapi spesifikasi produk, foto real dari HP/Laptop, & channel penjualan.'}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Language Switcher Badge */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+              {(['id', 'en', 'zh'] as const).map((langCode) => (
+                <button
+                  key={langCode}
+                  type="button"
+                  onClick={() => setLanguage(langCode)}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer uppercase ${
+                    language === langCode
+                      ? 'bg-orange-500 text-white shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {langCode}
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold max-h-[75vh] overflow-y-auto pr-1">
@@ -874,10 +893,10 @@ export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh
 }
 
 /**
- * 5. Edit Product Modal
+ * 5. Edit Product Modal (Multilingual Support & Mobile/Desktop Responsive)
  */
 export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, product }: ModalBaseProps & { product: any }) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const s = (t.storeView || {}) as any;
 
   const [name, setName] = useState(product?.name || '');
@@ -968,27 +987,53 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 my-auto">
+    <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 my-auto max-h-[92vh] overflow-y-auto">
+        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Package size={18} className="text-orange-500" />
-              <span>Edit Produk #{product.sku}</span>
+          <div className="min-w-0 pr-2">
+            <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 truncate">
+              <Package size={18} className="text-orange-500 shrink-0" />
+              <span className="truncate">{s.editProduct || 'Edit Produk'} #{product.sku}</span>
             </h3>
-            <p className="text-xs text-slate-400 font-medium">Perbarui gambar dari HP/Laptop, harga promo, stok, & spesifikasi produk.</p>
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">
+              {s.editProductSubtitle || 'Perbarui gambar dari HP/Laptop, harga promo, stok, & spesifikasi produk.'}
+            </p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 cursor-pointer"><X size={18} /></button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Language Switcher Badge */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+              {(['id', 'en', 'zh'] as const).map((langCode) => (
+                <button
+                  key={langCode}
+                  type="button"
+                  onClick={() => setLanguage(langCode)}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer uppercase ${
+                    language === langCode
+                      ? 'bg-orange-500 text-white shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {langCode}
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} className="p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs font-semibold">
           {/* Image & CDN Section */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="block text-slate-700 dark:text-slate-300 font-extrabold">Gambar Produk & Foto HP/PC</label>
-              <label className="px-2.5 py-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-extrabold cursor-pointer transition-all flex items-center gap-1 shadow-xs">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="block text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+                {s.productImageLabel || 'Gambar Produk & Foto HP/PC'}
+              </label>
+              <label className="px-2.5 py-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-extrabold cursor-pointer transition-all flex items-center justify-center gap-1 shadow-xs shrink-0">
                 <Upload size={12} />
-                <span>Pilih Foto dari Device HP/PC</span>
+                <span>{s.choosePhotoFromDevice || 'Pilih Foto dari Device HP/PC'}</span>
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -997,8 +1042,8 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
                 />
               </label>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="size-14 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-1 flex items-center justify-center shadow-xs">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="size-16 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-1 flex items-center justify-center shadow-xs">
                 <img 
                   src={getR2CdnUrl(imagePath, true)} 
                   alt="Preview" 
@@ -1006,13 +1051,13 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
                   onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(name || 'Produk'); }}
                 />
               </div>
-              <div className="flex-1 space-y-1.5">
+              <div className="flex-1 w-full space-y-1.5">
                 <input 
                   type="text" 
                   value={imagePath} 
                   onChange={e => setImagePath(e.target.value)} 
-                  placeholder="Atau masukkan URL / Data Base64..." 
-                  className="w-full px-3 py-1.5 text-[11px] font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                  placeholder={s.imagePathPlaceholder || 'Atau masukkan URL / Data Base64...'} 
+                  className="w-full px-3 py-1.5 text-[11px] font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                 />
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] text-slate-400 font-bold">Preset CDN:</span>
@@ -1037,18 +1082,18 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
           </div>
 
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 mb-1">Nama Produk</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800" />
+            <label className="block text-slate-700 dark:text-slate-300 mb-1">{s.colProduct || 'Nama Produk'}</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">SKU Kode</label>
-              <input type="text" value={sku} onChange={e => setSku(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono" />
+              <label className="block text-slate-700 dark:text-slate-300 mb-1">{s.colSku || 'SKU Kode'}</label>
+              <input type="text" value={sku} onChange={e => setSku(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono text-slate-900 dark:text-slate-100" />
             </div>
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">Kategori</label>
-              <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold">
+              <label className="block text-slate-700 dark:text-slate-300 mb-1">{s.colCategory || 'Kategori'}</label>
+              <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
                 <option value="Fashion & Pakaian">Fashion & Pakaian</option>
                 <option value="Makanan & Minuman">Makanan & Minuman</option>
                 <option value="Kecantikan & Skincare">Kecantikan & Skincare</option>
@@ -1065,16 +1110,16 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">Harga Normal (Rp)</label>
-              <input type="number" value={priceIdr} onChange={e => setPriceIdr(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800" />
+              <label className="block text-slate-700 dark:text-slate-300 mb-1">{s.colPrice || 'Harga Normal (Rp)'}</label>
+              <input type="number" value={priceIdr} onChange={e => setPriceIdr(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100" />
             </div>
             <div>
               <label className="block text-slate-700 dark:text-slate-300 mb-1">Harga Diskon Promo (Rp)</label>
-              <input type="number" value={discountPriceIdr} onChange={e => setDiscountPriceIdr(e.target.value)} placeholder="Misal: 65000" className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-emerald-600 font-extrabold" />
+              <input type="number" value={discountPriceIdr} onChange={e => setDiscountPriceIdr(e.target.value)} placeholder="65000" className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-emerald-600 font-extrabold" />
             </div>
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">Stok Unit</label>
-              <input type="number" value={stock} onChange={e => setStock(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-black" />
+              <label className="block text-slate-700 dark:text-slate-300 mb-1">{s.colStock || 'Stok Unit'}</label>
+              <input type="number" value={stock} onChange={e => setStock(e.target.value)} required className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-black text-slate-900 dark:text-slate-100" />
             </div>
           </div>
 
@@ -1085,32 +1130,32 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
               onChange={e => setDescription(e.target.value)} 
               placeholder="Tambahkan detail garansi, promo bundel, atau spesifikasi bahan..."
               rows={2}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div>
             <label className="block text-slate-700 dark:text-slate-300 mb-1">Status Katalog</label>
-            <select value={status} onChange={e => setStatus(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold">
+            <select value={status} onChange={e => setStatus(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100">
               <option value="Aktif">Aktif (Tampil di Store)</option>
               <option value="Nonaktif">Nonaktif (Disembunyikan)</option>
               <option value="Draft">Draft</option>
             </select>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button 
               type="button" 
               onClick={handleDeleteProduct} 
               disabled={submitting} 
-              className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/60 dark:hover:bg-red-900/80 dark:text-red-400 font-extrabold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/60 dark:hover:bg-red-900/80 dark:text-red-400 font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <Trash2 size={15} />
               <span>{s.deleteProduct || 'Hapus Produk'}</span>
             </button>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 cursor-pointer">{s.closeModal || 'Batal'}</button>
-              <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-xs">
+              <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">{s.closeModal || 'Batal'}</button>
+              <button type="submit" disabled={submitting} className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-xs">
                 {submitting ? (s.savingProduct || 'Menyimpan...') : (s.saveChanges || 'Simpan Perubahan')}
               </button>
             </div>
@@ -1122,57 +1167,221 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
 }
 
 /**
- * 6. Product Performance Analysis Modal
+ * 6. Product Performance Analysis Modal (Real Multi-Model AI Inference & Dynamic i18n)
  */
 export function ProductAnalysisModal({ isOpen, onClose, triggerToast, product }: ModalBaseProps & { product: any }) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const s = (t.storeView || {}) as any;
+
+  const [selectedModel, setSelectedModel] = useState<'9router' | 'deepseek' | 'claude' | 'gemini' | 'qwen'>('9router');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    analysisText: string;
+    aiModel: string;
+    provider: string;
+    inferenceMs: number;
+    metrics?: any;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const modelOptions = [
+    { id: '9router', label: '9Router (Layer 5)', logo: '/assets/logo/9router.png' },
+    { id: 'deepseek', label: 'DeepSeek R1', logo: '/assets/logo/deepseek.webp' },
+    { id: 'claude', label: 'Claude 3.5', logo: '/assets/logo/claude.webp' },
+    { id: 'gemini', label: 'Gemini 3.6', logo: '/assets/logo/gemini.png' },
+    { id: 'qwen', label: 'Qwen 2.5', logo: '/assets/logo/Qwen.png' },
+  ];
+
+  const activeModelObj = modelOptions.find(m => m.id === selectedModel) || modelOptions[0];
+
+  const runAiAnalysis = React.useCallback(async (modelToUse = selectedModel, targetLang = language) => {
+    if (!product) return;
+    setIsAnalyzing(true);
+    setError(null);
+    try {
+      const data = await SupabaseDashboardService.analyzeStoreProduct(product, modelToUse, targetLang);
+      setAnalysisResult(data);
+    } catch (err: any) {
+      console.error('[ProductAnalysisModal] AI Error:', err);
+      setError(err?.message || 'Gagal memproses analisis AI.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [product, selectedModel, language]);
+
+  React.useEffect(() => {
+    if (isOpen && product) {
+      runAiAnalysis(selectedModel, language);
+    }
+  }, [isOpen, product, selectedModel, language, runAiAnalysis]);
 
   if (!isOpen || !product) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="size-9 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 grid place-items-center">
-              <Tag size={18} />
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto">
+            {/* CDN Product Thumbnail */}
+            {(() => {
+              const cdnImg = product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name));
+              return (
+                <div className="size-11 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
+                  <img 
+                    src={cdnImg} 
+                    alt={product.name} 
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name);
+                    }}
+                  />
+                </div>
+              );
+            })()}
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{product.name}</h3>
+              <span className="text-[10px] text-slate-400 font-bold block truncate">SKU: {product.sku || 'N/A'} | Kategori: {product.category || 'Lainnya'}</span>
             </div>
-            <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">{product.name}</h3>
-              <span className="text-[10px] text-slate-400 font-bold">SKU: {product.sku} | Kategori: {product.category}</span>
+          </div>
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
+            {/* Language Switcher Badge */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+              {(['id', 'en', 'zh'] as const).map((langCode) => (
+                <button
+                  key={langCode}
+                  onClick={() => setLanguage(langCode)}
+                  className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer uppercase ${
+                    language === langCode
+                      ? 'bg-orange-500 text-white shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {langCode}
+                </button>
+              ))}
             </div>
+            <button onClick={onClose} className="p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 cursor-pointer"><X size={18} /></button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-xs">
+        {/* Real Metrics Grid (No Mockup Data) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] text-slate-400 font-bold">Total Terjual</span>
-            <div className="text-lg font-black text-slate-900 dark:text-slate-100">{product.sold || 32} unit</div>
-            <span className="text-[9px] text-emerald-500 font-extrabold">↑ +18.4% bulan ini</span>
+            <span className="text-[10px] text-slate-400 font-bold">{s.totalSoldLabel || 'Total Terjual'}</span>
+            <div className="text-lg font-black text-slate-900 dark:text-slate-100">{Number(product.sold || 0)} unit</div>
+            <span className="text-[9px] text-slate-500 dark:text-slate-400 font-extrabold">Stok Tersedia: {Number(product.stock || 0)} unit</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] text-slate-400 font-bold">Estimasi Omset</span>
-            <div className="text-lg font-black text-slate-900 dark:text-slate-100">Rp{((product.price_idr || 60000) * (product.sold || 32)).toLocaleString('id-ID')}</div>
-            <span className="text-[9px] text-blue-500 font-extrabold">Margin 42%</span>
+            <span className="text-[10px] text-slate-400 font-bold">{s.estRevenueLabel || 'Total Omset Produk'}</span>
+            <div className="text-lg font-black text-slate-900 dark:text-slate-100">Rp{((Number(product.price_idr) || 0) * (Number(product.sold) || 0)).toLocaleString('id-ID')}</div>
+            <span className="text-[9px] text-orange-500 font-extrabold">Harga: Rp{(Number(product.price_idr) || 0).toLocaleString('id-ID')}</span>
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-orange-50/60 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-black text-orange-700 dark:text-orange-300">
-            <img src="https://cdn.zegaai.site/assets/logo/9router.png" alt="9Router" className="size-4 rounded-full" />
-            <span>{s.aiRecommendation || 'AI Recommendation (9Router Layer 5)'}</span>
+        {/* AI Model Selector */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            {s.selectModelLabel || 'Pilih Model AI:'}
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {modelOptions.map((opt) => {
+              const optLogoUrl = getR2CdnUrl(opt.logo, true);
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setSelectedModel(opt.id as any)}
+                  disabled={isAnalyzing}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    selectedModel === opt.id
+                      ? 'bg-orange-50 dark:bg-orange-950/60 border-orange-500 text-orange-600 dark:text-orange-400 shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                  }`}
+                >
+                  <img 
+                    src={optLogoUrl} 
+                    alt={opt.label} 
+                    className="size-4 rounded-full object-contain shrink-0" 
+                    onError={(e) => { (e.target as HTMLImageElement).src = opt.logo; }}
+                  />
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
-            Produk ini memiliki rasio konversi tinggi di Shopee & Tokopedia. Disarankan menaikkan stok cadangan sebesar 30% dan mengaktifkan kampanye diskon 5% untuk menaikkan volume penjualan.
-          </p>
         </div>
 
-        <button onClick={() => { triggerToast(`✓ Laporan analisis ${product.name} telah diunduh!`); onClose(); }} className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs text-center">
-          {s.downloadPerformancePdf || 'Unduh Laporan Performa PDF'}
-        </button>
+        {/* Real AI Recommendation Box */}
+        <div className="p-4 rounded-2xl bg-orange-50/60 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800 space-y-2 relative">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-black text-orange-700 dark:text-orange-300">
+            <div className="flex items-center gap-2">
+              <img 
+                src={getR2CdnUrl(activeModelObj.logo, true)} 
+                alt={activeModelObj.label} 
+                className="size-5 rounded-full object-contain bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).src = activeModelObj.logo; }}
+              />
+              <span>{s.aiModelRecommendation || 'Rekomendasi Model AI Real-Time'}</span>
+            </div>
+            {analysisResult && (
+              <span className="text-[10px] font-extrabold text-orange-600/80 dark:text-orange-400/80 bg-orange-100 dark:bg-orange-900/60 px-2 py-0.5 rounded-md w-fit">
+                {analysisResult.inferenceMs}ms | {analysisResult.provider}
+              </span>
+            )}
+          </div>
+
+          {isAnalyzing ? (
+            <div className="py-4 flex flex-col items-center justify-center space-y-2 text-slate-500">
+              <RefreshCw className="size-5 animate-spin text-orange-500" />
+              <span className="text-xs font-semibold animate-pulse">
+                {s.analyzingState || 'Menganalisis performa produk dengan AI...'}
+              </span>
+            </div>
+          ) : error ? (
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 text-rose-600 text-xs rounded-xl border border-rose-200">
+              {error}
+            </div>
+          ) : (
+            <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line font-normal">
+              {(analysisResult?.analysisText || 'Mengambil data analisis AI...')
+                .replace(/[\*#_`~]/g, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim()}
+            </div>
+          )}
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => runAiAnalysis(selectedModel, language)}
+            disabled={isAnalyzing}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <RefreshCw size={14} className={isAnalyzing ? 'animate-spin' : ''} />
+            <span>{s.reAnalyzeBtn || 'Analisis Ulang dengan Model AI'}</span>
+          </button>
+          <button
+            onClick={() => {
+              triggerToast(`✓ Laporan analisis ${product.name} (${selectedModel.toUpperCase()}) telah diunduh!`);
+              onClose();
+            }}
+            className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer shadow-xs text-center flex items-center justify-center gap-1.5"
+          >
+            <Download size={14} />
+            <span>{s.downloadPdfBtn || 'Unduh Laporan Performa PDF'}</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-bold text-xs cursor-pointer text-center"
+          >
+            Selesai
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import {
   Store, Store as StoreIcon, Plus, Download, Upload, Filter, Search, 
   AlertTriangle, TrendingUp, ShoppingBag, DollarSign, Package, 
   AlertCircle, Edit, BarChart2, MoreVertical, ChevronLeft, ChevronRight,
-  RefreshCw, Tag, Barcode, Layers, Percent, Check, Sparkles
+  RefreshCw, Tag, Barcode, Layers, Percent, Check, Sparkles, Trash2
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
 import { SupabaseDashboardService } from '../../services/supabaseService';
@@ -70,6 +70,44 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
   const [statusFilter, setStatusFilter] = useState('Semua Status');
   const [lowStockFilter, setLowStockFilter] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Checkbox Selection & Bulk Delete State
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+
+  const toggleSelectProduct = (id: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (currentPageProducts: any[]) => {
+    const pageIds = currentPageProducts.map((p: any) => p.id);
+    const allSelected = pageIds.every(id => selectedProductIds.includes(id));
+    if (allSelected) {
+      setSelectedProductIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      setSelectedProductIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ${selectedProductIds.length} produk terpilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    setBulkDeleting(true);
+    try {
+      await SupabaseDashboardService.deleteStoreProduct(selectedProductIds);
+      triggerToast(`✓ ${selectedProductIds.length} produk berhasil dihapus dari database!`);
+      setSelectedProductIds([]);
+      loadStoreData();
+    } catch (err: any) {
+      triggerToast(`⚠️ Gagal menghapus produk: ${err?.message || 'Error'}`);
+      loadStoreData();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const [subView, setSubView] = useState<'catalog' | 'top_selling' | 'stock_alert'>(defaultSubView);
 
@@ -958,7 +996,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
         <div id="product-table-section" className="lg:col-span-9 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
           {/* Table Control Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center justify-between md:justify-start gap-2">
+            <div className="flex items-center justify-between md:justify-start gap-2 flex-wrap">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{s.manageProducts || 'Daftar Produk'}</h3>
               {lowStockFilter && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 text-[10px] font-black animate-in fade-in">
@@ -968,6 +1006,23 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     className="hover:underline text-[9px] cursor-pointer ml-1 text-orange-800 dark:text-orange-200 font-extrabold"
                   >
                     [Reset]
+                  </button>
+                </div>
+              )}
+
+              {/* Bulk Delete Banner */}
+              {selectedProductIds.length > 0 && (
+                <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 px-3 py-1 rounded-2xl animate-in fade-in">
+                  <span className="text-xs font-bold text-red-700 dark:text-red-300">
+                    {selectedProductIds.length} Terpilih
+                  </span>
+                  <button
+                    onClick={handleBulkDeleteSelected}
+                    disabled={bulkDeleting}
+                    className="px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-[11px] cursor-pointer shadow-xs transition-all flex items-center gap-1"
+                  >
+                    <Trash2 size={13} />
+                    <span>{bulkDeleting ? 'Menghapus...' : `Hapus ${selectedProductIds.length} Produk`}</span>
                   </button>
                 </div>
               )}
@@ -1052,6 +1107,14 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                   <table className="w-full text-left text-xs font-medium border-collapse">
                     <thead>
                       <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="py-2.5 px-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={paginatedProducts.length > 0 && paginatedProducts.every((p: any) => selectedProductIds.includes(p.id))}
+                            onChange={() => toggleSelectAll(paginatedProducts)}
+                            className="rounded text-orange-500 focus:ring-orange-400 cursor-pointer size-4 accent-orange-500"
+                          />
+                        </th>
                         <th className="py-2.5 px-3">{s.colProduct || 'PRODUK'}</th>
                         <th className="py-2.5 px-3">SKU</th>
                         <th className="py-2.5 px-3">{s.colCategory || 'KATEGORI'}</th>
@@ -1067,7 +1130,15 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                         const cdnImg = product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name));
 
                         return (
-                          <tr key={product.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                          <tr key={product.id || idx} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${selectedProductIds.includes(product.id) ? 'bg-orange-50/40 dark:bg-orange-950/20' : ''}`}>
+                            <td className="py-3 px-3 w-10 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedProductIds.includes(product.id)}
+                                onChange={() => toggleSelectProduct(product.id)}
+                                className="rounded text-orange-500 focus:ring-orange-400 cursor-pointer size-4 accent-orange-500"
+                              />
+                            </td>
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-3">
                                 <div className="size-9 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
@@ -1136,15 +1207,24 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 <div className="block md:hidden space-y-3 pt-1">
                   {paginatedProducts.map((product: any, idx: number) => {
                     const cdnImg = product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name));
+                    const isSelected = selectedProductIds.includes(product.id);
 
                     return (
                       <div 
                         key={product.id || idx}
-                        className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 space-y-3 shadow-2xs"
+                        className={`p-4 rounded-2xl border space-y-3 shadow-2xs transition-colors ${
+                          isSelected ? 'bg-orange-50/60 dark:bg-orange-950/30 border-orange-300 dark:border-orange-800' : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/60'
+                        }`}
                       >
-                        {/* Header Row: Thumbnail + Product Name & SKU */}
+                        {/* Header Row: Checkbox + Thumbnail + Product Name & SKU */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectProduct(product.id)}
+                              className="rounded text-orange-500 focus:ring-orange-400 cursor-pointer size-4 accent-orange-500 shrink-0"
+                            />
                             <div className="size-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-1 flex items-center justify-center">
                               <img 
                                 src={cdnImg} 

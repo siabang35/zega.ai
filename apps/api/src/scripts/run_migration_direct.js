@@ -19,7 +19,7 @@ const hosts = [
 ];
 
 async function deploy() {
-  const sqlPath = path.resolve(__dirname, '../../../supabase/migrations/20260821030000_fix_product_creation_42883_and_rpc_signatures.sql');
+  const sqlPath = path.resolve(__dirname, '../../../supabase/migrations/20260822000000_fix_dynamic_user_product_creation_permissions.sql');
   const sql = fs.readFileSync(sqlPath, 'utf8');
 
   for (const host of hosts) {

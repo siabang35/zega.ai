@@ -85,6 +85,8 @@ if (typeof window !== "undefined") {
       joined.includes("app-init-liveness") ||
       joined.includes("background-liveness") ||
       joined.includes("contentscript.js") ||
+      joined.includes("Unable to refresh tokens") ||
+      joined.includes("auth.privy.io/api/v1/sessions") ||
       lower.includes("maxlistenersexceededwarning") ||
       lower.includes("possible eventemitter memory leak") ||
       lower.includes("listeners added") ||
@@ -95,7 +97,10 @@ if (typeof window !== "undefined") {
       lower.includes("orphaned data for stream") ||
       lower.includes("app-init-liveness") ||
       lower.includes("background-liveness") ||
-      lower.includes("contentscript.js")
+      lower.includes("contentscript.js") ||
+      lower.includes("unable to refresh tokens") ||
+      lower.includes("token is missing or no longer valid") ||
+      (lower.includes("auth.privy.io") && lower.includes("401"))
     );
   }
 

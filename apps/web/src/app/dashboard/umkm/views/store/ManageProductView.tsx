@@ -3,7 +3,7 @@ import {
   Store, Plus, Download, Upload, Filter, Search, 
   AlertTriangle, TrendingUp, ShoppingBag, DollarSign, Package, 
   AlertCircle, Edit, BarChart2, MoreVertical, ChevronLeft, ChevronRight,
-  RefreshCw, Tag, Barcode, Layers, Percent, Check, Sparkles,
+  RefreshCw, Tag, Barcode, Layers, Percent, Check, Sparkles, Trash2,
   X, ChevronUp, FileSpreadsheet, Image, Share2, UploadCloud, CheckCircle2
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../../utils/cdn';
@@ -72,6 +72,44 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<any>(null);
   const [selectedProductForAnalysis, setSelectedProductForAnalysis] = useState<any>(null);
+
+  // Checkbox Selection & Bulk Delete state
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+
+  const toggleSelectProduct = (id: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (currentPageProducts: any[]) => {
+    const pageIds = currentPageProducts.map((p: any) => p.id);
+    const allSelected = pageIds.every(id => selectedProductIds.includes(id));
+    if (allSelected) {
+      setSelectedProductIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      setSelectedProductIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedProductIds.length === 0) return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ${selectedProductIds.length} produk terpilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    setBulkDeleting(true);
+    try {
+      await SupabaseDashboardService.deleteStoreProduct(selectedProductIds);
+      triggerToast(`✓ ${selectedProductIds.length} produk berhasil dihapus dari database!`);
+      setSelectedProductIds([]);
+      loadData();
+    } catch (err: any) {
+      triggerToast(`⚠️ Gagal menghapus produk: ${err?.message || 'Error'}`);
+      loadData();
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   // Scroll to panel when opened
   useEffect(() => {
@@ -433,11 +471,28 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
       {/* Main Product Table & Controls */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{t.storeView.originalProductsListTitle}</h3>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black">
               {t.storeView.productsCountBadge.replace('{count}', String(filteredProducts.length))}
             </span>
+
+            {/* Bulk Delete Bar */}
+            {selectedProductIds.length > 0 && (
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 px-3 py-1 rounded-2xl animate-in fade-in">
+                <span className="text-xs font-bold text-red-700 dark:text-red-300">
+                  {selectedProductIds.length} Terpilih
+                </span>
+                <button
+                  onClick={handleBulkDeleteSelected}
+                  disabled={bulkDeleting}
+                  className="px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-[11px] cursor-pointer shadow-xs transition-all flex items-center gap-1"
+                >
+                  <Trash2 size={13} />
+                  <span>{bulkDeleting ? 'Menghapus...' : `Hapus ${selectedProductIds.length} Produk`}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -471,6 +526,14 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
           <table className="w-full text-left text-xs font-medium border-collapse">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={paginatedProducts.length > 0 && paginatedProducts.every((p: any) => selectedProductIds.includes(p.id))}
+                    onChange={() => toggleSelectAll(paginatedProducts)}
+                    className="rounded text-orange-500 focus:ring-orange-400 cursor-pointer size-4 accent-orange-500"
+                  />
+                </th>
                 <th className="py-3 px-3">{t.storeView.colProduct}</th>
                 <th className="py-3 px-3">{t.storeView.colSku}</th>
                 <th className="py-3 px-3">{t.storeView.colCategory}</th>
@@ -483,13 +546,21 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-semibold">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-semibold">
                     {t.storeView.noProductsMatchSearch}
                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map((product: any) => (
-                  <tr key={product.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                  <tr key={product.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${selectedProductIds.includes(product.id) ? 'bg-orange-50/40 dark:bg-orange-950/20' : ''}`}>
+                    <td className="py-3.5 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(product.id)}
+                        onChange={() => toggleSelectProduct(product.id)}
+                        className="rounded text-orange-500 focus:ring-orange-400 cursor-pointer size-4 accent-orange-500"
+                      />
+                    </td>
                     <td className="py-3.5 px-3">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">

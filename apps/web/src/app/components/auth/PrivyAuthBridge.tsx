@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { usePrivy, useSolanaWallets } from '@privy-io/react-auth';
-import { supabase, syncSupabaseAuthSession } from '../../../lib/supabase';
+import { supabase, syncSupabaseAuthSession, isSupabasePostgrestJwt, decodeJwtPayload, getSupabaseAuthState } from '../../../lib/supabase';
 import {
   clearSessionAccountState,
   saveVerifiedAccountType,
@@ -191,17 +191,14 @@ function resolveActiveSession(sessionUser?: any): { userId: string | null; email
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
     if (token) {
       try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          const subId = payload.sub || payload.id;
-          if (payload && isValidUuid(subId)) {
-            return {
-              userId: subId,
-              email: payload.email || null,
-              isReady: true,
-            };
-          }
+        const payload = decodeJwtPayload(token);
+        const subId = payload?.sub || payload?.id;
+        if (payload && isValidUuid(subId)) {
+          return {
+            userId: subId,
+            email: payload.email || null,
+            isReady: true,
+          };
         }
       } catch { }
     }
@@ -292,17 +289,23 @@ export function PrivyAuthBridge() {
       }
 
       // 2. Perform backend verification via GET /v1/auth/me
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
-      if (token) {
-        let syncedSessionSuccess = false;
+      const supaToken = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_supabase_access_token') : null;
+      const apiToken = typeof localStorage !== 'undefined' ? localStorage.getItem('zega_access_token') : null;
+      const token = supaToken || apiToken;
+      let syncedSessionSuccess = false;
+
+      if (supaToken && isSupabasePostgrestJwt(supaToken)) {
         try {
           if ((supabase as any).rest?.headers) {
-            (supabase as any).rest.headers['Authorization'] = `Bearer ${token}`;
+            (supabase as any).rest.headers['Authorization'] = `Bearer ${supaToken}`;
           }
-          syncedSessionSuccess = await syncSupabaseAuthSession(token);
+          syncedSessionSuccess = await syncSupabaseAuthSession(supaToken);
         } catch (e) {
           console.warn('[CANONICAL_AUTH] Supabase auth session restore note:', e);
         }
+      }
+
+      if (token) {
 
         try {
           const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ||
@@ -427,9 +430,9 @@ export function PrivyAuthBridge() {
           authState: 'AUTH_READY',
         });
       } else {
-        // Update auxiliary Supabase session flag WITHOUT regressing canonical auth state
+        // Active session identity is absent — set supabaseSessionReady to false without regressing canonical auth state
         updateBridgeState({
-          supabaseSessionReady: true
+          supabaseSessionReady: false
         });
       }
     });
@@ -587,7 +590,7 @@ export function PrivyAuthBridge() {
               accessToken: supabaseToken,
             };
             localStorage.setItem('zega_mock_session', JSON.stringify(mockSession));
-            localStorage.setItem('zega_access_token', supabaseToken);
+            localStorage.setItem('zega_access_token', appToken || supabaseToken);
             localStorage.setItem('zega_supabase_access_token', supabaseToken);
             localStorage.setItem('zega_user_email', cleanPrivyEmail);
 
@@ -600,29 +603,27 @@ export function PrivyAuthBridge() {
             let sessionUserId = userId;
             let sessionValidated = true;
 
-            if (supabaseToken && supabaseToken.includes('.')) {
+            if (supabaseToken) {
               try {
-                const parts = supabaseToken.split('.');
-                if (parts.length === 3) {
-                  const payload = JSON.parse(atob(parts[1]));
-                  if (payload?.sub) {
-                    sessionUserId = payload.sub;
-                  }
+                const payload = decodeJwtPayload(supabaseToken);
+                if (payload?.sub) {
+                  sessionUserId = payload.sub;
                 }
               } catch { /* skip non-blocking */ }
             }
 
+            const supaAuthState = await getSupabaseAuthState();
             if (isSubscribed) {
               updateBridgeState({
-                supabaseSessionReady: sessionValidated,
-                supabaseUserId: sessionUserId,
+                supabaseSessionReady: supaAuthState.sessionPresent,
+                supabaseUserId: supaAuthState.userId || sessionUserId,
                 userEmail: cleanPrivyEmail,
               });
 
               console.log('[SUPABASE_AUTH_DIAGNOSTIC]', {
-                hasSession: sessionValidated,
-                hasAccessToken: true,
-                userId: sessionUserId,
+                hasSession: supaAuthState.sessionPresent,
+                hasAccessToken: supaAuthState.accessTokenPresent,
+                userId: supaAuthState.userId || sessionUserId,
               });
             }
           }
