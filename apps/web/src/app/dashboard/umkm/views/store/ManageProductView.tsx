@@ -50,7 +50,7 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
   const [addDiscountPriceIdr, setAddDiscountPriceIdr] = useState('');
   const [addStock, setAddStock] = useState('25');
   const [addStatus, setAddStatus] = useState('Aktif');
-  const [addImagePath, setAddImagePath] = useState('/assets/products/kaoshitam.png');
+  const [addImagePath, setAddImagePath] = useState('');
   const [addSalesChannels, setAddSalesChannels] = useState<string[]>(['WhatsApp Toko', 'Shopee', 'Tokopedia']);
   const [addSubmitting, setAddSubmitting] = useState(false);
 
@@ -142,7 +142,7 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
               category: obj.category || obj.Kategori || 'Lainnya',
               price_idr: parseFloat(obj.price_idr || obj.price || '50000'),
               stock: parseInt(obj.stock || obj.Stok || '10', 10),
-              image_path: obj.image_path || '/assets/products/kaoshitam.png'
+              image_path: obj.image_path || ''
             };
           });
           setBulkParsedData(rows);
@@ -494,7 +494,7 @@ export function ManageProductView({ triggerToast, onNavigateTab }: ManageProduct
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
                           <img 
-                            src={getR2CdnUrl(product.image_path || '/assets/products/kaoshitam.png', true)} 
+                            src={product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name))} 
                             alt={product.name} 
                             className="w-full h-full object-contain"
                             onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name); }}

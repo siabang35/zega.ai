@@ -14,6 +14,7 @@ import { SystemTab } from './settings/SystemTab';
 interface SettingsViewProps {
   triggerToast: (msg: string) => void;
   onUpdateAvatar?: (avatarUrl: string) => void;
+  onUpdateProfile?: (data: { fullname?: string; email?: string; storeName?: string; avatarUrl?: string }) => void;
   activeSubPage?: string;
 }
 
@@ -49,7 +50,7 @@ const slugTabMap: Record<string, string> = {
   sistem: 'System',
 };
 
-export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: SettingsViewProps) {
+export function SettingsView({ triggerToast, onUpdateAvatar, onUpdateProfile, activeSubPage }: SettingsViewProps) {
   const { t } = useLanguage();
 
   const getInitialTabFromUrl = () => {
@@ -200,6 +201,7 @@ export function SettingsView({ triggerToast, onUpdateAvatar, activeSubPage }: Se
           onRefresh={loadSettingsData}
           onNavigateTab={(tab) => setActiveTab(tab)}
           onUpdateAvatar={onUpdateAvatar}
+          onUpdateProfile={onUpdateProfile}
         />
       )}
 

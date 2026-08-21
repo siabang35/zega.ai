@@ -437,7 +437,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                           <div className="flex items-center gap-3">
                             <div className="size-11 rounded-xl overflow-hidden border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
                               <img 
-                                src={getR2CdnUrl(product.image_path || '/assets/products/kaoshitam.png', true)} 
+                                src={product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name))} 
                                 alt={product.name} 
                                 className="w-full h-full object-contain"
                                 onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name); }}
@@ -613,7 +613,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                         <div className="flex items-center gap-3">
                           <div className="size-11 rounded-xl overflow-hidden border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
                             <img 
-                              src={getR2CdnUrl(product.image_path || '/assets/products/kaoshitam.png', true)} 
+                              src={product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name))} 
                               alt={product.name} 
                               className="w-full h-full object-contain"
                               onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name); }}
@@ -1064,8 +1064,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {paginatedProducts.map((product: any, idx: number) => {
-                        const rawImg = product.image_path || '/assets/products/kaoshitam.png';
-                        const cdnImg = getR2CdnUrl(rawImg, true);
+                        const cdnImg = product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name));
 
                         return (
                           <tr key={product.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -1078,12 +1077,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                                     className="w-full h-full object-contain"
                                     loading="lazy"
                                     onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      if (target.src.includes('cdn.zegaai.site')) {
-                                        target.src = rawImg;
-                                      } else {
-                                        target.src = generateInitialsAvatar(product.name);
-                                      }
+                                      (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name);
                                     }}
                                   />
                                 </div>
@@ -1141,8 +1135,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                 {/* 2. MOBILE VIEW: Touch-Friendly Responsive Product Cards (visible on mobile, hidden md+) */}
                 <div className="block md:hidden space-y-3 pt-1">
                   {paginatedProducts.map((product: any, idx: number) => {
-                    const rawImg = product.image_path || '/assets/products/kaoshitam.png';
-                    const cdnImg = getR2CdnUrl(rawImg, true);
+                    const cdnImg = product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name));
 
                     return (
                       <div 
@@ -1159,12 +1152,7 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
                                 className="w-full h-full object-contain"
                                 loading="lazy"
                                 onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  if (target.src.includes('cdn.zegaai.site')) {
-                                    target.src = rawImg;
-                                  } else {
-                                    target.src = generateInitialsAvatar(product.name);
-                                  }
+                                  (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name);
                                 }}
                               />
                             </div>

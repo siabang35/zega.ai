@@ -32,7 +32,7 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
   const [salesChannels, setSalesChannels] = useState<string[]>(['Tokopedia', 'Shopee', 'Solana Pay']);
 
   const [imageMode, setImageMode] = useState<'upload' | 'preset' | 'url'>('upload');
-  const [imagePath, setImagePath] = useState('/assets/products/kaoshitam.png');
+  const [imagePath, setImagePath] = useState('');
   const [customPhotoUrl, setCustomPhotoUrl] = useState('');
   const [fileDetails, setFileDetails] = useState<{ name: string; size: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,8 +87,7 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
         description: description.trim() || 'Produk unggulan katalog toko UMKM ZEGA AI.',
         variants: variants.trim() ? variants.split(',').map(v => v.trim()) : ['All Size'],
         sales_channels: salesChannels,
-        image_path: activePhoto,
-        cdn_icon_url: activePhoto.startsWith('http') ? activePhoto : 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'
+        cdn_icon_url: activePhoto.startsWith('http') ? activePhoto : (activePhoto ? getR2CdnUrl(activePhoto) : getR2CdnUrl('/assets/logo/zegalogo.png'))
       });
 
       triggerToast(`✓ Produk "${name}" dengan foto real & spesifikasi lengkap berhasil tersimpan!`);
@@ -343,7 +342,7 @@ export function AddProductModal({ isOpen, onClose, triggerToast, onRefresh }: Mo
               <img
                 src={activePhoto}
                 alt="Preview"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/assets/products/kaoshitam.png'; }}
+                onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(name || 'Produk'); }}
                 className="size-14 rounded-xl object-cover border border-slate-200 dark:border-slate-700 bg-white shadow-xs"
               />
               <div className="flex-1 min-w-0">
@@ -416,7 +415,7 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
             price_idr: Number(item.price_idr || item.Harga || 50000),
             stock: Number(item.stock || item.Stok || 50),
             status: item.status || 'Aktif',
-            image_path: item.image_path || '/assets/products/kaoshitam.png'
+            image_path: item.image_path || ''
           }));
         }
       } else {
@@ -438,7 +437,7 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
               stock: parseInt(cols[3] || '50', 10),
               price_idr: parseFloat(cols[4] || '75000'),
               status: cols[5] || 'Aktif',
-              image_path: '/assets/products/kaoshitam.png'
+              image_path: ''
             });
           }
         }
@@ -447,7 +446,7 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
       if (items.length === 0) {
         // Fallback default sample import items
         items = [
-          { sku: `IMP-TSH-${Date.now().toString().slice(-4)}`, name: 'Kaos Polo Premium Import', category: 'Apparel', price_idr: 85000, stock: 120, status: 'Aktif', image_path: '/assets/products/kaoshitam.png' },
+          { sku: `IMP-TSH-${Date.now().toString().slice(-4)}`, name: 'Kaos Polo Premium Import', category: 'Apparel', price_idr: 85000, stock: 120, status: 'Aktif', image_path: '' },
           { sku: `IMP-TMB-${Date.now().toString().slice(-4)}`, name: 'Tumbler Vacuum Hot/Cold', category: 'Drinkware', price_idr: 120000, stock: 65, status: 'Aktif', image_path: '/assets/products/tumbler.png' },
           { sku: `IMP-BTL-${Date.now().toString().slice(-4)}`, name: 'Botol Olahraga Stainless', category: 'Drinkware', price_idr: 95000, stock: 40, status: 'Aktif', image_path: '/assets/products/botolminum.jpeg' }
         ];
@@ -494,8 +493,8 @@ export function ImportProductModal({ isOpen, onClose, triggerToast, onRefresh }:
             stock: prod.stock,
             sold: 0,
             status: prod.status || 'Aktif',
-            image_path: prod.image_path || '/assets/products/kaoshitam.png',
-            cdn_icon_url: 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'
+            image_path: prod.image_path || '',
+            cdn_icon_url: prod.image_path ? getR2CdnUrl(prod.image_path) : getR2CdnUrl('/assets/logo/zegalogo.png')
           });
           successCount++;
         } catch (e) {
@@ -888,7 +887,7 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
   const [discountPriceIdr, setDiscountPriceIdr] = useState(product?.discount_price_idr || '');
   const [stock, setStock] = useState(product?.stock || 0);
   const [status, setStatus] = useState(product?.status || 'Aktif');
-  const [imagePath, setImagePath] = useState(product?.image_path || '/assets/products/kaoshitam.png');
+  const [imagePath, setImagePath] = useState(product?.image_path || '');
   const [description, setDescription] = useState(product?.description || '');
   const [submitting, setSubmitting] = useState(false);
 
@@ -901,7 +900,7 @@ export function EditProductModal({ isOpen, onClose, triggerToast, onRefresh, pro
       setDiscountPriceIdr(product.discount_price_idr || '');
       setStock(product.stock || 0);
       setStatus(product.status || 'Aktif');
-      setImagePath(product.image_path || '/assets/products/kaoshitam.png');
+      setImagePath(product.image_path || '');
       setDescription(product.description || '');
     }
   }, [product]);

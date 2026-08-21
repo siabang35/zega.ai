@@ -121,6 +121,9 @@ export function isValidUuid(val: any): boolean {
   if (!val || typeof val !== 'string') return false;
   const trimmed = val.trim();
   if (!trimmed || trimmed === '' || trimmed === 'null' || trimmed === 'undefined') return false;
+  if (trimmed === '00000000-0000-0000-0000-000000000000' ||
+      trimmed === '00000000-0000-0000-0000-000000000001' ||
+      trimmed === '00000000-0000-0000-0000-000000000002') return false;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(trimmed);
 }
@@ -2115,11 +2118,11 @@ export const umkmSupabaseService = {
           }
 
           // Final fallback org & ws ID assignment if DB tables lack parent org/ws records
-          if (!resolvedOrgId || resolvedOrgId === resolvedStoreId) {
-            resolvedOrgId = `org_${resolvedStoreId.replace(/-/g, '').substring(0, 16)}`;
+          if (!resolvedOrgId || !isValidUuid(resolvedOrgId) || resolvedOrgId === resolvedStoreId) {
+            resolvedOrgId = resolvedStoreId;
           }
-          if (!resolvedWsId || resolvedWsId === resolvedStoreId || resolvedWsId === resolvedOrgId) {
-            resolvedWsId = `ws_${resolvedStoreId.replace(/-/g, '').substring(0, 16)}`;
+          if (!resolvedWsId || !isValidUuid(resolvedWsId) || resolvedWsId === resolvedStoreId || resolvedWsId === resolvedOrgId) {
+            resolvedWsId = resolvedOrgId;
           }
 
           // In-place repair on store row if org or workspace was updated in DB format

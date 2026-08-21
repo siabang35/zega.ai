@@ -20,7 +20,7 @@ export function AddProductSubView({ triggerToast, onNavigateTab }: AddProductSub
   const [status, setStatus] = useState('Aktif');
   const [description, setDescription] = useState('');
   const [variants, setVariants] = useState('S, M, L, XL');
-  const [imagePath, setImagePath] = useState('/assets/products/kaoshitam.png');
+  const [imagePath, setImagePath] = useState('');
   const [salesChannels, setSalesChannels] = useState<string[]>(['WhatsApp Toko', 'Shopee', 'Tokopedia']);
   const [submitting, setSubmitting] = useState(false);
 

@@ -1,6 +1,20 @@
-const fs = require('fs');
-const path = require('path');
-const { Client } = require('pg');
+import fs from 'fs';
+import path from 'path';
+import dns from 'dns';
+import dotenv from 'dotenv';
+import pkg from 'pg';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+const { Client } = pkg;
 
 const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || process.env.DIRECT_URL;
 

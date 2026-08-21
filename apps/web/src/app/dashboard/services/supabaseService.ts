@@ -2419,14 +2419,41 @@ export const SupabaseDashboardService = {
    */
   async getUmkmStoreOverview() {
     try {
-      const { organizationId } = getActiveTenantIds();
+      const active = getActiveTenantIds();
+      const validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
+      const validStoreId = active.storeId && active.storeId !== active.userId ? active.storeId : null;
+
+      let metricsQuery = supabase.from('umkm_store_metrics').select('*');
+      let perfQuery = supabase.from('umkm_store_performance').select('*').order('created_at', { ascending: true });
+      let productsQuery = supabase.from('umkm_store_products').select('*').order('created_at', { ascending: false });
+      let categoriesQuery = supabase.from('umkm_store_categories').select('*').order('product_count', { ascending: false });
+      let swarmsQuery = supabase.from('umkm_store_swarms').select('*').order('created_at', { ascending: true });
+      let insightsQuery = supabase.from('umkm_store_insights').select('*').order('created_at', { ascending: false });
+
+      if (validOrgId) {
+        setSupabaseTenantHeader(validOrgId);
+        metricsQuery = metricsQuery.eq('organization_id', validOrgId);
+        perfQuery = perfQuery.eq('organization_id', validOrgId);
+        productsQuery = productsQuery.eq('organization_id', validOrgId);
+        categoriesQuery = categoriesQuery.eq('organization_id', validOrgId);
+        swarmsQuery = swarmsQuery.eq('organization_id', validOrgId);
+        insightsQuery = insightsQuery.eq('organization_id', validOrgId);
+      } else if (validStoreId) {
+        metricsQuery = metricsQuery.eq('store_id', validStoreId);
+        perfQuery = perfQuery.eq('store_id', validStoreId);
+        productsQuery = productsQuery.eq('store_id', validStoreId);
+        categoriesQuery = categoriesQuery.eq('store_id', validStoreId);
+        swarmsQuery = swarmsQuery.eq('store_id', validStoreId);
+        insightsQuery = insightsQuery.eq('store_id', validStoreId);
+      }
+
       const [metricsRes, performanceRes, productsRes, categoriesRes, swarmsRes, insightsRes] = await Promise.allSettled([
-        supabase.from('umkm_store_metrics').select('*').eq('organization_id', organizationId).limit(1).maybeSingle(),
-        supabase.from('umkm_store_performance').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
-        supabase.from('umkm_store_products').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
-        supabase.from('umkm_store_categories').select('*').eq('organization_id', organizationId).order('product_count', { ascending: false }),
-        supabase.from('umkm_store_swarms').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
-        supabase.from('umkm_store_insights').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false })
+        metricsQuery.limit(1).maybeSingle(),
+        perfQuery,
+        productsQuery,
+        categoriesQuery,
+        swarmsQuery,
+        insightsQuery
       ]);
 
       const products = productsRes.status === 'fulfilled' && productsRes.value.data
@@ -2607,71 +2634,279 @@ export const SupabaseDashboardService = {
   /**
    * Create Store Product (with Auto-Update Metrics & Telemetry)
    */
+  /**
+   * Create Store Product (with Auto-Update Metrics & Telemetry)
+   */
   async createStoreProduct(productData: any) {
     const active = getActiveTenantIds();
-    const organizationId = productData.organization_id || active.organizationId;
-    const workspaceId = productData.workspace_id || active.workspaceId;
-    const storeId = productData.store_id || active.storeId;
+    let storeId = productData.store_id || active.storeId || '';
+    let organizationId = isValidUuid(productData.organization_id) ? productData.organization_id : (isValidUuid(active.organizationId) ? active.organizationId : null);
+    let workspaceId = isValidUuid(productData.workspace_id) ? productData.workspace_id : (isValidUuid(active.workspaceId) ? active.workspaceId : null);
 
-    // Guarantee Supabase REST client header matches tenant organizationId
+    const { userId } = extractUserIdFromStoredJwt();
+    const currentUserId = (userId && isValidUuid(userId)) ? userId : (active.userId && isValidUuid(active.userId) ? active.userId : null);
+
+    // 1. Fallback: Resolve real organization_id if missing
+    if (!organizationId || !isValidUuid(organizationId)) {
+      if (currentUserId) {
+        try {
+          const { data: memberRow } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', currentUserId)
+            .neq('organization_id', '00000000-0000-0000-0000-000000000001')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (memberRow?.organization_id && isValidUuid(memberRow.organization_id)) {
+            organizationId = memberRow.organization_id;
+            updateActiveTenantOrg(organizationId);
+          }
+        } catch (orgErr) {
+          console.warn('Failed to resolve organization_id in createStoreProduct:', orgErr);
+        }
+      }
+    }
+
+    if (!organizationId || !isValidUuid(organizationId)) {
+      throw new Error('TENANT_BOUNDARY_VIOLATION: Silakan pilih akun toko & organisasi resmi Anda terlebih dahulu.');
+    }
+
     setSupabaseTenantHeader(organizationId);
 
-    const payload = {
-      store_id: storeId,
-      name: productData.name,
-      sku: productData.sku || `SKU-${Date.now().toString().slice(-6)}`,
-      category: productData.category || 'Apparel',
-      stock: Number(productData.stock) || 0,
-      sold: Number(productData.sold) || 0,
-      price_idr: Number(productData.price_idr) || 0,
-      discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
-      weight_gram: Number(productData.weight_gram) || 250,
-      status: productData.status || 'Aktif',
-      description: productData.description || 'Produk unggulan katalog toko UMKM ZEGA AI.',
-      variants: productData.variants || ['All Size'],
-      sales_channels: productData.sales_channels || ['WhatsApp Toko', 'Shopee', 'Tokopedia'],
-      image_path: productData.image_path || '/assets/products/kaoshitam.png',
-      cdn_icon_url: productData.cdn_icon_url || (productData.image_path?.startsWith('http') ? productData.image_path : 'https://cdn.zegaai.site/assets/logo/zeroclaw.jpeg'),
-      organization_id: organizationId,
-      workspace_id: workspaceId
-    };
+    // 2. Guarantee presence of store record in public.umkm_stores matching user / organization
+    let canonicalStoreCode = `STORE-${organizationId.slice(0, 8).toUpperCase()}`;
+    let canonicalStoreId = '';
 
-    const { data, error } = await supabase
-      .from('umkm_store_products')
-      .insert([payload])
-      .select()
-      .single();
+    try {
+      // Build candidate filters to find existing store record for user or organization
+      const storeFilters: string[] = [];
+      if (isValidUuid(storeId)) storeFilters.push(`id.eq.${storeId}`);
+      if (isValidUuid(organizationId)) storeFilters.push(`organization_id.eq.${organizationId}`);
+      if (currentUserId) storeFilters.push(`user_id.eq.${currentUserId}`);
 
-    if (error) {
-      console.error('Error inserting store product:', error);
-      throw error;
+      let existingStore: any = null;
+      if (storeFilters.length > 0) {
+        const { data: matchedStores } = await supabase
+          .from('umkm_stores')
+          .select('id, store_id_code, organization_id, workspace_id, user_id')
+          .or(storeFilters.join(','))
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (matchedStores && matchedStores.length > 0) {
+          existingStore = matchedStores[0];
+        }
+      }
+
+      if (existingStore) {
+        canonicalStoreId = existingStore.id;
+        canonicalStoreCode = existingStore.store_id_code || canonicalStoreCode;
+        updateActiveTenantStore(canonicalStoreId);
+
+        // In-place repair if store organization_id or workspace_id is missing or desynced
+        if ((!existingStore.organization_id || existingStore.organization_id !== organizationId) || (isValidUuid(workspaceId) && existingStore.workspace_id !== workspaceId)) {
+          try {
+            await supabase.from('umkm_stores').update({
+              organization_id: organizationId,
+              ...(isValidUuid(workspaceId) ? { workspace_id: workspaceId } : {})
+            }).eq('id', canonicalStoreId);
+          } catch (repairErr) {
+            console.warn('[createStoreProduct] in-place store repair notice:', repairErr);
+          }
+        }
+      } else {
+        // No store row found in umkm_stores: provision via canonical RPC procedure to avoid duplicate constraint errors
+        try {
+          const prov = await umkmSupabaseService.ensureIndividualUmkmTenant();
+          if (prov.ok && prov.storeId && isValidUuid(prov.storeId)) {
+            canonicalStoreId = prov.storeId;
+            updateActiveTenantStore(canonicalStoreId);
+          }
+        } catch (provErr) {
+          console.warn('[createStoreProduct] store provisioning fallback warning:', provErr);
+        }
+
+        // Final fallback: If still no store row, attempt insert catching duplicate key errors
+        if (!canonicalStoreId) {
+          const { data: newStore } = await supabase
+            .from('umkm_stores')
+            .insert([{
+              store_id_code: canonicalStoreCode,
+              store_name: 'Toko Utama',
+              owner_name: 'Pemilik Toko',
+              email: `store_${organizationId.slice(0, 8)}@zega.ai`,
+              organization_id: organizationId,
+              ...(isValidUuid(workspaceId) ? { workspace_id: workspaceId } : {}),
+              ...(currentUserId ? { user_id: currentUserId } : {})
+            }])
+            .select('id, store_id_code')
+            .maybeSingle();
+
+          if (newStore) {
+            canonicalStoreId = newStore.id;
+            canonicalStoreCode = newStore.store_id_code || canonicalStoreCode;
+            updateActiveTenantStore(canonicalStoreId);
+          }
+        }
+      }
+    } catch (storeErr) {
+      console.warn('Store resolution & insertion notice in createStoreProduct:', storeErr);
+    }
+
+    const imgPath = productData.image_path || '';
+    const resolvedCdnUrl = productData.cdn_icon_url || (imgPath ? getR2CdnUrl(imgPath) : getR2CdnUrl('/assets/logo/zegalogo.png'));
+
+    let insertedProduct: any = null;
+    let insertError: any = null;
+
+    // Prefer canonical UUID store ID for RPC; fall back to text store code
+    const rpcStoreId = (canonicalStoreId || storeId || canonicalStoreCode || '').trim();
+    // For direct REST insert, ONLY use a valid UUID to avoid uuid=text comparison errors in triggers
+    const restStoreId = isValidUuid(canonicalStoreId) ? canonicalStoreId : (isValidUuid(storeId) ? storeId : '');
+
+    // Step A: Attempt insertion via canonical type-safe RPC fn_create_umkm_store_product
+    if (rpcStoreId) {
+      try {
+        const { data: rpcProduct, error: rpcErr } = await supabase.rpc('fn_create_umkm_store_product', {
+          p_store_id: rpcStoreId,
+          p_name: productData.name || 'Produk Baru',
+          p_sku: productData.sku || null,
+          p_category: productData.category || 'Lainnya',
+          p_stock: Number(productData.stock) || 0,
+          p_sold: Number(productData.sold) || 0,
+          p_price_idr: Number(productData.price_idr) || 0,
+          p_discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+          p_weight_gram: Number(productData.weight_gram) || 250,
+          p_status: productData.status || 'Aktif',
+          p_description: productData.description || '',
+          p_image_path: imgPath,
+          p_cdn_icon_url: resolvedCdnUrl,
+          p_organization_id: isValidUuid(organizationId) ? organizationId : null,
+          p_workspace_id: isValidUuid(workspaceId) ? workspaceId : null
+        });
+
+        if (!rpcErr && rpcProduct) {
+          insertedProduct = rpcProduct;
+        } else if (rpcErr) {
+          insertError = rpcErr;
+          console.warn('[createStoreProduct] RPC fn_create_umkm_store_product notice:', rpcErr);
+        }
+      } catch (rpcEx) {
+        insertError = rpcEx;
+        console.warn('[createStoreProduct] RPC fn_create_umkm_store_product exception:', rpcEx);
+      }
+    }
+
+    // Step B: Intermediate RPC fallback via deployed fn_bulk_import_umkm_products
+    if (!insertedProduct && rpcStoreId) {
+      try {
+        const fallbackSku = productData.sku || `SKU-${Date.now().toString().slice(-6)}`;
+        const { data: bulkData, error: bulkErr } = await supabase.rpc('fn_bulk_import_umkm_products', {
+          p_store_id: rpcStoreId,
+          p_products: [{
+            name: productData.name || 'Produk Baru',
+            sku: fallbackSku,
+            category: productData.category || 'Lainnya',
+            stock: Number(productData.stock) || 0,
+            sold: Number(productData.sold) || 0,
+            price_idr: Number(productData.price_idr) || 0,
+            discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+            weight_gram: Number(productData.weight_gram) || 250,
+            status: productData.status || 'Aktif',
+            description: productData.description || '',
+            image_path: imgPath,
+            cdn_icon_url: resolvedCdnUrl
+          }]
+        });
+
+        if (!bulkErr) {
+          // Fetch the newly created product row by SKU
+          const { data: fetchedProd } = await supabase
+            .from('umkm_store_products')
+            .select('*')
+            .eq('sku', fallbackSku)
+            .maybeSingle();
+
+          if (fetchedProd) {
+            insertedProduct = fetchedProd;
+            insertError = null;
+          }
+        } else {
+          console.warn('[createStoreProduct] RPC fn_bulk_import_umkm_products notice:', bulkErr);
+        }
+      } catch (bulkEx) {
+        console.warn('[createStoreProduct] RPC fn_bulk_import_umkm_products exception:', bulkEx);
+      }
+    }
+
+    // Step C: Fallback REST insert if RPCs didn't return product
+    if (!insertedProduct) {
+      // Use UUID store_id to prevent trigger uuid=text comparison errors;
+      // fall back to text code only if no UUID is available
+      const safeStoreId = restStoreId || rpcStoreId;
+      const payload: any = {
+        store_id: safeStoreId,
+        ...(isValidUuid(organizationId) ? { organization_id: organizationId } : {}),
+        ...(isValidUuid(workspaceId) ? { workspace_id: workspaceId } : {}),
+        name: productData.name,
+        sku: productData.sku || `SKU-${Date.now().toString().slice(-6)}`,
+        category: productData.category || 'Lainnya',
+        stock: Number(productData.stock) || 0,
+        sold: Number(productData.sold) || 0,
+        price_idr: Number(productData.price_idr) || 0,
+        discount_price_idr: productData.discount_price_idr ? Number(productData.discount_price_idr) : null,
+        weight_gram: Number(productData.weight_gram) || 250,
+        status: productData.status || 'Aktif',
+        description: productData.description || '',
+        image_path: imgPath,
+        cdn_icon_url: resolvedCdnUrl
+      };
+
+      const { data: directData, error: directError } = await supabase
+        .from('umkm_store_products')
+        .insert([payload])
+        .select()
+        .maybeSingle();
+
+      if (!directError && directData) {
+        insertedProduct = directData;
+        insertError = null;
+      } else if (directError) {
+        insertError = directError;
+        console.warn('[createStoreProduct] Direct REST insert notice:', directError);
+      }
+    }
+
+    if (insertError && !insertedProduct) {
+      console.error('Error inserting store product:', insertError);
+      throw insertError;
     }
 
     // Auto-update store metrics in real-time
     try {
-      const { data: currentMetrics } = await supabase
-        .from('umkm_store_metrics')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .limit(1)
-        .maybeSingle();
+      let metricsQuery = supabase.from('umkm_store_metrics').select('*');
+      if (storeId) {
+        metricsQuery = metricsQuery.eq('store_id', storeId);
+      }
+      const { data: currentMetrics } = await metricsQuery.limit(1).maybeSingle();
 
       if (currentMetrics) {
         await supabase
           .from('umkm_store_metrics')
           .update({
             total_products: (currentMetrics.total_products || 0) + 1,
-            total_stock: (currentMetrics.total_stock || 0) + Number(payload.stock),
-            stock_value_idr: (Number(currentMetrics.stock_value_idr) || 0) + (Number(payload.price_idr) * Number(payload.stock)),
+            total_stock: (currentMetrics.total_stock || 0) + Number(productData.stock || 0),
+            stock_value_idr: (Number(currentMetrics.stock_value_idr) || 0) + (Number(productData.price_idr || 0) * Number(productData.stock || 0)),
             updated_at: new Date().toISOString()
           })
-          .eq('organization_id', organizationId);
+          .eq('id', currentMetrics.id);
       }
     } catch (metricErr) {
       console.warn('Metrics update warning (product was created successfully):', metricErr);
     }
 
-    return data;
+    return insertedProduct;
   },
 
   /**
@@ -2764,13 +2999,17 @@ export const SupabaseDashboardService = {
   /**
    * Fetch UMKM Store Categories (tenant-scoped)
    */
+  /**
+   * Fetch UMKM Store Categories (tenant-scoped)
+   */
   async getUmkmStoreCategories() {
-    const { organizationId } = getActiveTenantIds();
-    const { data, error } = await supabase
-      .from('umkm_store_categories')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('product_count', { ascending: false });
+    const active = getActiveTenantIds();
+    const validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
+    let query = supabase.from('umkm_store_categories').select('*');
+    if (validOrgId) {
+      query = query.eq('organization_id', validOrgId);
+    }
+    const { data, error } = await query.order('product_count', { ascending: false });
     if (error) {
       console.warn('Error fetching store categories:', error);
       return [];
@@ -2783,17 +3022,20 @@ export const SupabaseDashboardService = {
    */
   async createUmkmStoreCategory(name: string) {
     const { organizationId, workspaceId, storeId } = getActiveTenantIds();
+    const validOrgId = isValidUuid(organizationId) ? organizationId : null;
+    const validWsId = isValidUuid(workspaceId) ? workspaceId : null;
+    const validStoreId = storeId || '';
     const slug = name.toLowerCase().replace(/\s+/g, '-');
     const { data, error } = await supabase
       .from('umkm_store_categories')
       .insert([{
-        store_id: storeId,
+        store_id: validStoreId,
         name,
         slug,
         product_count: 0,
         color_hex: '#10b981',
-        organization_id: organizationId,
-        workspace_id: workspaceId
+        ...(validOrgId ? { organization_id: validOrgId } : {}),
+        ...(validWsId ? { workspace_id: validWsId } : {})
       }])
       .select()
       .single();
@@ -2806,11 +3048,12 @@ export const SupabaseDashboardService = {
    */
   async deleteUmkmStoreCategory(name: string) {
     const { organizationId } = getActiveTenantIds();
-    const { error } = await supabase
-      .from('umkm_store_categories')
-      .delete()
-      .eq('name', name)
-      .eq('organization_id', organizationId);
+    const validOrgId = isValidUuid(organizationId) ? organizationId : null;
+    let query = supabase.from('umkm_store_categories').delete().eq('name', name);
+    if (validOrgId) {
+      query = query.eq('organization_id', validOrgId);
+    }
+    const { error } = await query;
     if (error) console.warn('Error deleting store category:', error);
     return true;
   },
@@ -2936,21 +3179,45 @@ export const SupabaseDashboardService = {
   },
 
   /**
-   * Bulk Import Store Products via RPC
+   * Bulk Import Store Products via RPC or Sanitized Batch Insert
    */
   async bulkImportStoreProducts(products: any[]) {
+    const active = getActiveTenantIds();
+    const validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
+    const validWsId = isValidUuid(active.workspaceId) ? active.workspaceId : null;
+    const validStoreId = active.storeId || '';
+
+    const preparedProducts = (products || []).map((p: any) => {
+      const imgPath = p.image_path || '';
+      const cdnUrl = p.cdn_icon_url || (imgPath ? getR2CdnUrl(imgPath) : getR2CdnUrl('/assets/logo/zegalogo.png'));
+      return {
+        store_id: p.store_id || validStoreId,
+        ...(validOrgId ? { organization_id: validOrgId } : {}),
+        ...(validWsId ? { workspace_id: validWsId } : {}),
+        name: p.name || 'Produk Impor',
+        sku: p.sku || `SKU-BULK-${Math.floor(Math.random() * 100000)}`,
+        category: p.category || 'Umum',
+        stock: Number(p.stock) || 0,
+        sold: Number(p.sold) || 0,
+        price_idr: Number(p.price_idr) || 0,
+        status: p.status || 'Aktif',
+        image_path: imgPath,
+        cdn_icon_url: cdnUrl
+      };
+    });
+
     try {
       const { data, error } = await supabase.rpc('fn_bulk_upsert_umkm_products', {
-        p_store_id: 'store_demo_1',
-        p_products: products
+        p_store_id: validStoreId,
+        p_products: preparedProducts
       });
       if (error) throw error;
       return data;
     } catch (e) {
-      // Fallback direct batch insert
+      // Fallback direct batch insert with sanitized products
       const { data, error } = await supabase
         .from('umkm_store_products')
-        .insert(products)
+        .insert(preparedProducts)
         .select();
       if (error) throw error;
       return data;
@@ -2966,9 +3233,10 @@ export const SupabaseDashboardService = {
     discountPercent?: number;
     discountFlat?: number;
   }) {
+    const { storeId } = getActiveTenantIds();
     try {
       const { data, error } = await supabase.rpc('fn_batch_update_umkm_product_discounts', {
-        p_store_id: 'store_demo_1',
+        p_store_id: storeId || '',
         p_product_ids: params.productIds || null,
         p_category: params.category || null,
         p_discount_percent: params.discountPercent || 0,
@@ -2986,9 +3254,10 @@ export const SupabaseDashboardService = {
    * Manage Category (Rename/Delete/Update)
    */
   async manageStoreCategory(action: 'rename' | 'delete', oldName: string, newName?: string) {
+    const { storeId } = getActiveTenantIds();
     try {
       const { data, error } = await supabase.rpc('fn_manage_umkm_category', {
-        p_store_id: 'store_demo_1',
+        p_store_id: storeId || '',
         p_action: action,
         p_old_name: oldName,
         p_new_name: newName || null
@@ -3005,9 +3274,10 @@ export const SupabaseDashboardService = {
    * Sync Inventory Stock Across Channels
    */
   async syncInventoryStock(channel: string, adjustments: Array<{ id: string; stock: number }>) {
+    const { storeId } = getActiveTenantIds();
     try {
       const { data, error } = await supabase.rpc('fn_sync_umkm_inventory_stock', {
-        p_store_id: 'store_demo_1',
+        p_store_id: storeId || '',
         p_sync_channel: channel,
         p_adjustments: adjustments
       });
@@ -6789,25 +7059,24 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       if (!userEmail) return { profile: null, security: null, preferences: null, devices: [], activities: [] };
       const userFullName = currentSession?.user?.user_metadata?.full_name || currentSession?.fullName || (userEmail ? userEmail.split('@')[0] : 'User');
       const storeNameFromUser = `Toko ${userFullName.charAt(0).toUpperCase() + userFullName.slice(1)}`;
+      const sessionAvatar = currentSession?.user?.user_metadata?.avatar_url || currentSession?.user?.user_metadata?.picture || (typeof window !== 'undefined' ? (localStorage.getItem('zega_user_avatar') || '') : '') || '';
 
       // Auto-ensure Privy wallet in background
       this.ensureUserPrivyWallet(userEmail).catch(() => { });
 
       const [
         { data: profileByEmail },
-        { data: profileFallback },
         { data: securityByEmail },
         { data: preferences },
         { data: devices }
       ] = await Promise.all([
         supabase.from('umkm_user_profiles').select('*').eq('store_id', validStoreId).eq('email', userEmail).maybeSingle(),
-        supabase.from('umkm_user_profiles').select('*').eq('store_id', validStoreId).maybeSingle(),
         supabase.from('umkm_user_security').select('*').eq('store_id', validStoreId).eq('email', userEmail).maybeSingle(),
         supabase.from('umkm_user_preferences').select('*').eq('store_id', validStoreId).maybeSingle(),
         supabase.from('umkm_active_sessions').select('*').eq('store_id', validStoreId).order('created_at', { ascending: false })
       ]);
 
-      const profile = profileByEmail || profileFallback;
+      const profile = profileByEmail;
 
       return {
         profile: profile ? {
@@ -6815,6 +7084,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           fullname: profile.fullname || userFullName,
           email: profile.email || userEmail,
           store_name: profile.store_name || storeNameFromUser,
+          avatar_url: profile.avatar_url || profile.avatar_path || sessionAvatar
         } : {
           account_id: `acc_${userEmail.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`,
           fullname: userFullName,
@@ -6825,7 +7095,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
           job_title: 'Pemilik Bisnis',
           store_name: storeNameFromUser,
           description: '',
-          avatar_url: '/assets/avatars/user-avatar.jpg',
+          avatar_url: sessionAvatar,
           account_role: 'Owner',
           joined_date: '-',
           last_login_label: 'Hari ini',

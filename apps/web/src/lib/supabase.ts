@@ -207,6 +207,9 @@ function isValidUuid(val: any): boolean {
   if (!val || typeof val !== 'string') return false;
   const trimmed = val.trim();
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return false;
+  if (trimmed === '00000000-0000-0000-0000-000000000000' ||
+      trimmed === '00000000-0000-0000-0000-000000000001' ||
+      trimmed === '00000000-0000-0000-0000-000000000002') return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
 }
 

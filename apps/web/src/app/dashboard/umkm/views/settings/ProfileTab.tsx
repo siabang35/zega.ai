@@ -20,6 +20,7 @@ interface ProfileTabProps {
   onRefresh: () => void;
   onNavigateTab: (tab: string) => void;
   onUpdateAvatar?: (avatarUrl: string) => void;
+  onUpdateProfile?: (data: { fullname?: string; email?: string; storeName?: string; avatarUrl?: string }) => void;
 }
 
 export function ProfileTab({
@@ -31,23 +32,31 @@ export function ProfileTab({
   triggerToast,
   onRefresh,
   onNavigateTab,
-  onUpdateAvatar
+  onUpdateAvatar,
+  onUpdateProfile
 }: ProfileTabProps) {
   const { t, language, setLanguage } = useLanguage();
   // Session fallback helper
   const getSessionUserFallback = () => {
     if (typeof window !== 'undefined') {
       try {
+        const savedAvatar = localStorage.getItem('zega_user_avatar');
+        const savedName = localStorage.getItem('zega_user_name');
+        const savedEmail = localStorage.getItem('zega_user_email');
         const mock = localStorage.getItem('zega_mock_session');
+        let email = savedEmail || '';
+        let fullname = savedName || '';
+        let avatar = savedAvatar || '';
         if (mock) {
           const parsed = JSON.parse(mock);
-          const email = parsed?.user?.email || parsed?.email || '';
-          const fullname = parsed?.user?.user_metadata?.full_name || parsed?.fullName || (email ? email.split('@')[0] : '');
-          return { email, fullname };
+          if (!email) email = parsed?.user?.email || parsed?.email || '';
+          if (!fullname) fullname = parsed?.user?.user_metadata?.full_name || parsed?.fullName || (email ? email.split('@')[0] : '');
+          if (!avatar) avatar = parsed?.user?.user_metadata?.avatar_url || parsed?.user?.user_metadata?.picture || parsed?.avatarUrl || '';
         }
+        return { email, fullname, avatar };
       } catch (e) {}
     }
-    return { email: '', fullname: '' };
+    return { email: '', fullname: '', avatar: '' };
   };
 
   const sessionFallback = getSessionUserFallback();
@@ -59,7 +68,7 @@ export function ProfileTab({
   const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Pemilik Bisnis');
   const [storeName, setStoreName] = useState(profileData?.store_name || (fullname ? `Toko ${fullname}` : 'Toko Saya'));
   const [description, setDescription] = useState(profileData?.description || '');
-  const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || '/assets/avatars/user-avatar.jpg');
+  const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces');
   const [isSaving, setIsSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
@@ -87,8 +96,9 @@ export function ProfileTab({
       if (profileData.job_title) setJobTitle(profileData.job_title);
       if (profileData.store_name) setStoreName(profileData.store_name);
       if (profileData.description !== undefined) setDescription(profileData.description);
-      if (profileData.avatar_url || profileData.avatar_path) {
-        setAvatarUrl(profileData.avatar_url || profileData.avatar_path);
+      const nextAvatar = profileData.avatar_url || profileData.avatar_path || sessionFallback.avatar;
+      if (nextAvatar) {
+        setAvatarUrl(nextAvatar);
       }
     }
   }, [profileData]);
@@ -200,11 +210,35 @@ export function ProfileTab({
         description,
         avatar_url: avatarUrl
       });
+
+      // Synchronize local session storage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zega_user_avatar', avatarUrl);
+        localStorage.setItem('zega_user_name', fullname);
+        localStorage.setItem('zega_user_email', email);
+        const mockStr = localStorage.getItem('zega_mock_session');
+        if (mockStr) {
+          try {
+            const parsed = JSON.parse(mockStr);
+            if (parsed.user) {
+              parsed.user.user_metadata = { ...parsed.user.user_metadata, full_name: fullname, avatar_url: avatarUrl };
+              parsed.user.email = email;
+            }
+            parsed.fullName = fullname;
+            parsed.avatarUrl = avatarUrl;
+            parsed.email = email;
+            localStorage.setItem('zega_mock_session', JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+      if (onUpdateProfile) onUpdateProfile({ fullname, email, storeName, avatarUrl });
       triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
       onRefresh();
     } catch (err: any) {
       if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+      if (onUpdateProfile) onUpdateProfile({ fullname, email, storeName, avatarUrl });
       triggerToast(`✓ ${t.settingsView?.profileTab?.toastSuccess || 'Store profile successfully updated!'}`);
     } finally {
       setIsSaving(false);
@@ -297,8 +331,13 @@ export function ProfileTab({
             title={t.settingsView?.profileTab?.avatarModal?.title || 'Klik untuk memilih atau mengubah foto profil CDN'}
           >
             <img 
-              src={getR2CdnUrl(avatarUrl || '/assets/avatars/user-avatar.jpg')} 
-              onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+              src={getR2CdnUrl(avatarUrl || sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces')} 
+              onError={(e) => {
+                const fallback = sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces';
+                if ((e.target as HTMLImageElement).src !== fallback) {
+                  (e.target as HTMLImageElement).src = fallback;
+                }
+              }}
               alt="Avatar" 
               className="size-16 rounded-2xl object-cover border-2 border-orange-500 shadow-md group-hover:opacity-90 transition-opacity"
             />

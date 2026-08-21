@@ -1983,6 +1983,16 @@ export function UmkmDashboardContainer({
                   localStorage.setItem('zega_user_avatar', newUrl);
                 }
               }}
+              onUpdateProfile={({ fullname, email, avatarUrl }) => {
+                if (fullname) setResolvedUserName(fullname);
+                if (email) setResolvedUserEmail(email);
+                if (avatarUrl) setCurrentAvatar(avatarUrl);
+                if (typeof window !== 'undefined') {
+                  if (fullname) localStorage.setItem('zega_user_name', fullname);
+                  if (email) localStorage.setItem('zega_user_email', email);
+                  if (avatarUrl) localStorage.setItem('zega_user_avatar', avatarUrl);
+                }
+              }}
             />
           </div>
 

@@ -255,7 +255,7 @@ export function ManageStockLimitView({ triggerToast, onNavigateTab }: ManageStoc
                         <div className="flex items-center gap-3">
                           <div className="size-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 p-0.5 flex items-center justify-center">
                             <img 
-                              src={getR2CdnUrl(product.image_path || '/assets/products/kaoshitam.png', true)} 
+                              src={product.cdn_icon_url || (product.image_path ? getR2CdnUrl(product.image_path, true) : generateInitialsAvatar(product.name))} 
                               alt={product.name} 
                               className="w-full h-full object-contain"
                               onError={(e) => { (e.target as HTMLImageElement).src = generateInitialsAvatar(product.name); }}

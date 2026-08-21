@@ -42,7 +42,7 @@ export function BulkUploadSubView({ triggerToast, onNavigateTab }: BulkUploadSub
               category: obj.category || obj.Kategori || 'Fashion & Pakaian',
               price_idr: parseFloat(obj.price_idr || obj.price || obj.Harga || '50000'),
               stock: parseInt(obj.stock || obj.Stok || '10', 10),
-              image_path: obj.image_path || '/assets/products/kaoshitam.png'
+              image_path: obj.image_path || ''
             };
           });
           setParsedData(rows);

@@ -32,10 +32,11 @@ export interface UmkmDashboardProps {
   isGuest?: boolean;
   onNavigateTab?: (tab: string) => void;
   onUpdateAvatar?: (avatarUrl: string) => void;
+  onUpdateProfile?: (data: { fullname?: string; email?: string; storeName?: string; avatarUrl?: string }) => void;
   onOpenSearch?: () => void;
 }
 
-export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab, onUpdateAvatar, onOpenSearch }: UmkmDashboardProps) {
+export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isGuest, onNavigateTab, onUpdateAvatar, onUpdateProfile, onOpenSearch }: UmkmDashboardProps) {
   const [internalTab, setInternalTab] = useState('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -130,7 +131,7 @@ export function UmkmDashboard({ activeTab: externalTab, userName, userEmail, isG
       {currentTab === 'knowledge' && <KnowledgeView triggerToast={triggerToast} activeSubPage={externalTab} />}
       {currentTab === 'marketplace' && <MarketplaceView triggerToast={triggerToast} onNavigateTab={handleTabChange} />}
       {currentTab === 'billing' && <BillingView triggerToast={triggerToast} activeSubPage={externalTab} />}
-      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} activeSubPage={externalTab} />}
+      {currentTab === 'settings' && <SettingsView triggerToast={triggerToast} onUpdateAvatar={onUpdateAvatar} onUpdateProfile={onUpdateProfile} activeSubPage={externalTab} />}
       {currentTab === 'help' && <HelpView />}
     </div>
   );
