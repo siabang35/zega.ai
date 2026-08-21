@@ -24,7 +24,11 @@ class EncryptionServiceManager {
   private masterKey: Buffer;
 
   constructor() {
-    const rawSecret = envConfig.JWT_SECRET || process.env.JWT_SECRET || process.env.COOKIE_SECRET || 'zega-fallback-development-master-encryption-key-32b';
+    const rawSecret = envConfig.JWT_SECRET || process.env.JWT_SECRET || process.env.COOKIE_SECRET;
+    // SECURITY (V-03 FIX): Fail closed — never use a hardcoded encryption key
+    if (!rawSecret || rawSecret.length < 32) {
+      throw new Error('ENCRYPTION_KEY_MISSING: JWT_SECRET or COOKIE_SECRET must be configured with at least 32 characters for at-rest encryption.');
+    }
     // Derive deterministic 32-byte key using HKDF-SHA256
     this.masterKey = Buffer.from(crypto.hkdfSync('sha256', Buffer.from(rawSecret), Buffer.from('zega_at_rest_salt'), Buffer.from('zega_field_encryption_v1'), 32));
   }

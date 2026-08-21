@@ -19,16 +19,24 @@ export async function webhookRoutes(fastify: FastifyInstance) {
 
       const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-      // Verify HMAC-SHA256 signature if in production/devnet mode with secret
-      if (process.env.PRIVY_WEBHOOK_SECRET || process.env.PRIVY_APP_SECRET) {
-        const isValid = WebhookService.verifyPrivyWebhookSignature(rawBody, signatureHeader);
-        if (!isValid) {
-          logger.warn({ signatureHeader }, '[WebhookRoutes] Privy webhook signature verification failed.');
-          return reply.status(401).send({
-            error: 'UNAUTHORIZED_WEBHOOK',
-            message: 'Invalid or missing HMAC webhook signature.',
-          });
-        }
+      // SECURITY (S-21 FIX): Webhook HMAC verification is MANDATORY.
+      // If no secret is configured, reject ALL webhook requests.
+      const hasSecret = process.env.PRIVY_WEBHOOK_SECRET || process.env.PRIVY_APP_SECRET;
+      if (!hasSecret) {
+        logger.error('[WebhookRoutes] PRIVY_WEBHOOK_SECRET not configured. Rejecting all webhooks.');
+        return reply.status(503).send({
+          error: 'WEBHOOK_NOT_CONFIGURED',
+          message: 'Webhook secret not configured. Cannot verify payload authenticity.',
+        });
+      }
+
+      const isValid = WebhookService.verifyPrivyWebhookSignature(rawBody, signatureHeader);
+      if (!isValid) {
+        logger.warn({ signatureHeader }, '[WebhookRoutes] Privy webhook signature verification failed.');
+        return reply.status(401).send({
+          error: 'UNAUTHORIZED_WEBHOOK',
+          message: 'Invalid or missing HMAC webhook signature.',
+        });
       }
 
       const event = req.body as any;
@@ -42,7 +50,7 @@ export async function webhookRoutes(fastify: FastifyInstance) {
       logger.error({ err: err.message }, '[WebhookRoutes] Error handling Privy webhook.');
       return reply.status(400).send({
         error: 'WEBHOOK_PROCESSING_FAILED',
-        message: err.message || 'Failed to process Privy webhook event.',
+        message: 'Failed to process webhook event.',
       });
     }
   });

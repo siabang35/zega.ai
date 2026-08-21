@@ -73,8 +73,8 @@ export async function processPrivyWebhook(event: PrivyWebhookEvent): Promise<{ s
 
   const supabase = SupabaseService.getClient();
   if (!supabase) {
-    logger.warn('[WebhookService] Supabase unavailable. Processing event in-memory only.');
-    return { success: true, duplicate: false };
+    // SECURITY (S-22 FIX): Fail closed — unaudited webhook events are a data loss vector
+    throw new Error('WEBHOOK_UNAVAILABLE: Database client uninitialized. Cannot persist webhook event.');
   }
 
   // Idempotency check: Record event ID in DB

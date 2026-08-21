@@ -425,8 +425,11 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
           text = text
             .replace(/<think>[\s\S]*?<\/think>/gi, '')
             .replace(/<think>[\s\S]*$/gi, '')
-            .replace(/^(?:Here's a thinking process:|Thinking Process:)[\s\S]*?\n\n/gi, '')
-            .replace(/^(?:Here's a thinking process:|Thinking Process:)/gi, '')
+            .replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*?(?:\n\n|\n(?=[A-Z]))/gi, '')
+            .replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*/gi, '')
+            .replace(/^\d+\.\s*\*?\*?(?:Analyze|Check|Draft|Plan|Review|Evaluate|Consider|Assess|Identify|Determine|Key Observation|My Approach|Final Response|Step \d|Security|Format|Language|Tone|Greeting Rule|Store Context|Focus|Role|Time|Constraint|Requirement)[^:]*:\*?\*?[^\n]*(?:\n(?!\n)[^\n]*)*/gim, '')
+            .replace(/^\s*\*?\*?(?:Role|Focus|Time\/Date|Store Context|Greeting Rule|Language|Tone|Format|Security\/Transparency|Constraints? & Requirements?|User Input|Analyze User|Check Constraints|Draft Response)[^:]*:\*?\*?\s*[^\n]*$/gim, '')
+            .replace(/^\s*[•\-\*]\s*(?:User said|This is a|I need to|Let me|I should|I will|My response|The user)[^\n]*$/gim, '')
             .trim();
         }
       }

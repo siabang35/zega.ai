@@ -3633,8 +3633,9 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
    */
   function resolveAuthenticatedUser(request: any): string | null {
     const principal = request.principal;
-    if (principal && (principal.email || principal.userId)) {
-      return principal.email || principal.userId;
+    // SECURITY (S-05 FIX): Use principal.userId (canonical UUID), never email
+    if (principal && principal.userId) {
+      return principal.userId;
     }
     const jwtUser = request.user;
     if (jwtUser && (jwtUser.email || jwtUser.sub)) {
@@ -6111,7 +6112,7 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
           latencyMs: Date.now() - startTime,
         });
       } catch (err: any) {
-        return reply.status(502).send({ success: false, error: `Helius MCP call failed: ${err.message}` });
+        return reply.status(502).send({ success: false, error: 'Helius MCP call failed' });
       }
     }
 
@@ -6929,16 +6930,23 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
     const actionId = `action_dispatch_${Date.now()}`;
     const referenceKey = generateSolanaPayReferenceKey();
 
-    // 🛡️ OWASP Security Gate 2: Zero-Trust Cryptographic HMAC Payload Signature
-    const integritySecret = process.env.JWT_SECRET || 'zega-zero-trust-integrity-key-2026';
+    // SECURITY (V-04 FIX): Fail closed — never use hardcoded HMAC key
+    const integritySecret = process.env.JWT_SECRET;
+    if (!integritySecret) {
+      return reply.status(503).send({
+        success: false,
+        error: 'JWT_SECRET not configured. Cannot generate integrity hash for invoice.',
+      });
+    }
     const owaspIntegrityHash = createHmac('sha256', integritySecret)
       .update(`${recipient}:${numericAmount.toFixed(2)}:${referenceKey}:${now}`)
       .digest('hex');
 
-    // ⚡ Real-Time ZeroClaw Background Signature Monitoring: Auto-register Reference Key & Recipient Wallet
-    zeroClawSignatureMonitor.registerMonitoredAddress(referenceKey, 'reference', 'user@zegaai.site', numericAmount, target, channel);
+    // SECURITY (S-03 FIX): Use authenticated principal's UUID, never a default phantom user
+    const monitoredUserId = request.principal?.userId || 'anonymous';
+    zeroClawSignatureMonitor.registerMonitoredAddress(referenceKey, 'reference', monitoredUserId, numericAmount, target, channel);
     if (recipient) {
-      zeroClawSignatureMonitor.registerMonitoredAddress(recipient, 'merchant', 'user@zegaai.site', numericAmount, target, channel);
+      zeroClawSignatureMonitor.registerMonitoredAddress(recipient, 'merchant', monitoredUserId, numericAmount, target, channel);
     }
 
     const actionPreview = {
@@ -6973,7 +6981,8 @@ export const zeroclawRoutes: FastifyPluginAsync = async (fastify) => {
       // Use HTML parse_mode to avoid underscore issues in usernames like @Soft_yee
       const escHtml = (s: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const checksumBadge = `${recipient.slice(0, 4)}...${recipient.slice(-4)}`;
-      const senderEmailVal = (request.body as any)?.userEmail || (request.body as any)?.userId || request.principal?.email || request.principal?.userId || 'user@zegaai.site';
+      // SECURITY (S-03/S-05 FIX): Use canonical UUID, never phantom user fallback
+      const senderEmailVal = request.principal?.userId || 'anonymous';
       const cleanUserDir = senderEmailVal.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
       const cdnAuditProofUrl = (request.body as any)?.r2CdnUrl || (request.body as any)?.r2_cdn_url || `https://cdn.zegaai.site/privy-audits/${cleanUserDir}/audit_${referenceKey}.json`;
 

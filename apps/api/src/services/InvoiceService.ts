@@ -73,30 +73,16 @@ export class InvoiceService {
 
     const wallet = await privyWalletService.ensureUserSolanaWallet(userId);
     const baseUnits = SolanaTransactionService.safeConvertToBaseUnits(amount, asset);
-    const invoiceNumber = `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    // SECURITY (V-07 FIX): Use cryptographically secure random for invoice numbers
+    const { randomBytes } = await import('crypto');
+    const randomSuffix = randomBytes(4).readUInt32BE(0) % 9000 + 1000;
+    const invoiceNumber = `INV-${Date.now()}-${randomSuffix}`;
     const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString();
 
     const supabase = supabaseService.getClient();
     if (!supabase) {
-      return {
-        id: `inv_${Date.now()}`,
-        invoice_number: invoiceNumber,
-        user_id: wallet.user_id,
-        wallet_id: wallet.id,
-        currency: asset,
-        asset,
-        token_mint: tokenMint || undefined,
-        amount,
-        amount_base_units: baseUnits.toString(),
-        recipient_address: wallet.wallet_address,
-        status: 'PENDING',
-        description: description || 'ZEGA AI Payment Invoice',
-        metadata: metadata || {},
-        expires_at: expiresAt,
-        paid_amount: '0',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // SECURITY (V-07b FIX): Fail closed — invoices MUST be persisted
+      throw new Error('Database unavailable. Cannot create invoice without persistence.');
     }
 
     const { data, error } = await supabase

@@ -51,8 +51,8 @@ export class ZeroClawSignatureMonitorService {
   private lastPollTimestamp: string | null = null;
 
   constructor() {
-    // Dynamic address monitoring initialized via DB active invoices & merchant registrations
-    this.registerMonitoredAddress('J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9', 'merchant', 'user@zegaai.site');
+    // SECURITY (S-03 FIX): Use 'system' as owner for seed merchant address, never phantom user
+    this.registerMonitoredAddress('J9RE2J3SWo1x2BctQjBZmhHKFZn1w8KqBBs49uVZmEo9', 'merchant', 'system');
   }
 
   /**
@@ -552,7 +552,8 @@ export class ZeroClawSignatureMonitorService {
           network: 'solana-devnet',
           status: 'confirmed',
           memo: tx.memo || `ZeroClaw On-Chain Verified Settlement (${tx.amountUsdc} USDC)`,
-          buyer_email: monitored.userId || 'user@zegaai.site',
+          // SECURITY (S-03 FIX): Use actual userId, never phantom fallback
+          buyer_email: monitored.userId || null,
           is_demo: isDemo,
           slot: tx.slot,
           updated_at: new Date().toISOString(),

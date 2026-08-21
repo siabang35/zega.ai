@@ -36,6 +36,38 @@ export interface RouteExecutionResult {
   assistantType?: CanonicalAssistantType;
 }
 
+/**
+ * ZEGA AI — Server-Side Chain-of-Thought & Reasoning Process Sanitizer (LLM07 Guardrail)
+ * Strips internal scratchpads, <think> tags, numbered analysis steps, and metalanguage headers.
+ */
+export function stripThinkingProcess(rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+
+  let text = rawText;
+
+  // 1. Strip <think>...</think> closed blocks
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+
+  // 2. Strip unclosed <think>... blocks to end of string or before final response
+  text = text.replace(/<think>[\s\S]*/gi, '');
+
+  // 3. Strip "Here's a thinking process:" and similar prefix blocks up to double newline or final section
+  text = text.replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*?(?=\n\n|\n(?=[A-Z0-9]))/gi, '');
+  text = text.replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*/gi, '');
+
+  // 4. Strip numbered analysis steps (e.g. 1. **Analyze User Input:**, 2. **Determine Response Strategy:**)
+  text = text.replace(/^\d+\.\s*\*?\*?(?:Analyze|Check|Draft|Plan|Review|Evaluate|Consider|Assess|Identify|Determine|Key Observation|My Approach|Final Response|Step \d|Security|Format|Language|Tone|Greeting Rule|Store Context|Focus|Role|Time|Constraint|Requirement)[^:]*:\*?\*?[\s\S]*?(?=\n\n|\n(?=[A-Z])|$)/gim, '');
+
+  // 5. Strip metadata & constraint lines (e.g. - User said: "hello", - Context: ...)
+  text = text.replace(/^\s*\*?\*?(?:Role|Focus|Time\/Date|Store Context|Greeting Rule|Language|Tone|Format|Security\/Transparency|Constraints? & Requirements?|User Input|Analyze User|Check Constraints|Draft Response)[^:]*:\*?\*?\s*[^\n]*$/gim, '');
+
+  // 6. Strip bullet-pointed scratchpad items
+  text = text.replace(/^\s*[•\-\*]\s*(?:User said|Context|Store Context|Date|Language Requirement|Tone|Format|Rules|Acknowledge|Introduce|Reference|Offer|Maintain|Hello|Check|Security)[^:\n]*:\s*[^\n]*$/gim, '');
+  text = text.replace(/^\s*[•\-\*]\s*(?:User said|This is a|I need to|Let me|I should|I will|My response|The user)[^\n]*$/gim, '');
+
+  return text.trim();
+}
+
 export interface RouteExecutionOptions {
   rawInput: string;
   hardenedSystemPrompt: string;
@@ -522,7 +554,7 @@ export async function executeRoutedModelPipeline(
     }
   }
 
-  const finalReplyText = replyText;
+  const finalReplyText = stripThinkingProcess(replyText);
 
   return {
     replyText: finalReplyText,

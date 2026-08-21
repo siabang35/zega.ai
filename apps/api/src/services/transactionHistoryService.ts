@@ -163,16 +163,19 @@ export async function getTransactionById(txId: string, userId?: string): Promise
   }
 }
 
-export async function getTransactionBySignature(signature: string): Promise<TransactionRecord | null> {
+// SECURITY (S-24 FIX): Added userId parameter for IDOR protection
+export async function getTransactionBySignature(signature: string, userId?: string): Promise<TransactionRecord | null> {
   const supabase = SupabaseService.getClient();
   if (!supabase) return null;
 
   try {
-    const { data } = await supabase
+    let query = supabase
       .from('transactions')
       .select('*')
-      .eq('signature', signature)
-      .maybeSingle();
+      .eq('signature', signature);
+    // SECURITY: Scope to authenticated user when userId is provided
+    if (userId) query = query.eq('user_id', userId);
+    const { data } = await query.maybeSingle();
     return data ? mapDbRowToRecord(data) : null;
   } catch {
     return null;

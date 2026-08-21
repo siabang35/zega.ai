@@ -220,10 +220,20 @@ export const HelpView: React.FC = () => {
   const renderFormattedChatMessage = (text: string) => {
     if (!text) return null;
     let cleanText = text
+      // Strip closed <think> blocks
       .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      // Strip unclosed <think> to end of string
       .replace(/<think>[\s\S]*$/gi, '')
-      .replace(/^(?:Here's a thinking process:|Thinking Process:)[\s\S]*?\n\n/gi, '')
-      .replace(/^(?:Here's a thinking process:|Thinking Process:)/gi, '')
+      // Strip "Here's a thinking process:" followed by everything until a double newline or end
+      .replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*?(?:\n\n|\n(?=[A-Z]))/gi, '')
+      // Strip entire block if it starts with thinking process header (greedy fallback)
+      .replace(/^(?:Here'?s a thinking process:|Thinking Process:|Here is my thinking:)[\s\S]*/gi, '')
+      // Strip numbered reasoning steps patterns (e.g. "1. **Analyze User Input:**", "2. **Check Constraints:**")
+      .replace(/^\d+\.\s*\*?\*?(?:Analyze|Check|Draft|Plan|Review|Evaluate|Consider|Assess|Identify|Determine|Key Observation|My Approach|Final Response|Step \d|Security|Format|Language|Tone|Greeting Rule|Store Context|Focus|Role|Time|Constraint|Requirement)[^:]*:\*?\*?[^\n]*(?:\n(?!\n)[^\n]*)*/gim, '')
+      // Strip "**Role:**", "**Focus:**", "**Language:**" etc metadata blocks 
+      .replace(/^\s*\*?\*?(?:Role|Focus|Time\/Date|Store Context|Greeting Rule|Language|Tone|Format|Security\/Transparency|Constraints? & Requirements?|User Input|Analyze User|Check Constraints|Draft Response)[^:]*:\*?\*?\s*[^\n]*$/gim, '')
+      // Strip bullet points that look like internal reasoning ("• User said:", "• This is a simple")
+      .replace(/^\s*[•\-\*]\s*(?:User said|This is a|I need to|Let me|I should|I will|My response|The user)[^\n]*$/gim, '')
       .trim();
     if (!cleanText && text) cleanText = text.replace(/<\/?think>/gi, '').trim();
     if (!cleanText) return null;

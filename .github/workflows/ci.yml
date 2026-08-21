@@ -33,16 +33,27 @@ jobs:
 
       - name: Security Scan — Secret Leak Audit
         run: |
-          echo "Scanning for hardcoded API keys & secrets..."
-          if git grep -iE "(gsk_[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-api[A-Za-z0-9_-]{20,})" -- 'apps/web/src'; then
-            echo "Security Check Failed: Secret detected!"
+          echo "Scanning entire repository for hardcoded API keys & secrets..."
+          # SECURITY (S-14 FIX): Scan ENTIRE repo, not just apps/web/src
+          if git grep -iE "(gsk_[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-api[A-Za-z0-9_-]{20,}|xsmtpsib-[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9]{20,})" -- ':!*.env*' ':!.env*' ':!node_modules'; then
+            echo "::error::Security Check Failed: Hardcoded secret detected in tracked files!"
             exit 1
           else
             echo "Security audit passed cleanly."
           fi
+
+      - name: TypeScript Type Check
+        run: pnpm --filter @zega/api type-check
+
+      - name: Run Security Test Suite
+        run: pnpm --filter @zega/api test
 
       - name: Build Backend API (@zega/api)
         run: pnpm --filter @zega/api build
 
       - name: Build Frontend Web Application (@zega/web)
         run: pnpm --filter @zega/web build
+
+      - name: Supply Chain Audit
+        run: pnpm audit --audit-level=high || true
+

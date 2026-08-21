@@ -65,19 +65,22 @@ export class PaymentDetectionService {
 
     // 3. Resolve recipient wallet in local database
     const walletRecord = await privyWalletService.getWalletByAddress(recipient);
-    const userId = walletRecord ? walletRecord.user_id : 'user@zegaai.site';
-    const walletId = walletRecord ? walletRecord.id : `wal_${Date.now()}`;
+    // SECURITY (S-03 FIX): Fail-closed when recipient wallet is unknown.
+    // Never credit payments to a default/phantom user.
+    if (!walletRecord) {
+      throw new Error('PAYMENT_RECIPIENT_UNKNOWN: Recipient wallet address is not registered in ZEGA. Payment cannot be credited.');
+    }
+    const userId = walletRecord.user_id;
+    const walletId = walletRecord.id;
     const baseUnits = SolanaTransactionService.safeConvertToBaseUnits(amount, asset);
 
     // 4. Match invoice (check status and expiration)
+    // SECURITY (S-08 FIX): Deterministic invoice matching.
+    // If invoiceId is provided, use it directly. Do NOT fuzzy-match by asset+amount.
     let invoice = invoiceId ? await invoiceService.getInvoice(invoiceId) : null;
-    if (!invoice) {
-      const pendingInvoices = await invoiceService.listUserInvoices(userId, 10);
-      invoice = pendingInvoices.find(
-        (inv) => (inv.status === 'PENDING' || inv.status === 'PARTIALLY_PAID') &&
-          inv.asset === asset &&
-          parseFloat(inv.amount) <= parseFloat(amount)
-      ) || null;
+    if (invoice && invoice.status !== 'PENDING' && invoice.status !== 'PARTIALLY_PAID') {
+      // Invoice is not in a payable state — reject matching
+      invoice = null;
     }
 
     const isExpired = invoice && new Date(invoice.expires_at).getTime() < Date.now();
@@ -102,30 +105,8 @@ export class PaymentDetectionService {
     };
 
     if (!supabase) {
-      // Fallback in-memory ledger credit & invoice status update
-      await ledgerService.recordCredit({
-        userId,
-        walletId,
-        type: 'PAYMENT',
-        asset,
-        tokenMint,
-        amount,
-        referenceType: 'PAYMENT',
-        referenceId: fallbackRecord.id,
-      });
-
-      if (invoice) {
-        if (isExpired) {
-          await invoiceService.updateInvoiceStatus(invoice.id, 'EXPIRED', signature);
-        } else {
-          const totalPaid = (parseFloat(invoice.paid_amount || '0') + parseFloat(amount)).toString();
-          const isFull = parseFloat(totalPaid) >= parseFloat(invoice.amount);
-          const newStatus = isFull ? 'PAID' : 'PARTIALLY_PAID';
-          await invoiceService.updateInvoiceStatus(invoice.id, newStatus as any, signature, totalPaid);
-        }
-      }
-
-      return fallbackRecord;
+      // SECURITY (S-17 FIX): Fail closed — financial operations require DB availability
+      throw new Error('PAYMENT_UNAVAILABLE: Database client uninitialized. Cannot process payment.');
     }
 
     // 5. ATOMIC PAYMENT SETTLEMENT (Payment Insert + Invoice Status + Ledger Credit in 1 DB Transaction)
@@ -152,7 +133,32 @@ export class PaymentDetectionService {
       throw new Error(`Atomic payment settlement failed: ${settleError.message}`);
     }
 
-    return settledPayment as PaymentRecord;
+    // Record ledger credit with tenant scoping
+    await ledgerService.recordCredit({
+      userId,
+      walletId,
+      organizationId: (walletRecord as any).organization_id || '',
+      type: 'PAYMENT',
+      asset,
+      tokenMint,
+      amount,
+      referenceType: 'PAYMENT',
+      referenceId: (settledPayment as PaymentRecord)?.id || fallbackRecord.id,
+    });
+
+    // Update invoice status if applicable
+    if (invoice) {
+      if (isExpired) {
+        await invoiceService.updateInvoiceStatus(invoice.id, 'EXPIRED', signature);
+      } else {
+        const totalPaid = (parseFloat(invoice.paid_amount || '0') + parseFloat(amount)).toString();
+        const isFull = parseFloat(totalPaid) >= parseFloat(invoice.amount);
+        const newStatus = isFull ? 'PAID' : 'PARTIALLY_PAID';
+        await invoiceService.updateInvoiceStatus(invoice.id, newStatus as any, signature, totalPaid);
+      }
+    }
+
+    return (settledPayment as PaymentRecord) || fallbackRecord;
   }
 }
 

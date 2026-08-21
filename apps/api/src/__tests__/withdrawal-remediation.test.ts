@@ -31,6 +31,7 @@ describe('Withdrawal Remediation — Pre-Balance & Fund Reservation', () => {
     // Record credit in ledger
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_remediation',
       walletId: `wal_${Date.now()}`,
       type: 'PAYMENT',
       asset: 'SOL',
@@ -51,6 +52,7 @@ describe('Withdrawal Remediation — Pre-Balance & Fund Reservation', () => {
     // Need mock wallet
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_remediation',
       walletId: `wal_${Date.now()}`,
       type: 'PAYMENT',
       asset: 'SOL',
@@ -78,6 +80,7 @@ describe('Withdrawal Remediation — Pre-Balance & Fund Reservation', () => {
     // 1. Seed balance
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_remediation',
       walletId,
       type: 'PAYMENT',
       asset: 'SOL',
@@ -121,6 +124,7 @@ describe('Withdrawal Remediation — Pre-Balance & Fund Reservation', () => {
     // 1. Seed balance
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_remediation',
       walletId,
       type: 'PAYMENT',
       asset: 'SOL',

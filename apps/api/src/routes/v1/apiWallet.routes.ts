@@ -49,8 +49,9 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
    */
   function getPrincipalIdentity(req: FastifyRequest, reply: FastifyReply): string | null {
     const principal = req.principal;
-    if (principal && (principal.email || principal.userId)) {
-      return principal.email || principal.userId;
+    // SECURITY (S-05 FIX): Use principal.userId (canonical UUID), never email
+    if (principal && principal.userId) {
+      return principal.userId;
     }
 
     // FAIL-CLOSED: No principal = deny
@@ -87,7 +88,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
       logger.error({ err: err.message }, '[ApiWalletRoutes] Error fetching wallet overview.');
       return reply.status(500).send({
         error: 'WALLET_FETCH_FAILED',
-        message: err.message || 'Failed to fetch user wallet overview.',
+        message: 'Failed to fetch user wallet overview.',
       });
     }
   });
@@ -110,7 +111,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
       logger.error({ err: err.message }, '[ApiWalletRoutes] Error fetching SOL balance.');
       return reply.status(500).send({
         error: 'BALANCE_FETCH_FAILED',
-        message: err.message || 'Failed to fetch SOL balance.',
+        message: 'Failed to fetch SOL balance.',
       });
     }
   });
@@ -132,7 +133,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
       logger.error({ err: err.message }, '[ApiWalletRoutes] Error fetching SPL tokens.');
       return reply.status(500).send({
         error: 'TOKEN_FETCH_FAILED',
-        message: err.message || 'Failed to fetch SPL token balances.',
+        message: 'Failed to fetch SPL token balances.',
       });
     }
   });
@@ -165,7 +166,7 @@ export async function apiWalletRoutes(fastify: FastifyInstance) {
       logger.error({ err: err.message }, '[ApiWalletRoutes] Error listing transactions.');
       return reply.status(500).send({
         error: 'TRANSACTION_LIST_FAILED',
-        message: err.message || 'Failed to list transaction history.',
+        message: 'Failed to list transaction history.',
       });
     }
   });

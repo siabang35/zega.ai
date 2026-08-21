@@ -389,6 +389,14 @@ export async function confirmTransactionSignature(signature: string, maxWaitMs =
 /**
  * Parse and verify a transaction signature from Solana RPC.
  */
+/**
+ * SECURITY (S-04 FIX): Parse actual transfer instructions from the transaction,
+ * instead of relying on positional account key assumptions.
+ *
+ * For SOL transfers: Parses SystemProgram.transfer instruction.
+ * For SPL tokens: Parses spl-token transfer/transferChecked instruction.
+ * Returns verified: false if no recognizable transfer instruction is found.
+ */
 export async function parseAndVerifyTransaction(signature: string) {
   const txRes = await solanaRpcManager.callRpc<any>(
     'getTransaction',
@@ -410,18 +418,63 @@ export async function parseAndVerifyTransaction(signature: string) {
 
   const transaction = txRes.transaction;
   const message = transaction?.message;
-  const accountKeys = message?.accountKeys || [];
+  const instructions = message?.instructions || [];
 
-  let sender = accountKeys[0]?.pubkey || accountKeys[0] || 'Unknown';
-  let recipient = accountKeys[1]?.pubkey || accountKeys[1] || 'Unknown';
+  // Also check innerInstructions for CPI-wrapped transfers
+  const innerInstructions = meta?.innerInstructions || [];
+  const allInstructions = [
+    ...instructions,
+    ...innerInstructions.flatMap((inner: any) => inner.instructions || []),
+  ];
+
+  let sender = '';
+  let recipient = '';
   let amount = '0';
   let asset = 'SOL';
+  let tokenMint = '';
+  let transferFound = false;
 
-  if (meta?.preBalances && meta?.postBalances && meta.preBalances.length > 1) {
-    const diffLamports = meta.postBalances[1] - meta.preBalances[1];
-    if (diffLamports > 0) {
-      amount = (diffLamports / LAMPORTS_PER_SOL).toString();
+  for (const ix of allInstructions) {
+    const parsed = ix?.parsed;
+    if (!parsed) continue;
+
+    // Native SOL transfer via SystemProgram
+    if (ix.program === 'system' && parsed.type === 'transfer') {
+      sender = parsed.info?.source || '';
+      recipient = parsed.info?.destination || '';
+      const lamports = Number(parsed.info?.lamports || 0);
+      amount = (lamports / LAMPORTS_PER_SOL).toString();
+      asset = 'SOL';
+      transferFound = true;
+      break;
     }
+
+    // SPL Token transfer
+    if (ix.program === 'spl-token' && (parsed.type === 'transfer' || parsed.type === 'transferChecked')) {
+      sender = parsed.info?.authority || parsed.info?.source || '';
+      recipient = parsed.info?.destination || '';
+      tokenMint = parsed.info?.mint || '';
+      const rawAmount = parsed.info?.amount || parsed.info?.tokenAmount?.amount || '0';
+      const decimals = parsed.info?.tokenAmount?.decimals ?? 6;
+      amount = (Number(rawAmount) / Math.pow(10, decimals)).toString();
+      asset = tokenMint === DEFAULT_USDC_MINT ? 'USDC' : 'SPL';
+      transferFound = true;
+      break;
+    }
+  }
+
+  if (!transferFound) {
+    return {
+      verified: false,
+      error: 'No recognizable transfer instruction found in transaction',
+    };
+  }
+
+  if (!sender || !recipient) {
+    return {
+      verified: false,
+      error: 'Transfer instruction missing sender or recipient',
+    };
   }
 
   return {
@@ -431,6 +484,7 @@ export async function parseAndVerifyTransaction(signature: string) {
     recipient,
     amount,
     asset,
+    tokenMint: tokenMint || undefined,
     slot,
     blockTime,
   };

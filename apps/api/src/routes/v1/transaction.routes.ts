@@ -51,7 +51,8 @@ export async function transactionRoutes(fastify: FastifyInstance) {
    */
   function getAuthenticatedUserId(request: FastifyRequest): string {
     const principal = request.principal;
-    return principal?.email || principal?.userId || '';
+    // SECURITY (S-23 FIX): Use canonical UUID identity, never email-first
+    return principal?.userId || '';
   }
 
   function getTenantScopedIdempotencyKey(request: FastifyRequest): string | undefined {
@@ -92,7 +93,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
       const statusCode = err.code === 'INSUFFICIENT_FUNDS' ? 400 : err.code === 'CONCURRENCY_LOCK' ? 409 : 500;
       return reply.status(statusCode).send({
         error: err.code || 'TRANSACTION_EXECUTION_FAILED',
-        message: err.message || 'Failed to execute SOL transfer.',
+        message: 'Failed to execute SOL transfer.',
       });
     }
   });
@@ -125,7 +126,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
       const statusCode = err.code === 'INSUFFICIENT_FUNDS' ? 400 : err.code === 'CONCURRENCY_LOCK' ? 409 : 500;
       return reply.status(statusCode).send({
         error: err.code || 'TRANSACTION_EXECUTION_FAILED',
-        message: err.message || 'Failed to execute SPL token transfer.',
+        message: 'Failed to execute SPL token transfer.',
       });
     }
   });
@@ -164,7 +165,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({
         error: 'FEE_ESTIMATION_FAILED',
-        message: err.message || 'Failed to estimate transaction fees.',
+        message: 'Failed to estimate transaction fees.',
       });
     }
   });
@@ -195,7 +196,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({
         error: 'PREVIEW_FAILED',
-        message: err.message || 'Failed to generate transaction preview.',
+        message: 'Failed to generate transaction preview.',
       });
     }
   });
@@ -230,7 +231,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
       const statusCode = err.code === 'INSUFFICIENT_FUNDS' ? 400 : err.code === 'CONCURRENCY_LOCK' ? 409 : 500;
       return reply.status(statusCode).send({
         error: err.code || 'TRANSACTION_EXECUTION_FAILED',
-        message: err.message || 'Failed to execute transaction.',
+        message: 'Failed to execute transaction.',
       });
     }
   });
@@ -254,7 +255,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({
         error: 'FETCH_TRANSACTION_FAILED',
-        message: err.message || 'Failed to fetch transaction details.',
+        message: 'Failed to fetch transaction details.',
       });
     }
   });
@@ -265,7 +266,8 @@ export async function transactionRoutes(fastify: FastifyInstance) {
       const userId = getAuthenticatedUserId(req);
       const { signature } = req.params as { signature: string };
 
-      const record = await TransactionHistoryService.getTransactionBySignature(signature);
+      // SECURITY (S-24 FIX): Scope transaction lookup by authenticated userId to prevent IDOR
+      const record = await TransactionHistoryService.getTransactionBySignature(signature, userId);
       if (!record) {
         return reply.status(404).send({
           error: 'TRANSACTION_NOT_FOUND',
@@ -277,7 +279,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({
         error: 'FETCH_TRANSACTION_FAILED',
-        message: err.message || 'Failed to fetch transaction by signature.',
+        message: 'Failed to fetch transaction by signature.',
       });
     }
   });
@@ -308,7 +310,7 @@ export async function transactionRoutes(fastify: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({
         error: 'LIST_TRANSACTIONS_FAILED',
-        message: err.message || 'Failed to list transactions.',
+        message: 'Failed to list transactions.',
       });
     }
   });

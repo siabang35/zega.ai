@@ -16,6 +16,7 @@ describe('BLOCKER-01 — Withdrawal Concurrency & Advisory Lock Verification', (
     // 1. Seed initial available balance = 100 SOL
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_concurrency',
       walletId,
       type: 'PAYMENT',
       asset: 'SOL',
@@ -104,6 +105,7 @@ describe('BLOCKER-01 — Withdrawal Concurrency & Advisory Lock Verification', (
     // Seed initial balance = 100 SOL
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_concurrency',
       walletId,
       type: 'PAYMENT',
       asset: 'SOL',
@@ -166,6 +168,7 @@ describe('BLOCKER-01 — Withdrawal Concurrency & Advisory Lock Verification', (
     // Seed balance = 50 SOL
     await ledgerService.recordCredit({
       userId: testUserId,
+      organizationId: 'org_test_concurrency',
       walletId,
       type: 'PAYMENT',
       asset: 'SOL',

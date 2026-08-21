@@ -159,6 +159,23 @@ export async function executeTool(
   const storeId = args?.storeId || context.storeId;
 
   try {
+    // SECURITY (S-12 FIX): Validate that storeId belongs to the context.tenantId
+    if (storeId && supabase && context.tenantId) {
+      const { data: storeRecord } = await supabase
+        .from('umkm_stores')
+        .select('organization_id')
+        .eq('id', storeId)
+        .maybeSingle();
+      if (storeRecord && storeRecord.organization_id !== context.tenantId) {
+        return {
+          toolName,
+          success: false,
+          result: null,
+          error: `TENANT_ISOLATION_VIOLATION: Store ${storeId} does not belong to tenant ${context.tenantId}.`,
+        };
+      }
+    }
+
     switch (toolName) {
       case 'get_financial_metrics':
       case 'analyze_finance': {

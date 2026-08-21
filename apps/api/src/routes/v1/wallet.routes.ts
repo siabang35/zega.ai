@@ -36,8 +36,9 @@ export async function walletRoutes(fastify: FastifyInstance) {
    */
   function getAuthenticatedUserId(request: FastifyRequest, reply: FastifyReply): string | null {
     const principal = request.principal;
-    if (principal && (principal.email || principal.userId)) {
-      return principal.email || principal.userId;
+    // SECURITY (S-05 FIX): Use principal.userId (canonical UUID), never email
+    if (principal && principal.userId) {
+      return principal.userId;
     }
 
     reply.status(401).send({

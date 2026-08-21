@@ -60,8 +60,8 @@ export const enterpriseRoutes: FastifyPluginAsync = async (fastify) => {
     };
 
     // SECURITY (EA-01 / EA-02): Identity & Tenant Scoping derived SERVER-AUTHORITATIVELY from JWT principal
-    const authenticatedOrgId = getTenantOrg(request) || request.principal?.organizationId || '';
-    const authenticatedUserId = request.principal?.userId || request.principal?.email || 'enterprise-user';
+    // SECURITY (V-05 FIX): Use canonical UUID identity, no fallback to generic string
+    const authenticatedUserId = request.principal?.userId || '';
 
     // ── LAYER 1: Input Validation & Sanitization ──
     if (!body || !body.message || typeof body.message !== 'string') {
@@ -350,7 +350,7 @@ ATURAN UTAMA BAHASA & FORMAT:
 
     // ── LAYER 2.5: Fail-Closed Provider Gate (Zero Production Mock/Static Fallback) ──
     if (!replyText) {
-      fastify.log.warn({ authenticatedOrgId, authenticatedUserId }, '⚠️ [Enterprise Copilot] No configured AI provider succeeded');
+      fastify.log.warn({ orgId: getTenantOrg(request), authenticatedUserId }, '⚠️ [Enterprise Copilot] No configured AI provider succeeded');
       return reply.status(503).send({
         success: false,
         error: {
@@ -461,7 +461,8 @@ ATURAN UTAMA BAHASA & FORMAT:
         },
       });
     } catch (err: any) {
-      return reply.status(500).send({ success: false, error: { message: err.message } });
+      // SECURITY (V-08 FIX): Do not leak internal error messages to client
+      return reply.status(500).send({ success: false, error: { message: 'Internal server error' } });
     }
   });
 
@@ -504,7 +505,7 @@ ATURAN UTAMA BAHASA & FORMAT:
             org_id: getTenantOrg(request),
             organization_id: getTenantOrg(request),
             action_type: action,
-            triggered_by: 'admin@zegaai.site',
+            triggered_by: request.principal?.userId || 'unknown',
             status: 'COMPLETED',
             metadata: body.metadata || {},
             ip_address: request.ip || '127.0.0.1',
@@ -576,7 +577,8 @@ ATURAN UTAMA BAHASA & FORMAT:
         ],
       });
     } catch (err: any) {
-      return reply.status(500).send({ success: false, error: { message: err.message } });
+      // SECURITY (V-08 FIX): Do not leak internal error messages to client
+      return reply.status(500).send({ success: false, error: { message: 'Internal server error' } });
     }
   });
 

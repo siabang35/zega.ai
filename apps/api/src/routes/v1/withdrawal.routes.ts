@@ -56,9 +56,9 @@ export async function withdrawalRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      // SECURITY: userId from authenticated principal, NOT client
+      // SECURITY (S-05 FIX): Use principal.userId (canonical UUID), never email
       const withdrawal = await withdrawalService.executeWithdrawal({
-        userId: principal.email || principal.userId,
+        userId: principal.userId,
         recipient: body.recipient,
         amount: body.amount.toString(),
         asset: body.asset || 'SOL',
@@ -85,8 +85,8 @@ export async function withdrawalRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ success: false, message: 'Authentication required' });
     }
 
-    // SECURITY: Scoped to authenticated principal's identity
-    const userId = principal.email || principal.userId;
+    // SECURITY (S-05 FIX): Use canonical UUID, never email
+    const userId = principal.userId;
     const withdrawals = await withdrawalService.listUserWithdrawals(userId);
 
     return reply.send({

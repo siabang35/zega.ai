@@ -34,12 +34,18 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
   try {
     let jwtPayload = request.user as any;
     if (!jwtPayload) {
+      // SECURITY (S-16 FIX): Only use verified JWT claims.
+      // The previous fallback used jwt.decode() which does NOT verify the signature.
+      // Unverified JWT claims must never populate the principal.
       const token = (request.cookies as any)?.__zega_token ||
         (request.headers.authorization?.startsWith('Bearer ') ? request.headers.authorization.substring(7).trim() : null);
       if (token && token !== 'undefined' && token !== 'null') {
         try {
-          jwtPayload = request.server.jwt.decode(token);
-        } catch { }
+          jwtPayload = request.server.jwt.verify(token);
+        } catch {
+          // Verification failed — do NOT populate principal from unverified claims
+          return null;
+        }
       }
     }
     if (!jwtPayload) {
@@ -136,11 +142,10 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
               verifiedOrgId = verifiedStore.organization_id || verifiedStore.id;
               membershipId = `store-owner-${principal.userId}`;
               orgRole = 'owner';
-            } else if (requestedOrgId && isValidUuid(requestedOrgId) && requestedOrgId !== principal.userId) {
-              // Accept client-provided X-Organization-Id for UMKM individual tenant context
-              verifiedOrgId = requestedOrgId;
-              membershipId = `client-org-${principal.userId}`;
-              orgRole = 'owner';
+              // SECURITY (S-02 FIX): Removed client-org fallback.
+              // If no membership exists in organization_members or umkm_stores,
+              // the user has NO access to the requested organization.
+              // Enforcement happens at requireTenantContext middleware.
             }
           }
 
@@ -237,7 +242,7 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
             const { data: stores } = await query.order('created_at', { ascending: true }).limit(1);
             const store = stores && stores.length > 0 ? stores[0] : null;
 
-            const resolvedTenantOrgId = store?.organization_id || store?.id || (requestedStoreId && isValidUuid(requestedStoreId) ? requestedStoreId : null);
+            const resolvedTenantOrgId = store?.organization_id || store?.id;
 
             if (resolvedTenantOrgId) {
               principal.organizationId = resolvedTenantOrgId;
@@ -248,19 +253,9 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
                 membershipId: `store-owner-${principal.userId}`,
                 orgRole: 'owner',
               };
-            } else {
-              // 4. Accept client-provided X-Organization-Id as tenant context ONLY if valid UUID (verified by middleware)
-              if (!principal.organizationId && requestedOrgId && isValidUuid(requestedOrgId) && requestedOrgId !== principal.userId) {
-                principal.organizationId = requestedOrgId;
-                principal.tenantContext = {
-                  organizationId: requestedOrgId,
-                  workspaceId: '',
-                  tenantType: 'umkm',
-                  membershipId: `client-org-${principal.userId}`,
-                  orgRole: 'owner',
-                };
-              }
             }
+            // SECURITY (S-02 FIX): Removed client-org fallback.
+            // No membership/store found = no tenant context = requireTenantContext will DENY.
           }
         }
       } catch (err) {
@@ -278,10 +273,12 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
             || (request.body as any)?.workspaceId;
 
           if (requestedWsId && isValidUuid(requestedWsId)) {
+            // SECURITY (S-10 FIX): Workspace must belong to the principal's verified organization
             const { data: workspace } = await supabase
               .from('workspaces')
               .select('id')
               .eq('id', requestedWsId)
+              .eq('organization_id', principal.organizationId)
               .maybeSingle();
 
             if (workspace?.id) {
@@ -424,12 +421,12 @@ export async function requireTenantContext(request: FastifyRequest, reply: Fasti
     return;
   }
 
-  // Store provisioning & product management endpoints execute server-side tenant resolution
+  // SECURITY (S-15 FIX): Only store provisioning endpoints may bypass tenant context
+  // because they execute server-side tenant resolution as part of their operation.
+  // Product and UMKM routes MUST have tenant context — they no longer bypass.
   if (
     request.url.includes('/provision-store') ||
-    request.url.includes('/provision') ||
-    request.url.includes('/products') ||
-    request.url.includes('/umkm/')
+    request.url.includes('/provision')
   ) {
     return;
   }

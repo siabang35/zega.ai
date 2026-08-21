@@ -31,6 +31,7 @@ export class LedgerService {
   public async recordCredit(params: {
     userId: string;
     walletId: string;
+    organizationId: string;
     type: LedgerEntryRecord['type'];
     asset: string;
     tokenMint?: string;
@@ -38,25 +39,13 @@ export class LedgerService {
     referenceType?: string;
     referenceId?: string;
   }): Promise<LedgerEntryRecord> {
-    const { userId, walletId, type, asset, tokenMint, amount, referenceType, referenceId } = params;
+    const { userId, walletId, organizationId, type, asset, tokenMint, amount, referenceType, referenceId } = params;
     const baseUnits = SolanaTransactionService.safeConvertToBaseUnits(amount, asset);
 
     const supabase = supabaseService.getClient();
     if (!supabase) {
-      return {
-        id: `led_${Date.now()}`,
-        user_id: userId,
-        wallet_id: walletId,
-        type,
-        asset,
-        token_mint: tokenMint || undefined,
-        amount,
-        amount_base_units: baseUnits.toString(),
-        reference_type: referenceType || undefined,
-        reference_id: referenceId || undefined,
-        direction: 'CREDIT',
-        created_at: new Date().toISOString(),
-      };
+      // SECURITY (S-06 FIX): Fail closed — never silently create in-memory financial records
+      throw new Error('LEDGER_UNAVAILABLE: Database client uninitialized. Cannot record financial entry.');
     }
 
     const { data, error } = await supabase
@@ -64,6 +53,7 @@ export class LedgerService {
       .insert({
         user_id: userId,
         wallet_id: walletId,
+        organization_id: organizationId,
         type,
         asset,
         token_mint: tokenMint || null,
@@ -89,6 +79,7 @@ export class LedgerService {
   public async recordDebit(params: {
     userId: string;
     walletId: string;
+    organizationId: string;
     type: LedgerEntryRecord['type'];
     asset: string;
     tokenMint?: string;
@@ -96,25 +87,13 @@ export class LedgerService {
     referenceType?: string;
     referenceId?: string;
   }): Promise<LedgerEntryRecord> {
-    const { userId, walletId, type, asset, tokenMint, amount, referenceType, referenceId } = params;
+    const { userId, walletId, organizationId, type, asset, tokenMint, amount, referenceType, referenceId } = params;
     const baseUnits = SolanaTransactionService.safeConvertToBaseUnits(amount, asset);
 
     const supabase = supabaseService.getClient();
     if (!supabase) {
-      return {
-        id: `led_${Date.now()}`,
-        user_id: userId,
-        wallet_id: walletId,
-        type,
-        asset,
-        token_mint: tokenMint || undefined,
-        amount,
-        amount_base_units: baseUnits.toString(),
-        reference_type: referenceType || undefined,
-        reference_id: referenceId || undefined,
-        direction: 'DEBIT',
-        created_at: new Date().toISOString(),
-      };
+      // SECURITY (S-06 FIX): Fail closed — never silently create in-memory financial records
+      throw new Error('LEDGER_UNAVAILABLE: Database client uninitialized. Cannot record financial entry.');
     }
 
     const { data, error } = await supabase
@@ -122,6 +101,7 @@ export class LedgerService {
       .insert({
         user_id: userId,
         wallet_id: walletId,
+        organization_id: organizationId,
         type,
         asset,
         token_mint: tokenMint || null,

@@ -44,8 +44,24 @@ export class InvoiceSecurityService {
 
     // 1. TENANT & PRINCIPAL IDENTITY RESOLUTION
     const principal = request.principal;
-    const sessionUser = principal?.email || principal?.userId;
-    const userEmail = (sessionUser || requestedUserId || 'user@zegaai.site').toLowerCase().trim();
+    const sessionUser = principal?.userId || principal?.email;
+    // SECURITY (S-03 FIX): Fail closed — never credit invoices to a default phantom user
+    if (!sessionUser && !requestedUserId) {
+      return {
+        authorized: false,
+        userEmail: '',
+        organizationId: '',
+        authorizedMerchantWallet: '',
+        canonicalAmountUsdc: 0,
+        network: 'solana-devnet',
+        errorResponse: {
+          statusCode: 401,
+          code: 'UNAUTHENTICATED',
+          message: 'No authenticated identity available. Cannot create invoice without verified user.',
+        },
+      };
+    }
+    const userEmail = (sessionUser || requestedUserId || '').toLowerCase().trim();
     const organizationId = getTenantOrg(request) || '';
 
     // If authenticated session principal exists, prevent requestedUserId override attempt
