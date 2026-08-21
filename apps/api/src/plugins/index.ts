@@ -72,6 +72,8 @@ export async function registerPlugins(app: FastifyInstance) {
     'x-organization-id',
     'X-Store-Id',
     'x-store-id',
+    'X-Tenant-Id',
+    'x-tenant-id',
     'X-Workspace-Id',
     'x-workspace-id',
     'X-Request-Fingerprint',

@@ -182,7 +182,12 @@ export function GeneralTab({ settings, setSettings, onTriggerToast, onUpdateAvat
                   {settings.user_avatar || settings.logo_cdn_url ? (
                     <img
                       src={settings.user_avatar || settings.logo_cdn_url}
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                      onError={(e) => {
+                        const fall = settings.user_avatar || settings.logo_cdn_url;
+                        if (fall && (e.target as HTMLImageElement).src !== fall) {
+                          (e.target as HTMLImageElement).src = fall;
+                        }
+                      }}
                       alt="Avatar Logo"
                       className="w-full h-full object-cover"
                     />

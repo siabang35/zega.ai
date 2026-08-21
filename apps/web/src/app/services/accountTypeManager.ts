@@ -364,6 +364,7 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
       'zega_jwt',
       'zega_supabase_access_token',
       'zega_user_email',
+      'zega_user_name',
       'zega_active_store_id',
       'zega_active_org_id',
       'zega_active_workspace_id',
@@ -420,7 +421,7 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
       document.cookie = 'sb-access-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;';
     } catch {}
 
-    // 5. In-Memory Window Reference Reset
+    // 5. In-Memory Window Reference Reset & Global Event Broadcast
     try {
       (window as any).privyWallets = [];
       if ((window as any).__ZEGA_TERMINAL_BLOCKED_USERS__) {
@@ -428,6 +429,13 @@ export function purgeAllAuthSessionState(details?: PurgeReasonDetails): void {
       }
       delete (window as any).__ZEGA_AUTH_IDENTITY_BLOCKED__;
       delete (window as any).__ZEGA_CANONICAL_AUTH__;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+          detail: { email: '', avatarUrl: '', fullname: '' }
+        }));
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch {}
 
     logAuthTelemetry('AUTH_FLOW', { action: 'PURGE_ALL_AUTH_SESSION_STATE_COMPLETED', reason: purgeReason });

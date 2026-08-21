@@ -322,7 +322,11 @@ export function EnterpriseHeaderWidgets({
         >
           <img
             src={getR2CdnUrl(userAvatar || '/assets/avatars/enterprise_admin.png')}
-            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+            onError={(e) => {
+              if (userAvatar && (e.target as HTMLImageElement).src !== userAvatar) {
+                (e.target as HTMLImageElement).src = userAvatar;
+              }
+            }}
             alt="Profile Avatar"
             className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
           />
@@ -341,7 +345,11 @@ export function EnterpriseHeaderWidgets({
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 flex items-center gap-2.5">
                 <img
                   src={getR2CdnUrl(userAvatar || '/assets/avatars/enterprise_admin.png')}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                  onError={(e) => {
+                    if (userAvatar && (e.target as HTMLImageElement).src !== userAvatar) {
+                      (e.target as HTMLImageElement).src = userAvatar;
+                    }
+                  }}
                   alt="Profile Avatar"
                   className="size-9 rounded-full object-cover border-2 border-indigo-500 shadow-xs shrink-0"
                 />

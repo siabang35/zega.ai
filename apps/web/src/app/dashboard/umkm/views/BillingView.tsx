@@ -2338,8 +2338,17 @@ export function BillingView({ triggerToast, activeSubPage, initialTab = 'Overvie
                   const bluePts = rawPoints.map((p: any, i: number) => ({ cx: Math.round(15 + i * xStep), cy: mapY(p.ai_employees || 0, maxEmployees), val: p.ai_employees, date: p.date }));
                   const emeraldPts = rawPoints.map((p: any, i: number) => ({ cx: Math.round(15 + i * xStep), cy: mapY(p.automation || 0, maxAutomation), val: p.automation, date: p.date }));
 
-                  const makePath = (pts: any[]) => pts.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'} ${p.cx} ${p.cy}`).join(' ');
-                  const makeArea = (pts: any[]) => `${makePath(pts)} L ${pts[pts.length - 1].cx} 115 L ${pts[0].cx} 115 Z`;
+                  const makePath = (pts: any[]) => {
+                    if (!pts || !Array.isArray(pts) || pts.length === 0) return '';
+                    return pts.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'} ${p.cx ?? 0} ${p.cy ?? 0}`).join(' ');
+                  };
+                  const makeArea = (pts: any[]) => {
+                    if (!pts || !Array.isArray(pts) || pts.length === 0) return '';
+                    const first = pts[0];
+                    const last = pts[pts.length - 1];
+                    if (!first || !last || typeof first.cx === 'undefined' || typeof last.cx === 'undefined') return '';
+                    return `${makePath(pts)} L ${last.cx} 115 L ${first.cx} 115 Z`;
+                  };
 
                   return (
                     <div className="h-44 w-full relative flex items-end pt-4 pb-6">

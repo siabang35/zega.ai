@@ -61,6 +61,7 @@ import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { UserDashboard } from "./dashboard/UserDashboard";
 import { SuperAdminDashboard } from "./dashboard/SuperAdminDashboard";
 import { SupabaseDashboardService } from "./dashboard/services/supabaseService";
+import { supabase, syncSupabaseAuthSession } from "../lib/supabase";
 import { PrivyWalletService } from "./services/privyWalletService";
 import { SocialAuthService } from "./services/socialAuthService";
 import {
@@ -1519,6 +1520,7 @@ function AppContent() {
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       const backendToken = url.searchParams.get('token');
+      const backendSupaToken = url.searchParams.get('supabase_token');
       const isSuccess = url.searchParams.get('success') === 'true';
 
       setOauthCallbackState(prev => ({ ...prev, processing: true }));
@@ -1529,10 +1531,25 @@ function AppContent() {
           let isNewUser = false;
           const apiBase = SocialAuthService.getApiBaseUrl();
 
+          if (backendToken || backendSupaToken || code) {
+            // Strip sensitive access tokens from URL address bar immediately
+            if (typeof window !== 'undefined') {
+              const cleanTarget = window.location.pathname === '/auth/callback' ? '/' : window.location.pathname;
+              window.history.replaceState({}, document.title, cleanTarget);
+            }
+          }
+
           if (backendToken || isSuccess) {
             const tokenToUse = backendToken || localStorage.getItem('zega_access_token') || '';
             if (tokenToUse) {
               localStorage.setItem('zega_access_token', tokenToUse);
+            }
+            if (backendSupaToken) {
+              localStorage.setItem('zega_supabase_access_token', backendSupaToken);
+              if ((supabase as any).rest?.headers) {
+                (supabase as any).rest.headers['Authorization'] = `Bearer ${backendSupaToken}`;
+              }
+              await syncSupabaseAuthSession(backendSupaToken).catch(() => {});
             }
             // Restore backend user identity via GET /v1/auth/me
             const meRes = await fetch(`${apiBase}/v1/auth/me`, {

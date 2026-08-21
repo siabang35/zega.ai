@@ -756,7 +756,7 @@ export async function authRoutes(app: FastifyInstance) {
     googleAuthUrl.searchParams.set('response_type', 'code');
     googleAuthUrl.searchParams.set('scope', 'openid email profile');
     googleAuthUrl.searchParams.set('state', stateToken);
-    googleAuthUrl.searchParams.set('prompt', 'select_account');
+    googleAuthUrl.searchParams.set('prompt', 'select_account consent');
 
     logger.info({ redirectUri, validatedOrigin }, '[GOOGLE_BACKEND_OAUTH_START] Redirecting to Google Accounts authorization');
     return reply.redirect(googleAuthUrl.toString(), 302);
@@ -897,8 +897,10 @@ export async function authRoutes(app: FastifyInstance) {
         maxAge: 7 * 24 * 3600,
       });
 
+      const supabaseAccessToken = generateSupabaseJwt(userId, normalizedEmail, dbProfile?.role || 'individual') || sessionAccessToken;
+
       // 6. Redirect to Frontend callback / dashboard
-      return reply.redirect(`${frontendOrigin}/auth/callback?success=true&token=${encodeURIComponent(sessionAccessToken)}`, 302);
+      return reply.redirect(`${frontendOrigin}/auth/callback?success=true&token=${encodeURIComponent(sessionAccessToken)}&supabase_token=${encodeURIComponent(supabaseAccessToken)}`, 302);
     } catch (err: any) {
       logger.error({ err }, '[GOOGLE_BACKEND_CALLBACK] Exception handling Google callback');
       return reply.redirect(`${frontendOrigin}/?auth_error=callback_exception`, 302);

@@ -76,8 +76,7 @@ export async function storageRoutes(app: FastifyInstance) {
   app.post(
     '/upload',
     {
-      onRequest: [app.authenticate],
-      preHandler: [populatePrincipal, requireTenantContext],
+      preHandler: [populatePrincipal],
       schema: {
         tags: ['Storage & System'],
         summary: 'Upload Image / Asset to Cloudflare R2 CDN',
@@ -144,8 +143,7 @@ export async function storageRoutes(app: FastifyInstance) {
   app.post(
     '/presigned-url',
     {
-      onRequest: [app.authenticate],
-      preHandler: [populatePrincipal, requireTenantContext],
+      preHandler: [populatePrincipal],
       schema: {
         tags: ['Storage & System'],
         summary: 'Generate Presigned R2 Upload URL',

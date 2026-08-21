@@ -68,7 +68,7 @@ export function ProfileTab({
   const [jobTitle, setJobTitle] = useState(profileData?.job_title || 'Pemilik Bisnis');
   const [storeName, setStoreName] = useState(profileData?.store_name || (fullname ? `Toko ${fullname}` : 'Toko Saya'));
   const [description, setDescription] = useState(profileData?.description || '');
-  const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces');
+  const [avatarUrl, setAvatarUrl] = useState(profileData?.avatar_url || profileData?.avatar_path || sessionFallback.avatar || '');
   const [isSaving, setIsSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
@@ -96,8 +96,8 @@ export function ProfileTab({
       if (profileData.job_title) setJobTitle(profileData.job_title);
       if (profileData.store_name) setStoreName(profileData.store_name);
       if (profileData.description !== undefined) setDescription(profileData.description);
-      const nextAvatar = profileData.avatar_url || profileData.avatar_path || sessionFallback.avatar;
-      if (nextAvatar) {
+      const nextAvatar = profileData.avatar_url || profileData.avatar_path;
+      if (nextAvatar && nextAvatar.trim()) {
         setAvatarUrl(nextAvatar);
       }
     }
@@ -194,7 +194,38 @@ export function ProfileTab({
           triggerToast(`⚠️ Upload foto gagal: ${error || 'Gagal mengunggah'}`);
         } else {
           setAvatarUrl(publicUrl);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zega_user_avatar', publicUrl);
+            const mockStr = localStorage.getItem('zega_mock_session');
+            if (mockStr) {
+              try {
+                const parsed = JSON.parse(mockStr);
+                if (parsed.user) {
+                  parsed.user.user_metadata = { ...parsed.user.user_metadata, avatar_url: publicUrl };
+                }
+                parsed.avatarUrl = publicUrl;
+                localStorage.setItem('zega_mock_session', JSON.stringify(parsed));
+              } catch (e) {}
+            }
+          }
           if (onUpdateAvatar) onUpdateAvatar(publicUrl);
+          if (onUpdateProfile) onUpdateProfile({ avatarUrl: publicUrl });
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+              detail: { email, avatarUrl: publicUrl }
+            }));
+          }
+          try {
+            await SupabaseDashboardService.updateUmkmUserProfile({
+              fullname,
+              email,
+              phone,
+              job_title: jobTitle,
+              store_name: storeName,
+              description,
+              avatar_url: publicUrl
+            });
+          } catch (err) {}
           triggerToast('✓ Foto profil CDN berhasil diunggah ke Supabase Storage & CDN!');
         }
       } catch (err: any) {
@@ -236,6 +267,11 @@ export function ProfileTab({
             parsed.email = email;
             localStorage.setItem('zega_mock_session', JSON.stringify(parsed));
           } catch (e) {}
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+            detail: { fullname, email, avatarUrl }
+          }));
         }
       }
 
@@ -338,10 +374,10 @@ export function ProfileTab({
             title={t.settingsView?.profileTab?.avatarModal?.title || 'Klik untuk memilih atau mengubah foto profil CDN'}
           >
             <img 
-              src={getR2CdnUrl(avatarUrl || sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces')} 
+              src={getR2CdnUrl(avatarUrl || sessionFallback.avatar || '')} 
               onError={(e) => {
-                const fallback = sessionFallback.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=faces';
-                if ((e.target as HTMLImageElement).src !== fallback) {
+                const fallback = sessionFallback.avatar || '';
+                if (fallback && (e.target as HTMLImageElement).src !== fallback) {
                   (e.target as HTMLImageElement).src = fallback;
                 }
               }}
@@ -952,7 +988,19 @@ export function ProfileTab({
                     type="button"
                     onClick={() => {
                       setAvatarUrl(url);
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('zega_user_avatar', url);
+                        window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+                          detail: { fullname, email, avatarUrl: url }
+                        }));
+                      }
                       if (onUpdateAvatar) onUpdateAvatar(url);
+                      if (onUpdateProfile) onUpdateProfile({ fullname, email, avatarUrl: url });
+                      SupabaseDashboardService.updateUmkmUserProfile({
+                        fullname,
+                        email,
+                        avatar_url: url
+                      }).catch(() => { });
                     }}
                     className={`relative rounded-full overflow-hidden border-2 transition-all cursor-pointer aspect-square ${
                       avatarUrl === url ? 'border-orange-500 ring-2 ring-orange-500/30 scale-105' : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
@@ -988,7 +1036,19 @@ export function ProfileTab({
                     if (customAvatarInput.trim()) {
                       const url = customAvatarInput.trim();
                       setAvatarUrl(url);
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('zega_user_avatar', url);
+                        window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+                          detail: { fullname, email, avatarUrl: url }
+                        }));
+                      }
                       if (onUpdateAvatar) onUpdateAvatar(url);
+                      if (onUpdateProfile) onUpdateProfile({ fullname, email, avatarUrl: url });
+                      SupabaseDashboardService.updateUmkmUserProfile({
+                        fullname,
+                        email,
+                        avatar_url: url
+                      }).catch(() => { });
                       setCustomAvatarInput('');
                       triggerToast(`✓ ${t.settingsView?.profileTab?.avatarModal?.toastCustomApplied || 'URL Avatar Custom diterapkan!'}`);
                     }
@@ -1004,9 +1064,28 @@ export function ProfileTab({
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('zega_user_avatar', avatarUrl);
+                    window.dispatchEvent(new CustomEvent('zega_profile_updated', {
+                      detail: { email, avatarUrl }
+                    }));
+                  }
                   if (onUpdateAvatar) onUpdateAvatar(avatarUrl);
+                  if (onUpdateProfile) onUpdateProfile({ fullname, email, storeName, avatarUrl });
                   setShowAvatarModal(false);
+                  try {
+                    await SupabaseDashboardService.updateUmkmUserProfile({
+                      fullname,
+                      email,
+                      phone,
+                      job_title: jobTitle,
+                      store_name: storeName,
+                      description,
+                      avatar_url: avatarUrl
+                    });
+                  } catch (err) {}
+                  triggerToast('✓ Avatar profil berhasil diperbarui!');
                 }}
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >

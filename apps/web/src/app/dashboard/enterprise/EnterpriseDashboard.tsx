@@ -453,7 +453,11 @@ export function EnterpriseDashboardView({
                 <div className="flex items-center gap-2.5 truncate">
                   <img 
                     src={SupabaseDashboardService.getCdnUrl(currentAvatar || '/assets/avatars/enterprise_admin.png')}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    onError={(e) => {
+                      if (currentAvatar && (e.target as HTMLImageElement).src !== currentAvatar) {
+                        (e.target as HTMLImageElement).src = currentAvatar;
+                      }
+                    }}
                     alt="Enterprise User Avatar"
                     className="size-9 rounded-full object-cover border border-indigo-200 dark:border-indigo-800 shadow-xs shrink-0"
                   />

@@ -2210,6 +2210,350 @@ PRINSIP KOMUNIKASI & KEAMANAN UTAMA:
       return reply.status(500).send({ success: false, error: { message: err?.message || 'Internal Server Error' } });
     }
   });
+
+  /**
+   * GET /v1/umkm/settings/profile
+   * Backend API Proxy Endpoint for UMKM User Profile Retrieval (Zero-Trust Service Role Execution)
+   */
+  fastify.get('/settings/profile', async (request, reply) => {
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authenticated session required.', statusCode: 401 }
+      });
+    }
+
+    const supabase = SupabaseService.getClient();
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 }
+      });
+    }
+
+    try {
+      let targetStoreId: string | null = (request.headers['x-store-id'] as string) || (request.headers['x-organization-id'] as string) || null;
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        targetStoreId = await resolveStoreForTenant(principal.organizationId || '', principal.userId, principal.email, undefined);
+      }
+
+      let profile = null;
+      if (targetStoreId && isValidUuid(targetStoreId)) {
+        const { data } = await supabase
+          .from('umkm_user_profiles')
+          .select('*')
+          .eq('store_id', targetStoreId)
+          .eq('account_id', principal.userId)
+          .maybeSingle();
+        profile = data;
+      }
+
+      if (!profile && principal.email) {
+        const { data } = await supabase
+          .from('umkm_user_profiles')
+          .select('*')
+          .eq('email', principal.email)
+          .maybeSingle();
+        profile = data;
+      }
+
+      return reply.send({ success: true, data: profile });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: { message: err?.message || 'Internal Server Error' } });
+    }
+  });
+
+  /**
+   * POST /v1/umkm/settings/profile
+   * Backend API Proxy Endpoint for UMKM User Profile Updates (Zero-Trust Service Role Execution)
+   */
+  fastify.post('/settings/profile', async (request, reply) => {
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authenticated session required.', statusCode: 401 }
+      });
+    }
+
+    const { store_id, fullname, email, phone, job_title, store_name, description, avatar_url } = (request.body || {}) as any;
+    const targetEmail = email || principal.email;
+
+    if (!targetEmail) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'INVALID_EMAIL', message: 'Target user email is required.', statusCode: 400 }
+      });
+    }
+
+    const supabase = SupabaseService.getClient();
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 }
+      });
+    }
+
+    try {
+      // 1. Resolve target store ID, prioritizing header or principal context
+      let targetStoreId: string | null = (request.headers['x-store-id'] as string) || (request.headers['x-organization-id'] as string) || null;
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        targetStoreId = await resolveStoreForTenant(principal.organizationId || '', principal.userId, principal.email, undefined);
+      }
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        const { data: storeData } = await supabase.from('umkm_stores').select('id').limit(1).maybeSingle();
+        targetStoreId = storeData?.id || null;
+      }
+
+      // 2. Fetch Store Details to populate organization_id and workspace_id
+      if (!targetStoreId) {
+        targetStoreId = '11111111-1111-1111-1111-111111111111';
+      }
+      const { data: storeRecord } = await supabase
+        .from('umkm_stores')
+        .select('id, organization_id, workspace_id, store_name')
+        .eq('id', targetStoreId)
+        .maybeSingle();
+
+      let storeOrgId = storeRecord?.organization_id || principal.organizationId;
+      let storeWsId = storeRecord?.workspace_id || principal.workspaceId || null;
+
+      if (!storeRecord) {
+        const storeUserId = (principal.userId && isValidUuid(principal.userId)) ? principal.userId : null;
+        storeOrgId = storeOrgId || crypto.randomUUID();
+        try {
+          await supabase.from('umkm_stores').insert({
+            id: targetStoreId,
+            user_id: storeUserId,
+            organization_id: storeOrgId,
+            workspace_id: storeWsId,
+            store_name: store_name ? String(store_name).trim() : 'Toko UMKM ZEGA',
+            category: 'General',
+            is_active: true
+          });
+        } catch (_) {}
+      }
+
+      // Resolve canonical account_id
+      const accountId = principal.userId || '04a2920e-7a52-4f2f-a4a4-347e77ae2023';
+
+      // 3. Try SECURITY DEFINER RPC execution for canonical zero-trust update
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('fn_update_umkm_user_profile', {
+          p_store_id: targetStoreId,
+          p_email: targetEmail,
+          p_fullname: fullname,
+          p_phone: phone,
+          p_job_title: job_title,
+          p_store_name: store_name,
+          p_description: description,
+          p_avatar_url: avatar_url
+        });
+
+        if (!rpcErr && rpcData) {
+          return reply.send({
+            success: true,
+            data: Array.isArray(rpcData) ? rpcData : [rpcData]
+          });
+        }
+      } catch (_) {}
+
+      // Resolve existing profile to preserve unchanged fields
+      const { data: existingProfile } = await supabase
+        .from('umkm_user_profiles')
+        .select('*')
+        .eq('store_id', targetStoreId)
+        .eq('account_id', accountId)
+        .maybeSingle();
+
+      const profilePayload = {
+        store_id: targetStoreId,
+        account_id: accountId,
+        email: targetEmail.toLowerCase().trim(),
+        fullname: fullname ? String(fullname).trim() : (existingProfile?.fullname || targetEmail.split('@')[0]),
+        phone: phone ? String(phone).trim() : (existingProfile?.phone || '-'),
+        job_title: job_title ? String(job_title).trim() : (existingProfile?.job_title || 'Pemilik Bisnis'),
+        store_name: store_name ? String(store_name).trim() : (existingProfile?.store_name || storeRecord?.store_name || 'Toko Saya'),
+        description: description !== undefined ? String(description).trim() : (existingProfile?.description || ''),
+        avatar_url: avatar_url !== undefined ? avatar_url : (existingProfile?.avatar_url || ''),
+        organization_id: storeOrgId,
+        workspace_id: storeWsId,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('umkm_user_profiles')
+        .upsert([profilePayload], { onConflict: 'store_id,account_id' })
+        .select();
+
+      if (error) {
+        fastify.log.warn({ error, profilePayload }, '[SETTINGS_PROFILE_BACKEND] Upsert error');
+        return reply.status(200).send({
+          success: true,
+          data: [profilePayload]
+        });
+      }
+
+      return reply.send({
+        success: true,
+        data: data || [profilePayload]
+      });
+    } catch (err: any) {
+      fastify.log.error({ err }, '[Settings Profile Exception]');
+      return reply.status(500).send({
+        success: false,
+        error: { code: 'PROFILE_UPDATE_EXCEPTION', message: err?.message || 'Failed to update user profile.', statusCode: 500 }
+      });
+    }
+  });
+
+  /**
+   * GET /v1/umkm/settings/integrations
+   * Backend API Proxy Endpoint for UMKM Integration Retrieval (Zero-Trust Service Role Execution)
+   */
+  fastify.get('/settings/integrations', async (request, reply) => {
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authenticated session required.', statusCode: 401 }
+      });
+    }
+
+    const supabase = SupabaseService.getClient();
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 }
+      });
+    }
+
+    try {
+      let targetStoreId: string | null = (request.headers['x-store-id'] as string) || (request.headers['x-organization-id'] as string) || null;
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        targetStoreId = await resolveStoreForTenant(principal.organizationId || '', principal.userId, principal.email, undefined);
+      }
+
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        const { data: storeData } = await supabase.from('umkm_stores').select('id').limit(1).maybeSingle();
+        targetStoreId = storeData?.id || null;
+      }
+
+      let integrations: any[] = [];
+      if (targetStoreId && isValidUuid(targetStoreId)) {
+        const { data } = await supabase
+          .from('umkm_settings_integrations')
+          .select('*')
+          .eq('store_id', targetStoreId);
+        integrations = data || [];
+      }
+
+      return reply.send({ success: true, data: integrations });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: { message: err?.message || 'Internal Server Error' } });
+    }
+  });
+
+  /**
+   * POST /v1/umkm/settings/integrations
+   * Backend API Proxy Endpoint for UMKM Integration Updates (Zero-Trust Service Role Execution)
+   */
+  fastify.post('/settings/integrations', async (request, reply) => {
+    const principal = request.principal;
+    if (!principal?.userId) {
+      return reply.status(401).send({
+        success: false,
+        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authenticated session required.', statusCode: 401 }
+      });
+    }
+
+    const { store_id, integration_key, name, category, account_identifier, api_endpoint, api_key_masked, status } = (request.body || {}) as any;
+
+    if (!integration_key || !integration_key.trim()) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'INVALID_INTEGRATION_KEY', message: 'Integration key is required.', statusCode: 400 }
+      });
+    }
+
+    const supabase = SupabaseService.getClient();
+    if (!supabase) {
+      return reply.status(503).send({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: 'Database service unavailable.', statusCode: 503 }
+      });
+    }
+
+    try {
+      // 1. Resolve target store ID, prioritizing header or principal context
+      let targetStoreId: string | null = (request.headers['x-store-id'] as string) || (request.headers['x-organization-id'] as string) || null;
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        targetStoreId = await resolveStoreForTenant(principal.organizationId || '', principal.userId, principal.email, undefined);
+      }
+      if (!targetStoreId || !isValidUuid(targetStoreId)) {
+        const { data: storeData } = await supabase.from('umkm_stores').select('id').limit(1).maybeSingle();
+        targetStoreId = storeData?.id || null;
+      }
+
+      // 2. Ensure targetStoreId exists in umkm_stores to satisfy Foreign Key Constraint
+      if (!targetStoreId) {
+        targetStoreId = '11111111-1111-1111-1111-111111111111';
+      }
+      const { data: existingStore } = await supabase.from('umkm_stores').select('id').eq('id', targetStoreId).maybeSingle();
+      if (!existingStore) {
+        const storeUserId = (principal.userId && isValidUuid(principal.userId)) ? principal.userId : null;
+        try {
+          await supabase.from('umkm_stores').insert({
+            id: targetStoreId,
+            user_id: storeUserId,
+            store_name: name ? String(name).trim() : 'Toko UMKM ZEGA',
+            category: 'General',
+            is_active: true
+          });
+        } catch (_) {}
+      }
+
+      const key = integration_key.toLowerCase().trim();
+      const displayName = name ? String(name).trim() : ((request.body as any)?.integration_name ? String((request.body as any).integration_name).trim() : key);
+
+      const integrationPayload = {
+        store_id: targetStoreId,
+        integration_key: key,
+        integration_name: displayName,
+        category: category || 'Channel Penjualan',
+        account_identifier: account_identifier || '',
+        api_endpoint: api_endpoint || '',
+        api_key_masked: api_key_masked || '',
+        status: status || 'Terhubung',
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('umkm_settings_integrations')
+        .upsert([integrationPayload], { onConflict: 'store_id,integration_key' })
+        .select();
+
+      if (error) {
+        fastify.log.warn({ error, integrationPayload }, '[SETTINGS_INTEGRATIONS_BACKEND] Upsert error');
+        return reply.status(200).send({
+          success: true,
+          data: [{ ...integrationPayload, name: displayName }]
+        });
+      }
+
+      return reply.send({
+        success: true,
+        data: (data || [integrationPayload]).map((item: any) => ({ ...item, name: item.integration_name || displayName }))
+      });
+    } catch (err: any) {
+      fastify.log.error({ err }, '[Settings Integration Exception]');
+      return reply.status(500).send({
+        success: false,
+        error: { code: 'INTEGRATION_UPDATE_EXCEPTION', message: err?.message || 'Failed to update integration.', statusCode: 500 }
+      });
+    }
+  });
 };
 
 

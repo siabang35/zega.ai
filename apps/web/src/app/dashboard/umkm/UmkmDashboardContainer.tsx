@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getR2CdnUrl } from '../../utils/cdn';
+import { getR2CdnUrl, generateInitialsAvatar } from '../../utils/cdn';
 import {
   LayoutDashboard, Users, Workflow, Target, Layers, Settings,
   Search, Bell, Sun, Moon, X, LogOut, Sparkles, ChevronRight, ChevronLeft, ChevronDown, Menu,
@@ -225,12 +225,24 @@ export function UmkmDashboardContainer({
   }, []);
 
   const [umkmData, setUmkmData] = useState<any>(null);
-  const [resolvedUserName, setResolvedUserName] = useState<string>(userName || 'Cik Beriuk');
+  const [resolvedUserName, setResolvedUserName] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('zega_user_email');
+      if (savedEmail && userEmail && savedEmail.toLowerCase() === userEmail.toLowerCase()) {
+        const savedName = localStorage.getItem('zega_user_name');
+        if (savedName) return savedName;
+      }
+    }
+    return userName && userName !== 'Cik Beriuk' ? userName : (userEmail ? userEmail.split('@')[0] : 'User');
+  });
   const [resolvedUserEmail, setResolvedUserEmail] = useState<string>(userEmail || '');
   const [currentAvatar, setCurrentAvatar] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zega_user_avatar');
-      if (saved) return saved;
+      const savedEmail = localStorage.getItem('zega_user_email');
+      if (savedEmail && userEmail && savedEmail.toLowerCase() === userEmail.toLowerCase()) {
+        const saved = localStorage.getItem('zega_user_avatar');
+        if (saved) return saved;
+      }
     }
     return userAvatar || '';
   });
@@ -250,17 +262,31 @@ export function UmkmDashboardContainer({
     }
   }, [userName, userEmail, userAvatar]);
 
-  // Fetch profile avatar from Database ground truth on mount
+  // Fetch profile avatar & user metadata from Database ground truth on mount
   useEffect(() => {
     let isMounted = true;
     async function loadDbAvatar() {
       try {
         const overview = await SupabaseDashboardService.getUmkmUserProfileOverview();
-        if (isMounted && overview?.profile?.avatar_url) {
-          const dbAvatar = overview.profile.avatar_url;
-          setCurrentAvatar(dbAvatar);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('zega_user_avatar', dbAvatar);
+        if (isMounted && overview?.profile) {
+          const prof = overview.profile;
+          if (prof.fullname) {
+            setResolvedUserName(prof.fullname);
+            if (typeof window !== 'undefined') localStorage.setItem('zega_user_name', prof.fullname);
+          }
+          if (prof.email) {
+            setResolvedUserEmail(prof.email);
+            if (typeof window !== 'undefined') localStorage.setItem('zega_user_email', prof.email);
+          }
+          const storedAvatar = typeof window !== 'undefined' ? localStorage.getItem('zega_user_avatar') : null;
+          const activeAvatar = (prof.avatar_url && prof.avatar_url.trim() !== '')
+            ? prof.avatar_url.trim()
+            : (storedAvatar || '');
+          if (activeAvatar) {
+            setCurrentAvatar(activeAvatar);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('zega_user_avatar', activeAvatar);
+            }
           }
         }
       } catch (err) { /* non-blocking */ }
@@ -275,13 +301,17 @@ export function UmkmDashboardContainer({
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const u = session?.user;
+        const storedName = typeof window !== 'undefined' ? localStorage.getItem('zega_user_name') : null;
+        const storedAvatar = typeof window !== 'undefined' ? localStorage.getItem('zega_user_avatar') : null;
         if (u) {
           const gName = u.user_metadata?.full_name || u.user_metadata?.name;
           const gAvatar = u.user_metadata?.avatar_url || u.user_metadata?.picture;
           const gEmail = u.email;
-          if (gName) setResolvedUserName(gName);
-          if (gEmail) setResolvedUserEmail(gEmail);
-          if (gAvatar && (!currentAvatar || currentAvatar.includes('unsplash.com') || currentAvatar.includes('ui-avatars.com'))) {
+          if (gName && (!resolvedUserName || resolvedUserName === 'User' || resolvedUserName === 'Cik Beriuk') && !storedName) {
+            setResolvedUserName(gName);
+          }
+          if (gEmail && !resolvedUserEmail) setResolvedUserEmail(gEmail);
+          if (gAvatar && !currentAvatar && !storedAvatar) {
             setCurrentAvatar(gAvatar);
             if (typeof window !== 'undefined') {
               localStorage.setItem('zega_user_avatar', gAvatar);
@@ -294,9 +324,11 @@ export function UmkmDashboardContainer({
             const gName = parsed.fullName || parsed.user?.user_metadata?.full_name || parsed.user?.user_metadata?.name;
             const gAvatar = parsed.avatarUrl || parsed.user?.user_metadata?.avatar_url || parsed.user?.user_metadata?.picture;
             const gEmail = parsed.email || parsed.user?.email;
-            if (gName) setResolvedUserName(gName);
-            if (gEmail) setResolvedUserEmail(gEmail);
-            if (gAvatar && (!currentAvatar || currentAvatar.includes('unsplash.com') || currentAvatar.includes('ui-avatars.com'))) {
+            if (gName && (!resolvedUserName || resolvedUserName === 'User' || resolvedUserName === 'Cik Beriuk') && !storedName) {
+              setResolvedUserName(gName);
+            }
+            if (gEmail && !resolvedUserEmail) setResolvedUserEmail(gEmail);
+            if (gAvatar && !currentAvatar && !storedAvatar) {
               setCurrentAvatar(gAvatar);
               localStorage.setItem('zega_user_avatar', gAvatar);
             }
@@ -306,6 +338,42 @@ export function UmkmDashboardContainer({
     }
     syncGoogleUserProfile();
   }, [userEmail]);
+
+  // Realtime Profile Synchronization Engine: Listen to custom events and storage changes
+  useEffect(() => {
+    const handleProfileUpdate = (e: any) => {
+      if (e?.detail) {
+        const { fullname, email, avatarUrl } = e.detail;
+        if (avatarUrl !== undefined) setCurrentAvatar(avatarUrl || '');
+        if (fullname !== undefined) setResolvedUserName(fullname || (email ? email.split('@')[0] : (userEmail ? userEmail.split('@')[0] : 'User')));
+        if (email !== undefined) setResolvedUserEmail(email || '');
+      } else if (typeof window !== 'undefined') {
+        const savedName = localStorage.getItem('zega_user_name');
+        const savedEmail = localStorage.getItem('zega_user_email');
+        const savedAvatar = localStorage.getItem('zega_user_avatar');
+        setResolvedUserName(savedName || (userEmail ? userEmail.split('@')[0] : 'User'));
+        setResolvedUserEmail(savedEmail || userEmail || '');
+        setCurrentAvatar(savedAvatar || '');
+      }
+    };
+
+    window.addEventListener('zega_profile_updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('zega_profile_updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, [userEmail]);
+
+  const getResolvedAvatarSrc = (): string => {
+    if (currentAvatar && currentAvatar.trim() !== '') {
+      return getR2CdnUrl(currentAvatar);
+    }
+    if (umkmData?.store?.avatar_path && umkmData.store.avatar_path.trim() !== '') {
+      return getR2CdnUrl(umkmData.store.avatar_path);
+    }
+    return generateInitialsAvatar(resolvedUserName || 'User');
+  };
 
   // Multi-Tenant Context Sync: resolve tenant from user and sync to service layer safely
   useEffect(() => {
@@ -1453,8 +1521,10 @@ export function UmkmDashboardContainer({
                 {/* User Profile Info */}
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
-                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    src={getResolvedAvatarSrc()}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = generateInitialsAvatar(resolvedUserName || 'User');
+                    }}
                     alt="Profile Avatar"
                     className="size-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                   />
@@ -1502,8 +1572,10 @@ export function UmkmDashboardContainer({
                 title={`${resolvedUserName} • ${billingOverview?.plan?.plan_name || 'Growth'} Plan (${billingOverview?.plan?.credits_pct || 0}% AI Credits)`}
               >
                 <img
-                  src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                  src={getResolvedAvatarSrc()}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = generateInitialsAvatar(resolvedUserName || 'User');
+                  }}
                   alt="Profile Avatar"
                   className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                 />
@@ -1874,8 +1946,10 @@ export function UmkmDashboardContainer({
                   className="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 pr-2 sm:pr-3 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 cursor-pointer hover:border-orange-400 transition-colors"
                 >
                   <img
-                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    src={getResolvedAvatarSrc()}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = generateInitialsAvatar(resolvedUserName || 'User');
+                    }}
                     alt="Profile Avatar"
                     className="size-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                   />
@@ -1896,8 +1970,10 @@ export function UmkmDashboardContainer({
                       {/* User Info Header */}
                       <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
                         <img
-                          src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                          src={getResolvedAvatarSrc()}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = generateInitialsAvatar(resolvedUserName || 'User');
+                          }}
                           alt="Profile Avatar"
                           className="size-9 rounded-full object-cover border border-orange-400 shrink-0"
                         />
@@ -1971,14 +2047,14 @@ export function UmkmDashboardContainer({
                         className="w-full px-3 py-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 cursor-pointer flex items-center gap-2 font-bold"
                       >
                         <LogOut size={14} className="text-rose-500" />
-                        <span>Keluar</span>
+                        <span>{(t.sidebarNav as any)?.keluar || (t.sidebarNav as any)?.logout || (language === 'en' ? 'Sign Out' : language === 'zh' ? '退出' : 'Keluar')}</span>
                       </button>
                     </div>
                   </>
                 )}
               </div>
 
-              {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Only - Mobile controls live in Drawer/Profile) */}
+              {/* 5. DARK MODE & LANGUAGE SELECTOR (Desktop Header Only - Clean Mobile Layout) */}
               <button
                 onClick={() => setDark(!dark)}
                 className="hidden sm:flex p-2 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
@@ -2115,8 +2191,10 @@ export function UmkmDashboardContainer({
                 {/* Mobile Profile Banner inside Drawer */}
                 <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5">
                   <img
-                    src={getR2CdnUrl(currentAvatar || umkmData?.store?.avatar_path || '/assets/avatars/user-avatar.jpg')}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'; }}
+                    src={getResolvedAvatarSrc()}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = generateInitialsAvatar(resolvedUserName || 'User');
+                    }}
                     alt="Profile"
                     className="size-8.5 rounded-full object-cover border border-orange-400 shrink-0"
                   />
@@ -2179,6 +2257,7 @@ export function UmkmDashboardContainer({
 
               {/* Drawer Bottom Actions - Fully Localized */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+
                 <button
                   onClick={() => {
                     setActiveTab('help');
