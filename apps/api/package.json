@@ -9,7 +9,7 @@
     "upload-r2": "tsx src/scripts/uploadAssetsToR2.ts",
     "build": "tsc --project ../../packages/zeroclaw-bridge/tsconfig.json && tsc",
     "start": "node dist/index.js",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --project ../../packages/zeroclaw-bridge/tsconfig.json && tsc --noEmit",
     "test": "tsx --test src/__tests__/foundation-hardening.test.ts src/__tests__/payment-verification.test.ts src/__tests__/prompt-injection.test.ts src/__tests__/settlement-integration.test.ts src/__tests__/vault-settlement.test.ts src/__tests__/zeroclaw-withdrawal.test.ts",
     "test:e2e": "tsx --test src/__tests__/*.test.ts",
     "lint": "eslint src/"

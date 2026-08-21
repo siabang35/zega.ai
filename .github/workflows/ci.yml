@@ -42,6 +42,9 @@ jobs:
             echo "Security audit passed cleanly."
           fi
 
+      - name: Build Workspace Packages
+        run: pnpm --filter "@zega/zeroclaw-bridge" build
+
       - name: TypeScript Type Check
         run: pnpm --filter @zega/api type-check
 
