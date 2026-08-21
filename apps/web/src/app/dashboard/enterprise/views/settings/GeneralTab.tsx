@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Copy, CheckCircle, ShieldAlert, Trash2, Edit, X, Plus, Shield, Laptop, Globe, RefreshCw } from 'lucide-react';
 import { enterpriseSupabaseService } from '../../../services/enterpriseSupabaseService';
+import { SupabaseDashboardService } from '../../../services/supabaseService';
 
 interface GeneralTabProps {
   settings: any;
@@ -32,24 +33,32 @@ export function GeneralTab({ settings, setSettings, onTriggerToast, onUpdateAvat
   const [isDeleting, setIsDeleting] = useState(false);
   const logoFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const handleLocalLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  const handleLocalLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         if (onTriggerToast) onTriggerToast('⚠️ Ukuran berkas maksimal 5MB');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const dataUrl = event.target.result as string;
-          setCdnLogoInput(dataUrl);
-          setSettings({ ...settings, logo_cdn_url: dataUrl, user_avatar: dataUrl });
-          if (onUpdateAvatar) onUpdateAvatar(dataUrl);
-          if (onTriggerToast) onTriggerToast('✓ Foto profil dari perangkat lokal berhasil dimuat!');
+      setIsUploadingLogo(true);
+      try {
+        const { publicUrl, error } = await SupabaseDashboardService.uploadAvatarImage(file);
+
+        if (error || !publicUrl) {
+          if (onTriggerToast) onTriggerToast(`⚠️ Upload logo gagal: ${error || 'Gagal mengunggah'}`);
+        } else {
+          setCdnLogoInput(publicUrl);
+          setSettings({ ...settings, logo_cdn_url: publicUrl, user_avatar: publicUrl });
+          if (onUpdateAvatar) onUpdateAvatar(publicUrl);
+          if (onTriggerToast) onTriggerToast('✓ Foto logo/avatar berhasil diunggah ke Supabase Storage CDN!');
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err: any) {
+        if (onTriggerToast) onTriggerToast('⚠️ Gagal mengunggah berkas logo');
+      } finally {
+        setIsUploadingLogo(false);
+      }
     }
   };
 

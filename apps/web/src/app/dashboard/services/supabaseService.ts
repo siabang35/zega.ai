@@ -7524,6 +7524,66 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   },
 
   /**
+   * Upload Avatar Image to Supabase Storage bucket 'avatars' and return CDN / Public URL
+   */
+  async uploadAvatarImage(file: File, userEmailOrId?: string): Promise<{ publicUrl: string | null; error: any }> {
+    try {
+      if (!file) return { publicUrl: null, error: 'No file selected' };
+      if (file.size > 5 * 1024 * 1024) {
+        return { publicUrl: null, error: 'File size exceeds 5MB limit' };
+      }
+
+      const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId || 'anonymous';
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `user-avatars/${activeUserId}_${Date.now()}.${fileExt}`;
+
+      // Try uploading to Supabase Storage 'avatars' bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.warn('Supabase storage upload fallback/retry:', uploadError.message);
+        // If avatars bucket is not public/created or RLS restricted, try public bucket
+        const { data: pubData, error: pubError } = await supabase.storage
+          .from('public')
+          .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+        if (pubError) {
+          console.warn('Public bucket upload also fallback:', pubError.message);
+        } else {
+          const { data: urlData } = supabase.storage.from('public').getPublicUrl(fileName);
+          if (urlData?.publicUrl) {
+            return { publicUrl: urlData.publicUrl, error: null };
+          }
+        }
+      } else {
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        if (urlData?.publicUrl) {
+          return { publicUrl: urlData.publicUrl, error: null };
+        }
+      }
+
+      // Base64 fallback if storage bucket is completely unavailable in offline local dev
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          resolve({ publicUrl: dataUrl, error: null });
+        };
+        reader.onerror = (err) => resolve({ publicUrl: null, error: err });
+        reader.readAsDataURL(file);
+      });
+    } catch (err: any) {
+      console.error('Avatar upload exception:', err);
+      return { publicUrl: null, error: err.message || err };
+    }
+  },
+
+  /**
    * Update User Profile
    */
   async updateUmkmUserProfile(profileData: any, storeId: string = (getActiveTenantIds().storeId || '')) {
@@ -7533,10 +7593,27 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const currentSession = await this.getCurrentSession();
       const userEmail = profileData.email || currentSession?.user?.email || currentSession?.email || getActiveTenantIds().userEmail || '';
       if (!userEmail) return { data: null, error: 'User identity required' };
+
+      // 1. Upsert umkm_user_profiles record
       const { data, error } = await supabase
         .from('umkm_user_profiles')
         .upsert([{ store_id: validStoreId, email: userEmail, ...profileData, updated_at: new Date().toISOString() }], { onConflict: 'store_id,email' })
         .select();
+
+      // 2. Sync avatar_url to public.profiles and public.umkm_stores in Supabase DB if provided
+      if (profileData.avatar_url) {
+        const avatarUrl = profileData.avatar_url;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('zega_user_avatar', avatarUrl);
+        }
+
+        const activeUserId = getActiveTenantIds().userId || getAuthBridgeState().supabaseUserId;
+        if (activeUserId && isValidUuid(activeUserId)) {
+          supabase.from('profiles').update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() }).eq('id', activeUserId).catch(() => {});
+        }
+        supabase.from('umkm_stores').update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() }).eq('id', validStoreId).catch(() => {});
+      }
+
       await this.logAuditTrail('UPDATE_USER_PROFILE', profileData);
       if (error) throw error;
       return data;

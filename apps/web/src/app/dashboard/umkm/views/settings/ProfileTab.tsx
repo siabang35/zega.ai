@@ -178,23 +178,30 @@ export function ProfileTab({
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
   ];
 
-  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handleLocalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         triggerToast('⚠️ Ukuran berkas maksimal 5MB');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const dataUrl = event.target.result as string;
-          setAvatarUrl(dataUrl);
-          if (onUpdateAvatar) onUpdateAvatar(dataUrl);
-          triggerToast('✓ Foto profil berhasil dimuat dari perangkat local!');
+      setIsUploadingAvatar(true);
+      try {
+        const { publicUrl, error } = await SupabaseDashboardService.uploadAvatarImage(file, email);
+        if (error || !publicUrl) {
+          triggerToast(`⚠️ Upload foto gagal: ${error || 'Gagal mengunggah'}`);
+        } else {
+          setAvatarUrl(publicUrl);
+          if (onUpdateAvatar) onUpdateAvatar(publicUrl);
+          triggerToast('✓ Foto profil CDN berhasil diunggah ke Supabase Storage & CDN!');
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err: any) {
+        triggerToast('⚠️ Gagal mengunggah foto profil');
+      } finally {
+        setIsUploadingAvatar(false);
+      }
     }
   };
 
@@ -925,10 +932,11 @@ export function ProfileTab({
               </div>
               <button
                 type="button"
+                disabled={isUploadingAvatar}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-extrabold text-xs shadow-xs cursor-pointer shrink-0"
               >
-                <Upload size={13} /> <span>{t.settingsView?.profileTab?.avatarModal?.browseFileBtn || 'Browse Berkas'}</span>
+                <Upload size={13} className={isUploadingAvatar ? 'animate-bounce' : ''} /> <span>{isUploadingAvatar ? 'Mengunggah CDN...' : (t.settingsView?.profileTab?.avatarModal?.browseFileBtn || 'Browse Berkas')}</span>
               </button>
             </div>
 

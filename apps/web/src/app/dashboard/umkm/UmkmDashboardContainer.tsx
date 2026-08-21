@@ -250,7 +250,26 @@ export function UmkmDashboardContainer({
     }
   }, [userName, userEmail, userAvatar]);
 
-  // Google / Gmail User Profile Auto-Synchronization Engine
+  // Fetch profile avatar from Database ground truth on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDbAvatar() {
+      try {
+        const overview = await SupabaseDashboardService.getUmkmUserProfileOverview();
+        if (isMounted && overview?.profile?.avatar_url) {
+          const dbAvatar = overview.profile.avatar_url;
+          setCurrentAvatar(dbAvatar);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zega_user_avatar', dbAvatar);
+          }
+        }
+      } catch (err) { /* non-blocking */ }
+    }
+    loadDbAvatar();
+    return () => { isMounted = false; };
+  }, [userEmail]);
+
+  // Google / Gmail User Profile Auto-Synchronization Engine (Only fallback if no custom DB avatar)
   useEffect(() => {
     async function syncGoogleUserProfile() {
       try {
@@ -262,7 +281,7 @@ export function UmkmDashboardContainer({
           const gEmail = u.email;
           if (gName) setResolvedUserName(gName);
           if (gEmail) setResolvedUserEmail(gEmail);
-          if (gAvatar) {
+          if (gAvatar && (!currentAvatar || currentAvatar.includes('unsplash.com') || currentAvatar.includes('ui-avatars.com'))) {
             setCurrentAvatar(gAvatar);
             if (typeof window !== 'undefined') {
               localStorage.setItem('zega_user_avatar', gAvatar);
@@ -277,7 +296,7 @@ export function UmkmDashboardContainer({
             const gEmail = parsed.email || parsed.user?.email;
             if (gName) setResolvedUserName(gName);
             if (gEmail) setResolvedUserEmail(gEmail);
-            if (gAvatar) {
+            if (gAvatar && (!currentAvatar || currentAvatar.includes('unsplash.com') || currentAvatar.includes('ui-avatars.com'))) {
               setCurrentAvatar(gAvatar);
               localStorage.setItem('zega_user_avatar', gAvatar);
             }
