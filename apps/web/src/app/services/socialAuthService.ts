@@ -111,39 +111,20 @@ export class SocialAuthService {
   //  OAUTH REDIRECT INITIATORS
   // ══════════════════════════════════════════════════════════════
 
-  /** Initiate canonical Google OAuth2 Authorization redirect via Supabase / Frontend Domain (ZEGA AI) */
+  /** Initiate canonical Google OAuth2 Authorization redirect via ZEGA Backend */
   public static async initiateGoogleOAuth(accountType: CanonicalAccountType = 'INDIVIDUAL_UMKM'): Promise<void> {
     purgeAllAuthSessionState({ reason: 'NEW_GOOGLE_OAUTH_INITIATED', source: 'socialAuthService.initiateGoogleOAuth' });
-    const redirectUri = this.getOAuthRedirectUri();
-
     savePendingAuthIntent({
       accountType,
       provider: 'google',
     });
 
-    console.log('[GOOGLE_OAUTH_INITIATE]', { redirectUri, accountType });
+    const apiBase = this.getApiBaseUrl();
+    const targetUrl = `${apiBase}/v1/auth/google`;
 
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUri,
-          queryParams: {
-            prompt: 'select_account',
-          },
-        },
-      });
-
-      if (error) {
-        console.warn('[GOOGLE_OAUTH_INITIATE_WARNING] Supabase OAuth error, falling back to backend:', error.message);
-        const apiBase = this.getApiBaseUrl();
-        window.location.assign(`${apiBase}/v1/auth/google`);
-      }
-    } catch (err: any) {
-      console.warn('[GOOGLE_OAUTH_INITIATE_EXCEPTION] Falling back to backend:', err?.message || err);
-      const apiBase = this.getApiBaseUrl();
-      window.location.assign(`${apiBase}/v1/auth/google`);
-    }
+    console.log('[GOOGLE_BACKEND_OAUTH_START]', { targetUrl, windowOrigin: typeof window !== 'undefined' ? window.location.origin : '' });
+    console.log('[GOOGLE_OAUTH_RESULT]', { success: true });
+    window.location.assign(targetUrl);
   }
 
   /** Initiate canonical GitHub OAuth2 Authorization redirect via Supabase */
