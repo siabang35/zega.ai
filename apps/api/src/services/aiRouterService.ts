@@ -323,10 +323,10 @@ export async function executeRoutedModelPipeline(
   // ------------------------------------------------------------------------
   if (!replyText && groqApiKey) {
     const groqCandidatePool = canonicalType === 'finance' || canonicalType === 'zega_copilot'
-      ? ['groq/compound', 'openai/gpt-oss-120b', 'qwen/qwen3.6-27b']
+      ? ['llama-3.3-70b-versatile', 'deepseek-r1-distill-llama-70b', 'llama-3.1-8b-instant']
       : canonicalType === 'knowledge'
-      ? ['groq/compound', 'qwen/qwen3.6-27b', 'groq/compound-mini']
-      : ['qwen/qwen3.6-27b', 'openai/gpt-oss-20b', 'groq/compound-mini'];
+      ? ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768']
+      : ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it'];
 
     for (const targetGroqModel of groqCandidatePool) {
       try {
@@ -345,7 +345,7 @@ export async function executeRoutedModelPipeline(
               max_tokens: maxTokensToUse,
             }),
           },
-          2500
+          3500
         );
 
         if (groqRes.ok) {
@@ -354,8 +354,8 @@ export async function executeRoutedModelPipeline(
           if (groqText && groqText.trim()) {
             groqText = groqText.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*/gi, '').trim() || groqText.trim();
             replyText = groqText;
-            aiModel = `groq-${targetGroqModel.split('/')[1] || targetGroqModel}`;
-            provider = `Groq LPU (${targetGroqModel.split('/')[1] || targetGroqModel})`;
+            aiModel = `groq-${targetGroqModel}`;
+            provider = `Groq LPU (${targetGroqModel})`;
             const inferenceMs = Date.now() - startTime;
             if (logger) logger.info({ inferenceMs, model: targetGroqModel, assistantType: canonicalType }, '[AI_ROUTER] Groq LPU Route Succeeded');
             break;
@@ -372,14 +372,14 @@ export async function executeRoutedModelPipeline(
   // ------------------------------------------------------------------------
   if (!replyText && openrouterApiKey) {
     const openrouterCandidatePool = canonicalType === 'finance'
-      ? ['openai/gpt-4o', 'anthropic/claude-sonnet-5', 'deepseek/deepseek-chat']
+      ? ['meta-llama/llama-3.3-70b-instruct', 'deepseek/deepseek-chat', 'openai/gpt-4o-mini', 'openai/gpt-4o']
       : canonicalType === 'zega_copilot'
-      ? ['anthropic/claude-sonnet-5', 'moonshotai/kimi-k2.5', 'openai/gpt-4o']
+      ? ['meta-llama/llama-3.3-70b-instruct', 'deepseek/deepseek-chat', 'anthropic/claude-3.5-sonnet', 'openai/gpt-4o-mini']
       : canonicalType === 'knowledge'
-      ? ['deepseek/deepseek-chat', 'moonshotai/kimi-k2.5', 'qwen/qwen-2.5-72b-instruct']
+      ? ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct', 'openai/gpt-4o-mini']
       : canonicalType === 'help'
-      ? ['anthropic/claude-3-haiku', 'openai/gpt-4o-mini', 'qwen/qwen-2.5-72b-instruct']
-      : ['qwen/qwen-2.5-72b-instruct', 'openai/gpt-4o-mini', 'deepseek/deepseek-chat'];
+      ? ['openai/gpt-4o-mini', 'google/gemini-2.0-flash-001', 'qwen/qwen-2.5-72b-instruct']
+      : ['meta-llama/llama-3.3-70b-instruct', 'openai/gpt-4o-mini', 'deepseek/deepseek-chat'];
 
     for (const targetOrModel of openrouterCandidatePool) {
       try {
@@ -400,7 +400,7 @@ export async function executeRoutedModelPipeline(
               max_tokens: maxTokensToUse,
             }),
           },
-          3000
+          3500
         );
 
         if (orRes.ok) {
@@ -424,54 +424,58 @@ export async function executeRoutedModelPipeline(
 
 
   // ------------------------------------------------------------------------
-  // ROUTE STRATEGY D: GEMINI 3.6 FLASH (Google AI Flagship Fallback)
+  // ROUTE STRATEGY D: GEMINI FLASH (Google AI Flagship Fallback)
   // ------------------------------------------------------------------------
   if (!replyText && geminiApiKey) {
-    try {
-      const formattedHistoryParts = chatHistory?.length
-        ? chatHistory.map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-          }))
-        : [];
+    const geminiCandidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    for (const geminiModel of geminiCandidateModels) {
+      try {
+        const formattedHistoryParts = chatHistory?.length
+          ? chatHistory.map(m => ({
+              role: m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: m.content }]
+            }))
+          : [];
 
-      const contentsPayload = [
-        {
-          role: 'user',
-          parts: [{ text: `${hardenedSystemPrompt}\n\nPesan User: ${rawInput}` }],
-        },
-        ...formattedHistoryParts
-      ];
+        const contentsPayload = [
+          {
+            role: 'user',
+            parts: [{ text: `${hardenedSystemPrompt}\n\nPesan User: ${rawInput}` }],
+          },
+          ...formattedHistoryParts
+        ];
 
-      const res = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: contentsPayload,
-            generationConfig: {
-              temperature: 0.6,
-              maxOutputTokens: maxTokensToUse,
-            },
-          }),
-        },
-        6000
-      );
+        const res = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: contentsPayload,
+              generationConfig: {
+                temperature: 0.6,
+                maxOutputTokens: maxTokensToUse,
+              },
+            }),
+          },
+          5000
+        );
 
-      if (res.ok) {
-        const data: any = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text && text.trim()) {
-          replyText = text.trim();
-          aiModel = 'gemini-3.6-flash';
-          provider = 'Google Gemini 3.6 Flash';
-          const inferenceMs = Date.now() - startTime;
-          if (logger) logger.info({ inferenceMs }, '[AI_ROUTER] Gemini 3.6 Flash Succeeded');
+        if (res.ok) {
+          const data: any = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text && text.trim()) {
+            replyText = text.trim();
+            aiModel = geminiModel;
+            provider = `Google Gemini (${geminiModel})`;
+            const inferenceMs = Date.now() - startTime;
+            if (logger) logger.info({ inferenceMs, model: geminiModel }, '[AI_ROUTER] Gemini Route Succeeded');
+            break;
+          }
         }
+      } catch (err: any) {
+        if (logger) logger.warn({ err: err.message, model: geminiModel }, '[AI_ROUTER] Gemini Flash Failover Triggered');
       }
-    } catch (err: any) {
-      if (logger) logger.warn({ err: err.message }, '[AI_ROUTER] Gemini Flash Failover Triggered');
     }
   }
 
@@ -534,7 +538,7 @@ export async function executeRoutedModelPipeline(
     provider = 'ZEGA Dynamic Intelligence Rules';
 
     const def = getAssistantDefinition(canonicalType);
-    replyText = `Halo! Saya ${def.name}. ${def.purpose}\n\nTerkait permintaan Anda: "${inputClean.slice(0, 100)}${inputClean.length > 100 ? '...' : ''}". Sistem AI ZEGA saat ini memproses permintaan Anda secara terisolasi dan aman.`;
+    replyText = `Halo! Saya ${def.name}.\n\nTerkait permintaan Anda: "${inputClean.slice(0, 100)}${inputClean.length > 100 ? '...' : ''}". Sistem AI ZEGA siap membantu operasional toko, analisis transaksi, dan strategi pertumbuhan usaha Anda. Silakan sampaikan detail pertanyaan Anda.`;
   }
 
   const inferenceMs = Date.now() - startTime;

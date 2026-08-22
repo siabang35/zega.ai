@@ -527,23 +527,28 @@ export function HomeView({ displayName, onNavigateTab, triggerToast, onOpenSearc
     setLoading(true);
 
     try {
-      // ── STEP 1: Attempt Session Resolution (Decoupled AI inference, fail-closed DB persistence) ──
+      // ── STEP 1: Attempt Session Resolution (Synchronous DB-backed session bootstrapping) ──
       let chatIdToUse = activeHelpChatId;
-      if (!chatIdToUse) {
-        chatIdToUse = crypto.randomUUID();
-        setActiveHelpChatId(chatIdToUse);
-        // Non-blocking background session creation
-        SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
-          undefined,
-          (getActiveTenantIds().userId || ''),
-          `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
-          'ZEGA Home Assistant'
-        ).then(resolved => {
+      if (!chatIdToUse || !isValidUuid(chatIdToUse)) {
+        try {
+          const resolved = await SupabaseDashboardService.resolveOrCreateCanonicalAiAssistantChat(
+            undefined,
+            (getActiveTenantIds().userId || ''),
+            `Home Assistant: ${textToSend.trim().slice(0, 25)}`,
+            'ZEGA Home Assistant'
+          );
           if (resolved.ok && resolved.chatId) {
+            chatIdToUse = resolved.chatId;
             setActiveHelpChatId(resolved.chatId);
             fetchHelpHistoryList();
           }
-        }).catch(sessionErr => console.warn('[HomeView] Non-blocking session resolution note:', sessionErr));
+        } catch (sessionErr) {
+          console.warn('[HomeView] Session resolution note:', sessionErr);
+        }
+      }
+      if (!chatIdToUse) {
+        chatIdToUse = crypto.randomUUID();
+        setActiveHelpChatId(chatIdToUse);
       }
 
       // Save User Message to DB asynchronously ONLY IF valid persistent chatId exists

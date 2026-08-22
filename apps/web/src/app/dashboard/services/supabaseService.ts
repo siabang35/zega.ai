@@ -11153,7 +11153,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
       const rawUserCandidate = (payload.user_id && isValidUuid(payload.user_id)) ? payload.user_id : (startUserId || (getActiveTenantIds().userId || ''));
       const effectiveUserId = isValidUuid(rawUserCandidate) ? rawUserCandidate : (startUserId || '');
 
-      const { data: rpcRes, error: rpcErr } = await supabase.rpc('fn_save_ai_assistant_message', {
+      let { data: rpcRes, error: rpcErr } = await supabase.rpc('fn_save_ai_assistant_message', {
         p_chat_id: payload.chat_id,
         p_sender: payload.sender,
         p_text: payload.text,
@@ -11162,6 +11162,24 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
         p_tokens: payload.tokens || 94,
         p_request_id: payload.request_id || null
       });
+
+      // Retry auto-provisioning if chat session was not found database-side
+      if ((rpcRes && !rpcRes.ok && (rpcRes.error || '').includes('CHAT_NOT_FOUND')) || (rpcErr && rpcErr.message.includes('CHAT_NOT_FOUND'))) {
+        console.info('[AI Assistant] Auto-provisioning parent chat session for missing chat_id:', payload.chat_id);
+        await this.resolveOrCreateCanonicalAiAssistantChat(undefined, effectiveUserId, 'Sesi AI Assistant Utama', 'ZEGA Home Assistant');
+        const retryRes = await supabase.rpc('fn_save_ai_assistant_message', {
+          p_chat_id: payload.chat_id,
+          p_sender: payload.sender,
+          p_text: payload.text,
+          p_user_id: effectiveUserId || null,
+          p_inference_ms: payload.inference_ms || 185,
+          p_tokens: payload.tokens || 94,
+          p_request_id: payload.request_id || null
+        });
+        if (retryRes.data && retryRes.data.ok) {
+          return retryRes.data.message;
+        }
+      }
 
       if (rpcErr) {
         console.warn('[AI Assistant] saveUmkmAiAssistantMessage RPC error:', rpcErr.message);
