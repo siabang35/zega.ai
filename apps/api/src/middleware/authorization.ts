@@ -213,3 +213,120 @@ export function requireTenantAccessTo(getResourceOrgId: (request: FastifyRequest
     }
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CENTRALIZED AUTHORIZATION — Zero-Trust Policy Enforcement
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Authorization scope for AI swarm delegation tracking.
+ * Enforces childScope ⊆ parentScope invariant.
+ */
+export interface AuthorizationScope {
+  principalId: string;
+  organizationId: string;
+  workspaceId?: string;
+  storeId?: string;
+  role: string;
+  permissions: string[];
+  assistantId?: string;
+  parentAgentId?: string;
+  delegationId?: string;
+  correlationId?: string;
+}
+
+export interface AuthorizationRequest {
+  principal: { userId: string; organizationId?: string; role?: string; orgRole?: string; permissions?: string[] };
+  organizationId?: string;
+  workspaceId?: string;
+  assistant?: string;
+  tool?: string;
+  action?: string;
+  resourceType?: string;
+  resourceId?: string;
+}
+
+/**
+ * Centralized authorization decision.
+ * Returns true if the principal is authorized for the requested action.
+ * Fail-closed: returns false on any missing required context.
+ */
+export function authorize(req: AuthorizationRequest): { allowed: boolean; reason: string } {
+  const { principal } = req;
+
+  // 1. Principal must exist and have a userId
+  if (!principal?.userId) {
+    return { allowed: false, reason: 'NO_PRINCIPAL' };
+  }
+
+  // 2. If org-scoped, principal must belong to the org
+  if (req.organizationId && principal.organizationId !== req.organizationId) {
+    logger.warn(
+      { userId: principal.userId, requestedOrg: req.organizationId, principalOrg: principal.organizationId, action: 'authorize_cross_tenant_denied' },
+      '[Authorization] DENIED — cross-tenant authorization attempt'
+    );
+    return { allowed: false, reason: 'CROSS_TENANT_DENIED' };
+  }
+
+  // 3. If assistant-scoped, verify assistant is recognized
+  if (req.assistant) {
+    const VALID_ASSISTANTS = ['home', 'help', 'finance', 'knowledge', 'zega_copilot'];
+    if (!VALID_ASSISTANTS.includes(req.assistant)) {
+      return { allowed: false, reason: 'INVALID_ASSISTANT' };
+    }
+  }
+
+  // 4. If tool-scoped, verify tool is in the assistant's allowlist
+  if (req.tool && req.assistant) {
+    const ASSISTANT_TOOLS: Record<string, string[]> = {
+      home: ['get_business_overview', 'get_sales_summary', 'get_inventory_overview'],
+      help: ['search_help_docs', 'get_feature_guide'],
+      finance: ['get_financial_metrics', 'calculate_margin', 'get_cash_flow_statement'],
+      knowledge: ['search_tenant_knowledge', 'extract_sop_document'],
+      zega_copilot: ['inspect_sales', 'inspect_inventory', 'inspect_customers', 'analyze_finance', 'inspect_products', 'generate_business_insights', 'execute_authorized_action'],
+    };
+    const allowedTools = ASSISTANT_TOOLS[req.assistant] || [];
+    if (!allowedTools.includes(req.tool)) {
+      logger.warn(
+        { userId: principal.userId, assistant: req.assistant, tool: req.tool, action: 'tool_authorization_denied' },
+        '[Authorization] DENIED — tool not in assistant allowlist'
+      );
+      return { allowed: false, reason: 'TOOL_NOT_AUTHORIZED_FOR_ASSISTANT' };
+    }
+  }
+
+  return { allowed: true, reason: 'AUTHORIZED' };
+}
+
+/**
+ * Verify that a child authorization scope is a subset of the parent scope.
+ * Used for AI swarm delegation — child agents MUST NOT expand parent scope.
+ */
+export function verifyDelegationScope(parent: AuthorizationScope, child: AuthorizationScope): { allowed: boolean; reason: string } {
+  // Organization must match
+  if (child.organizationId !== parent.organizationId) {
+    logger.warn(
+      { parentOrg: parent.organizationId, childOrg: child.organizationId, action: 'delegation_cross_tenant_denied' },
+      '[Authorization] DENIED — child agent cross-tenant delegation'
+    );
+    return { allowed: false, reason: 'CROSS_TENANT_DELEGATION' };
+  }
+
+  // Principal must match
+  if (child.principalId !== parent.principalId) {
+    return { allowed: false, reason: 'PRINCIPAL_MISMATCH' };
+  }
+
+  // Child permissions must be a subset of parent permissions
+  const parentPerms = new Set(parent.permissions);
+  const extraPerms = child.permissions.filter(p => !parentPerms.has(p));
+  if (extraPerms.length > 0) {
+    logger.warn(
+      { parentPerms: parent.permissions, childExtraPerms: extraPerms, action: 'delegation_privilege_escalation_denied' },
+      '[Authorization] DENIED — child agent privilege escalation attempt'
+    );
+    return { allowed: false, reason: 'PRIVILEGE_ESCALATION' };
+  }
+
+  return { allowed: true, reason: 'DELEGATION_AUTHORIZED' };
+}

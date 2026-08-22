@@ -30,14 +30,18 @@ export async function buildHomeContext(tenantId: string, storeId?: string): Prom
   let revStr = '0';
   let orderCount = 0;
   let activeAgents = 0;
+  let productSummary = '';
 
   if (supabase && storeId) {
     try {
-      const [storeRes, profileRes, kpiRes, empRes] = await Promise.all([
+      const [storeRes, profileRes, kpiRes, empRes, productsRes, lowStockRes, customerRes] = await Promise.all([
         supabase.from('umkm_stores').select('store_name, name, category, organization_id').eq('id', storeId).maybeSingle(),
         supabase.from('umkm_user_profiles').select('full_name, fullname, store_name, email, owner_name').eq('store_id', storeId).maybeSingle(),
         supabase.from('umkm_dashboard_kpis').select('revenue_generated_today, orders_today_count').eq('store_id', storeId).maybeSingle(),
         supabase.from('umkm_ai_employees').select('id').eq('store_id', storeId).eq('status', 'active'),
+        supabase.from('umkm_products').select('name, price, stock, category').eq('store_id', storeId).order('stock', { ascending: true }).limit(10),
+        supabase.from('umkm_products').select('name, stock, price').eq('store_id', storeId).lt('stock', 10).order('stock', { ascending: true }).limit(5),
+        supabase.from('umkm_customers').select('id', { count: 'exact', head: true }).eq('store_id', storeId),
       ]);
 
       if (storeRes.data?.store_name || storeRes.data?.name) {
@@ -59,6 +63,20 @@ export async function buildHomeContext(tenantId: string, storeId?: string): Prom
         orderCount = kpiRes.data.orders_today_count || 0;
       }
       if (empRes.data) activeAgents = empRes.data.length;
+
+      const products = productsRes.data || [];
+      const lowStock = lowStockRes.data || [];
+      const custCount = (customerRes as any)?.count ?? 0;
+
+      const productBlock = products.length > 0
+        ? products.map((p: any) => `- ${p.name} | Rp${(Number(p.price) || 0).toLocaleString('id-ID')} | Stok: ${p.stock ?? '?'}`).join('\n')
+        : '- Belum ada produk terdaftar.';
+
+      const lowStockBlock = lowStock.length > 0
+        ? lowStock.map((p: any) => `- ⚠️ ${p.name}: SISA ${p.stock} unit`).join('\n')
+        : '- Stok semua produk aman.';
+
+      productSummary = `\n=== KATALOG PRODUK (${products.length} item) ===\n${productBlock}\n=== PERINGATAN STOK RENDAH ===\n${lowStockBlock}\n- Total Pelanggan: ${custCount}`;
     } catch (err) {
       console.warn('[HOME_CONTEXT] Context fetch warning:', err);
     }
@@ -71,7 +89,8 @@ export async function buildHomeContext(tenantId: string, storeId?: string): Prom
 - Store ID: ${storeId || tenantId}
 - Omzet Hari Ini: Rp${revStr}
 - Transaksi Hari Ini: ${orderCount} pesanan
-- AI Employees Aktif: ${activeAgents} agen`;
+- AI Employees Aktif: ${activeAgents} agen
+${productSummary}`;
 
   return {
     contextText,
@@ -255,13 +274,18 @@ export async function buildCopilotContext(
   let category = 'General';
   let revenueToday = 0;
   let ordersToday = 0;
+  let inventoryBlock = '';
 
   if (supabase && storeId) {
     try {
-      const [storeRes, profileRes, kpiRes] = await Promise.all([
+      const [storeRes, profileRes, kpiRes, productsRes, lowStockRes, txRes, customerRes] = await Promise.all([
         supabase.from('umkm_stores').select('store_name, name, category').eq('id', storeId).maybeSingle(),
         supabase.from('umkm_user_profiles').select('full_name, fullname, store_name, email, owner_name').eq('store_id', storeId).maybeSingle(),
         supabase.from('umkm_dashboard_kpis').select('revenue_generated_today, orders_today_count').eq('store_id', storeId).maybeSingle(),
+        supabase.from('umkm_products').select('name, price, stock, category, status').eq('store_id', storeId).order('stock', { ascending: true }).limit(10),
+        supabase.from('umkm_products').select('name, stock, price').eq('store_id', storeId).lt('stock', 10).order('stock', { ascending: true }).limit(5),
+        supabase.from('umkm_transactions').select('transaction_code, amount_idr, payment_method, status').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('umkm_customers').select('id', { count: 'exact', head: true }).eq('store_id', storeId),
       ]);
 
       if (storeRes.data?.store_name || storeRes.data?.name) {
@@ -283,6 +307,25 @@ export async function buildCopilotContext(
         revenueToday = Number(kpiRes.data.revenue_generated_today) || 0;
         ordersToday = Number(kpiRes.data.orders_today_count) || 0;
       }
+
+      const products = productsRes.data || [];
+      const lowStock = lowStockRes.data || [];
+      const recentTx = txRes.data || [];
+      const custCount = (customerRes as any)?.count ?? 0;
+
+      const productBlock = products.length > 0
+        ? products.map((p: any) => `- ${p.name} | Rp${(Number(p.price) || 0).toLocaleString('id-ID')} | Stok: ${p.stock ?? '?'} | ${p.category || 'Umum'}`).join('\n')
+        : '- Belum ada produk terdaftar.';
+
+      const lowStockBlock = lowStock.length > 0
+        ? lowStock.map((p: any) => `- ⚠️ ${p.name}: SISA ${p.stock} unit (Rp${(Number(p.price) || 0).toLocaleString('id-ID')})`).join('\n')
+        : '- Stok semua produk aman.';
+
+      const txBlock = recentTx.length > 0
+        ? recentTx.map((t: any) => `- ${t.transaction_code || 'TRX'} | Rp${(Number(t.amount_idr) || 0).toLocaleString('id-ID')} | ${t.payment_method || 'N/A'}`).join('\n')
+        : '- Belum ada transaksi.';
+
+      inventoryBlock = `\n=== KATALOG PRODUK (${products.length} item) ===\n${productBlock}\n=== PERINGATAN STOK RENDAH ===\n${lowStockBlock}\n=== TRANSAKSI TERAKHIR ===\n${txBlock}\n- Total Pelanggan: ${custCount}`;
     } catch (err) {
       console.warn('[COPILOT_CONTEXT] Context fetch note:', err);
     }
@@ -295,7 +338,8 @@ export async function buildCopilotContext(
 - Nama Toko: ${storeName} (Kategori: ${category})
 - Pemilik Toko: ${ownerName}
 - Metrics Real-Time: Omzet Rp${revenueToday.toLocaleString('id-ID')} | Transaksi ${ordersToday}
-- Capability Framework: PLAN -> THINK/REASON -> TOOL CALL -> OBSERVE RESULT -> VERIFY -> RESPOND`;
+- Capability Framework: PLAN -> THINK/REASON -> TOOL CALL -> OBSERVE RESULT -> VERIFY -> RESPOND
+${inventoryBlock}`;
 
   return {
     contextText,

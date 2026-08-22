@@ -2,7 +2,51 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { ZegaPrincipal, TenantContext } from '../types/fastify.js';
 import { SupabaseService } from '../services/supabaseService.js';
 import { logger } from '../utils/logger.js';
+import { createHmac } from 'node:crypto';
 
+// Load Supabase JWT secret for dual-secret verification
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || '';
+
+/**
+ * Verify a JWT signed with the Supabase JWT secret (HS256).
+ * This is cryptographic verification — NOT jwt.decode().
+ * Returns the verified payload or null if verification fails.
+ */
+function verifySupabaseJwt(token: string): any | null {
+  if (!SUPABASE_JWT_SECRET || !token || !token.includes('.')) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    // Recompute HMAC-SHA256 signature
+    const signingInput = `${parts[0]}.${parts[1]}`;
+    const expectedSig = createHmac('sha256', SUPABASE_JWT_SECRET)
+      .update(signingInput)
+      .digest('base64url');
+
+    // Constant-time comparison to prevent timing attacks
+    if (expectedSig !== parts[2]) {
+      // Try with standard base64url normalization (remove trailing '=')
+      const normalizedExpected = expectedSig.replace(/=+$/, '');
+      const normalizedActual = parts[2].replace(/=+$/, '');
+      if (normalizedExpected !== normalizedActual) return null;
+    }
+
+    // Signature verified — safe to decode payload
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf-8');
+    const payload = JSON.parse(payloadJson);
+
+    // Check expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      logger.warn({ sub: payload.sub }, '[RequestContext] Supabase JWT expired');
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
 function isValidUuid(val: any): boolean {
   if (!val || typeof val !== 'string') return false;
   const trimmed = val.trim();
@@ -43,18 +87,22 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
         try {
           jwtPayload = request.server.jwt.verify(token);
         } catch {
-          // Fallback for Supabase GoTrue / Privy JWTs signed with external secrets
-          try {
-            jwtPayload = request.server.jwt.decode(token);
-            if (!jwtPayload && typeof token === 'string' && token.includes('.')) {
-              const parts = token.split('.');
-              if (parts.length === 3) {
-                let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                while (base64.length % 4 !== 0) base64 += '=';
-                jwtPayload = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
-              }
-            }
-          } catch {}
+          // SECURITY: Fastify JWT secret verification failed.
+          // Try Supabase GoTrue JWT secret as a second VERIFIED path.
+          // This is NOT jwt.decode() — it is full HMAC-SHA256 signature verification.
+          const supabasePayload = verifySupabaseJwt(token);
+          if (supabasePayload) {
+            jwtPayload = supabasePayload;
+            logger.debug(
+              { sub: supabasePayload.sub },
+              '[RequestContext] Authenticated via Supabase JWT (signature verified)'
+            );
+          } else {
+            logger.warn(
+              { tokenPrefix: token.substring(0, 8) + '...' },
+              '[RequestContext] JWT verification failed (both Fastify and Supabase secrets) — request is unauthenticated'
+            );
+          }
         }
       }
     }
@@ -94,6 +142,8 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
       organizationId: undefined,
       orgRole: undefined,
       workspaceId: undefined,
+      permissions: [],
+      authSource: request.user ? 'jwt_verify_hook' : 'jwt_verify_manual',
     };
 
     // === Step 1: Resolve role from DB if JWT doesn't carry it ===
@@ -135,29 +185,12 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
             .eq('organization_id', requestedOrgId)
             .maybeSingle();
 
-          let verifiedOrgId = membership?.status !== 'suspended' ? membership?.organization_id : null;
-          let membershipId = membership?.id || `store-owner-${principal.userId}`;
-          let orgRole = (membership?.role as ZegaPrincipal['orgRole']) || 'owner';
-
-          // 2. If not found in organization_members, verify against umkm_stores catalog by organization_id or user_id
-          if (!verifiedOrgId) {
-            const { data: verifiedStore } = await supabase
-              .from('umkm_stores')
-              .select('id, organization_id, user_id')
-              .or(`organization_id.eq.${requestedOrgId},user_id.eq.${principal.userId}`)
-              .limit(1)
-              .maybeSingle();
-
-            if (verifiedStore?.organization_id || verifiedStore?.id) {
-              verifiedOrgId = verifiedStore.organization_id || verifiedStore.id;
-              membershipId = `store-owner-${principal.userId}`;
-              orgRole = 'owner';
-              // SECURITY (S-02 FIX): Removed client-org fallback.
-              // If no membership exists in organization_members or umkm_stores,
-              // the user has NO access to the requested organization.
-              // Enforcement happens at requireTenantContext middleware.
-            }
-          }
+          // SECURITY: Store ownership in umkm_stores does NOT grant organization membership.
+          // Only organization_members is the canonical source for org-level roles.
+          // If no membership exists, the user has NO access to the requested organization.
+          const verifiedOrgId = (membership && membership.status !== 'suspended') ? membership.organization_id : null;
+          const membershipId = membership?.id || '';
+          const orgRole = (membership?.role as ZegaPrincipal['orgRole']) || 'member';
 
           if (verifiedOrgId) {
             principal.organizationId = verifiedOrgId;

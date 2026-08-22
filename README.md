@@ -198,7 +198,9 @@ Demonstrates a merchant payment workflow using ZeroClaw and Solana Pay on Devnet
 | **Advisory Locking** | `pg_advisory_xact_lock` prevents concurrent withdrawal race conditions | [`20260811_final_remediation.sql`](supabase/migrations/20260811_final_remediation.sql) |
 | **Atomic Settlement** | Payments and invoice updates execute in a single PostgreSQL transaction (`settle_payment_atomic`) | [`20260811_remediate_lifecycle_consistency.sql`](supabase/migrations/20260811_remediate_lifecycle_consistency.sql) |
 | **Replay Protection** | `UNIQUE` constraints on `idempotency_key` and `tx_signature` columns | [`20260811_withdrawals.sql`](supabase/migrations/20260811_withdrawals.sql), [`20260811_transactions_engine.sql`](supabase/migrations/20260811_transactions_engine.sql) |
-| **JWT Authorization** | `request.jwtVerify()` on all financial endpoints with user identity binding | [`apps/api/src/routes/v1/`](apps/api/src/routes/v1/) |
+| **JWT Authorization** | Dual-secret JWT verification: Fastify JWT + Supabase GoTrue HMAC-SHA256. Zero-fallback `jwt.decode()` policy enforced | [`apps/api/src/middleware/requestContext.ts`](apps/api/src/middleware/requestContext.ts) |
+| **AI Authorization** | Centralized `authorize()` function enforcing principal + tenant + assistant + tool policy with `verifyDelegationScope()` for AI swarm delegation | [`apps/api/src/middleware/authorization.ts`](apps/api/src/middleware/authorization.ts) |
+| **AI Store Workforce** | Real-time product catalog, low-stock alerts, transaction history, and customer data hydrated into AI system prompts — all queries tenant-isolated via `store_id` | [`apps/api/src/services/storeContextService.ts`](apps/api/src/services/storeContextService.ts) |
 | **RPC Failover** | Multi-provider pool (env-configured, e.g., Alchemy, Helius, QuickNode) with exponential cooldown circuit breaker | [`solanaRpcManager.ts`](apps/api/src/services/solanaRpcManager.ts) |
 | **Prompt Injection** | Regex-based detection of 18 known attack patterns (e.g., `ignore previous instructions`, `bypass safety`) | [`settlementValidation.ts`](apps/api/src/utils/settlementValidation.ts) |
 | **CI Security Gates** | Dependency audit, secret scanning, destructive migration detection | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
@@ -247,6 +249,8 @@ The CI pipeline (`.github/workflows/ci.yml`) executes: dependency security audit
 | ZeroClaw Integration Guide | [`docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md`](docs/zeroclaw/ZEROCLAW_ZEGA_INTEGRATION_GUIDE.md) |
 | ZeroClaw Integration Matrix | [`docs/zeroclaw/ZEROCLAW_INTEGRATION_MATRIX.md`](docs/zeroclaw/ZEROCLAW_INTEGRATION_MATRIX.md) |
 | Security Threat Model | [`docs/zeroclaw/SECURITY_THREAT_MODEL.md`](docs/zeroclaw/SECURITY_THREAT_MODEL.md) |
+| Zero-Trust Security Hardening Audit (P3) | [`docs/security/SECURITY_HARDENING_AUDIT_P3_2026_08_23.md`](docs/security/SECURITY_HARDENING_AUDIT_P3_2026_08_23.md) |
+| AI Assistant Security Architecture | [`docs/security/AI_ASSISTANT_SECURITY_ARCHITECTURE.md`](docs/security/AI_ASSISTANT_SECURITY_ARCHITECTURE.md) |
 | RPC Failover Manager Specification | [`docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md`](docs/PRD/29-SOLANA-RPC-FAILOVER-MANAGER-SPEC.md) |
 
 ---

@@ -1137,72 +1137,20 @@ export function UmkmDashboardContainer({
       console.warn('Backend proxy Copilot call fallback note:', err);
     }
 
-    // Dynamic Intent Fallback Response if API was unavailable
+    // Hardened Fallback: If API was unavailable, show clear service status — NEVER fabricate data
     if (!copilotReplyText) {
       const latency = Date.now() - startTime;
       inferenceMsToUse = latency;
-      const promptLower = textToSend.toLowerCase();
-      const now = new Date();
-      const currentDate = now.toLocaleDateString(currentAiLang === 'id' ? 'id-ID' : currentAiLang === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
       if (currentAiLang === 'en') {
-        if (promptLower.includes('fashion') || promptLower.includes('apparel') || promptLower.includes('boutique') || promptLower.includes('clothing')) {
-          copilotReplyText = `ZEGA AI Fashion Store Intelligence (2026):\n- Catalog Automation: Automated 24/7 size & color variant assistant on WhatsApp.\n- Sales Campaign: Flash promo broadcast ready for new seasonal arrivals.\n- POS Inventory: Tracking variant sizes (S, M, L, XL) with auto-alerts for fast sellers.\nAction: Deploy WhatsApp Promo Broadcast or set up product catalog.`;
-        } else if (promptLower.includes('profit') || promptLower.includes('growth') || promptLower.includes('margin') || promptLower.includes('make more') || promptLower.includes('increase')) {
-          copilotReplyText = `ZEGA AI Profit & Growth Strategy (2026):\n1. WhatsApp Re-engagement: Auto-message unpaid carts & inactive customers.\n2. AI Sales Swarm Cross-Selling: Auto-recommend bundles to repeat shoppers.\n3. High-Margin POS Analytics: Focus marketing on top 20% profitable items.\nTarget: Expand net margin by +18.5% this quarter.`;
-        } else if (promptLower.includes('know') || promptLower.includes('unsure') || promptLower.includes('help')) {
-          copilotReplyText = `ZEGA Copilot Advisory Service:\nNo worries! What area would you like to explore for your store right now?\n- 24/7 WhatsApp API Automation for instant customer orders\n- Auto POS Cashier System for rapid daily sales\n- Inventory & Low-Stock Alerts to prevent lost revenue`;
-        } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('morning') || promptLower.includes('afternoon') || promptLower.includes('evening')) {
-          copilotReplyText = `Hello! Welcome to ZEGA Copilot AI.\nI am ready to assist with your business operations for ${currentDate}. Would you like to view today's sales analysis, draft a WhatsApp promotion, or check stock recommendations?`;
-        } else if (promptLower.includes('sales') || promptLower.includes('revenue') || promptLower.includes('margin')) {
-          copilotReplyText = `ZEGA AI Real-Time Sales Analysis (2026):\n- Today's Revenue: Rp48,250,000 (+24.8% vs last month)\n- Total Transactions: 342 orders\n- Average Basket Size: Rp141,000\nRecommendation: Activate F&B bundle promo to increase basket size to Rp175,000.`;
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-          copilotReplyText = `ZEGA AI WhatsApp Broadcast Draft:\n"Hello! Special deal from our store! Get 15% OFF for Super Saver Bundle. Use code: ZEGASUPER15. Limited quota! Click: https://zegaai.site/promo"`;
-        } else if (promptLower.includes('stock') || promptLower.includes('inventory') || promptLower.includes('item')) {
-          copilotReplyText = `Real-Time Inventory Status (2026):\n- Aren Palm Sugar Coffee: 12 units left (Needs restocking!)\n- Super Groceries Pack: 45 units left\n- Premium Rice 5kg: 8 units left\nRecommendation: Reorder low-stock items from supplier today.`;
-        } else {
-          copilotReplyText = `ZEGA Copilot Real-Time Inference (2026):\nThank you for your question regarding "${textToSend.trim()}". Based on operational telemetry for ${currentDate}, ZEGA AI is ready to optimize your store performance.\n\nWould you like me to analyze financial reports, marketing drafts, or inventory management?`;
-        }
+        copilotReplyText = `⚠️ **AI Service Temporarily Unavailable**\n\nZEGA Copilot AI is currently unable to connect to the backend inference engine. This may be due to network latency or a temporary service interruption.\n\n**What you can do:**\n• Check your internet connection\n• Retry your question in a few moments\n• Contact support if the issue persists\n\nYour message has been saved and will be available when the service reconnects.`;
       } else if (currentAiLang === 'zh') {
-        if (promptLower.includes('fashion') || promptLower.includes('服装') || promptLower.includes('女装') || promptLower.includes('精品店')) {
-          copilotReplyText = `ZEGA AI 服饰店铺智能方案 (2026):\n- 目录自动化: 24/7 WhatsApp 多尺码与颜色助手。\n- 销售活动: 新品上新与限时抢购广播文案准备就绪。\n- POS 库存: 实时追踪尺码（S, M, L, XL）并提供热销品预警。\n操作: 部署 WhatsApp 促销广播或配置商品目录。`;
-        } else if (promptLower.includes('profit') || promptLower.includes('增长') || promptLower.includes('利润') || promptLower.includes('提升')) {
-          copilotReplyText = `ZEGA AI 利润与增长策略 (2026):\n1. WhatsApp 追单: 自动提醒未付款订单与沉睡客户。\n2. AI 销售团队交叉销售: 自动向老客户推荐组合商品。\n3. 高利润 POS 分析: 将营销重点放在贡献 20% 主要利润的商品。\n目标: 本季度净利润率提升 +18.5%。`;
-        } else if (promptLower.includes('know') || promptLower.includes('不懂') || promptLower.includes('帮助')) {
-          copilotReplyText = `ZEGA Copilot 运营咨询顾问:\n别担心！今天想先探索哪个店铺模块？\n- 24/7 WhatsApp API 自动化 实现即时接单\n- 高效 POS 收银系统 处理日常销售\n- 库存与低库存预警 防止收入损失`;
-        } else if (promptLower.includes('halo') || promptLower.includes('hi') || promptLower.includes('hello') || promptLower.includes('你好') || promptLower.includes('早')) {
-          copilotReplyText = `您好！欢迎使用 ZEGA Copilot AI。\n我已准备好协助您处理 ${currentDate} 的店铺运营。需要查看今日销售分析、草拟 WhatsApp 促销文案还是检查库存建议？`;
-        } else if (promptLower.includes('sales') || promptLower.includes('销售') || promptLower.includes('收入') || promptLower.includes('利润')) {
-          copilotReplyText = `ZEGA AI 实时销售分析 (2026):\n- 今日营业额: Rp48,250,000 (比上月增长 +24.8%)\n- 总交易笔数: 342 笔订单\n- 平均客单价: Rp141,000\n优化建议: 启动餐饮组合促销，将客单价提升至 Rp175,000。`;
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('促销') || promptLower.includes('推广')) {
-          copilotReplyText = `ZEGA AI WhatsApp 广播文案草稿:\n"您好！本店特惠！超值组合包享 15% 折扣。优惠码: ZEGASUPER15。名额有限！点击: https://zegaai.site/promo"`;
-        } else if (promptLower.includes('stock') || promptLower.includes('库存') || promptLower.includes('商品')) {
-          copilotReplyText = `实时库存状态 (2026):\n- 棕榈糖咖啡: 剩余 12 件 (需补货!)\n- 超级杂货包: 剩余 45 件\n- 优质大米 5kg: 剩余 8 件\n建议今天向供应商重新订购。`;
-        } else {
-          copilotReplyText = `ZEGA Copilot 实时推理 (2026):\n感谢您提出关于 "${textToSend.trim()}" 的问题。根据 ${currentDate} 的实时数据，ZEGA AI 系统已准备就绪。\n\n您希望我分析财务报告、营销草案还是库存管理？`;
-        }
+        copilotReplyText = `⚠️ **AI 服务暂时不可用**\n\nZEGA Copilot AI 目前无法连接到后端推理引擎。这可能是由于网络延迟或临时服务中断。\n\n**您可以：**\n• 检查您的互联网连接\n• 稍后重试您的问题\n• 如果问题持续存在，请联系客服\n\n您的消息已保存，服务恢复后将可用。`;
       } else {
-        if (promptLower.includes('fashion') || promptLower.includes('baju') || promptLower.includes('pakaian') || promptLower.includes('distro') || promptLower.includes('boutique')) {
-          copilotReplyText = `Solusi Cerdas Toko Fashion ZEGA AI (2026):\n- Katalog Otomatis: Panduan ukuran (S, M, L, XL) & rekomendasi baju otomatis di WhatsApp 24/7.\n- Kampanye WA: Draf pesan promo otomatis siap kirim saat koleksi baju baru rilis.\n- Stok Kasir POS: Memantau varian warna/ukuran terlaris dengan notifikasi stok menipis secara real-time.\nLangkah: Siapkan katalog fashion atau jalankan broadcast promo WA toko Anda.`;
-        } else if (promptLower.includes('profit') || promptLower.includes('untung') || promptLower.includes('omzet') || promptLower.includes('penjualan') || promptLower.includes('margin') || promptLower.includes('make more')) {
-          copilotReplyText = `Strategi Pertumbuhan Profit ZEGA AI (2026):\n1. Follow-up WA Otomatis: Hubungi calon pembeli & konversi pesanan tertunda 24/7.\n2. AI Sales Swarm Cross-Selling: Rekomendasikan produk pelengkap secara otomatis.\n3. Analitik POS Margin Tinggi: Fokuskan promo pada 20% produk paling menguntungkan.\nTarget: Tingkatkan margin bersih toko sebesar +18.5% triwulan ini.`;
-        } else if (promptLower.includes('know') || promptLower.includes('bingung') || promptLower.includes('tidak tahu') || promptLower.includes('gimana') || promptLower.includes('apa aja')) {
-          copilotReplyText = `Konsultasi Operasional ZEGA Copilot:\nTidak masalah! Mau mulai dari bagian mana untuk toko Anda hari ini?\n- Otomatisasi WhatsApp API 24 Jam untuk penerimaan pesanan otomatis\n- Kasir POS Otomatis untuk pencatatan transaksi harian cepat\n- Manajemen Stok Barang & Notifikasi Supplier otomatis`;
-        } else if (promptLower.includes('halu') || promptLower.includes('halusinasi') || promptLower.includes('bohong') || promptLower.includes('ngaco') || promptLower.includes('beneran')) {
-          copilotReplyText = `ZEGA Copilot AI Verification:\nSaya tidak halu. Saya adalah ZEGA Copilot AI real-time. Saya terhubung dengan sistem operasional toko Anda per ${currentDate} (Tahun 2026).\n\nAda yang bisa saya bantu analisis untuk bisnis Anda hari ini?`;
-        } else if (promptLower.includes('siapa') || promptLower.includes('identitas') || promptLower.includes('nama')) {
-          copilotReplyText = `ZEGA Copilot AI:\nSaya adalah ZEGA Copilot, asisten AI cerdas resmi platform ZEGA AI. Saya siap membantu mengoptimalkan penjualan, manajemen stok, dan otomatisasi operasional toko Anda secara real-time.`;
-        } else if (promptLower.includes('halo') || promptLower.includes('hai') || promptLower.includes('pagi') || promptLower.includes('siang') || promptLower.includes('malam') || promptLower.includes('selamat')) {
-          copilotReplyText = `Halo! Selamat datang di ZEGA Copilot AI.\nSaya siap membantu mengelola operasional bisnis Anda per ${currentDate}. Mau cek analisis penjualan hari ini, draf promo WhatsApp, atau rekomendasi stok barang?`;
-        } else if (promptLower.includes('penjualan') || promptLower.includes('sales') || promptLower.includes('margin') || promptLower.includes('omzet')) {
-          copilotReplyText = `Analisis Penjualan Real-Time ZEGA AI (2026):\n- Penjualan Hari Ini: Rp48.250.000 (+24.8% vs bulan lalu)\n- Total Transaksi: 342 pesanan\n- Rata-rata Keranjang: Rp141.000\nRekomendasi: Aktifkan promo bundling F&B untuk menaikkan nilai keranjang ke Rp175.000.`;
-        } else if (promptLower.includes('whatsapp') || promptLower.includes('promo') || promptLower.includes('broadcast')) {
-          copilotReplyText = `Draf Broadcast WhatsApp ZEGA AI:\n"Halo! Ada promo spesial dari toko kami! Dapatkan Diskon 15% untuk Paket Hemat. Gunakan kode: ZEGASUPER15. Kuota terbatas! Klik: https://zegaai.site/promo"`;
-        } else if (promptLower.includes('stok') || promptLower.includes('barang') || promptLower.includes('inventoris')) {
-          copilotReplyText = `Status Stok Real-Time (2026):\n- Kopi Susu Aren: Sisa 12 unit (Perlu re-stock!)\n- Paket Sembako Super: Sisa 45 unit\n- Beras Premium 5kg: Sisa 8 unit\nRekomendasi: Lakukan pemesanan ulang ke supplier hari ini.`;
-        }
-        completionTokensToUse = Math.floor(copilotReplyText.length * 0.8);
+        copilotReplyText = `⚠️ **Layanan AI Tidak Tersedia Sementara**\n\nZEGA Copilot AI saat ini tidak dapat terhubung ke mesin inferensi backend. Ini mungkin disebabkan oleh latensi jaringan atau gangguan layanan sementara.\n\n**Yang bisa Anda lakukan:**\n• Periksa koneksi internet Anda\n• Coba kirim ulang pertanyaan Anda dalam beberapa saat\n• Hubungi support jika masalah berlanjut\n\nPesan Anda telah disimpan dan akan tersedia saat layanan terhubung kembali.`;
       }
+      completionTokensToUse = 0;
+      aiModelToUse = 'service-unavailable';
     }
 
     const copilotMsg = {

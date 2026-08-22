@@ -70,65 +70,43 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       }
       return;
     } catch {
+      // SECURITY: Fastify JWT secret failed. Try Supabase GoTrue JWT with crypto-verified HMAC-SHA256.
+      // This is NOT jwt.decode() — it is full signature verification using SUPABASE_JWT_SECRET.
       const authHeader = request.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7).trim();
-        if (token && token !== 'undefined' && token !== 'null') {
-          try {
-            let decoded = fastify.jwt.decode(token) as any;
-            if (!decoded && token.includes('.')) {
-              try {
-                const parts = token.split('.');
-                if (parts.length === 3) {
-                  let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                  while (base64.length % 4 !== 0) base64 += '=';
-                  decoded = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
-                }
-              } catch {}
-            }
-
-            const verifiedSub = decoded?.sub || decoded?.id || null;
-            let verifiedEmail = decoded?.email || decoded?.user_metadata?.email || decoded?.email_address || null;
-
-            // Database email resolution fallback if email is not present in token payload
-            if (verifiedSub && isValidUuid(verifiedSub) && !verifiedEmail) {
-              const supabase = SupabaseService.getClient();
-              if (supabase) {
-                try {
-                  const { data: dbUsers } = await supabase
-                    .from('users')
-                    .select('email, id, auth_user_id')
-                    .or(`auth_user_id.eq.${verifiedSub},id.eq.${verifiedSub}`)
-                    .limit(1);
-                  if (dbUsers && dbUsers.length > 0 && dbUsers[0]?.email) {
-                    verifiedEmail = dbUsers[0].email;
-                  } else {
-                    const { data: dbProf } = await supabase
-                      .from('profiles')
-                      .select('email')
-                      .eq('id', verifiedSub)
-                      .maybeSingle();
-                    if (dbProf?.email) verifiedEmail = dbProf.email;
+        if (token && token !== 'undefined' && token !== 'null' && token.includes('.')) {
+          const supabaseSecret = envConfig.SUPABASE_JWT_SECRET || process.env.SUPABASE_JWT_SECRET || '';
+          if (supabaseSecret) {
+            try {
+              const parts = token.split('.');
+              if (parts.length === 3) {
+                const sigInput = `${parts[0]}.${parts[1]}`;
+                const expectedSig = crypto.createHmac('sha256', supabaseSecret).update(sigInput).digest('base64url').replace(/=+$/, '');
+                const actualSig = parts[2].replace(/=+$/, '');
+                if (expectedSig === actualSig) {
+                  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+                  // Verify not expired
+                  if (!payload.exp || payload.exp >= Math.floor(Date.now() / 1000)) {
+                    const verifiedSub = payload.sub || payload.id || null;
+                    const verifiedEmail = payload.email || payload.user_metadata?.email || payload.email_address || null;
+                    if (verifiedSub && verifiedEmail) {
+                      request.user = {
+                        sub: verifiedSub,
+                        email: verifiedEmail,
+                        role: payload.role || 'individual',
+                        account_type: payload.account_type || payload.user_metadata?.account_type || 'INDIVIDUAL_UMKM',
+                        ...payload
+                      };
+                      return;
+                    }
                   }
-                } catch {}
+                }
               }
-            }
-
-            if (decoded && verifiedSub && verifiedEmail) {
-              request.user = {
-                sub: verifiedSub,
-                email: verifiedEmail,
-                role: decoded.role || 'individual',
-                account_type: decoded.account_type || decoded.user_metadata?.account_type || 'INDIVIDUAL_UMKM',
-                ...decoded
-              };
-              return;
-            }
-          } catch (e) { }
+            } catch { /* Verification failed — fall through to 401 */ }
+          }
         }
       }
-
-      // Zero-Fallback Enforcement: Reject unauthenticated requests instantly with 401
       return reply.status(401).send({
         success: false,
         error: { code: 'AUTH_REQUIRED', message: 'Authentication required. Valid JWT bearer token must be provided.', statusCode: 401 }

@@ -53,7 +53,7 @@ export async function buildStoreContextForAssistant(
 
   try {
     const cleanEmail = (clientUserEmail || '').trim().toLowerCase();
-    const [storeRes, profileByStoreRes, profileByUserRes, profileByEmailRes, kpiRes, knowRes, intRes, timelineRes, prefRes] = await Promise.all([
+    const [storeRes, profileByStoreRes, profileByUserRes, profileByEmailRes, kpiRes, knowRes, intRes, timelineRes, prefRes, productsRes, lowStockRes, txRes, customerRes] = await Promise.all([
       supabase.from('umkm_stores').select('store_name, name, business_category, is_active, organization_id, user_id').eq('id', storeId).maybeSingle(),
       supabase.from('umkm_user_profiles').select('full_name, fullname, store_name, email, owner_name').eq('store_id', storeId).maybeSingle(),
       userId ? supabase.from('umkm_user_profiles').select('full_name, fullname, store_name, email, owner_name').or(`user_id.eq.${userId},id.eq.${userId}`).maybeSingle() : Promise.resolve({ data: null }),
@@ -63,6 +63,14 @@ export async function buildStoreContextForAssistant(
       supabase.from('umkm_integrations').select('integration_name, is_connected, sync_status').eq('store_id', storeId).limit(5),
       supabase.from('umkm_timeline_events').select('event_text, event_time').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
       supabase.from('umkm_settings_ai_preferences').select('*').eq('store_id', storeId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+      // REAL STORE DATA: Product catalog (tenant-isolated by store_id)
+      supabase.from('umkm_products').select('name, price, stock, category, sku, status').eq('store_id', storeId).order('stock', { ascending: true }).limit(15),
+      // LOW STOCK ALERTS: Products with stock < 10 (critical inventory)
+      supabase.from('umkm_products').select('name, stock, price, sku').eq('store_id', storeId).lt('stock', 10).order('stock', { ascending: true }).limit(5),
+      // RECENT TRANSACTIONS: Last 5 confirmed transactions (tenant-isolated)
+      supabase.from('umkm_transactions').select('transaction_code, amount_idr, payment_method, customer_name, status, created_at').eq('store_id', storeId).order('created_at', { ascending: false }).limit(5),
+      // CUSTOMER COUNT: Total registered customers for this store
+      supabase.from('umkm_customers').select('id', { count: 'exact', head: true }).eq('store_id', storeId),
     ]);
 
     const store: Record<string, any> = storeRes.data || {};
@@ -100,6 +108,24 @@ export async function buildStoreContextForAssistant(
 
     let domainSpecificBlock = '';
 
+    // Build shared data blocks (used by multiple assistant types)
+    const products = productsRes.data || [];
+    const lowStockItems = lowStockRes.data || [];
+    const recentTx = txRes.data || [];
+    const customerCount = (customerRes as any)?.count ?? 0;
+
+    const productCatalogBlock = products.length > 0
+      ? products.map((p: any) => `- ${p.name} | Rp${(Number(p.price) || 0).toLocaleString('id-ID')} | Stok: ${p.stock ?? '?'} | ${p.category || 'Umum'} | ${p.status || 'active'}`).join('\n')
+      : '- Belum ada produk terdaftar di katalog toko ini.';
+
+    const lowStockBlock = lowStockItems.length > 0
+      ? lowStockItems.map((p: any) => `- ⚠️ ${p.name}: SISA ${p.stock} unit (Rp${(Number(p.price) || 0).toLocaleString('id-ID')}) ${p.sku ? `[SKU: ${p.sku}]` : ''}`).join('\n')
+      : '- Semua produk memiliki stok di atas batas minimum.';
+
+    const recentTxBlock = recentTx.length > 0
+      ? recentTx.map((t: any) => `- ${t.transaction_code || 'TRX'} | Rp${(Number(t.amount_idr) || 0).toLocaleString('id-ID')} | ${t.payment_method || 'N/A'} | ${t.customer_name || 'Pelanggan'} | ${t.status || 'confirmed'}`).join('\n')
+      : '- Belum ada transaksi terbaru tercatat.';
+
     switch (assistantType) {
       case 'finance':
         const grossMargin = kpi.revenue_generated_today ? '32.5%' : '0%';
@@ -108,10 +134,18 @@ export async function buildStoreContextForAssistant(
 === FINANCIAL INTELLIGENCE CONTEXT ===
 - Omzet Hari Ini: Rp${revFormatted}
 - Total Transaksi Harian: ${ordersToday} pesanan
+- Total Pelanggan Terdaftar: ${customerCount}
 - Estimasi PPh Final UMKM (0.5%): Rp${estPph.toLocaleString('id-ID')}
 - Estimasi Gross Margin Rata-Rata: ${grossMargin}
 - Tarif PPN Standar Terdaftar: 11% (Jika Pengusaha Kena Pajak)
-- Prioritas Keuangan: Pengawasan Arus Kas & Efisiensi Biaya Operasional`;
+- Prioritas Keuangan: Pengawasan Arus Kas & Efisiensi Biaya Operasional
+
+=== TRANSAKSI TERAKHIR (REAL-TIME) ===
+${recentTxBlock}
+
+=== PRODUCT REVENUE CONTRIBUTION ===
+- Total Produk Terdaftar: ${products.length}
+${productCatalogBlock}`;
         break;
 
       case 'knowledge':
@@ -122,7 +156,11 @@ export async function buildStoreContextForAssistant(
 === TENANT KNOWLEDGE BASE & SOP CONTEXT ===
 - Basis Pengetahuan & Dokumen Resmi Toko Terdaftar:
 ${docsSummary}
-- Aturan Jawaban RAG: Rujuk dokumen di atas saat menjawab prosedur toko.`;
+- Aturan Jawaban RAG: Rujuk dokumen di atas saat menjawab prosedur toko.
+
+=== DATA PRODUK REFERENSI (UNTUK JAWABAN SOP/FAQ) ===
+- Total Produk: ${products.length} | Total Pelanggan: ${customerCount}
+${productCatalogBlock}`;
         break;
 
       case 'help':
@@ -133,6 +171,7 @@ ${docsSummary}
 === PLATFORM INTEGRATION & TROUBLESHOOTING CONTEXT ===
 - Status Integrasi Sistem Toko:
 ${activeIntegrations}
+- Total Produk di Katalog: ${products.length}
 - Performa Respon WhatsApp POS: ${waResponseRate}%
 - Prioritas Help: Memberikan panduan onboarding dan bantuan integrasi teknis ZEGA AI.`;
         break;
@@ -148,7 +187,19 @@ ${activeIntegrations}
 - Omzet Hari Ini: Rp${revFormatted} (${ordersToday} pesanan)
 - Waktu Operasional Ditiadakan AI / Minggu: ${hoursSaved} Jam
 - Tingkat Respon WhatsApp Automatic: ${waResponseRate}%
-- Aktivitas Toko Terakhir:
+- Total Pelanggan Terdaftar: ${customerCount}
+
+=== KATALOG PRODUK TOKO (REAL-TIME DATABASE) ===
+- Total Produk Terdaftar: ${products.length}
+${productCatalogBlock}
+
+=== PERINGATAN STOK RENDAH (AUTO-ALERT) ===
+${lowStockBlock}
+
+=== TRANSAKSI TERAKHIR ===
+${recentTxBlock}
+
+=== AKTIVITAS TOKO TERAKHIR ===
 ${recentTimeline}`;
         break;
     }

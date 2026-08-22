@@ -11,6 +11,7 @@
  */
 
 import { CanonicalAssistantType, AI_ASSISTANTS } from './assistantRegistry.js';
+import type { AuthorizationScope } from '../../middleware/authorization.js';
 
 export interface SwarmDelegationResult {
   primaryAgent: CanonicalAssistantType;
@@ -18,6 +19,8 @@ export interface SwarmDelegationResult {
   isSwarmDelegated: boolean;
   delegationReason?: string;
   synthesizedDirective: string;
+  /** Authorization scope that ALL child agents must inherit — childScope ⊆ parentScope */
+  authorizationScope?: AuthorizationScope;
 }
 
 /**

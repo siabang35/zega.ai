@@ -41,8 +41,14 @@ export interface ZegaPrincipal {
   organizationId?: string;
   /** Workspace ID the user is acting within */
   workspaceId?: string;
+  /** Store ID resolved for this tenant context */
+  storeId?: string;
   /** Organization role within that org */
   orgRole?: 'owner' | 'admin' | 'member' | 'billing_contact';
+  /** Effective permissions for this principal in the current tenant context */
+  permissions: string[];
+  /** How this principal was authenticated (e.g. 'jwt_verify', 'google_oauth', 'privy') */
+  authSource: string;
   /** Resolved tenant context (populated by requireTenantContext middleware) */
   tenantContext?: TenantContext;
 }

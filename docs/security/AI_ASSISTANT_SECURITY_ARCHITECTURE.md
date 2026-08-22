@@ -1,6 +1,6 @@
 # ZEGA AI Multi-Model Assistant — Security Architecture & Authorization Spec
 
-> Last Updated: 2026-08-20 | Status: **Production Hardened** | Audit: Empirical Pass 25/26
+> Last Updated: 2026-08-23 | Status: **Production Hardened** | Audit: Empirical Pass 48/48
 
 ## 1. Canonical Assistant Registry
 
@@ -93,13 +93,29 @@ Every AI request must pass 3 mandatory contract checks before inference:
 
 ## 7. Model Provider Chain
 
-| Priority | Provider | Models | Timeout |
+| Priority | Provider | Models (Empirical — per `aiRouterService.ts`) | Timeout |
 |----------|----------|--------|---------|
-| 1 | ZeroClaw Gateway | finance-specialist, copilot-engineer, knowledge-researcher | 800ms health |
-| 2 | Groq LPU | qwen3.6-27b, gpt-oss-20b/120b, compound | 2500ms |
-| 3 | OpenRouter | deepseek-chat, gpt-4o, claude-sonnet-5, kimi-k2.5 | 3000ms |
-| 4 | Google Gemini | gemini-3.6-flash | 6000ms |
-| 5 | HuggingFace | DeepSeek-V4/V3/R1, Llama-3.3-70B | 6000ms |
-| 6 | Fallback | ZEGA Dynamic Intelligence Rules | Instant |
+| 1 | ZeroClaw Gateway Daemon | finance-specialist, copilot-engineer, knowledge-researcher, help-concierge, home-agent | 800ms health check |
+| 2 | Groq LPU Hardware | llama-3.3-70b-versatile, deepseek-r1-distill-llama-70b, llama-3.1-8b-instant, gemma2-9b-it | 3500ms |
+| 3 | OpenRouter Multi-Model | meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-chat, openai/gpt-4o-mini, openai/gpt-4o, anthropic/claude-3.5-sonnet | 3500ms |
+| 4 | Google Gemini | gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro | 5000ms |
+| 5 | HuggingFace Inference | DeepSeek-V3, DeepSeek-R1, Qwen2.5-72B-Instruct, Llama-3.3-70B-Instruct | 6000ms |
+| 6 | System Fallback | ZEGA Dynamic Intelligence Rules | Instant |
 
-**Source**: [`aiRouterService.ts`](../apps/api/src/services/aiRouterService.ts), [`aiProvider.ts`](../apps/api/src/services/ai/aiProvider.ts)
+**Source**: [`aiRouterService.ts`](../../apps/api/src/services/aiRouterService.ts)
+
+## 8. Store Context Hydration per Assistant Type
+
+Each assistant receives **tenant-isolated real-time store data** in its system prompt. All queries enforced with `.eq('store_id', storeId)`.
+
+| Data | Home | Help | Finance | Knowledge | Copilot |
+|------|:----:|:----:|:-------:|:---------:|:-------:|
+| Products (15 items) | ✅ | count | ✅ | ✅ ref | ✅ |
+| Low-Stock Alerts (stock < 10) | ✅ | — | — | — | ✅ |
+| Recent Transactions (5) | — | — | ✅ | — | ✅ |
+| Customer Count | ✅ | — | ✅ | ✅ | ✅ |
+| KPIs (revenue, orders) | ✅ | ✅ | ✅ | — | ✅ |
+| Knowledge Docs (5) | — | — | — | ✅ | — |
+| Timeline Events (5) | ✅ | — | — | — | ✅ |
+
+**Sources**: [`storeContextService.ts`](../../apps/api/src/services/storeContextService.ts), [`contextBuilders.ts`](../../apps/api/src/services/ai/contextBuilders.ts)

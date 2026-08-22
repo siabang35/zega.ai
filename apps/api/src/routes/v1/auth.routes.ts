@@ -1231,14 +1231,32 @@ export async function authRoutes(app: FastifyInstance) {
     try {
       decoded = await request.jwtVerify() as any;
     } catch {
-      // Fallback: If Fastify JWT verification failed, attempt decoding JWT payload directly
+      // SECURITY: Fastify JWT failed. Try Supabase JWT with crypto-verified HMAC-SHA256.
       if (token && token.includes('.')) {
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            decoded = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-          }
-        } catch {}
+        const supabaseSecret = envConfig.SUPABASE_JWT_SECRET || process.env.SUPABASE_JWT_SECRET || '';
+        if (supabaseSecret) {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const crypto = await import('node:crypto');
+              const sigInput = `${parts[0]}.${parts[1]}`;
+              const expectedSig = crypto.createHmac('sha256', supabaseSecret).update(sigInput).digest('base64url').replace(/=+$/, '');
+              const actualSig = parts[2].replace(/=+$/, '');
+              if (expectedSig === actualSig) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+                if (!payload.exp || payload.exp >= Math.floor(Date.now() / 1000)) {
+                  decoded = payload;
+                }
+              }
+            }
+          } catch { /* Verification failed — fall through to 401 */ }
+        }
+      }
+      if (!decoded) {
+        return reply.status(401).send({
+          success: false,
+          error: { code: 'TOKEN_INVALID', message: 'Invalid or expired token.', statusCode: 401 },
+        });
       }
     }
 
