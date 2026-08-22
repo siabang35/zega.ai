@@ -242,7 +242,12 @@ export class SocialAuthService {
     const storedProfiles = JSON.parse(localStorage.getItem('zega_social_profiles') || '{}');
     const isNewUser = !storedProfiles[email];
 
-    // 4. Persist to Supabase Database table public.social_oauth_accounts via RPC using REAL auth user ID
+    // 4. Record authenticated login timestamp via security-definer RPC
+    try {
+      await supabase.rpc('fn_record_user_login');
+    } catch { /* non-blocking */ }
+
+    // 5. Persist to Supabase Database table public.social_oauth_accounts via RPC using REAL auth user ID
     try {
       await supabase.rpc('upsert_social_oauth_account', {
         p_user_id: realUserId,

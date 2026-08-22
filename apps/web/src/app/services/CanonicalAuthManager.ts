@@ -306,6 +306,12 @@ class CanonicalAuthManager {
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           if (session && session.user && isValidUuid(session.user.id)) {
+            if (event === 'SIGNED_IN') {
+              supabase.rpc('fn_record_user_login').then(({ data, error }: any) => {
+                if (error) console.warn('[CANONICAL_AUTH_MANAGER] fn_record_user_login RPC warning:', error.message);
+                else console.log('[CANONICAL_AUTH_MANAGER] Recorded user login timestamp:', data);
+              });
+            }
             this.updateState({
               authState: 'AUTH_READY',
               sessionState: 'SESSION_READY',

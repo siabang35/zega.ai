@@ -150,7 +150,6 @@ class SupabaseBackendService {
           full_name: fullName || email.split('@')[0],
           role: dbRole,
           company_name: companyName || null,
-          last_login_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
         if (authUserId) {

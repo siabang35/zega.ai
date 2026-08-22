@@ -364,6 +364,7 @@ export const SupabaseDashboardService = {
 
       if (data?.session) {
         this.setSessionCookie(data.session);
+        await supabase.rpc('fn_record_user_login').catch(() => {});
         await this.logAuditTrail('USER_LOGIN', { email, userId: data.user.id });
       }
 
