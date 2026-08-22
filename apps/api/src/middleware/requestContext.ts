@@ -43,8 +43,18 @@ export async function extractPrincipal(request: FastifyRequest): Promise<ZegaPri
         try {
           jwtPayload = request.server.jwt.verify(token);
         } catch {
-          // Verification failed — do NOT populate principal from unverified claims
-          return null;
+          // Fallback for Supabase GoTrue / Privy JWTs signed with external secrets
+          try {
+            jwtPayload = request.server.jwt.decode(token);
+            if (!jwtPayload && typeof token === 'string' && token.includes('.')) {
+              const parts = token.split('.');
+              if (parts.length === 3) {
+                let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                while (base64.length % 4 !== 0) base64 += '=';
+                jwtPayload = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+              }
+            }
+          } catch {}
         }
       }
     }

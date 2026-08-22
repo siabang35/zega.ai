@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Store, Store as StoreIcon, Plus, Download, Upload, Filter, Search, 
   AlertTriangle, TrendingUp, ShoppingBag, DollarSign, Package, 
-  AlertCircle, Edit, BarChart2, MoreVertical, ChevronLeft, ChevronRight,
+  AlertCircle, Edit, BarChart2, MoreVertical, ChevronLeft, ChevronRight, ChevronDown,
   RefreshCw, Tag, Barcode, Layers, Percent, Check, Sparkles, Trash2
 } from 'lucide-react';
 import { getR2CdnUrl, generateInitialsAvatar } from '../../../utils/cdn';
@@ -14,6 +14,10 @@ import {
   BarcodePrintModal, StockSyncModal
 } from './store/StoreModals';
 import { StoreHeaderShell } from './store/StoreHeaderShell';
+import { SwarmExecutionHistoryView } from './store/SwarmExecutionHistoryView';
+import { SwarmChatView } from './store/SwarmChatView';
+import { UniversalAIChatView } from './store/UniversalAIChatView';
+import { getActiveTenantIds } from '../../services/umkmSupabaseService';
 
 import {
   Chart as ChartJS,
@@ -119,7 +123,8 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
     }
   }, [defaultSubView]);
 
-  // Modals state
+  // Modals & Collapsible AI Chat state
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -709,18 +714,68 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
     );
   }
 
+  // --- FULL DEDICATED PAGE 3: AI INVENTORY SWARM INTELLIGENCE & EXECUTION HISTORY ---
+  if (subView === ('swarm_history' as any)) {
+    return (
+      <div className="space-y-6 animate-in fade-in pb-28 sm:pb-8">
+        <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
+              <button onClick={() => setSubView('catalog')} className="hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1 cursor-pointer">
+                <Store size={14} className="text-orange-500" />
+                <span>{s.title || 'Store Management'}</span>
+              </button>
+              <ChevronRight size={13} />
+              <span className="text-indigo-600 dark:text-indigo-400 font-black">AI Swarm History</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <span>🤖 Swarm Execution History & Realtime Intelligence</span>
+            </h1>
+          </div>
+
+          <button
+            onClick={() => setSubView('catalog')}
+            className="px-4 py-2.5 rounded-2xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-extrabold text-xs hover:bg-slate-800 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+          >
+            ← Kembali ke Katalog
+          </button>
+        </div>
+
+        <SwarmExecutionHistoryView storeId={getActiveTenantIds().storeId || undefined} />
+      </div>
+    );
+  }
+
+  // --- FULL DEDICATED PAGE 4: INTERACTIVE AI SWARM CHATBOT CONTROL PLANE ---
+  if (subView === ('swarm_chat' as any)) {
+    return (
+      <div className="animate-in fade-in pb-16 sm:pb-2">
+        <UniversalAIChatView onBackToOverview={() => setSubView('catalog')} />
+      </div>
+    );
+  }
+
+  const handleScrollToSwarmControl = () => {
+    setSubView('swarm_chat' as any);
+    triggerToast('🤖 Membuka Interaktif AI Swarm Chatbot Control Plane');
+  };
+
   // --- DEFAULT PAGE: KATALOG PRODUK UTAMA & DASHBOARD OVERVIEW ---
   return (
     <div className="space-y-6 pb-28 sm:pb-8">
       {/* Unified Enterprise Header Shell */}
       <StoreHeaderShell 
         activeTab="store"
-        onNavigateTab={onNavigateTab}
+        onNavigateTab={(tab) => {
+          if (tab === 'top_selling' || tab === 'manage_stock_limit' || tab === 'swarm_history' || tab === 'swarm_chat') setSubView(tab as any);
+          else if (onNavigateTab) onNavigateTab(tab);
+        }}
         metrics={storeData.metrics}
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenImportModal={() => setIsImportModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}
         onOpenDeployModal={() => setIsDeployModalOpen(true)}
+        onOpenSwarmControl={handleScrollToSwarmControl}
       />
 
       {/* 2. Top 5 Metric Cards Row */}
@@ -1465,6 +1520,8 @@ export function StoreView({ defaultSubView = 'catalog', triggerToast, onNavigate
           </div>
         </div>
       </div>
+
+
 
       {/* Core Action Modals */}
       <AddProductModal 

@@ -741,154 +741,24 @@ Laporan ini dihasilkan secara otomatis oleh ZeroClaw AI Store Engine.
   );
 }
 
+import { DeployInventorySwarmWizard } from './DeployInventorySwarmWizard';
+
 /**
- * 4. Deploy AI Store Swarm Modal
+ * 4. Deploy AI Store Swarm Modal (Upgraded to Multi-Step Inventory Swarm Wizard)
  */
 export function DeployStoreSwarmModal({ isOpen, onClose, triggerToast, onRefresh }: ModalBaseProps) {
-  const { t } = useLanguage();
-  const s = (t.storeView || {}) as any;
-
-  const [swarmName, setSwarmName] = useState('AI Inventory Auto-Stock Swarm');
-  const [selectedModel, setSelectedModel] = useState('9Router-Auto-Stock-Optimizer');
-  const [submitting, setSubmitting] = useState(false);
-
-  if (!isOpen) return null;
-
-  const modelOptions = [
-    {
-      id: '9Router-Auto-Stock-Optimizer',
-      name: '9Router Layer 5 Model Router',
-      provider: '9Router Model Router',
-      logo: getR2CdnUrl('/assets/logo/9router.png'),
-      desc: s.modelDesc9Router || 'Optimasi biaya inference & auto-routing multi-llm terendah untuk analisis stok'
-    },
-    {
-      id: 'deepseek/deepseek-r1-distill-llama-70b',
-      name: 'DeepSeek R1 Demand Forecaster',
-      provider: 'DeepSeek AI',
-      logo: getR2CdnUrl('/assets/logo/deepseek.webp'),
-      desc: s.modelDescDeepSeek || 'Penalar tingkat tinggi untuk prediksi lonjakan permintaan produk akhir pekan'
-    },
-    {
-      id: 'ZeroClaw-Edge-Gateway',
-      name: 'ZeroClaw Realtime Inventory Audit',
-      provider: 'ZeroClaw Edge',
-      logo: getR2CdnUrl('/assets/logo/zeroclaw.jpeg'),
-      desc: s.modelDescZeroClaw || 'Agen ultra-ringan Rust murni untuk monitoring stok real-time ultra-rendah latency'
-    },
-    {
-      id: 'anthropic/claude-3.5-sonnet',
-      name: 'Claude 3.5 Sonnet Inventory Assistant',
-      provider: 'Anthropic AI',
-      logo: getR2CdnUrl('/assets/logo/claude.webp'),
-      desc: s.modelDescClaude || 'Model multimodal unggulan untuk penyusunan deskripsi & copywriting produk'
-    }
-  ];
-
-  const handleDeploy = async () => {
-    setSubmitting(true);
-    try {
-      const activeModelObj = modelOptions.find(m => m.id === selectedModel) || modelOptions[0];
-
-      await SupabaseDashboardService.deployStoreAiSwarm(getActiveTenantIds().storeId || '', {
-        swarm_name: swarmName,
-        model_engine: activeModelObj.id,
-        model_provider: activeModelObj.provider,
-        cdn_logo_url: activeModelObj.logo,
-        success_rate: 99.90,
-        latency_ms: 110
-      });
-
-      triggerToast(`${s.deploySuccess || '✓ Swarm Model'} "${activeModelObj.name}" ${s.deployedSuccessfully || 'Berhasil Di-deploy!'}`);
-      if (onRefresh) onRefresh();
-      onClose();
-    } catch (e) {
-      triggerToast(s.deployFailed || '⚠️ Gagal men-deploy AI Swarm');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const storeId = getActiveTenantIds().storeId || undefined;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span>{s.deploySwarmTitle || 'Deploy AI Inventory Swarm Engine'}</span>
-            </h3>
-            <p className="text-xs text-slate-400 font-medium">{s.deployModalSubtitle || 'Pilih mesin AI mutakhir untuk otomatisasi katalog dan inventaris toko.'}</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-4 text-xs font-semibold">
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-1">{s.swarmNameLabel || 'Nama Agent Swarm'}</label>
-            <input
-              type="text"
-              value={swarmName}
-              onChange={(e) => setSwarmName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-orange-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-600 dark:text-slate-400 mb-2">{s.selectAiEngine || 'Pilih Real AI Engine Model:'}</label>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {modelOptions.map((model) => (
-                <div
-                  key={model.id}
-                  onClick={() => setSelectedModel(model.id)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
-                    selectedModel === model.id
-                      ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
-                  }`}
-                >
-                  <img
-                    src={getR2CdnUrl(model.logo, true)}
-                    alt={model.name}
-                    className="size-8 rounded-xl object-contain bg-white p-0.5 border border-slate-200 shrink-0"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = getR2CdnUrl('/assets/logo/zegalogo.png');
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-slate-900 dark:text-slate-100">{model.name}</span>
-                      {selectedModel === model.id && (
-                        <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black">{s.selectedModel || 'Dipilih'}</span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{model.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3 pt-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 cursor-pointer"
-          >
-            {s.closeModal || 'Batal'}
-          </button>
-          <button
-            onClick={handleDeploy}
-            disabled={submitting}
-            className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold cursor-pointer shadow-xs"
-          >
-            {submitting ? (s.deployingSwarm || 'Men-deploy...') : (s.deploySwarmNow || 'Deploy Swarm Sekarang')}
-          </button>
-        </div>
-      </div>
-    </div>
+    <DeployInventorySwarmWizard
+      isOpen={isOpen}
+      onClose={onClose}
+      storeId={storeId}
+      onDeployed={(swarm) => {
+        triggerToast(`✓ AI Inventory Swarm "${swarm?.name || 'Inventaris'}" berhasil di-deploy!`);
+        if (onRefresh) onRefresh();
+      }}
+    />
   );
 }
 

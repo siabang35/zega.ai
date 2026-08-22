@@ -58,13 +58,13 @@ BEGIN
     IF v_store_id IS NOT NULL THEN
         IF NOT EXISTS (
             SELECT 1 FROM public.umkm_stores AS s
-            WHERE s.id = v_store_id
+            WHERE s.id::TEXT = v_store_id::TEXT
               AND (
-                  s.user_id = v_app_user_id
+                  s.user_id::TEXT = v_app_user_id::TEXT
                   OR EXISTS (
                       SELECT 1 FROM public.organization_members AS om
-                      WHERE om.organization_id = s.organization_id
-                        AND om.user_id = v_app_user_id
+                      WHERE om.organization_id::TEXT = s.organization_id::TEXT
+                        AND om.user_id::TEXT = v_app_user_id::TEXT
                         AND COALESCE(om.status, 'active') = 'active'
                   )
               )
@@ -78,11 +78,11 @@ BEGIN
     IF v_store_id IS NULL THEN
         SELECT s.id INTO v_store_id
         FROM public.umkm_stores AS s
-        WHERE s.user_id = v_app_user_id
+        WHERE s.user_id::TEXT = v_app_user_id::TEXT
            OR s.organization_id IN (
                SELECT om.organization_id
                FROM public.organization_members AS om
-               WHERE om.user_id = v_app_user_id
+               WHERE om.user_id::TEXT = v_app_user_id::TEXT
                  AND COALESCE(om.status, 'active') = 'active'
            )
         ORDER BY s.created_at DESC
@@ -107,7 +107,7 @@ BEGIN
         SELECT id, COALESCE(stock, 0) AS stock, COALESCE(price_idr, 0) AS price_idr
         FROM public.umkm_store_products
         WHERE id = ANY(p_product_ids)
-          AND (v_store_id IS NULL OR store_id = v_store_id)
+          AND (v_store_id IS NULL OR store_id::TEXT = v_store_id::TEXT)
     LOOP
         v_total_stock_delta := v_total_stock_delta + r.stock;
         v_stock_value_delta := v_stock_value_delta + (r.price_idr * r.stock);
@@ -117,7 +117,7 @@ BEGIN
     WITH deleted_rows AS (
         DELETE FROM public.umkm_store_products
         WHERE id = ANY(p_product_ids)
-          AND (v_store_id IS NULL OR store_id = v_store_id)
+          AND (v_store_id IS NULL OR store_id::TEXT = v_store_id::TEXT)
         RETURNING id
     )
     SELECT COUNT(*)::INTEGER, ARRAY_AGG(id)
@@ -132,16 +132,16 @@ BEGIN
         UPDATE public.umkm_store_metrics
         SET
             total_products = GREATEST(0, (
-                SELECT COUNT(*) FROM public.umkm_store_products WHERE store_id = v_store_id
+                SELECT COUNT(*) FROM public.umkm_store_products WHERE store_id::TEXT = v_store_id::TEXT
             )),
             total_stock = GREATEST(0, (
-                SELECT COALESCE(SUM(stock), 0) FROM public.umkm_store_products WHERE store_id = v_store_id
+                SELECT COALESCE(SUM(stock), 0) FROM public.umkm_store_products WHERE store_id::TEXT = v_store_id::TEXT
             )),
             stock_value_idr = GREATEST(0, (
-                SELECT COALESCE(SUM(price_idr * stock), 0) FROM public.umkm_store_products WHERE store_id = v_store_id
+                SELECT COALESCE(SUM(price_idr * stock), 0) FROM public.umkm_store_products WHERE store_id::TEXT = v_store_id::TEXT
             )),
             updated_at = NOW()
-        WHERE store_id = v_store_id;
+        WHERE store_id::TEXT = v_store_id::TEXT;
     END IF;
 
     v_result := jsonb_build_object(

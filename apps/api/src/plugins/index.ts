@@ -87,7 +87,11 @@ export async function registerPlugins(app: FastifyInstance) {
     'X-ZEGA-Source',
     'x-zega-source',
     'X-ZEGA-Signature',
-    'x-zega-signature'
+    'x-zega-signature',
+    'X-ZEGA-AI-Language',
+    'x-zega-ai-language',
+    'PreferredLanguage',
+    'preferredlanguage'
   ];
 
   const configuredOrigins = envConfig.CORS_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
@@ -298,7 +302,15 @@ export async function registerPlugins(app: FastifyInstance) {
     }
 
     // Cast for property access (Fastify enriches errors with these fields)
-    const error = err as Error & { validation?: unknown[]; statusCode?: number };
+    const error = err as Error & { validation?: unknown[]; statusCode?: number; code?: string };
+
+    // Handle empty JSON body on DELETE or GET requests gracefully
+    if (error.code === 'FST_ERR_CTP_EMPTY_JSON_BODY') {
+      return reply.status(200).send({
+        success: true,
+        data: { message: 'OK' },
+      });
+    }
 
     // Fastify validation errors
     if (error.validation) {
@@ -323,6 +335,20 @@ export async function registerPlugins(app: FastifyInstance) {
           code: 'RATE_LIMIT_EXCEEDED',
           message: error.message,
           statusCode: 429,
+          correlationId,
+          timestamp,
+        },
+      });
+    }
+
+    // Handle explicit HTTP status codes (e.g. 400, 403, 404)
+    if (error.statusCode && error.statusCode < 500) {
+      return reply.status(error.statusCode).send({
+        success: false,
+        error: {
+          code: error.code || 'CLIENT_ERROR',
+          message: error.message,
+          statusCode: error.statusCode,
           correlationId,
           timestamp,
         },

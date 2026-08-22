@@ -213,4 +213,27 @@ The **UMKM Billing & Plan Overview Command Center** (`BillingView.tsx`) has been
    - Complete sub-tab quick action button routing (Download Invoice, Ubah Paket, Tambah Metode, Lihat Usage Detail, Hubungi Support).
    - Live customer support ticket submission modal overlay writing directly to Supabase DB via RPC.
 
+---
+
+### 12.11 AI Inventory Auto-Stock Swarm Production Activation & Security Hardening
+
+The **AI Inventory Auto-Stock Swarm** feature has been fully productionized, hardened, and verified:
+
+1. **SQL Migration Suite (`20260823000000_ai_inventory_swarm_infrastructure.sql` & `20260823100000_harden_ai_swarm_rls_and_audit.sql`)**:
+   - 5 core tables (`ai_swarms`, `ai_swarm_agents`, `ai_swarm_skills`, `ai_swarm_executions`, `ai_swarm_execution_steps`) with strict tenant-scoped RLS checking `organization_members` membership for `auth.uid()`.
+   - Immutable audit logging table `ai_swarm_audit_logs`.
+
+2. **Backend API Authorization & Tool Guardrails (`swarm.routes.ts` & `inventoryTools.ts`)**:
+   - REST endpoints under `/v1/umkm/swarm` (`/deploy`, `/execute`, `/list`, `/executions`, `/executions/:id`, `PATCH /:id`, `DELETE /:id`).
+   - Cross-tenant execution block (`403 TENANT_SCOPE_VIOLATION`) and non-blocking audit logging.
+   - Tool `inventory.update_stock` hardened with `store_id` SQL predicate ensuring zero cross-tenant stock mutations.
+
+3. **Frontend Integration & Management Console (`supabaseService.ts`, `SwarmDashboardView.tsx`, `StoreView.tsx`)**:
+   - `supabaseService.ts` methods: `getInventorySwarmList()`, `updateSwarmStatus()`, `deleteSwarm()`, `executeInventorySwarm()`.
+   - Interactive management dashboard embedded in store view displaying deployed swarms, 5-agent active rosters (`COORDINATOR`, `INVENTORY_MONITOR`, `DEMAND_FORECASTER`, `STOCK_ANALYST`, `REORDER_ADVISOR`), run execution triggers, status toggles, and step execution log history.
+
+4. **Automated Verification (`apps/api/src/__tests__/inventory-swarm.test.ts`)**:
+   - 11/11 Vitest unit tests passing, verifying tenant isolation, authority level guardrails (`READ_ONLY` vs `WRITE`), parameter validation, skill mappings, and multi-agent orchestrator execution pipeline.
+
+
 

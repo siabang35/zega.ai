@@ -364,7 +364,7 @@ export const SupabaseDashboardService = {
 
       if (data?.session) {
         this.setSessionCookie(data.session);
-        await supabase.rpc('fn_record_user_login').catch(() => {});
+        try { await supabase.rpc('fn_record_user_login'); } catch (_) {}
         await this.logAuditTrail('USER_LOGIN', { email, userId: data.user.id });
       }
 
@@ -787,6 +787,150 @@ export const SupabaseDashboardService = {
     } catch (err: any) {
       console.error('Error incrementing AI task counter:', err);
       return { data: null, error: err.message };
+    }
+  },
+
+  // Helper for Swarm API Request Headers (Auth Token & Store Tenant ID)
+  async getSwarmRequestHeaders(storeId?: string, isJsonPayload = true) {
+    let token: string | null = getCanonicalAccessToken();
+    if (!token) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token || null;
+      } catch {}
+    }
+    if (!token && typeof window !== 'undefined') {
+      token = localStorage.getItem('zega_supabase_access_token') ||
+              localStorage.getItem('zega_access_token') ||
+              localStorage.getItem('zega_jwt') ||
+              localStorage.getItem('sb-access-token');
+    }
+    const activeTenant = getActiveTenantIds();
+    const effectiveStoreId = storeId || activeTenant.storeId || activeTenant.organizationId || '';
+    const headers: Record<string, string> = {};
+    if (isJsonPayload) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (effectiveStoreId) {
+      headers['X-Organization-Id'] = effectiveStoreId;
+      headers['X-Store-Id'] = effectiveStoreId;
+    }
+    return headers;
+  },
+
+  // 7f. Deploy AI Inventory Swarm
+  async deployInventorySwarm(payload: any) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(payload.storeId, true);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/deploy`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.error('Error deploying inventory swarm:', err);
+      return { success: false, error: { message: err?.message || 'Network error' } };
+    }
+  },
+
+  // 7g. Execute AI Inventory Swarm Run
+  async executeInventorySwarm(payload: any) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(payload.storeId, true);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/execute`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.error('Error executing inventory swarm:', err);
+      return { success: false, error: { message: err?.message || 'Network error' } };
+    }
+  },
+
+  // 7h. Get AI Inventory Swarm Execution History
+  async getInventorySwarmExecutions(storeId?: string) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(storeId, false);
+      const queryParam = storeId ? `?storeId=${storeId}` : '';
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/executions${queryParam}`, {
+        headers,
+      });
+      const data = await res.json();
+      return data?.data || [];
+    } catch (err: any) {
+      console.error('Error fetching swarm execution history:', err);
+      return [];
+    }
+  },
+
+  // 7i. Get AI Inventory Swarm Execution Detail
+  async getInventorySwarmExecutionDetail(executionId: string) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(undefined, false);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/executions/${executionId}`, {
+        headers,
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.error('Error fetching swarm execution detail:', err);
+      return { success: false, error: { message: err?.message || 'Network error' } };
+    }
+  },
+
+  // 7j. Get Deployed Inventory Swarm List
+  async getInventorySwarmList() {
+    try {
+      const headers = await this.getSwarmRequestHeaders(undefined, false);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/list`, {
+        headers,
+      });
+      const data = await res.json();
+      return data?.data || [];
+    } catch (err: any) {
+      console.error('Error fetching swarm list:', err);
+      return [];
+    }
+  },
+
+  // 7k. Update Swarm Status (ACTIVE/PAUSED/DECOMMISSIONED)
+  async updateSwarmStatus(swarmId: string, status: string) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(undefined, true);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/${swarmId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.error('Error updating swarm status:', err);
+      return { success: false, error: { message: err?.message || 'Network error' } };
+    }
+  },
+
+  // 7l. Delete (Decommission) Swarm
+  async deleteSwarm(swarmId: string) {
+    try {
+      const headers = await this.getSwarmRequestHeaders(undefined, false);
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/${swarmId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.error('Error deleting swarm:', err);
+      return { success: false, error: { message: err?.message || 'Network error' } };
     }
   },
 
@@ -2495,9 +2639,25 @@ export const SupabaseDashboardService = {
    */
   async getUmkmStoreOverview() {
     try {
-      const active = getActiveTenantIds();
-      const validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
-      const validStoreId = active.storeId && active.storeId !== active.userId ? active.storeId : null;
+      let active = getActiveTenantIds();
+      let validOrgId = isValidUuid(active.organizationId) ? active.organizationId : null;
+      let validStoreId = active.storeId && active.storeId !== active.userId ? active.storeId : null;
+
+      // Dynamic resolution fallback if active tenant context is not yet loaded in memory
+      if (!validStoreId || !validOrgId) {
+        try {
+          const { umkmSupabaseService } = await import('./umkmSupabaseService');
+          const canonical = await umkmSupabaseService.getCanonicalTenantContext();
+          if (canonical?.storeId && isValidUuid(canonical.storeId)) {
+            validStoreId = canonical.storeId;
+          }
+          if (canonical?.organizationId && isValidUuid(canonical.organizationId)) {
+            validOrgId = canonical.organizationId;
+          }
+        } catch (canonErr) {
+          console.warn('[getUmkmStoreOverview] Dynamic tenant context resolution notice:', canonErr);
+        }
+      }
 
       let metricsQuery = supabase.from('umkm_store_metrics').select('*');
       let perfQuery = supabase.from('umkm_store_performance').select('*').order('created_at', { ascending: true });
@@ -2506,14 +2666,14 @@ export const SupabaseDashboardService = {
       let swarmsQuery = supabase.from('umkm_store_swarms').select('*').order('created_at', { ascending: true });
       let insightsQuery = supabase.from('umkm_store_insights').select('*').order('created_at', { ascending: false });
 
-      if (validOrgId) {
+      if (validStoreId && validOrgId) {
         setSupabaseTenantHeader(validOrgId);
-        metricsQuery = metricsQuery.eq('organization_id', validOrgId);
-        perfQuery = perfQuery.eq('organization_id', validOrgId);
-        productsQuery = productsQuery.eq('organization_id', validOrgId);
-        categoriesQuery = categoriesQuery.eq('organization_id', validOrgId);
-        swarmsQuery = swarmsQuery.eq('organization_id', validOrgId);
-        insightsQuery = insightsQuery.eq('organization_id', validOrgId);
+        metricsQuery = metricsQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
+        perfQuery = perfQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
+        productsQuery = productsQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
+        categoriesQuery = categoriesQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
+        swarmsQuery = swarmsQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
+        insightsQuery = insightsQuery.or(`store_id.eq.${validStoreId},organization_id.eq.${validOrgId}`);
       } else if (validStoreId) {
         metricsQuery = metricsQuery.eq('store_id', validStoreId);
         perfQuery = perfQuery.eq('store_id', validStoreId);
@@ -2521,6 +2681,14 @@ export const SupabaseDashboardService = {
         categoriesQuery = categoriesQuery.eq('store_id', validStoreId);
         swarmsQuery = swarmsQuery.eq('store_id', validStoreId);
         insightsQuery = insightsQuery.eq('store_id', validStoreId);
+      } else if (validOrgId) {
+        setSupabaseTenantHeader(validOrgId);
+        metricsQuery = metricsQuery.eq('organization_id', validOrgId);
+        perfQuery = perfQuery.eq('organization_id', validOrgId);
+        productsQuery = productsQuery.eq('organization_id', validOrgId);
+        categoriesQuery = categoriesQuery.eq('organization_id', validOrgId);
+        swarmsQuery = swarmsQuery.eq('organization_id', validOrgId);
+        insightsQuery = insightsQuery.eq('organization_id', validOrgId);
       }
 
       const [metricsRes, performanceRes, productsRes, categoriesRes, swarmsRes, insightsRes] = await Promise.allSettled([
@@ -2537,20 +2705,19 @@ export const SupabaseDashboardService = {
         : [];
 
       // Fallback: If PostgREST products query returns empty (e.g. due to missing PostgREST session in External JWT mode),
-      // fetch products via Option A Backend Canonical API /v1/umkm/products
+      // fetch products via Option A Backend Canonical API /v1/umkm/products with canonical headers
       if (products.length === 0) {
         try {
-          const token = getCanonicalAccessToken();
+          const headers = getCanonicalAuthHeaders();
+          if (validOrgId) headers['x-organization-id'] = validOrgId;
+          if (validStoreId) headers['x-store-id'] = validStoreId;
+
           const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) ||
             (import.meta.env.VITE_API_URL as string) ||
             (window.location.origin.includes('localhost') ? 'http://localhost:3001' : 'https://api.zegaai.site');
 
           const res = await fetch(`${API_BASE}/v1/umkm/products`, {
-            headers: {
-              'Authorization': token ? `Bearer ${token}` : '',
-              ...(validOrgId ? { 'x-organization-id': validOrgId } : {}),
-              ...(validStoreId ? { 'x-store-id': validStoreId } : {})
-            }
+            headers
           });
 
           if (res.ok) {
@@ -3311,10 +3478,12 @@ export const SupabaseDashboardService = {
         const client = authObj?.client || supabase;
 
         let query = client.from('umkm_store_products').delete().in('id', targetIds);
-        if (isValidUuid(organizationId)) {
-          query = query.eq('organization_id', organizationId);
+        if (isValidUuid(effectiveStoreId) && isValidUuid(organizationId)) {
+          query = query.or(`store_id.eq.${effectiveStoreId},organization_id.eq.${organizationId}`);
         } else if (isValidUuid(effectiveStoreId)) {
           query = query.eq('store_id', effectiveStoreId);
+        } else if (isValidUuid(organizationId)) {
+          query = query.eq('organization_id', organizationId);
         }
 
         const { error: restErr } = await query;
@@ -8127,6 +8296,365 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
   },
 
   /**
+   * AI Swarm & Interactive Chatbot Control Plane SDK
+   */
+  async getSwarmDeployments(storeId: string = (getActiveTenantIds().storeId || '')) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/deployments?storeId=${storeId}`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) return json.data;
+      }
+    } catch (apiErr) {}
+
+    try {
+      const { data, error } = await supabase
+        .from('ai_swarms')
+        .select('*, agents:ai_swarm_agents(*)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('getSwarmDeployments fallback warning:', err);
+      return [];
+    }
+  },
+
+  async deployStockSwarm(storeId: string = (getActiveTenantIds().storeId || '')) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/deploy`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: 'AI Swarm Stock Management',
+          description: 'Production AI Swarm untuk analisis persediaan, prediksi stockout, dan restok otomatis.',
+          objective: 'INVENTORY_MANAGEMENT',
+          storeId,
+          agents: [
+            { role: 'COORDINATOR', name: 'Inventory Swarm Coordinator', description: 'Agent pengkoordinasi seluruh workflow stok' },
+            { role: 'INVENTORY_MONITOR', name: 'Stock Monitor Agent', description: 'Monitor stok real-time & alert low stock' },
+            { role: 'STOCK_ANALYST', name: 'Stock Performance Analyst', description: 'Analisis kecepatan penjualan & dead stock' },
+            { role: 'REORDER_ADVISOR', name: 'Reorder Optimization Advisor', description: 'Rekomendasi jumlah pesanan ulang' },
+            { role: 'DEMAND_FORECASTER', name: 'Demand Forecast Agent', description: 'Proyeksi permintaan 30 hari ke depan' },
+          ]
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) return json.data;
+      }
+    } catch (err) {}
+
+    // Direct DB fallback
+    try {
+      const swarmId = crypto.randomUUID();
+      const { data: newSwarm, error } = await supabase
+        .from('ai_swarms')
+        .insert([{
+          id: swarmId,
+          store_id: storeId,
+          name: 'AI Swarm Stock Management',
+          description: 'Production AI Swarm untuk analisis persediaan & restok otomatis.',
+          objective: 'INVENTORY_MANAGEMENT',
+          status: 'ACTIVE',
+          version: 'v1.0.0',
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return newSwarm;
+    } catch (err) {
+      console.warn('deployStockSwarm fallback error:', err);
+      return null;
+    }
+  },
+
+  async createSwarmChatSession(swarmId: string, title?: string, storeId: string = (getActiveTenantIds().storeId || '')) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/sessions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ swarmId, title: title || 'Chat Persediaan Barang', storeId })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {}
+
+    try {
+      const sessionId = crypto.randomUUID();
+      const { data, error } = await supabase
+        .from('ai_chat_sessions')
+        .insert([{
+          id: sessionId,
+          swarm_id: swarmId,
+          store_id: storeId,
+          title: title || 'Chat Persediaan Barang',
+          status: 'ACTIVE',
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.warn('createSwarmChatSession fallback error:', err);
+      return null;
+    }
+  },
+
+  async getSwarmChatSessions(storeId: string = (getActiveTenantIds().storeId || '')) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/sessions`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) return json.data;
+      }
+    } catch (err) {}
+
+    try {
+      const { data, error } = await supabase
+        .from('ai_chat_sessions')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('getSwarmChatSessions fallback error:', err);
+      return [];
+    }
+  },
+
+  async getSwarmChatMessages(sessionId: string) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/sessions/${sessionId}/messages`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) return json.data;
+      }
+    } catch (err) {}
+
+    try {
+      const { data, error } = await supabase
+        .from('ai_chat_messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('getSwarmChatMessages fallback error:', err);
+      return [];
+    }
+  },
+
+  async deleteSwarmChatSession(sessionId: string) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/sessions/${sessionId}`, { method: 'DELETE', headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) return true;
+      }
+    } catch (err) {}
+
+    try {
+      const { error } = await supabase.from('ai_chat_sessions').delete().eq('id', sessionId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('deleteSwarmChatSession fallback error:', err);
+      return true;
+    }
+  },
+
+  async sendSwarmChatMessage(params: { sessionId: string; swarmId: string; prompt: string; storeId?: string }) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/message`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          sessionId: params.sessionId,
+          swarmId: params.swarmId,
+          prompt: params.prompt,
+          storeId: params.storeId || (getActiveTenantIds().storeId || '')
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {}
+
+    return null;
+  },
+
+  async confirmSwarmChatMutation(params: { sessionId: string; swarmId: string; confirmationToken: string; action: string; params: Record<string, any>; storeId?: string }) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/swarm/chat/confirm-mutation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          sessionId: params.sessionId,
+          swarmId: params.swarmId,
+          confirmationToken: params.confirmationToken,
+          action: params.action,
+          params: params.params,
+          storeId: params.storeId || (getActiveTenantIds().storeId || '')
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {}
+
+    return null;
+  },
+
+  /**
+   * ── Universal AI Chat Methods (Multi-Swarm Gateway) ──────────────────────
+   */
+
+  async createUniversalChatSession(title?: string) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/sessions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ title: title || 'AI Store Assistant Chat' }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('createUniversalChatSession error:', err);
+    }
+    return null;
+  },
+
+  async getUniversalChatSessions() {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/sessions`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('getUniversalChatSessions error:', err);
+    }
+    return [];
+  },
+
+  async deleteUniversalChatSession(sessionId: string) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      if (res.ok) return true;
+    } catch (err) {
+      console.warn('deleteUniversalChatSession error:', err);
+    }
+    return false;
+  },
+
+  async sendUniversalChatMessage(params: { sessionId: string; prompt: string; preferredLanguage?: string }) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      if (params.preferredLanguage) {
+        headers['X-ZEGA-AI-Language'] = params.preferredLanguage;
+      }
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          sessionId: params.sessionId,
+          prompt: params.prompt,
+          preferredLanguage: params.preferredLanguage,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('sendUniversalChatMessage error:', err);
+    }
+    return null;
+  },
+
+  async getUniversalChatMessages(sessionId: string) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/sessions/${sessionId}/messages`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('getUniversalChatMessages error:', err);
+    }
+    return [];
+  },
+
+  async confirmUniversalMutation(params: { sessionId: string; confirmationToken: string; action: string; params: Record<string, any> }) {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/messages/confirm`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('confirmUniversalMutation error:', err);
+    }
+    return null;
+  },
+
+  async getAuthorizedSwarms() {
+    try {
+      const headers = getCanonicalAuthHeaders();
+      const res = await fetch(`${API_BASE}/v1/umkm/ai-chat/swarms`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      }
+    } catch (err) {
+      console.warn('getAuthorizedSwarms error:', err);
+    }
+    return { swarms: [], tenantContext: {} };
+  },
+
+  /**
    * Fetch System & Infrastructure Health Telemetry (Real-time DB + Ping Measurement)
    */
   async getUmkmSystemHealth(storeId: string = (getActiveTenantIds().storeId || '')) {
@@ -12754,6 +13282,7 @@ Dokumen ini disusun sebagai standar operasional kerja (SOP) baku bagi tim **${pa
     }
   }
 };
+
 
 
 

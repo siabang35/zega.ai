@@ -789,10 +789,12 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Fallback: direct service-role deletion with tenant boundary filter
         let deleteQuery = supabase.from('umkm_store_products').delete().in('id', targetIds);
-        if (tenantGraph.organizationId) {
-          deleteQuery = deleteQuery.eq('organization_id', tenantGraph.organizationId);
+        if (tenantGraph.storeId && tenantGraph.organizationId) {
+          deleteQuery = deleteQuery.or(`store_id.eq.${tenantGraph.storeId},organization_id.eq.${tenantGraph.organizationId}`);
         } else if (tenantGraph.storeId) {
           deleteQuery = deleteQuery.eq('store_id', tenantGraph.storeId);
+        } else if (tenantGraph.organizationId) {
+          deleteQuery = deleteQuery.eq('organization_id', tenantGraph.organizationId);
         }
 
         const { data: delData, error: delErr } = await deleteQuery.select('id');
@@ -865,11 +867,13 @@ export const umkmRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Query products using server-side service role client for resolved organization / store
-      let query = supabase.from('umkm_store_products').select('*');
-      if (tenantGraph.organizationId) {
-        query = query.eq('organization_id', tenantGraph.organizationId);
+      let query = supabase.from('umkm_store_products').select('*').order('created_at', { ascending: false });
+      if (tenantGraph.storeId && tenantGraph.organizationId) {
+        query = query.or(`store_id.eq.${tenantGraph.storeId},organization_id.eq.${tenantGraph.organizationId}`);
       } else if (tenantGraph.storeId) {
         query = query.eq('store_id', tenantGraph.storeId);
+      } else if (tenantGraph.organizationId) {
+        query = query.eq('organization_id', tenantGraph.organizationId);
       }
 
       const { data: products, error: prodErr } = await query.order('created_at', { ascending: false });
