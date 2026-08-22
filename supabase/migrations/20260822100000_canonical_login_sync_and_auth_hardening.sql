@@ -44,26 +44,31 @@ SET search_path = pg_catalog, public, auth, pg_temp
 AS $function$
 DECLARE
     v_existing_id UUID;
-    v_existing_auth_id UUID;
-    v_candidate_count INTEGER;
-    v_email TEXT := LOWER(TRIM(NEW.email));
-    v_name TEXT := COALESCE(
+    v_email TEXT;
+    v_name TEXT;
+    v_avatar TEXT;
+BEGIN
+    -- Extract email safely with fallback to raw_user_meta_data or synthetic email
+    v_email := LOWER(TRIM(COALESCE(
+        NEW.email,
+        NEW.raw_user_meta_data->>'email',
+        'user_' || REPLACE(NEW.id::text, '-', '') || '@zegaai.site'
+    )));
+
+    v_name := COALESCE(
         NEW.raw_user_meta_data->>'full_name',
         NEW.raw_user_meta_data->>'name',
-        NULLIF(SPLIT_PART(COALESCE(NEW.email, ''), '@', 1), ''),
+        NULLIF(SPLIT_PART(v_email, '@', 1), ''),
         'User'
     );
-    v_avatar TEXT := COALESCE(
+
+    v_avatar := COALESCE(
         NEW.raw_user_meta_data->>'avatar_url',
         NEW.raw_user_meta_data->>'picture',
         NULL
     );
-BEGIN
-    IF v_email IS NULL OR v_email = '' THEN
-        RETURN NEW;
-    END IF;
 
-    -- Lock candidate row for concurrency safety
+    -- Advisory lock per email to prevent concurrent insert race conditions
     PERFORM pg_advisory_xact_lock(
         hashtextextended(v_email, 882910)
     );
@@ -86,69 +91,61 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- 2. Check for unlinked legacy candidate matching email
-    SELECT COUNT(*) INTO v_candidate_count
+    -- 2. Check for existing candidate matching email (unlinked or previously created)
+    SELECT id INTO v_existing_id
     FROM public.users
-    WHERE LOWER(email) = v_email;
+    WHERE LOWER(email) = v_email
+    LIMIT 1;
 
-    IF v_candidate_count = 1 THEN
-        SELECT id, auth_user_id INTO v_existing_id, v_existing_auth_id
-        FROM public.users
-        WHERE LOWER(email) = v_email
-        LIMIT 1;
+    IF v_existing_id IS NOT NULL THEN
+        -- Link existing record to this auth user ID
+        UPDATE public.users
+        SET auth_user_id = NEW.id,
+            email = v_email,
+            full_name = COALESCE(v_name, full_name),
+            avatar_url = COALESCE(v_avatar, avatar_url),
+            updated_at = NOW()
+        WHERE id = v_existing_id;
 
-        IF v_existing_auth_id IS NULL THEN
-            -- Link existing unlinked record
-            UPDATE public.users
-            SET auth_user_id = NEW.id,
-                full_name = COALESCE(v_name, full_name),
-                avatar_url = COALESCE(v_avatar, avatar_url),
-                updated_at = NOW()
-            WHERE id = v_existing_id AND auth_user_id IS NULL;
-
-            RETURN NEW;
-        ELSIF v_existing_auth_id = NEW.id THEN
-            -- Already linked to this auth user
-            UPDATE public.users
-            SET full_name = COALESCE(v_name, full_name),
-                avatar_url = COALESCE(v_avatar, avatar_url),
-                updated_at = NOW()
-            WHERE id = v_existing_id;
-
-            RETURN NEW;
-        END IF;
+        RETURN NEW;
     END IF;
 
-    -- 3. Provision new canonical public.users record (last_login_at remains NULL on signup/sync)
-    INSERT INTO public.users (
-        id,
-        auth_user_id,
-        email,
-        full_name,
-        avatar_url,
-        role,
-        status,
-        billing_plan,
-        credits_balance,
-        created_at,
-        updated_at
-    ) VALUES (
-        gen_random_uuid(),
-        NEW.id,
-        v_email,
-        v_name,
-        v_avatar,
-        'individual',
-        'active',
-        'starter',
-        1000.00,
-        NOW(),
-        NOW()
-    )
-    ON CONFLICT (auth_user_id) DO UPDATE SET
-        full_name = EXCLUDED.full_name,
-        avatar_url = COALESCE(EXCLUDED.avatar_url, public.users.avatar_url),
-        updated_at = NOW();
+    -- 3. Provision new canonical public.users record safely
+    BEGIN
+        INSERT INTO public.users (
+            id,
+            auth_user_id,
+            email,
+            full_name,
+            avatar_url,
+            role,
+            status,
+            billing_plan,
+            credits_balance,
+            created_at,
+            updated_at
+        ) VALUES (
+            gen_random_uuid(),
+            NEW.id,
+            v_email,
+            v_name,
+            v_avatar,
+            'individual',
+            'active',
+            'starter',
+            1000.00,
+            NOW(),
+            NOW()
+        );
+    EXCEPTION WHEN unique_violation THEN
+        -- Fallback update if a race condition occurred on auth_user_id or email
+        UPDATE public.users
+        SET auth_user_id = NEW.id,
+            full_name = COALESCE(v_name, full_name),
+            avatar_url = COALESCE(v_avatar, avatar_url),
+            updated_at = NOW()
+        WHERE auth_user_id = NEW.id OR LOWER(email) = v_email;
+    END;
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
