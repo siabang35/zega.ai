@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Sparkles, Check, Database, Sliders, Cpu, Zap, ShieldCheck, FileText, Globe, Volume2, HardDrive
+  Sparkles, Check, Database, Sliders, Cpu, Zap, ShieldCheck, FileText, Globe, Volume2, HardDrive, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getR2CdnUrl } from '../../../../utils/cdn';
 import { SupabaseDashboardService } from '../../../services/supabaseService';
@@ -58,7 +58,8 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
   const [saving, setSaving] = useState(false);
 
   // AI Preferences States
-  const [selectedModel, setSelectedModel] = useState('GPT-4o (Recommended)');
+  const [selectedModel, setSelectedModel] = useState('Auto 9Router Swarm Engine (Multi-Model)');
+  const [isModelListExpanded, setIsModelListExpanded] = useState(false);
   const [responseStyle, setResponseStyle] = useState('Profesional');
   const [useDataForTraining, setUseDataForTraining] = useState(true);
   const [autoInsights, setAutoInsights] = useState(true);
@@ -77,32 +78,46 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
 
   const models = [
     {
-      id: 'GPT-4o (Recommended)',
-      name: 'GPT-4o (Recommended)',
+      id: 'Auto 9Router Swarm Engine (Multi-Model)',
+      name: 'Auto 9Router Swarm Engine (Multi-Model)',
       badge: 'Recommended',
+      badgeClass: 'bg-orange-50 text-orange-700 border border-orange-200/80 dark:bg-orange-950/60 dark:text-orange-400 dark:border-orange-800',
+      desc: prefT?.autoSwarmDesc || 'Orkestrator otomatis memadukan Llama 3.3 70B, DeepSeek R1, Gemini Flash, & GPT-4o sesuai kompleksitas tugas'
+    },
+    {
+      id: 'DeepSeek-R1 / V3 (Reasoning & Finance)',
+      name: 'DeepSeek-R1 / V3 (Reasoning)',
+      badge: 'Pro Reasoning',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-800',
+      desc: prefT?.deepseekDesc || 'Spesialis reasoning mendalam, analisis HPP, & proyeksi keuangan'
+    },
+    {
+      id: 'Llama 3.3 70B (Groq LPU)',
+      name: 'Llama 3.3 70B (Groq LPU)',
+      badge: 'Sub-800ms Fast',
       badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800',
+      desc: prefT?.llamaDesc || 'Inference ultra-cepat sub-800ms via Groq LPU Hardware Acceleration'
+    },
+    {
+      id: 'GPT-4o (OpenAI Flagship)',
+      name: 'GPT-4o (OpenAI)',
+      badge: 'Flagship LLM',
+      badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-400 dark:border-purple-800',
       desc: prefT?.gptDesc || 'Akurat, cepat, dan seimbang untuk semua jenis agent'
     },
     {
       id: 'Claude 3.5 Sonnet',
       name: 'Claude 3.5 Sonnet',
-      badge: 'Pro Reasoning',
-      badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-400 dark:border-purple-800',
-      desc: prefT?.claudeDesc || 'Lebih baik untuk analisis & penulisan narasi panjang'
-    },
-    {
-      id: 'Gemini 1.5 Pro',
-      name: 'Gemini 1.5 Pro',
-      badge: '1M Context',
-      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-800',
-      desc: prefT?.geminiDesc || 'Kuat untuk pemrosesan dokumen besar & reasoning'
-    },
-    {
-      id: 'Llama 3 70B',
-      name: 'Llama 3 70B',
-      badge: 'Zero-Trust Private',
+      badge: 'Deep Context',
       badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-800',
-      desc: prefT?.llamaDesc || 'Open source, privasi maksimal & hosting terisolasi'
+      desc: prefT?.claudeDesc || 'Unggul untuk penulisan narasi panjang & analisis SOP'
+    },
+    {
+      id: 'Gemini 2.0 Flash',
+      name: 'Gemini 2.0 Flash',
+      badge: '1M Context',
+      badgeClass: 'bg-cyan-50 text-cyan-700 border border-cyan-200/80 dark:bg-cyan-950/60 dark:text-cyan-400 dark:border-cyan-800',
+      desc: prefT?.geminiDesc || 'Pemrosesan dokumen besar & pencarian informasi berkonteks tinggi'
     }
   ];
 
@@ -230,10 +245,10 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
       {/* Grid Layout (Matched Heights & Structured Alignments) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         
-        {/* Card 1: Default AI Model */}
+        {/* Card 1: Default AI Model (Collapsible for Mobile & Seamless Layout) */}
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
           <div>
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                   <Cpu size={14} className="text-orange-500" /> {prefT?.defaultModelTitle || 'Model AI Default'}
@@ -242,56 +257,108 @@ export function AIPreferencesTab({ triggerToast }: AIPreferencesTabProps) {
                   {prefT?.defaultModelSub || 'Pilih model LLM utama yang mengeksekusi tugas AI Employees.'}
                 </p>
               </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
-                4 Available
-              </span>
+
+              {/* Buka/Tutup Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsModelListExpanded(!isModelListExpanded)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] font-bold border border-orange-500/20 transition-all shrink-0 cursor-pointer"
+                title={isModelListExpanded ? (prefT?.closeEngine || 'Tutup') : (prefT?.changeEngine || 'Ubah Engine')}
+              >
+                <span>{isModelListExpanded ? (prefT?.closeEngine || 'Tutup') : (prefT?.changeEngine || 'Ubah Engine')}</span>
+                {isModelListExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
             </div>
 
+            {/* Model Selection List */}
             <div className="space-y-2 mt-3">
-              {models.map((m) => {
-                const isSelected = selectedModel === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedModel(m.id);
-                      handleSave({ default_model: m.id });
-                    }}
-                    className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-1 ring-orange-500/20'
-                        : 'border-slate-100 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/60 dark:bg-slate-950/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-md bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center p-0.5 shrink-0">
-                        <ModelBrandLogo modelKey={m.id} defaultName={m.name} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                            {m.name}
-                          </h4>
-                          {m.badge && (
-                            <span className={`px-1.5 py-0.2 rounded-md text-[8px] font-extrabold ${m.badgeClass}`}>
-                              {m.badge}
-                            </span>
-                          )}
+              {/* Default Closed View: Show ONLY Active Selected Model + Toggle Info */}
+              {!isModelListExpanded ? (
+                (() => {
+                  const activeM = models.find((m) => m.id === selectedModel) || models[0];
+                  return (
+                    <div
+                      onClick={() => setIsModelListExpanded(true)}
+                      className="p-2.5 rounded-lg border border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-1 ring-orange-500/20 cursor-pointer flex items-center justify-between gap-3 transition-all hover:bg-orange-50/60"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-7 rounded-md bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                          <ModelBrandLogo modelKey={activeM.id} defaultName={activeM.name} />
                         </div>
-                        <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
-                          {m.desc}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                              {activeM.name}
+                            </h4>
+                            {activeM.badge && (
+                              <span className={`px-1.5 py-0.2 rounded-md text-[8px] font-extrabold ${activeM.badgeClass}`}>
+                                {activeM.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                            {activeM.desc}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[9px] font-extrabold text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-orange-200 dark:border-orange-900/60 shrink-0">
+                        <span>{prefT?.selectEngineBadge || 'PILIH (6 ENGINE)'}</span>
+                        <ChevronDown size={11} />
                       </div>
                     </div>
+                  );
+                })()
+              ) : (
+                /* Expanded View: Show All Candidate Models */
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  {models.map((m) => {
+                    const isSelected = selectedModel === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedModel(m.id);
+                          handleSave({ default_model: m.id });
+                          setIsModelListExpanded(false); // Auto collapse on select for seamless mobile experience
+                        }}
+                        className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/30 ring-1 ring-orange-500/20'
+                            : 'border-slate-100 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/60 dark:bg-slate-950/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="size-7 rounded-md bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 flex items-center justify-center p-0.5 shrink-0">
+                            <ModelBrandLogo modelKey={m.id} defaultName={m.name} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {m.name}
+                              </h4>
+                              {m.badge && (
+                                <span className={`px-1.5 py-0.2 rounded-md text-[8px] font-extrabold ${m.badgeClass}`}>
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                              {m.desc}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className={`size-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                      isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
-                    }`}>
-                      {isSelected && <Check size={8} />}
-                    </div>
-                  </div>
-                );
-              })}
+                        <div className={`size-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                          isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 dark:border-slate-700'
+                        }`}>
+                          {isSelected && <Check size={8} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
